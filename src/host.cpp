@@ -176,6 +176,62 @@ static void Walk(uint8_t* obj, const Xf& parent, const std::string& pkgName, std
 }
 
 
+static int GameMode();
+// Development aid: scripts\NFSU2_REUI.dump appears -> every FEng object on screen (hidden ones too) with its raw
+// data goes to scripts\NFSU2_REUI_dump.txt (used to rebuild the game's HUD pieces).
+static void DumpWalk(FILE* f, uint8_t* obj, const Xf& parent, int depth) {
+    for (int guard = 0; obj && guard < 4096; ++guard, obj = *(uint8_t**)(obj + 4)) {
+        if (!Readable(obj, 0x78)) return;
+        uint32_t type = *(uint32_t*)(obj + 0x18), flags = *(uint32_t*)(obj + 0x1C), nameHash = *(uint32_t*)(obj + 0x10), res = *(uint32_t*)(obj + 0x24);
+        uint8_t* d = *(uint8_t**)(obj + 0x2C);
+        if (!Readable(d, 0x54)) { fprintf(f, "%*s? type %u name %08X (no data)\n", depth * 2, "", type, nameHash); continue; }
+        const float* v = (const float*)d; const int* c = (const int*)d;
+        bool rotated = false;
+        Xf me = Local(v, parent, c, rotated);
+        float ax = me.m[0][0], ay = me.m[1][0], bx = me.m[0][1], by = me.m[1][1];
+        float la = sqrtf(ax * ax + ay * ay), lb = sqrtf(bx * bx + by * by);
+        float deg = atan2f(ay, ax) * 180 / 3.14159265f;
+        std::string tn;
+        if (type != fe::kGroup && type != fe::kString) if (uint8_t* ti = TexInfo(res)) { char n[25] = {}; memcpy(n, ti + 0x0C, 24); tn = n; }
+        std::string str;
+        if (type == fe::kString) {
+            if (flags & 2) { const wchar_t* w = *(const wchar_t**)(obj + 0x64); if (Readable(w, 2)) str = Narrow(w); }
+            else { static wchar_t buf[0x800]; buf[0] = 0; if (((bool(__cdecl*)(wchar_t*, int, uint32_t))fe::LocalizeString)(buf, 0x800, *(uint32_t*)(obj + 0x60))) str = Narrow(buf); }
+            for (auto& ch : str) if (ch == '\n') ch = '|';
+        }
+        fprintf(f, "%*s%s name %08X obj %p flags %X res %08X%s%s | screen %.1f %.1f size %.1f %.1f turn %.1f det %.2f z %.1f alpha %.2f col %d %d %d %d"
+                   " | raw pos %.1f %.1f %.1f pivot %.1f %.1f size %.3f %.3f quat %.3f %.3f %.3f %.3f uv %.3f %.3f %.3f %.3f%s%s\n",
+                depth * 2, "", type == fe::kGroup ? "GROUP" : type == fe::kString ? "TEXT" : type == fe::kImage ? "IMAGE" : type == fe::kMultiImage ? "MULTI" : type == fe::kColoredImage ? "CIMAGE" : "OTHER",
+                nameHash, obj, flags, res, tn.empty() ? "" : " tex ", tn.c_str(), me.t[0], me.t[1], la, lb, deg, ax * by - ay * bx, me.z, me.col[3], c[2], c[1], c[0], c[3],
+                v[0x1C / 4], v[0x20 / 4], v[0x24 / 4], v[0x10 / 4], v[0x14 / 4], v[0x38 / 4], v[0x3C / 4], v[0x28 / 4], v[0x2C / 4], v[0x30 / 4], v[0x34 / 4],
+                v[0x44 / 4], v[0x48 / 4], v[0x4C / 4], v[0x50 / 4], str.empty() ? "" : " text: ", str.c_str());
+        if (type == fe::kGroup && depth < 16 && *(int*)(obj + 0x60) > 0) DumpWalk(f, *(uint8_t**)(obj + 0x64), me, depth + 1);
+    }
+}
+static void PollDump() {
+    static DWORD next = 0;
+    DWORD now = GetTickCount();
+    if (now < next) return;
+    next = now + 1000;
+    std::string q = g_scriptsDir + "NFSU2_REUI.dump";
+    if (GetFileAttributesA(q.c_str()) == INVALID_FILE_ATTRIBUTES) return;
+    DeleteFileA(q.c_str());
+    std::string out = g_scriptsDir + "NFSU2_REUI_dump.txt";
+    FILE* f = fopen(out.c_str(), "w");
+    if (!f) return;
+    CarValues cv = ReadCar();
+    fprintf(f, "# screen %.0fx%.0f, mode %d, hud style [0x89E7C0] %d, car rpm %.0f max %.0f gear %d speed %.2f nos %.3f boost %.3f\n",
+            ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y, GameMode(), *(int*)0x89E7C0, cv.rpm, cv.rpmMax, cv.gear, cv.speed, cv.nos, cv.boost);
+    for (auto& p : FengPackages()) {
+        uint8_t* pkg = (uint8_t*)p.first;
+        if (!Readable(pkg, 0x50)) continue;
+        fprintf(f, "\n=== package %s (%p)\n", p.second.c_str(), pkg);
+        DumpWalk(f, *(uint8_t**)(pkg + 0x4C), Xf(), 0);
+    }
+    fclose(f);
+    Log("dump: %s written", out.c_str());
+}
+
 static char g_captureName[64] = "";
 static std::string g_lastCapture;
 
@@ -272,6 +328,7 @@ void HostInit() {
 // Menu pages without UniPad: the menu key opens the start page, arrows / Enter / Esc drive it (UniPad, when installed,
 // drives them with the pad through the API instead)
 void HostTick(bool focused) {
+    if (g_ready) PollDump();
     if (!g_ready || g_uniPad || g_menuDriverExternal) return;
     static bool keyWas = false;
     static LARGE_INTEGER f = {}, last = {};
