@@ -42,10 +42,13 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   New element types: needles / rotation by value, fill bars bound to a value, conditional visibility, a minimap
   widget.
 
-- **P5 distribution (later, once REUI is ready).** Package a light build of REUI that only renders and drives the
-  UniPad pause-menu pages: no editor, no HUD replacement. It ships with UniPad and carries the menu pages built in
-  REUI. Until then, UniPad's own built-in renderer and UI editor are left as they are (decided 2026-10-26).
-  Standalone UniPad today keeps its older menu-only editor, ships no menu pages, and so has no "UniPad Options" item.
+- **P5 distribution (later, once REUI is ready).** Light builds of REUI ship with the other mods: a renderer
+  without the editor or HUD replacement, which carries the pages built in REUI (decided 2026-10-26).
+  - **UniPad:** renders and drives the UniPad pause-menu pages. Until then, UniPad's own built-in renderer and UI
+    editor are left as they are. Standalone UniPad today keeps its older menu-only editor and ships no menu pages,
+    so it has no "UniPad Options" item.
+  - **Multiplayer mod:** renders the player leaderboards and the mod's new dedicated menus. Until then the
+    multiplayer mod keeps its own overlay as it is.
 
 ## Status
 Installed for testing next to UniPad (F6, its own scripts\NFSU2_REUI_layout.txt). Repo not created yet: local tree
