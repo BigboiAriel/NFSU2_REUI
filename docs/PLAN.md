@@ -33,6 +33,8 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   positions and heading.
 - **P4 replace the HUD + element types.** *Started:* elements can be shown only while a value is set (showif) and
   driven by a value (bind: fill left-right / bottom-top, rotation between two angles).
+  Images can follow a stock HUD object (follow = its FEng name hash: the game's place, size, turn, uv, texture and
+  visibility every frame) and be clipped to a circle - the minimap is rebuilt that way.
   Hide the game's HUD per element through the HUD feature mask
   (0x600090, thiscall(hudOwner) -> u64; each component switched by a bit; the multiplayer tester returns 0).
   New element types: needles / rotation by value, fill bars bound to a value, conditional visibility, a minimap

@@ -34,6 +34,7 @@ namespace uied {
 std::function<bool(const std::string&, std::string&)> tokens;
 int boardRows = 4; bool boardFollow = true; bool testMode = false; bool menuMode = false;
 std::function<IDirect3DTexture9*(const std::string&, float*, float*)> liveTexture;
+std::function<bool(unsigned, GameObject&)> gameObject;
 std::vector<std::string> iconFamilies, iconKeys;
 std::function<IDirect3DTexture9*(int, int, int)> iconTexture;
 std::function<std::string(int, int)> iconLabel;
@@ -401,6 +402,11 @@ struct Elem {
     float bindMin = 0, bindMax = 100, rotMin = 0, rotMax = 270;
     float cutLo = 0, cutHi = 1;           // fills: the part of the image the value fills (0 = empty sits here, 1 = full)
     float pivX = 0, pivY = 0;             // images: the point turned about, from the centre (units; e.g. a needle's hub)
+    // follow: a game HUD object (FEng name hash) this image copies every frame - its place (by the anchor's screen
+    // edge, x / y added), size (times scale), turn (rot added), uv and visibility; its texture unless one is set
+    // here; colours multiply. circle: drawn clipped to the circle inside its box (a minimap).
+    unsigned follow = 0;
+    bool circle = false;
 };
 static std::vector<Elem> g_layout[NMODES];   // one overlay per game mode
 static int g_editMode = 0, g_nowMode = -1;
@@ -470,7 +476,21 @@ static ImVec2 ElemSize(Elem& e) {
     }
     return ImVec2(e.w, e.h);
 }
+// a followed game object's box on screen (false: not on screen now). 640x480 game units put by the anchor's edge:
+// left / centre / right columns keep their distance from that edge (the widescreen fix does the same).
+static bool FollowBox(const Elem& e, GameObject& g, ImVec2& a, ImVec2& b) {
+    if (!e.follow || !gameObject || !gameObject(e.follow, g)) return false;
+    ImVec2 ds = ImGui::GetIO().DisplaySize; float k = ds.y / 480.f;
+    int col = e.anchor % 3;
+    float cx = col == 0 ? (g.x + 320) * k : col == 1 ? ds.x / 2 + g.x * k : ds.x - (320 - g.x) * k;
+    float cy = (g.y + 240) * k;
+    cx += e.x * k; cy += e.y * k;
+    float hw = g.w * e.scale * k / 2, hh = g.h * e.scale * k / 2;
+    a = ImVec2(cx - hw, cy - hh); b = ImVec2(cx + hw, cy + hh);
+    return true;
+}
 static void ElemRect(Elem& e, ImVec2& a, ImVec2& b) {
+    if (e.follow && e.type == E_IMAGE) { GameObject g; if (FollowBox(e, g, a, b)) return; }
     ImVec2 ds = ImGui::GetIO().DisplaySize; float k = Unit();
     float ax = (e.anchor % 3) * 0.5f, ay = (e.anchor / 3) * 0.5f;
     ImVec2 sz = ElemSize(e);
@@ -528,6 +548,16 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!RowShown(e, mine) && !editing) return;   // (while editing, rows nobody fills are drawn so they can be placed)
     ImVec2 a, b; ElemRect(e, a, b);
     ImU32 col = Col(mine && e.hiMine ? e.hiCol : e.col);
+    GameObject go; bool following = false;
+    if (e.type == E_IMAGE && e.follow) {
+        following = FollowBox(e, go, a, b);
+        if (!following && !editing) return;   // the game isn't showing it
+        if (following) {
+            const float* c0 = mine && e.hiMine ? e.hiCol : e.col;
+            float c[4]; for (int i = 0; i < 4; ++i) c[i] = c0[i] * go.col[i];
+            col = Col(c);
+        }
+    }
     if (e.type == E_IMAGE) {
         int ifam, iid;
         bool icon = IconRef(e.tex, ifam, iid);   // a controller button icon (its own textures)
@@ -538,13 +568,35 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (!tx && !icon && e.texIdx < 0 && liveTexture && !e.tex.empty()) tx = liveTexture(e.tex, &su, &sv);
         ImVec2 uv0(e.u0 * su, e.v0 * sv), uv1(e.u1 * su, e.v1 * sv);
         float rotSave = e.rot, bf = BindFrac(e);
+        if (following) {   // the game's texture and uv (unless this element has its own art), and its turn
+            if (e.tex.empty()) { tx = go.tex; uv0 = ImVec2(go.u0 * go.su, go.v0 * go.sv); uv1 = ImVec2(go.u1 * go.su, go.v1 * go.sv); }
+            e.rot = rotSave + go.rot;
+        }
         if (bf >= 0.f && (e.bindKind == 1 || e.bindKind == 2)) bf = e.cutLo + (e.cutHi - e.cutLo) * bf;
         if (bf >= 0.f && e.bindKind == 1) { b.x = a.x + (b.x - a.x) * bf; uv1.x = uv0.x + (uv1.x - uv0.x) * bf; }
         if (bf >= 0.f && e.bindKind == 2) { a.y = b.y - (b.y - a.y) * bf; uv0.y = uv1.y - (uv1.y - uv0.y) * bf; }
         if (bf >= 0.f && e.bindKind == 3) e.rot = e.rotMin + (e.rotMax - e.rotMin) * bf;
         struct Restore { Elem& e; float r; ~Restore() { e.rot = r; } } restore{ e, rotSave };
         if (tx && (bf == 0.f && (e.bindKind == 1 || e.bindKind == 2))) tx = nullptr;   // empty bar: nothing
-        if (tx && e.rot == 0) dl->AddImage((ImTextureID)tx, a, b, uv0, uv1, col);
+        if (tx && e.circle) {   // clipped to the circle in its box: a fan, uv following the (turned) picture
+            float r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
+            ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2);
+            float hw = (b.x - a.x) / 2, hh = (b.y - a.y) / 2, rad = std::min(hw, hh);
+            const int N = 64;
+            dl->PushTextureID((ImTextureID)tx);
+            dl->PrimReserve(N * 3, N + 1);
+            ImDrawIdx base = (ImDrawIdx)dl->_VtxCurrentIdx;
+            ImVec2 uvc((uv0.x + uv1.x) / 2, (uv0.y + uv1.y) / 2);
+            dl->PrimWriteVtx(c, uvc, col);
+            for (int i = 0; i < N; ++i) {
+                float t = i * 6.2831853f / N, lx = cosf(t) * rad, ly = sinf(t) * rad;   // in the picture's own frame
+                ImVec2 uv(uv0.x + (lx / (2 * hw) + 0.5f) * (uv1.x - uv0.x), uv0.y + (ly / (2 * hh) + 0.5f) * (uv1.y - uv0.y));
+                dl->PrimWriteVtx(ImVec2(c.x + lx * cs - ly * sn, c.y + lx * sn + ly * cs), uv, col);
+            }
+            for (int i = 0; i < N; ++i) { dl->PrimWriteIdx(base); dl->PrimWriteIdx((ImDrawIdx)(base + 1 + i)); dl->PrimWriteIdx((ImDrawIdx)(base + 1 + (i + 1) % N)); }
+            dl->PopTextureID();
+        }
+        else if (tx && e.rot == 0) dl->AddImage((ImTextureID)tx, a, b, uv0, uv1, col);
         else if (tx) {
             float r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
             float ku = Unit();
@@ -597,6 +649,8 @@ static void Save() {
         if (e.bindKind == 3) fprintf(f, "bindrot=%g %g\n", e.rotMin, e.rotMax);
         if (e.cutLo != 0 || e.cutHi != 1) fprintf(f, "bindcut=%g %g\n", e.cutLo, e.cutHi);
         if (e.pivX != 0 || e.pivY != 0) fprintf(f, "pivot=%g %g\n", e.pivX, e.pivY);
+        if (e.follow) fprintf(f, "follow=%08X\n", e.follow);
+        if (e.circle) fprintf(f, "circle=1\n");
     };
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
     for (auto& e : g_kit) put(0, e);
@@ -657,6 +711,8 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
         else if (k == "bindrot") sscanf(v.c_str(), "%f %f", &e.rotMin, &e.rotMax);
         else if (k == "bindcut") sscanf(v.c_str(), "%f %f", &e.cutLo, &e.cutHi);
         else if (k == "pivot") sscanf(v.c_str(), "%f %f", &e.pivX, &e.pivY);
+        else if (k == "follow") e.follow = (unsigned)strtoul(v.c_str(), nullptr, 16);
+        else if (k == "circle") e.circle = atoi(v.c_str()) != 0;
     }
     fclose(f);
     if (merge) g_dirty = true; else g_dirty = false;
@@ -1244,6 +1300,15 @@ static void Selected(Elem& e) {
         ImGui::SetNextItemWidth(220); if (ImGui::DragFloat("rotation", &e.rot, 0.5f, -360.f, 360.f, "%.1f deg")) g_dirty = true;
         ImGui::SameLine(); if (ImGui::SmallButton("+90")) { e.rot = fmodf(e.rot + 90, 360); g_dirty = true; }
         ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("pivot (from centre)", &e.pivX, 0.25f, -2000.f, 2000.f, "%.1f")) g_dirty = true;
+        if (ImGui::Checkbox("clip to a circle", &e.circle)) g_dirty = true;
+        ImGui::SameLine();
+        {
+            static char fb[16]; snprintf(fb, sizeof fb, e.follow ? "%08X" : "", e.follow);
+            ImGui::SetNextItemWidth(90);
+            if (ImGui::InputTextWithHint("follows game object", "name hash", fb, sizeof fb, ImGuiInputTextFlags_CharsHexadecimal)) { e.follow = (unsigned)strtoul(fb, nullptr, 16); g_dirty = true; }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("A stock HUD object's FEng name hash: this image copies where the game puts it, its size, turn,\nuv and whether it's shown, every frame (position / rotation here are added; texture: its own unless set).");
+            if (e.follow) { GameObject g; ImGui::SameLine(); ImGui::TextDisabled(gameObject && gameObject(e.follow, g) ? "(on screen)" : "(not shown now)"); }
+        }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("The point it turns about, from its centre: a needle's hub.");
         int ifam, iid;
         if (IconRef(e.tex, ifam, iid)) {

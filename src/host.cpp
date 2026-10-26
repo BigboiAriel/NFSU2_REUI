@@ -19,6 +19,7 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace reui {
@@ -232,6 +233,64 @@ static void PollDump() {
     Log("dump: %s written", out.c_str());
 }
 
+// gameObject (uied.h): every visible FEng object on screen this frame by name hash, built once per frame on first use
+static std::unordered_map<uint32_t, uied::GameObject> g_objs;
+static int g_objsFrame = -1;
+static void ObjWalk(uint8_t* obj, const Xf& parent, int depth) {
+    for (int guard = 0; obj && guard < 4096; ++guard, obj = *(uint8_t**)(obj + 4)) {
+        if (!Readable(obj, 0x78)) return;
+        uint32_t type = *(uint32_t*)(obj + 0x18), flags = *(uint32_t*)(obj + 0x1C);
+        uint8_t* d = *(uint8_t**)(obj + 0x2C);
+        if ((flags & 1) || !Readable(d, 0x54)) continue;
+        const float* f = (const float*)d;
+        bool rotated = false;
+        Xf me = Local(f, parent, (const int*)d, rotated);
+        if (me.col[3] <= 0.004f) continue;
+        if (type == fe::kGroup) {
+            if (depth < 16 && *(int*)(obj + 0x60) > 0) ObjWalk(*(uint8_t**)(obj + 0x64), me, depth + 1);
+            continue;
+        }
+        if (type != fe::kImage && type != fe::kMultiImage && type != fe::kColoredImage) continue;
+        uint32_t nameHash = *(uint32_t*)(obj + 0x10);
+        if (g_objs.count(nameHash)) continue;
+        float ax = me.m[0][0], ay = me.m[1][0], bx = me.m[0][1], by = me.m[1][1];
+        uied::GameObject g;
+        g.w = sqrtf(ax * ax + ay * ay); g.h = sqrtf(bx * bx + by * by);
+        bool flipX = ax * by - ay * bx < 0, flipY = false;
+        if (flipX) ax = -ax, ay = -ay;
+        float deg = atan2f(ay, ax) * 180 / 3.14159265f;
+        if (fabsf(deg) > 135) { flipX = !flipX; flipY = true; deg += deg > 0 ? -180 : 180; }
+        g.rot = deg; g.x = me.t[0]; g.y = me.t[1];
+        g.u0 = f[0x44 / 4]; g.v0 = f[0x48 / 4]; g.u1 = f[0x4C / 4]; g.v1 = f[0x50 / 4];
+        if (flipX) std::swap(g.u0, g.u1);
+        if (flipY) std::swap(g.v0, g.v1);
+        for (int i = 0; i < 4; ++i) g.col[i] = me.col[i] > 1 ? 1 : me.col[i];
+        if (uint8_t* ti = TexInfo(*(uint32_t*)(obj + 0x24))) {
+            IDirect3DTexture9* tx = *(IDirect3DTexture9**)(ti + 0x18);
+            if (tx && !IsBadReadPtr(tx, 4)) {
+                g.tex = tx;
+                D3DSURFACE_DESC dd; int w = *(int16_t*)(ti + 0x44), h = *(int16_t*)(ti + 0x46);
+                if (SUCCEEDED(tx->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && w > 0 && h > 0) { g.su = (float)w / dd.Width; g.sv = (float)h / dd.Height; }
+            }
+        }
+        g_objs[nameHash] = g;
+    }
+}
+static bool GameObjectNow(unsigned hash, uied::GameObject& out) {
+    int fr = ImGui::GetCurrentContext() ? ImGui::GetFrameCount() : 0;
+    if (fr != g_objsFrame) {
+        g_objsFrame = fr; g_objs.clear();
+        for (auto& p : FengPackages()) {
+            uint8_t* pkg = (uint8_t*)p.first;
+            if (Readable(pkg, 0x50)) ObjWalk(*(uint8_t**)(pkg + 0x4C), Xf(), 0);
+        }
+    }
+    auto it = g_objs.find(hash);
+    if (it == g_objs.end()) return false;
+    out = it->second;
+    return true;
+}
+
 static char g_captureName[64] = "";
 static std::string g_lastCapture;
 
@@ -313,6 +372,7 @@ void HostInit() {
     uied::menuMode = false;
     g_uniPad = GetModuleHandleA("NFSU2UniPad.asi") != nullptr;
     uied::tokens = Token;
+    uied::gameObject = GameObjectNow;
     uied::liveTexture = [](const std::string& name, float* su, float* sv) -> IDirect3DTexture9* {
         uint8_t* ti = TexInfo(BHash(name.c_str()));
         IDirect3DTexture9* tx = ti ? *(IDirect3DTexture9**)(ti + 0x18) : nullptr;

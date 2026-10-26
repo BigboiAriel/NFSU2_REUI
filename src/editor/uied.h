@@ -37,6 +37,11 @@ namespace uied {
     // live copy, by name; nullptr when it isn't loaded right now. *su / *sv: the picture's share of the texture
     // (the game pads textures to powers of two)
     extern std::function<IDirect3DTexture9*(const std::string& name, float* su, float* sv)> liveTexture;
+    // A game HUD object as it is on screen this frame, by its FEng name hash (the host walks the loaded packages):
+    // centre x, y from the screen centre in 640x480 units (y down), size, turn (degrees clockwise), uv, colour, its
+    // texture (su / sv: the picture's share of a padded texture). Not found / hidden: false.
+    struct GameObject { float x = 0, y = 0, w = 0, h = 0, rot = 0, u0 = 0, v0 = 0, u1 = 1, v1 = 1, col[4] = {1, 1, 1, 1}, su = 1, sv = 1; IDirect3DTexture9* tex = nullptr; };
+    extern std::function<bool(unsigned nameHash, GameObject& out)> gameObject;
     // UniPad: controller button icons, as image textures named "icon:<family>:<key>" ("icon:auto:South" = the
     // active controller's family, so it switches between Xbox / PlayStation / ... art). Families and keys by index.
     extern std::vector<std::string> iconFamilies, iconKeys;
