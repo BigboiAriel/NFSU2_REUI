@@ -89,7 +89,7 @@ static const CarValues& Car() {
 }
 
 bool CarToken(const std::string& k, std::string& out) {
-    static const char* kKeys[] = { "rpm", "rpm_max", "rpm_pct", "rpm_k", "gear", "shift_light", "speedo", "speed_unit",
+    static const char* kKeys[] = { "rpm", "rpm_max", "rpm_pct", "rpm_k", "gear", "shift_light", "speedo", "speed_unit", "speed_unit_hud",
                                    "nos", "nos_tank", "nos_extra", "nos_installed", "nos_on", "throttle", "reverse", "boost", "turbo" };
     bool known = false; for (auto kk : kKeys) if (k == kk) known = true;
     if (!known) return false;
@@ -106,6 +106,7 @@ bool CarToken(const std::string& k, std::string& out) {
     else if (k == "shift_light") out = c.shiftLight ? "1" : "";
     else if (k == "speedo") f0(fabsf(c.speed) * (c.metric ? 3.6f : 2.237f));
     else if (k == "speed_unit") out = c.metric ? "KPH" : "MPH";
+    else if (k == "speed_unit_hud") out = c.metric ? "KM/H" : "MPH";   // as the stock speedometer labels it
     else if (k == "nos") { if (c.nosInstalled) f0(c.nos * 100.f); }
     else if (k == "nos_tank") { if (c.nosInstalled) f0(std::min(c.nos, 1.f) * 100.f); }
     else if (k == "nos_extra") { if (c.nosInstalled) f0(std::max(c.nos - 1.f, 0.f) * 100.f); }

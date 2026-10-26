@@ -463,7 +463,7 @@ void HostPanel() {
         static const E kVals[] = {
             { "fps", "Frames per second." }, { "cash", "Your bank, as $12,345." }, { "cash_raw", "Your bank, just the number." }, { "speed", "Speed in km/h (from the car's velocity)." }, { "mph", "Speed in mph." },
             { "speedo", "Speed as the game's speedometer shows it, in the units picked in the game's options." },
-            { "speed_unit", "KPH or MPH, following the game's options." },
+            { "speed_unit", "KPH or MPH, following the game's options." }, { "speed_unit_hud", "KM/H or MPH, as the stock speedometer labels it." },
             { "rpm", "Engine RPM." }, { "rpm_k", "RPM in thousands (6.5)." }, { "rpm_max", "The tachometer's full scale." },
             { "rpm_pct", "RPM as 0-100 of the tachometer." }, { "gear", "R, N, 1-7." }, { "reverse", "1 in reverse." },
             { "shift_light", "1 while the game's shift light is on." }, { "throttle", "Throttle pedal, 0-100." },
