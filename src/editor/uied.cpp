@@ -421,6 +421,7 @@ struct Elem {
     bool circle = false;
     bool additive = false;                // images: added onto what's under them (glows; black = nothing)
     std::string tint;                     // a value key giving "R G B" (0-255) that multiplies the colour (the car's HUD paints)
+    int anim = 0;                         // 1 pulse (grows and fades, ~1 s), 2 blink (on / off, ~0.5 s)
 };
 static std::vector<Elem> g_layout[NMODES];   // one overlay per game mode
 static int g_editMode = 0, g_nowMode = -1;
@@ -573,6 +574,16 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             col = Col(c);
         }
     }
+    if (e.anim && !editing) {   // pulse: up to 30% bigger and half faded; blink: hidden half the time
+        double t = ImGui::GetTime();
+        if (e.anim == 2 && fmod(t, 0.6) > 0.3) return;
+        if (e.anim == 1) {
+            float s = 0.5f - 0.5f * cosf((float)fmod(t, 1.0) * 6.2831853f);   // 0..1..0
+            ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), h((b.x - a.x) / 2 * (1 + 0.3f * s), (b.y - a.y) / 2 * (1 + 0.3f * s));
+            a = ImVec2(c.x - h.x, c.y - h.y); b = ImVec2(c.x + h.x, c.y + h.y);
+            ImVec4 cv = ImGui::ColorConvertU32ToFloat4(col); cv.w *= 1 - 0.5f * s; col = ImGui::ColorConvertFloat4ToU32(cv);
+        }
+    }
     GameObject go; bool following = false;
     if (e.type == E_IMAGE && e.follow) {
         following = FollowBox(e, go, a, b);
@@ -710,6 +721,7 @@ static void Save() {
         if (e.circle) fprintf(f, "circle=1\n");
         if (e.additive) fprintf(f, "additive=1\n");
         if (!e.tint.empty()) fprintf(f, "tint=%s\n", e.tint.c_str());
+        if (e.anim) fprintf(f, "anim=%d\n", e.anim);
     };
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
     for (auto& e : g_kit) put(0, e);
@@ -774,6 +786,7 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
         else if (k == "circle") e.circle = atoi(v.c_str()) != 0;
         else if (k == "additive") e.additive = atoi(v.c_str()) != 0;
         else if (k == "tint") e.tint = v;
+        else if (k == "anim") e.anim = std::max(0, std::min(2, atoi(v.c_str())));
     }
     fclose(f);
     if (merge) g_dirty = true; else g_dirty = false;
@@ -1420,6 +1433,7 @@ static void Selected(Elem& e) {
             if (ImGui::InputTextWithHint("tint from", "e.g. tach_paint_1", tb2, sizeof tb2)) { e.tint = tb2; g_dirty = true; }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("A live value giving \"R G B\" (0-255) that multiplies the colour - the car's custom HUD paints.");
         }
+        { const char* an[] = { "still", "pulse", "blink" }; ImGui::SameLine(); ImGui::SetNextItemWidth(80); if (ImGui::Combo("animation", &e.anim, an, 3)) g_dirty = true; }
         if (e.type == E_IMAGE) {
             const char* kinds[] = { "nothing", "fill left to right", "fill bottom to top", "rotation", "reveal (turning half)" };
             ImGui::SetNextItemWidth(160);

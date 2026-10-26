@@ -141,7 +141,48 @@ static const TachArt& Tach() {   // once a second (and when the car changes)
     return t;
 }
 
+// The Cingular / Engage panel (top left). Engage HUD = [[[0x8900AC] + 0x9A4] + 0x58] (built by 0x4F83D0): 8 slots at +0x60,
+// 0x14 each: byte state (2 / 3 just arrived, 4 waiting, 6 idle), byte type (1..18 events / shops by 0x4ABE50's icon,
+// 17 and 20 other, 19 a text message), +0x10 its count. 0x4C90B0 picks the slot the panel shows (0x4C9030 runs it):
+// events 0x4C8B80 (phone icon pulsing, the type's icon blinking, D-pad up pulsing); text messages 0x4ABAF0 (new: phone
+// pulsing, the envelope animating, D-pad right pulsing; waiting: Cingular logo, envelope + "x<count>"); else the
+// Cingular logo.
+struct Engage { bool ok = false; int state = 0, type = 0, count = 0; };
+static Engage ReadEngage() {
+    Engage g;
+    if (*(int*)0x8654A4 != 6) return g;
+    uint8_t* p1 = *(uint8_t**)0x8900AC;
+    uint8_t* hud = R(p1, 0x9A8) ? *(uint8_t**)(p1 + 0x9A4) : nullptr;
+    uint8_t* eng = R(hud, 0x5C) ? *(uint8_t**)(hud + 0x58) : nullptr;
+    if (!R(eng, 0x60 + 8 * 0x14)) return g;
+    g.ok = true;
+    uint8_t* slot = ((uint8_t*(__thiscall*)(void*))0x4C90B0)(eng);
+    if (!R(slot, 0x14)) return g;
+    g.state = (int8_t)slot[0]; g.type = (int8_t)slot[1]; g.count = *(int*)(slot + 0x10);
+    return g;
+}
+static bool EngageToken(const std::string& k, std::string& out) {
+    if (k.compare(0, 7, "engage_") != 0 && k.compare(0, 4, "sms_") != 0) return false;
+    Engage g = ReadEngage();
+    bool fresh = g.state == 2 || g.state == 3;
+    bool sms = g.type == 19, event = g.type >= 1 && g.type <= 18 && g.type != 17;
+    char b[32];
+    out.clear();
+    if (k == "engage_state") { if (g.ok) { snprintf(b, sizeof b, "%d", g.state); out = b; } }
+    else if (k == "engage_type") { if (g.ok) { snprintf(b, sizeof b, "%d", g.type); out = b; } }
+    else if (k == "engage_phone") out = fresh && (sms || event) ? "1" : "";      // the phone icon (pulsing) instead of the Cingular logo
+    else if (k == "engage_event") out = fresh && event ? "1" : "";             // an event / shop to drive into: its icon, D-pad up
+    else if (k == "engage_icon") { if (fresh && event) { snprintf(b, sizeof b, "#%08X", ((uint32_t(__cdecl*)(int))0x4ABE50)(g.type)); out = b; } }
+    else if (k == "sms_new") out = fresh && sms ? "1" : "";
+    else if (k == "sms_waiting") out = g.state == 4 && sms ? "1" : "";
+    else if (k == "sms_any") out = sms && (fresh || g.state == 4) ? "1" : "";
+    else if (k == "sms_count") { if (sms) { snprintf(b, sizeof b, "%d", g.count); out = b; } }
+    else return false;
+    return true;
+}
+
 bool CarToken(const std::string& k, std::string& out) {
+    if (EngageToken(k, out)) return true;
     if (k.compare(0, 5, "tach_") == 0 || k.compare(0, 6, "turbo_") == 0 || k == "hud_color") {
         static const char* kTex[8] = {"tach_lines", "tach_redline", "tach_fill", "", "tach_needle", "turbo_lines", "turbo_fill", "turbo_needle"};
         const TachArt& t = Tach();
