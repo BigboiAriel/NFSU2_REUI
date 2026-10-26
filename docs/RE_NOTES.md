@@ -34,3 +34,16 @@ NFSU2 has no speedbreaker: "NOS_GameBreaker" / "Tach_NOS_Gamebreaker" objects ar
   for the extra (value - 1).
 - Boost needle 0x4C6B80: angle 0x4AA160(v, lo, hi) = lo + (v + 1) / 2 * (hi - lo) (360-wrapped): -14..222 normally,
   158 / 96 in drag (0x78E058..0x78E064).
+
+## Stock tach art per car (0x4F5100 / 0x5ED9B0)
+ride = 0x5ED960(0x89E7A0, player) + 0x10; handling = 0x5B5350(ride + 0x10, 1) + 0x1F0; HUD colour = attribute
+"HUDINDEX" (0x61B500) of the car's part in slot 0xA3 (0x6102F0). 0x5ED9B0([ride], handling, player, out[8], colour)
+gives texture hashes {lines, redline, fill, -, needle, turbo lines, turbo fill, turbo needle}: "%s_CUSTOM_%02d" names
+(TACH_FILL, 3RDPERSON_RPMDIAL, 3RDPERSON_7500/8500/9500/10500LINES by class, 3RDPERSON_TURBO*), redline
+3RDPERSON_REDLINE_<rpm>. Class 0x60FE10(handling) 0..7 -> full scale 10500 10500 9500 9500 8500 8500 7500 7500;
+[hud+0xC4] = limiter / scale * 235, so the needle turns clamp(rpm, 0, limiter) / scale * 235 degrees from pointing
+down (checked: 850 rpm on an 8500 dial = 23.5). Texture infos keep 24 characters of a name; +0x24 is the full
+name's hash.
+Nitrous arc (analog style): TACH_NOS drawn only where NOS_MASK's alpha half-disc lets it (the mask turned to
+v * 152 - 180 degrees about its centre); REUI does it with "reveal (turning half)" + additive. Boost needle:
+104 + v * 118 degrees (0x4AA160 with -14 / 222).

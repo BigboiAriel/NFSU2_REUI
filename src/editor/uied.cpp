@@ -138,6 +138,18 @@ static void AddInfoTex(const std::vector<uint8_t>& d, size_t e, uint32_t fmt, in
     t.dataOff = U32(d, e + 0x30); t.palOff = U32(d, e + 0x34); t.size = U32(d, e + 0x38); t.palSize = U32(d, e + 0x3C);
     t.top = U32(d, e + 0x40); t.w = U16(d, e + 0x44); t.h = U16(d, e + 0x46);
     if (t.name.empty() || !t.w || !t.h || t.w > 4096 || t.h > 4096) return;
+    {   // names are cut at 24 characters ("TACH_..._CUSTOM_04" variants then share one): the full name's hash is at +0x24
+        uint32_t want = U32(d, e + 0x24);
+        auto bh = [](const std::string& s) { uint32_t h = 0xFFFFFFFF; for (char c : s) h = h * 33 + (uint8_t)c; return h; };
+        if (t.name.size() >= 23 && bh(t.name) != want) {
+            size_t cut = t.name.rfind("_C");
+            if (cut != std::string::npos)
+                for (int i = 0; i < 100; ++i) {
+                    char n[64]; snprintf(n, sizeof n, "%s_CUSTOM_%02d", t.name.substr(0, cut).c_str(), i);
+                    if (bh(n) == want) { t.name = n; break; }
+                }
+        }
+    }
     if (blob) { t.blob = true; t.blobOff = blobOff; t.blobSize = blobSize; t.palOff = t.size; t.dataOff = 0; }
     else t.dataOff += (uint32_t)data0, t.palOff += (uint32_t)data0;
     out.push_back(t);
@@ -407,6 +419,7 @@ struct Elem {
     // here; colours multiply. circle: drawn clipped to the circle inside its box (a minimap).
     unsigned follow = 0;
     bool circle = false;
+    bool additive = false;                // images: added onto what's under them (glows; black = nothing)
 };
 static std::vector<Elem> g_layout[NMODES];   // one overlay per game mode
 static int g_editMode = 0, g_nowMode = -1;
@@ -540,6 +553,9 @@ static float BindFrac(const Elem& e) {
     float f = d != 0 ? (v - e.bindMin) / d : 0.f;
     return f < 0 ? 0.f : f > 1 ? 1.f : f;
 }
+static void AdditiveOn(const ImDrawList*, const ImDrawCmd*) {   // the next draws add onto the screen
+    if (g_dev) { g_dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA); g_dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE); }
+}
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
     if (!editing && !ShowIfOk(e)) return;
@@ -561,11 +577,15 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (e.type == E_IMAGE) {
         int ifam, iid;
         bool icon = IconRef(e.tex, ifam, iid);   // a controller button icon (its own textures)
-        if (e.texIdx == -2) e.texIdx = icon ? -3 : FindTex(e.tex, e.pack);
+        bool texVal = !icon && e.tex.find('{') != std::string::npos;   // "{tach_fill}": the texture a live value names
+        if (e.texIdx == -2) e.texIdx = icon ? -3 : texVal ? -1 : FindTex(e.tex, e.pack);
         // icons: drawn for their size on screen (an SVG is re-rasterised to it)
         IDirect3DTexture9* tx = icon ? (iconTexture ? iconTexture(ifam, iid, (int)ceilf(std::max(b.x - a.x, b.y - a.y))) : nullptr) : TexOf(e.texIdx);
         float su = 1, sv = 1;   // a live texture padded to a power of two: the picture is its top-left part
-        if (!tx && !icon && e.texIdx < 0 && liveTexture && !e.tex.empty()) tx = liveTexture(e.tex, &su, &sv);
+        if (!tx && !icon && e.texIdx < 0 && liveTexture && !e.tex.empty()) {
+            std::string tn = texVal ? Expand(e.tex) : e.tex;
+            if (!tn.empty() && tn.find('{') == std::string::npos) tx = liveTexture(tn, &su, &sv);
+        }
         ImVec2 uv0(e.u0 * su, e.v0 * sv), uv1(e.u1 * su, e.v1 * sv);
         float rotSave = e.rot, bf = BindFrac(e);
         if (following) {   // the game's texture and uv (unless this element has its own art), and its turn
@@ -576,9 +596,36 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (bf >= 0.f && e.bindKind == 1) { b.x = a.x + (b.x - a.x) * bf; uv1.x = uv0.x + (uv1.x - uv0.x) * bf; }
         if (bf >= 0.f && e.bindKind == 2) { a.y = b.y - (b.y - a.y) * bf; uv0.y = uv1.y - (uv1.y - uv0.y) * bf; }
         if (bf >= 0.f && e.bindKind == 3) e.rot = e.rotMin + (e.rotMax - e.rotMin) * bf;
+        if (e.bindKind == 4 && bf < 0.f) tx = nullptr;   // reveal with no value: nothing
         struct Restore { Elem& e; float r; ~Restore() { e.rot = r; } } restore{ e, rotSave };
         if (tx && (bf == 0.f && (e.bindKind == 1 || e.bindKind == 2))) tx = nullptr;   // empty bar: nothing
-        if (tx && e.circle) {   // clipped to the circle in its box: a fan, uv following the (turned) picture
+        if (tx && e.additive) dl->AddCallback(AdditiveOn, nullptr);
+        if (tx && bf >= 0.f && e.bindKind == 4) {   // reveal: only the half on the "up" side of a line through the pivot, turned by the value
+            float ku = Unit(), th = (e.rotMin + (e.rotMax - e.rotMin) * bf) * 3.14159265f / 180;
+            ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), pv(c.x + e.pivX * ku, c.y + e.pivY * ku), up(sinf(th), -cosf(th));
+            struct V { ImVec2 p, uv; };
+            V in[4] = {{a, uv0}, {ImVec2(b.x, a.y), ImVec2(uv1.x, uv0.y)}, {b, uv1}, {ImVec2(a.x, b.y), ImVec2(uv0.x, uv1.y)}}, o[8];
+            int n = 0;
+            auto side = [&](const V& v) { return (v.p.x - pv.x) * up.x + (v.p.y - pv.y) * up.y; };
+            for (int i = 0; i < 4; ++i) {
+                const V& p = in[i]; const V& q = in[(i + 1) % 4];
+                float sp = side(p), sq = side(q);
+                if (sp >= 0) o[n++] = p;
+                if ((sp >= 0) != (sq >= 0)) {
+                    float t = sp / (sp - sq);
+                    o[n++] = {ImVec2(p.p.x + (q.p.x - p.p.x) * t, p.p.y + (q.p.y - p.p.y) * t), ImVec2(p.uv.x + (q.uv.x - p.uv.x) * t, p.uv.y + (q.uv.y - p.uv.y) * t)};
+                }
+            }
+            if (n >= 3) {
+                dl->PushTextureID((ImTextureID)tx);
+                dl->PrimReserve((n - 2) * 3, n);
+                ImDrawIdx base = (ImDrawIdx)dl->_VtxCurrentIdx;
+                for (int i = 0; i < n; ++i) dl->PrimWriteVtx(o[i].p, o[i].uv, col);
+                for (int i = 1; i + 1 < n; ++i) { dl->PrimWriteIdx(base); dl->PrimWriteIdx((ImDrawIdx)(base + i)); dl->PrimWriteIdx((ImDrawIdx)(base + i + 1)); }
+                dl->PopTextureID();
+            }
+        }
+        else if (tx && e.circle) {   // clipped to the circle in its box: a fan, uv following the (turned) picture
             float r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
             ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2);
             float hw = (b.x - a.x) / 2, hh = (b.y - a.y) / 2, rad = std::min(hw, hh);
@@ -606,6 +653,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             dl->AddImageQuad((ImTextureID)tx, P(-hw.x, -hw.y), P(hw.x, -hw.y), P(hw.x, hw.y), P(-hw.x, hw.y),
                              uv0, ImVec2(uv1.x, uv0.y), uv1, ImVec2(uv0.x, uv1.y), col);
         }
+        if (tx && e.additive) dl->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
     } else {
         if (e.fontIdx == -2) e.fontIdx = FindFont(e.font);
         std::string s = Expand(e.text, e.row);
@@ -646,11 +694,12 @@ static void Save() {
         if (!e.kit.empty()) fprintf(f, "kit=%s\n", Esc(e.kit).c_str());
         if (!e.showIf.empty()) fprintf(f, "showif=%s\n", e.showIf.c_str());
         if (e.bindKind) fprintf(f, "bind=%s\nbindkind=%d\nbindrange=%g %g\n", e.bind.c_str(), e.bindKind, e.bindMin, e.bindMax);
-        if (e.bindKind == 3) fprintf(f, "bindrot=%g %g\n", e.rotMin, e.rotMax);
+        if (e.bindKind == 3 || e.bindKind == 4) fprintf(f, "bindrot=%g %g\n", e.rotMin, e.rotMax);
         if (e.cutLo != 0 || e.cutHi != 1) fprintf(f, "bindcut=%g %g\n", e.cutLo, e.cutHi);
         if (e.pivX != 0 || e.pivY != 0) fprintf(f, "pivot=%g %g\n", e.pivX, e.pivY);
         if (e.follow) fprintf(f, "follow=%08X\n", e.follow);
         if (e.circle) fprintf(f, "circle=1\n");
+        if (e.additive) fprintf(f, "additive=1\n");
     };
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
     for (auto& e : g_kit) put(0, e);
@@ -706,13 +755,14 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
         else if (k == "kit") e.kit = Unesc(v);
         else if (k == "showif") e.showIf = v;
         else if (k == "bind") e.bind = v;
-        else if (k == "bindkind") e.bindKind = std::max(0, std::min(3, atoi(v.c_str())));
+        else if (k == "bindkind") e.bindKind = std::max(0, std::min(4, atoi(v.c_str())));
         else if (k == "bindrange") sscanf(v.c_str(), "%f %f", &e.bindMin, &e.bindMax);
         else if (k == "bindrot") sscanf(v.c_str(), "%f %f", &e.rotMin, &e.rotMax);
         else if (k == "bindcut") sscanf(v.c_str(), "%f %f", &e.cutLo, &e.cutHi);
         else if (k == "pivot") sscanf(v.c_str(), "%f %f", &e.pivX, &e.pivY);
         else if (k == "follow") e.follow = (unsigned)strtoul(v.c_str(), nullptr, 16);
         else if (k == "circle") e.circle = atoi(v.c_str()) != 0;
+        else if (k == "additive") e.additive = atoi(v.c_str()) != 0;
     }
     fclose(f);
     if (merge) g_dirty = true; else g_dirty = false;
@@ -1301,6 +1351,7 @@ static void Selected(Elem& e) {
         ImGui::SameLine(); if (ImGui::SmallButton("+90")) { e.rot = fmodf(e.rot + 90, 360); g_dirty = true; }
         ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("pivot (from centre)", &e.pivX, 0.25f, -2000.f, 2000.f, "%.1f")) g_dirty = true;
         if (ImGui::Checkbox("clip to a circle", &e.circle)) g_dirty = true;
+        ImGui::SameLine(); if (ImGui::Checkbox("glow (additive)", &e.additive)) g_dirty = true;
         ImGui::SameLine();
         {
             static char fb[16]; snprintf(fb, sizeof fb, e.follow ? "%08X" : "", e.follow);
@@ -1353,16 +1404,17 @@ static void Selected(Elem& e) {
         if (ImGui::InputTextWithHint("show only while", "value key, e.g. nos_on", sb, sizeof sb)) { e.showIf = sb; g_dirty = true; }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("A live value's key (no braces). Shown only while it isn't blank or 0.\n!key: only while it is. Empty: always.");
         if (e.type == E_IMAGE) {
-            const char* kinds[] = { "nothing", "fill left to right", "fill bottom to top", "rotation" };
+            const char* kinds[] = { "nothing", "fill left to right", "fill bottom to top", "rotation", "reveal (turning half)" };
             ImGui::SetNextItemWidth(160);
-            if (ImGui::Combo("value drives", &e.bindKind, kinds, 4)) g_dirty = true;
+            if (ImGui::Combo("value drives", &e.bindKind, kinds, 5)) g_dirty = true;
+            if (e.bindKind == 4 && ImGui::IsItemHovered()) ImGui::SetTooltip("Only the half on the far side of a line through the pivot is drawn; the line turns with the value\n(from / to angle; 0 = the top half shows). The game's nitrous arc works like this.");
             if (e.bindKind) {
                 snprintf(bb, sizeof bb, "%s", e.bind.c_str());
                 ImGui::SetNextItemWidth(160);
                 if (ImGui::InputTextWithHint("value", "key, e.g. rpm_pct", bb, sizeof bb)) { e.bind = bb; g_dirty = true; }
                 ImGui::SetNextItemWidth(160);
                 if (ImGui::DragFloat2("from / to value", &e.bindMin, 1.f, -100000.f, 100000.f, "%.0f")) g_dirty = true;
-                if (e.bindKind == 3) { ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("from / to angle", &e.rotMin, 0.5f, -720.f, 720.f, "%.0f deg")) g_dirty = true; }
+                if (e.bindKind == 3 || e.bindKind == 4) { ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("from / to angle", &e.rotMin, 0.5f, -720.f, 720.f, "%.0f deg")) g_dirty = true; }
                 if (e.bindKind == 1 || e.bindKind == 2) {
                     ImGui::SetNextItemWidth(160);
                     if (ImGui::DragFloat2("empty / full at", &e.cutLo, 0.002f, 0.f, 1.f, "%.3f")) g_dirty = true;

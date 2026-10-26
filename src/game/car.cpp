@@ -43,6 +43,7 @@ CarValues ReadCar() {
     c.metric = *(uint8_t*)0x83AA1A == 1;
     c.gear = *(int*)(car + 0x434);
     c.gearChar = 'X';
+    c.gearGrey = *(int*)(car + 0x448) != 0;
     for (int i = 0; i < 10; ++i) if (*(int8_t*)(0x7F66A4 + i * 2) == c.gear) { c.gearChar = *(char*)(0x7F66A5 + i * 2); break; }
     bool player = *(int*)(car + 0x28) == 1;
     uint8_t* eng = *(uint8_t**)(car + 0x34);
@@ -88,9 +89,61 @@ static const CarValues& Car() {
     return c;
 }
 
+// The stock tachometer's art for the current car, as its constructor 0x4F5100 picks it: ride = 0x5ED960(0x89E7A0,
+// player) + 0x10; handling = 0x5B5350(ride + 0x10, 1) + 0x1F0 (+4 redline, +8 limiter); the car's custom HUD part
+// (slot 0xA3, 0x6102F0) gives its colour (attribute "HUDINDEX", 0x61B500); 0x5ED9B0 fills the texture hashes
+// {lines, redline, fill, -, needle, turbo lines, turbo fill, turbo needle}. The dial's full scale by 0x60FE10's class
+// (0..7): 10500 10500 9500 9500 8500 8500 7500 7500; the needle turns clamp(rpm, 0, limiter) / scale * 235 degrees.
+static const CarValues& Car();
+struct TachArt { bool ok = false; uint32_t tex[8] = {}; float scale = 0, limiter = 0; int hud = 0; };
+static TachArt ReadTach() {
+    TachArt t;
+    if (*(int*)0x8654A4 != 6) return t;
+    uint8_t* r = ((uint8_t*(__thiscall*)(void*, int))0x5ED960)((void*)0x89E7A0, 0);
+    if (!R(r, 0x30)) return t;
+    r += 0x10;
+    uint8_t* h = ((uint8_t*(__thiscall*)(void*, int))0x5B5350)(r + 0x10, 1);
+    if (!R(h, 0x200)) return t;
+    float* hp = (float*)(h + 0x1F0);
+    void* part = ((void*(__thiscall*)(void*, int))0x6102F0)(r, 0xA3);
+    uint32_t key = ((uint32_t(__cdecl*)(const char*))0x43DB50)("HUDINDEX");
+    t.hud = part && R(part, 4) ? ((int(__thiscall*)(void*, uint32_t, int))0x61B500)(part, key, 0) : 0;
+    ((void(__cdecl*)(uint32_t, float*, int, uint32_t*, int))0x5ED9B0)(*(uint32_t*)r, hp, 0, t.tex, t.hud);
+    int cls = ((int(__cdecl*)(float*))0x60FE10)(hp);
+    static const float kScale[8] = {10500, 10500, 9500, 9500, 8500, 8500, 7500, 7500};
+    t.scale = cls >= 0 && cls < 8 ? kScale[cls] : 10500;
+    t.limiter = hp[2];
+    t.ok = true;
+    return t;
+}
+static const TachArt& Tach() {   // once a second (and when the car changes)
+    static TachArt t; static DWORD at = 0; static void* car = nullptr;
+    uint8_t* p1 = *(uint8_t**)0x8900AC;
+    void* c = R(p1, 8) ? *(void**)(p1 + 4) : nullptr;
+    DWORD now = GetTickCount();
+    if (c != car || now - at > 1000) { t = c ? ReadTach() : TachArt(); at = now; car = c; }
+    return t;
+}
+
 bool CarToken(const std::string& k, std::string& out) {
+    if (k.compare(0, 5, "tach_") == 0 || k.compare(0, 6, "turbo_") == 0 || k == "hud_color") {
+        static const char* kTex[8] = {"tach_lines", "tach_redline", "tach_fill", "", "tach_needle", "turbo_lines", "turbo_fill", "turbo_needle"};
+        const TachArt& t = Tach();
+        out.clear();
+        char b[32];
+        for (int i = 0; i < 8; ++i) if (kTex[i][0] && k == kTex[i]) { if (t.ok && t.tex[i]) { snprintf(b, sizeof b, "#%08X", t.tex[i]); out = b; } return true; }
+        if (k == "tach_angle") {
+            const CarValues& c = Car();
+            if (!t.ok || !c.valid || t.scale <= 0) return true;
+            float r = std::max(0.f, std::min(c.rpm, t.limiter > 0 ? t.limiter : c.rpm));
+            snprintf(b, sizeof b, "%.2f", r / t.scale * 235.f); out = b; return true;
+        }
+        if (k == "tach_max") { if (t.ok) { snprintf(b, sizeof b, "%.0f", t.scale); out = b; } return true; }
+        if (k == "hud_color") { if (t.ok) { snprintf(b, sizeof b, "%02d", t.hud); out = b; } return true; }
+        return false;
+    }
     static const char* kKeys[] = { "rpm", "rpm_max", "rpm_pct", "rpm_k", "gear", "shift_light", "speedo", "speed_unit", "speed_unit_hud",
-                                   "nos", "nos_tank", "nos_extra", "nos_installed", "nos_on", "throttle", "reverse", "boost", "turbo" };
+                                   "nos", "nos_tank", "nos_extra", "nos_installed", "nos_on", "throttle", "reverse", "boost", "turbo", "gear_grey" };
     bool known = false; for (auto kk : kKeys) if (k == kk) known = true;
     if (!known) return false;
     const CarValues& c = Car();
@@ -116,6 +169,7 @@ bool CarToken(const std::string& k, std::string& out) {
     else if (k == "reverse") out = c.gear == 0 ? "1" : "";
     else if (k == "boost") { if (c.turbo) f0(c.boost * 100.f); }
     else if (k == "turbo") out = c.turbo ? "1" : "";
+    else if (k == "gear_grey") out = c.gearGrey ? "1" : "";   // the tach shows the gear grey (else orange): Car+0x448
     return true;
 }
 

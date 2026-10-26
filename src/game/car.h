@@ -9,6 +9,7 @@ struct CarValues {
     float rpm = 0, rpmMax = 0;   // rpmMax: the tachometer's full scale (handling +0x1F4)
     int gear = 1;                // game value: 0 reverse, 1 neutral, 2.. = 1st..
     char gearChar = 'N';
+    bool gearGrey = false;       // Car+0x448: the stock tach shows the gear grey, else orange
     bool shiftLight = false;
     float speed = 0;             // m/s (Car+0x430, signed: negative backwards)
     bool metric = true;          // the game's units option

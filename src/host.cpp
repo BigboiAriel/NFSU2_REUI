@@ -398,7 +398,7 @@ void HostInit() {
     uied::tokens = Token;
     uied::gameObject = GameObjectNow;
     uied::liveTexture = [](const std::string& name, float* su, float* sv) -> IDirect3DTexture9* {
-        uint8_t* ti = TexInfo(BHash(name.c_str()));
+        uint8_t* ti = TexInfo(name.size() == 9 && name[0] == '#' ? (uint32_t)strtoul(name.c_str() + 1, nullptr, 16) : BHash(name.c_str()));   // "#HHHHHHHH": by hash
         IDirect3DTexture9* tx = ti ? *(IDirect3DTexture9**)(ti + 0x18) : nullptr;
         if (!IsD3DTexture(tx)) return nullptr;
         D3DSURFACE_DESC dd;
@@ -470,7 +470,13 @@ void HostPanel() {
             { "nos", "All nitrous left: 100 = a full tank, up to 200 with the extra." },
             { "nos_tank", "The main tank, 0-100 (the gauge's first bar)." }, { "nos_extra", "The extra above a full tank, 0-100 (the second bar)." }, { "nos_installed", "1 when the car has nitrous." },
             { "nos_on", "1 while nitrous is firing." },
-            { "boost", "Turbo boost needle, 0-100 (rests about 55; blank without a turbo)." }, { "turbo", "1 when the car has a turbo." },
+            { "boost", "Turbo boost needle, 0-100 (rests about 55; blank without a turbo)." },
+            { "tach_angle", "The stock tach needle's turn, 0-235 degrees (RPM over the dial's full scale)." },
+            { "tach_max", "The dial's full scale (7500 / 8500 / 9500 / 10500)." },
+            { "tach_fill", "Texture: the car's tach dial (its custom HUD colour)." }, { "tach_lines", "Texture: the RPM numbers ring for this car." },
+            { "tach_redline", "Texture: the red arc at this car's redline." }, { "tach_needle", "Texture: the tach needle." },
+            { "turbo_fill", "Texture: the boost dial." }, { "turbo_lines", "Texture: the boost numbers." }, { "turbo_needle", "Texture: the boost needle." },
+            { "hud_color", "The car's custom HUD colour, 00-10." }, { "gear_grey", "1 when the stock tach shows the gear grey (else orange)." }, { "turbo", "1 when the car has a turbo." },
         };
         ImGui::TextDisabled("Put {key} in a text element. Click a key to copy it. Other mods add theirs (the multiplayer mod: F8 > Live values).");
         if (ImGui::BeginTable("##reuivals", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
