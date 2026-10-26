@@ -326,7 +326,8 @@ void HostPanel() {
             { "rpm", "Engine RPM." }, { "rpm_k", "RPM in thousands (6.5)." }, { "rpm_max", "The tachometer's full scale." },
             { "rpm_pct", "RPM as 0-100 of the tachometer." }, { "gear", "R, N, 1-7." }, { "reverse", "1 in reverse." },
             { "shift_light", "1 while the game's shift light is on." }, { "throttle", "Throttle pedal, 0-100." },
-            { "nos", "Nitrous left, 0-100 (blank without nitrous)." }, { "nos_installed", "1 when the car has nitrous." },
+            { "nos", "All nitrous left: 100 = a full tank, up to 200 with the extra." },
+            { "nos_tank", "The main tank, 0-100 (the gauge's first bar)." }, { "nos_extra", "The extra above a full tank, 0-100 (the second bar)." }, { "nos_installed", "1 when the car has nitrous." },
             { "nos_on", "1 while nitrous is firing." },
             { "boost", "Turbo boost needle, 0-100 (rests about 55; blank without a turbo)." }, { "turbo", "1 when the car has a turbo." },
         };

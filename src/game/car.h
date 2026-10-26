@@ -13,7 +13,7 @@ struct CarValues {
     float speed = 0;             // m/s (Car+0x430, signed: negative backwards)
     bool metric = true;          // the game's units option
     bool nosInstalled = false, nosOn = false;
-    float nos = 0;               // 0..1 left in the bottle
+    float nos = 0;               // 0..2: 1 = a full tank, above 1 = the extra (the gauge's second bar)
     bool turbo = false;
     float boost = 0;             // 0..1, the boost gauge's needle
     float throttle = 0;          // 0..1

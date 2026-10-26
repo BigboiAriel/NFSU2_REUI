@@ -8,7 +8,8 @@
 //   Shift light: on while rpm > ShiftRpm(car, gear) - 0.95 * k, ShiftRpm = 0x5ECD30 thiscall(car, gear);
 //   k = [0x7FBF60 + (gear + 9 * type) * 4], type = 0x5B5330 thiscall([Car+0x10] + 0x10) (char), or for a player
 //   car (Car+0x28 == 1) 0x594F00 thiscall([[Car+0x34]+0x4C], gear).
-//   Nitrous gauge (updater 0x4C7B20): left = 0x5925B0 thiscall(Car+0x40) (0..1; 0 hides the gauge); fitted when
+//   Nitrous gauge (updater 0x4C7B20): left = 0x5925B0 thiscall(Car+0x40) (0 hides the gauge; up to 1 fills the main
+//   bar, past 1 the gauge's second bar (+0x24) shows the extra, value - 1); fitted when
 //   (Car+0x40)+0x414 is neither 0 nor 0x7FFFFFFF (the bottle's start time, read by 0x5925B0).
 //   Turbo boost needle (updater 0x4C6B80, 0x5ECEC0): player cars only, t = [[Car+0x34]+0x48]; fitted = t+0x98 > 0;
 //   needle = t+0x9C (0..1, damped; resting about 0.55), updated by 0x5A0F30.
@@ -71,7 +72,7 @@ CarValues ReadCar() {
         int startT = *(int*)(car + 0x40 + 0x414);
         c.nosInstalled = startT != 0 && startT != 0x7FFFFFFF;
         c.nos = ((float(__thiscall*)(void*))0x5925B0)(car + 0x40);
-        if (!(c.nos >= 0.f)) c.nos = 0; if (c.nos > 1.f) c.nos = 1.f;
+        if (!(c.nos >= 0.f)) c.nos = 0; if (c.nos > 2.f) c.nos = 2.f;
     }
     c.nosOn = ((int(__thiscall*)(void*))0x59FA30)(car + 0x40) != 0;
     uint8_t* ctl = *(uint8_t**)(car + 0x30);
@@ -89,7 +90,7 @@ static const CarValues& Car() {
 
 bool CarToken(const std::string& k, std::string& out) {
     static const char* kKeys[] = { "rpm", "rpm_max", "rpm_pct", "rpm_k", "gear", "shift_light", "speedo", "speed_unit",
-                                   "nos", "nos_installed", "nos_on", "throttle", "reverse", "boost", "turbo" };
+                                   "nos", "nos_tank", "nos_extra", "nos_installed", "nos_on", "throttle", "reverse", "boost", "turbo" };
     bool known = false; for (auto kk : kKeys) if (k == kk) known = true;
     if (!known) return false;
     const CarValues& c = Car();
@@ -106,6 +107,8 @@ bool CarToken(const std::string& k, std::string& out) {
     else if (k == "speedo") f0(fabsf(c.speed) * (c.metric ? 3.6f : 2.237f));
     else if (k == "speed_unit") out = c.metric ? "KPH" : "MPH";
     else if (k == "nos") { if (c.nosInstalled) f0(c.nos * 100.f); }
+    else if (k == "nos_tank") { if (c.nosInstalled) f0(std::min(c.nos, 1.f) * 100.f); }
+    else if (k == "nos_extra") { if (c.nosInstalled) f0(std::max(c.nos - 1.f, 0.f) * 100.f); }
     else if (k == "nos_installed") out = c.nosInstalled ? "1" : "";
     else if (k == "nos_on") out = c.nosOn ? "1" : "";
     else if (k == "throttle") f0(c.throttle * 100.f);
