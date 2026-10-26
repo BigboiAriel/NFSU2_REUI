@@ -204,6 +204,29 @@ static void Walk(uint8_t* obj, const Xf& parent, const std::string& pkgName, std
 
 
 static int GameMode();
+// The crash camera: World::SetTimeScale 0x5EA280 ([0x890080] +0x108 scale) at about 0.333 while it runs (the jump
+// camera asks 0.4, a speed-up 2.0). Logged on change so the cameras can be told apart.
+static bool InWreck() {
+    uint8_t* w = *(uint8_t**)0x890080;
+    if (!Readable(w, 0x110)) return false;
+    float sc = *(float*)(w + 0x108);
+    return sc > 0.3f && sc < 0.37f;
+}
+static void WatchCameras() {
+    uint8_t* w = *(uint8_t**)0x890080;
+    float sc = Readable(w, 0x110) ? *(float*)(w + 0x108) : 1.f;
+    uint8_t* p1 = *(uint8_t**)0x8900AC;
+    uint8_t* cam = Readable(p1, 0x23C) ? *(uint8_t**)(p1 + 0x238) : nullptr;
+    int cs = Readable(cam, 0x10) ? *(int*)(cam + 0xC) : -1;
+    int* rs = *(int**)0x890118;
+    int race = Readable(rs, 4) ? *rs : -1;
+    static float lsc = -1; static int lcs = -2, lrace = -2;
+    if (fabsf(sc - lsc) > 0.001f || cs != lcs || race != lrace) {
+        Log("cameras: world speed x%.3f, camera state %d, race status %d, race coordinator %d", sc, cs, race, *(void**)0x8900D8 ? **(int**)0x8900D8 : -1);
+        lsc = sc; lcs = cs; lrace = race;
+    }
+}
+
 // Development aid: scripts\NFSU2_REUI.dump appears -> every FEng object on screen (hidden ones too) with its raw
 // data goes to scripts\NFSU2_REUI_dump.txt (used to rebuild the game's HUD pieces).
 static void DumpWalk(FILE* f, uint8_t* obj, const Xf& parent, int depth) {
@@ -361,7 +384,7 @@ static void CaptureScreen(const std::string& name) {
 static int GameMode() {
     if (*(int*)0x8654A4 != 6) return -1;
     void* rc = *(void**)0x8900D8;
-    if (!rc || *(int*)rc != 4) return -1;
+    if (!rc || (*(int*)rc != 4 && *(int*)rc != 3)) return -1;   // 4 driving, 3 a race's countdown (PRERACE)
     if (*(int*)0x89E7B0 == 7) return uied::OUTRUN;
     if (*(uint8_t*)0x89E7D8 || *(int*)0x890108) return uied::DRAG;
     if (*(uint8_t*)0x89E7D9 || *(int*)0x890104) return uied::DRIFT;
@@ -426,6 +449,13 @@ void HostInit() {
     g_uniPad = GetModuleHandleA("NFSU2UniPad.asi") != nullptr;
     uied::tokens = Token;
     uied::gameObject = GameObjectNow;
+    // REUI's own element flags (other mods add theirs through REUI_AddFlag)
+    uied::AddFlag("hide_until_green", "hide until green light", "In a race: hidden through the fly-by and the countdown, shown from the green light\n(race status [0x890118]: 2 fly-by, 3 countdown, 4 racing).", 0, false, [] {
+        if (*(int*)0x89E7B0 == 0) return false;   // free roam
+        int* rs = *(int**)0x890118;
+        return !Readable(rs, 4) || *rs < 4;
+    });
+    uied::AddFlag("hide_wreck", "hide in a wreck", "Hidden while the game shows a wreck: its crash camera, which slows the world to x0.33\n(World [0x890080] +0x108; the jump camera uses x0.4).", 0, false, [] { return InWreck(); });
     uied::liveTexture = [](const std::string& name, float* su, float* sv) -> IDirect3DTexture9* {
         uint8_t* ti = TexInfo(name.size() == 9 && name[0] == '#' ? (uint32_t)strtoul(name.c_str() + 1, nullptr, 16) : BHash(name.c_str()));   // "#HHHHHHHH": by hash
         if (name[0] == '#') {   // (diagnostics: each hash once)
@@ -480,6 +510,7 @@ void HostBeginFrame(IDirect3DDevice9* dev) {
 void HostDraw() {
     if (!g_ready) return;
     { std::string t; Token("bank_reward_on", t); }   // watched every frame (a rise during a race / menus isn't a reward)
+    WatchCameras();
     uied::DrawOverlay(GameMode());
     if (uied::testMode)
         ImGui::GetForegroundDrawList()->AddText(ImVec2(12, ImGui::GetIO().DisplaySize.y - 28), IM_COL32(255, 170, 60, 255),

@@ -479,16 +479,34 @@ struct DirtyFlag {
 };
 static bool g_show = true, g_edit = false, g_onlyWorld = false;
 static DirtyFlag g_dirty;
-// checkboxes for the live flags over a set of elements (one element, a group's members, a multi-pick)
+// the live flags over a set of elements (one element, a group's members, a multi-pick): one compact button that
+// names the flags set and opens a checklist
 static void FlagBoxes(std::vector<Elem*> els, const char* idSuffix) {
+    if (els.empty()) return;
+    std::string sum;
+    int live = 0;
     for (auto& f : g_flagDefs) {
-        if (!f.live || els.empty()) continue;
-        bool all = true; for (Elem* e : els) all &= HasFlag(*e, f.key);
-        ImGui::SameLine();
-        if (ImGui::Checkbox((f.label + idSuffix).c_str(), &all)) { for (Elem* e : els) SetFlag(*e, f, all); g_dirty = true; }
-        if (!f.tip.empty() && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", f.tip.c_str());
+        if (!f.live) continue;
+        ++live;
+        bool all = true, any = false; for (Elem* e : els) { bool h = HasFlag(*e, f.key); all &= h; any |= h; }
+        if (any) { if (!sum.empty()) sum += ", "; sum += f.label + (all ? "" : " (some)"); }
+    }
+    if (!live) return;
+    ImGui::SameLine();
+    std::string pop = std::string("flags") + idSuffix;
+    if (ImGui::Button(("Flags: " + (sum.empty() ? std::string("none") : sum) + "###flb" + idSuffix).c_str())) ImGui::OpenPopup(pop.c_str());
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("When it's hidden: in a wreck, until the green light, online / offline (from the multiplayer mod)...");
+    if (ImGui::BeginPopup(pop.c_str())) {
+        for (auto& f : g_flagDefs) {
+            if (!f.live) continue;
+            bool all = true; for (Elem* e : els) all &= HasFlag(*e, f.key);
+            if (ImGui::Checkbox(f.label.c_str(), &all)) { for (Elem* e : els) SetFlag(*e, f, all); g_dirty = true; }
+            if (!f.tip.empty() && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", f.tip.c_str());
+        }
+        ImGui::EndPopup();
     }
 }
+
 // more than one element picked (Ctrl / Shift + click); g_sel stays the last one clicked
 static std::vector<int> g_multi;
 static bool InMulti(int i) { return std::find(g_multi.begin(), g_multi.end(), i) != g_multi.end(); }
