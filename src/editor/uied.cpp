@@ -15,6 +15,9 @@
 //    u8 this char (low byte); a glyph's entries are table+4+ks*4, kc of them (header +0x0C flag 0x40000).
 //    Its texture is the pack texture with the font's name in capitals (LANGUAGES\LanguageTextures.bin).
 #include "uied.h"
+#include "vecart.h"
+#include <windows.h>
+#include <shellapi.h>
 #include "imgui.h"
 #include <vector>
 #include <deque>
@@ -308,6 +311,7 @@ static int FindTex(const std::string& name, const std::string& pack) {
 static int FindFont(const std::string& name) { for (size_t i = 0; i < g_fonts.size(); ++i) if (g_fonts[i].name == name) return (int)i; return -1; }
 void Release() {
     for (auto& t : g_tex) if (t.tex) { t.tex->Release(); t.tex = nullptr; }
+    vecart::Release();
 }
 static void Trim() {   // keep at most ~400 textures made; drop the least recently used
     int made = 0; for (auto& t : g_tex) if (t.tex) ++made;
@@ -684,10 +688,13 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (e.type == E_IMAGE) {
         int ifam, iid;
         bool icon = IconRef(e.tex, ifam, iid);   // a controller button icon (its own textures)
-        bool texVal = !icon && e.tex.find('{') != std::string::npos;   // "{tach_fill}": the texture a live value names
-        if (e.texIdx == -2) e.texIdx = icon ? -3 : texVal ? -1 : FindTex(e.tex, e.pack);
-        // icons: drawn for their size on screen (an SVG is re-rasterised to it)
-        IDirect3DTexture9* tx = icon ? (iconTexture ? iconTexture(ifam, iid, (int)ceilf(std::max(b.x - a.x, b.y - a.y))) : nullptr) : TexOf(e.texIdx);
+        bool vec = !icon && vecart::IsRef(e.tex);   // "vec:<name>": vector art (scripts\NFSU2_REUI_vector)
+        bool texVal = !icon && !vec && e.tex.find('{') != std::string::npos;   // "{tach_fill}": the texture a live value names
+        if (e.texIdx == -2) e.texIdx = icon || vec ? -3 : texVal ? -1 : FindTex(e.tex, e.pack);
+        // icons and vector art: drawn for their size on screen (an SVG is re-rasterised to it)
+        int onScreen = (int)ceilf(std::max(b.x - a.x, b.y - a.y));
+        IDirect3DTexture9* tx = icon ? (iconTexture ? iconTexture(ifam, iid, onScreen) : nullptr)
+                              : vec ? vecart::Texture(g_dev, vecart::RefName(e.tex), onScreen) : TexOf(e.texIdx);
         float su = 1, sv = 1;   // a live texture padded to a power of two: the picture is its top-left part
         if (!tx && !icon && e.texIdx < 0 && liveTexture && !e.tex.empty()) {
             std::string tn = texVal ? Expand(e.tex) : e.tex;
@@ -1021,6 +1028,7 @@ static void AddPrefab(const std::string& name) {
 
 void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)(const char*)) {
     g_dir = gameDir; g_layoutPath = layoutPath; g_log = log;
+    vecart::SetDir(g_dir + "\\scripts\\NFSU2_REUI_vector\\");
     Load();
     // no menu pages yet: UniPad's menus (made in its own editor before REUI) come in, until this workspace is saved
     if (!menuMode && g_layout[MENUS].empty()) {
@@ -1621,6 +1629,14 @@ static void Selected(Elem& e) {
             if (ImGui::Checkbox("follows the controller", &follow)) {
                 std::string fam = follow ? "auto" : iconFamilies.empty() ? "xbox" : iconFamilies[0];
                 e.tex = "icon:" + fam + ":" + iconKeys[iid]; g_dirty = true;
+            }
+        } else if (vecart::IsRef(e.tex)) {
+            std::string vn = vecart::RefName(e.tex);
+            const vecart::Art* art = vecart::Find(vn);
+            ImGui::Text("vector art: %s%s", vn.c_str(), art ? "" : " (file missing)");
+            if (art && art->w > 0 && art->h > 0) {
+                ImGui::SameLine(); if (ImGui::SmallButton("its own size")) { e.w = art->w; e.h = art->h; g_dirty = true; }
+                ImGui::SameLine(); if (ImGui::SmallButton("fix its proportions")) { e.h = e.w * art->h / art->w; g_dirty = true; }
             }
         } else
         ImGui::Text("texture: %s (%s)", e.tex.empty() ? "(none - pick one below)" : e.tex.c_str(), e.pack.c_str());
@@ -2267,6 +2283,54 @@ void Panel() {
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", IconName(f, id).c_str());
             ImGui::PopID();
+        }
+    }
+    // ---- vector art (separate from the controller button icons)
+    if (!menuMode && ImGui::CollapsingHeader("Vector art")) {
+        static float vth = 64.f;
+        const auto& arts = vecart::List();
+        if (ImGui::SmallButton("reload")) vecart::Rescan();
+        ImGui::SameLine(); if (ImGui::SmallButton("open folder")) ShellExecuteA(nullptr, "open", vecart::Dir().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        ImGui::SameLine(); ImGui::SetNextItemWidth(100); ImGui::SliderFloat("##vth", &vth, 32.f, 160.f, "thumbs %.0f");
+        bool selImage = g_sel >= 0 && g_sel < (int)Elems().size() && Elems()[g_sel].type == E_IMAGE;
+        ImGui::TextDisabled("SVG files in scripts\\NFSU2_REUI_vector (subfolders too), sharp at any size; colour tints them.\n"
+                            "Click one to add it at its own size%s", selImage ? ";  Shift + click: put it on the selected image." : ".");
+        if (arts.empty()) ImGui::TextDisabled("(no .svg files there yet)");
+        float th = vth;
+        int cols = std::max(1, (int)(ImGui::GetContentRegionAvail().x / (th + 12)));
+        for (int i = 0; i < (int)arts.size(); ++i) {
+            const vecart::Art& art = arts[i];
+            if (i % cols) ImGui::SameLine();
+            ImGui::BeginGroup(); ImGui::PushID(i);
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            float cs = th / 4;   // checkerboard so see-through art shows
+            for (int yy = 0; yy < 4; ++yy) for (int xx = 0; xx < 4; ++xx)
+                dl->AddRectFilled(ImVec2(p.x + xx * cs, p.y + yy * cs), ImVec2(p.x + (xx + 1) * cs, p.y + (yy + 1) * cs), ((xx + yy) & 1) ? IM_COL32(90, 90, 90, 255) : IM_COL32(60, 60, 60, 255));
+            if (IDirect3DTexture9* tx = vecart::Texture(g_dev, art.name, (int)th - 8)) {
+                float aw = art.w > 0 ? art.w : 1, ah = art.h > 0 ? art.h : 1, sc = (th - 8) / std::max(aw, ah);
+                ImVec2 isz(aw * sc, ah * sc), off((th - isz.x) / 2, (th - isz.y) / 2);
+                dl->AddImage((ImTextureID)tx, ImVec2(p.x + off.x, p.y + off.y), ImVec2(p.x + off.x + isz.x, p.y + off.y + isz.y));
+            } else dl->AddText(ImVec2(p.x + 4, p.y + 4), IM_COL32(255, 90, 90, 255), "?");
+            if (ImGui::InvisibleButton("##va", ImVec2(th, th))) {
+                bool onSel = ImGui::GetIO().KeyShift && selImage;
+                if (onSel) { Elem& e = Elems()[g_sel]; e.tex = vecart::Ref(art.name); e.pack.clear(); e.texIdx = -2; e.u0 = e.v0 = 0; e.u1 = e.v1 = 1; }
+                else {
+                    Elem e; e.type = E_IMAGE; e.anchor = 4; e.x = 0; e.y = 0;
+                    e.w = art.w > 0 ? art.w : 64; e.h = art.h > 0 ? art.h : 64;
+                    float big = std::max(e.w, e.h); if (big > 256) { e.w *= 256 / big; e.h *= 256 / big; }   // a huge canvas: fitted to 256
+                    e.tex = vecart::Ref(art.name); e.name = art.name;
+                    if (!g_selGroup.empty()) e.group = g_selGroup;
+                    e.layer = 0; for (auto& o : Elems()) e.layer = std::max(e.layer, o.layer);   // on top
+                    Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_selGroup.clear();
+                }
+                g_dirty = true;
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n%.0f x %.0f", art.name.c_str(), art.w, art.h);
+            std::string nm = art.name; size_t sl = nm.rfind('/'); if (sl != std::string::npos) nm = nm.substr(sl + 1);
+            if (nm.size() > (size_t)(th / 6)) nm = nm.substr(0, (size_t)(th / 6)) + "..";
+            ImGui::TextDisabled("%s", nm.c_str());
+            ImGui::PopID(); ImGui::EndGroup();
         }
     }
     // ---- texture browser
