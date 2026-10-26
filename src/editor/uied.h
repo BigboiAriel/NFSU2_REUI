@@ -42,6 +42,10 @@ namespace uied {
     // texture (su / sv: the picture's share of a padded texture). Not found / hidden: false.
     struct GameObject { float x = 0, y = 0, w = 0, h = 0, rot = 0, u0 = 0, v0 = 0, u1 = 1, v1 = 1, col[4] = {1, 1, 1, 1}, su = 1, sv = 1; IDirect3DTexture9* tex = nullptr; };
     extern std::function<bool(unsigned nameHash, GameObject& out)> gameObject;
+    // Element flags other mods add (the multiplayer mod: "hide online", "online only"): a checkbox on every element while
+    // the mod is loaded; hide() says whether flagged elements are hidden now. Flags in a layout whose mod isn't loaded
+    // keep what they said when it was (hiddenWhenMissing, saved with the layout). group > 0: one flag of a group per element.
+    void AddFlag(const std::string& key, const std::string& label, const std::string& tooltip, int group, bool hiddenWhenMissing, std::function<bool()> hide);
     // UniPad: controller button icons, as image textures named "icon:<family>:<key>" ("icon:auto:South" = the
     // active controller's family, so it switches between Xbox / PlayStation / ... art). Families and keys by index.
     extern std::vector<std::string> iconFamilies, iconKeys;

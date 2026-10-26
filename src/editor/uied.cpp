@@ -424,7 +424,27 @@ struct Elem {
     int anim = 0;                         // 1 pulse (grows and fades, ~1 s), 2 blink (on / off, ~0.5 s), 3 keyframes
     std::string keys;                     // anim 3: "period ms;t sx sy a;t sx sy a;..." - size and alpha multipliers, linear, looping
     double shownSince = -1;               // (running) when its show-only-while value last came on: animations start there
+    std::vector<std::string> flags;       // other mods' flags (AddFlag), by key
 };
+struct FlagDef { std::string key, label, tip; int group = 0; bool hideMissing = false, live = false; std::function<bool()> hide; };
+static std::vector<FlagDef> g_flagDefs;   // registered ones (live) and ones known from the layout file
+static FlagDef* FlagOf(const std::string& k) { for (auto& f : g_flagDefs) if (f.key == k) return &f; return nullptr; }
+void AddFlag(const std::string& key, const std::string& label, const std::string& tooltip, int group, bool hiddenWhenMissing, std::function<bool()> hide) {
+    FlagDef* f = FlagOf(key); if (!f) { g_flagDefs.push_back(FlagDef()); f = &g_flagDefs.back(); }
+    f->key = key; f->label = label; f->tip = tooltip; f->group = group; f->hideMissing = hiddenWhenMissing; f->live = true; f->hide = hide;
+}
+static bool HasFlag(const Elem& e, const std::string& k) { return std::find(e.flags.begin(), e.flags.end(), k) != e.flags.end(); }
+static void SetFlag(Elem& e, const FlagDef& f, bool on) {
+    e.flags.erase(std::remove(e.flags.begin(), e.flags.end(), f.key), e.flags.end());
+    if (!on) return;
+    if (f.group > 0) for (auto& o : g_flagDefs) if (o.group == f.group) e.flags.erase(std::remove(e.flags.begin(), e.flags.end(), o.key), e.flags.end());
+    e.flags.push_back(f.key);
+}
+static bool FlagsHide(const Elem& e) {   // any of its flags says hidden now
+    for (auto& k : e.flags) { FlagDef* f = FlagOf(k); if (f && (f->live ? (f->hide && f->hide()) : f->hideMissing)) return true; }
+    return false;
+}
+
 static std::vector<Elem> g_layout[NMODES];   // one overlay per game mode
 static int g_editMode = 0, g_nowMode = -1;
 static const char* kModeKey[NMODES] = { "freeroam", "race", "drag", "drift", "outrun", "menus" };
@@ -459,6 +479,16 @@ struct DirtyFlag {
 };
 static bool g_show = true, g_edit = false, g_onlyWorld = false;
 static DirtyFlag g_dirty;
+// checkboxes for the live flags over a set of elements (one element, a group's members, a multi-pick)
+static void FlagBoxes(std::vector<Elem*> els, const char* idSuffix) {
+    for (auto& f : g_flagDefs) {
+        if (!f.live || els.empty()) continue;
+        bool all = true; for (Elem* e : els) all &= HasFlag(*e, f.key);
+        ImGui::SameLine();
+        if (ImGui::Checkbox((f.label + idSuffix).c_str(), &all)) { for (Elem* e : els) SetFlag(*e, f, all); g_dirty = true; }
+        if (!f.tip.empty() && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", f.tip.c_str());
+    }
+}
 // more than one element picked (Ctrl / Shift + click); g_sel stays the last one clicked
 static std::vector<int> g_multi;
 static bool InMulti(int i) { return std::find(g_multi.begin(), g_multi.end(), i) != g_multi.end(); }
@@ -562,6 +592,7 @@ static void AdditiveOn(const ImDrawList*, const ImDrawCmd*) {   // the next draw
 }
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
+    if (!editing && !e.flags.empty() && FlagsHide(e)) return;
     struct AnimSave { Elem& e; bool on = false; float scale = 1, x = 0, y = 0; ~AnimSave() { if (on) { e.scale = scale; e.x = x; e.y = y; } } } animSave{ e };
     if (!ShowIfOk(e)) { e.shownSince = -1; if (!editing) return; }
     else if (e.shownSince < 0) e.shownSince = ImGui::GetTime();
@@ -730,42 +761,81 @@ static int LoadMenuSection(const std::string& s);
 static bool LoadMenuKey(int sect, const std::string& k, const std::string& v);
 static void LoadMenuEnd();
 static std::vector<Elem> g_kit;                     // widget-kit template elements (kit = template name, y relative to the row)
+static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the layout / prefab files keep it
+    fprintf(f, "\n[element]\nmode=%s\ntype=%s\nname=%s\nanchor=%d\nx=%g\ny=%g\nw=%g\nh=%g\nscale=%g\ncolor=%g %g %g %g\nvisible=%d\n",
+            kModeKey[m], e.type == E_TEXT ? "text" : "image", Esc(e.name).c_str(), e.anchor, e.x, e.y, e.w, e.h, e.scale, e.col[0], e.col[1], e.col[2], e.col[3], e.visible ? 1 : 0);
+    if (e.row > 0) fprintf(f, "row=%d\n", e.row);
+    if (!e.group.empty()) fprintf(f, "group=%s\n", Esc(e.group).c_str());
+    if (e.hiMine) fprintf(f, "highlight=%g %g %g %g\n", e.hiCol[0], e.hiCol[1], e.hiCol[2], e.hiCol[3]);
+    if (e.layer != 0) fprintf(f, "layer=%d\n", e.layer);
+    if (e.type == E_IMAGE) {
+        fprintf(f, "texture=%s\npack=%s\nuv=%g %g %g %g\n", e.tex.c_str(), e.pack.c_str(), e.u0, e.v0, e.u1, e.v1);
+        if (e.rot != 0) fprintf(f, "rot=%g\n", e.rot);
+    } else fprintf(f, "font=%s\ntext=%s\nalign=%d\n", e.font.c_str(), Esc(e.text).c_str(), e.align);
+    if (!e.role.empty()) fprintf(f, "role=%s\n", e.role.c_str());
+    if (e.selOnly) fprintf(f, "selonly=1\n");
+    if (!e.kit.empty()) fprintf(f, "kit=%s\n", Esc(e.kit).c_str());
+    if (!e.showIf.empty()) fprintf(f, "showif=%s\n", e.showIf.c_str());
+    if (e.bindKind) fprintf(f, "bind=%s\nbindkind=%d\nbindrange=%g %g\n", e.bind.c_str(), e.bindKind, e.bindMin, e.bindMax);
+    if (e.bindKind == 3 || e.bindKind == 4) fprintf(f, "bindrot=%g %g\n", e.rotMin, e.rotMax);
+    if (e.cutLo != 0 || e.cutHi != 1) fprintf(f, "bindcut=%g %g\n", e.cutLo, e.cutHi);
+    if (e.pivX != 0 || e.pivY != 0) fprintf(f, "pivot=%g %g\n", e.pivX, e.pivY);
+    if (e.follow) fprintf(f, "follow=%08X\n", e.follow);
+    if (e.circle) fprintf(f, "circle=1\n");
+    if (e.additive) fprintf(f, "additive=1\n");
+    if (!e.tint.empty()) fprintf(f, "tint=%s\n", e.tint.c_str());
+    if (e.anim) fprintf(f, "anim=%d\n", e.anim);
+    if (!e.keys.empty()) fprintf(f, "keys=%s\n", e.keys.c_str());
+    if (!e.flags.empty()) { std::string l; for (auto& k : e.flags) { if (!l.empty()) l += ','; l += k; } fprintf(f, "flags=%s\n", l.c_str()); }
+}
 static void Save() {
     FILE* f = fopen(g_layoutPath.c_str(), "w"); if (!f) { Log("ui editor: couldn't save %s", g_layoutPath.c_str()); return; }
     fprintf(f, "# NFSU2 overlay (UI editor): one layout per game mode\nshow=%d\nboardrows=%d\nboardfollow=%d\nlistheight=%d\nhighlightsel=%d\n", g_show ? 1 : 0, boardRows, boardFollow ? 1 : 0, (int)g_listH, g_hiSel ? 1 : 0);
+    for (auto& fd : g_flagDefs) fprintf(f, "flagdef=%s %d\n", fd.key.c_str(), fd.hideMissing ? 1 : 0);
     int total = 0;
-    auto put = [&](int m, const Elem& e) {
-        ++total;
-        fprintf(f, "\n[element]\nmode=%s\ntype=%s\nname=%s\nanchor=%d\nx=%g\ny=%g\nw=%g\nh=%g\nscale=%g\ncolor=%g %g %g %g\nvisible=%d\n",
-                kModeKey[m], e.type == E_TEXT ? "text" : "image", Esc(e.name).c_str(), e.anchor, e.x, e.y, e.w, e.h, e.scale, e.col[0], e.col[1], e.col[2], e.col[3], e.visible ? 1 : 0);
-        if (e.row > 0) fprintf(f, "row=%d\n", e.row);
-        if (!e.group.empty()) fprintf(f, "group=%s\n", Esc(e.group).c_str());
-        if (e.hiMine) fprintf(f, "highlight=%g %g %g %g\n", e.hiCol[0], e.hiCol[1], e.hiCol[2], e.hiCol[3]);
-        if (e.layer != 0) fprintf(f, "layer=%d\n", e.layer);
-        if (e.type == E_IMAGE) {
-            fprintf(f, "texture=%s\npack=%s\nuv=%g %g %g %g\n", e.tex.c_str(), e.pack.c_str(), e.u0, e.v0, e.u1, e.v1);
-            if (e.rot != 0) fprintf(f, "rot=%g\n", e.rot);
-        } else fprintf(f, "font=%s\ntext=%s\nalign=%d\n", e.font.c_str(), Esc(e.text).c_str(), e.align);
-        if (!e.role.empty()) fprintf(f, "role=%s\n", e.role.c_str());
-        if (e.selOnly) fprintf(f, "selonly=1\n");
-        if (!e.kit.empty()) fprintf(f, "kit=%s\n", Esc(e.kit).c_str());
-        if (!e.showIf.empty()) fprintf(f, "showif=%s\n", e.showIf.c_str());
-        if (e.bindKind) fprintf(f, "bind=%s\nbindkind=%d\nbindrange=%g %g\n", e.bind.c_str(), e.bindKind, e.bindMin, e.bindMax);
-        if (e.bindKind == 3 || e.bindKind == 4) fprintf(f, "bindrot=%g %g\n", e.rotMin, e.rotMax);
-        if (e.cutLo != 0 || e.cutHi != 1) fprintf(f, "bindcut=%g %g\n", e.cutLo, e.cutHi);
-        if (e.pivX != 0 || e.pivY != 0) fprintf(f, "pivot=%g %g\n", e.pivX, e.pivY);
-        if (e.follow) fprintf(f, "follow=%08X\n", e.follow);
-        if (e.circle) fprintf(f, "circle=1\n");
-        if (e.additive) fprintf(f, "additive=1\n");
-        if (!e.tint.empty()) fprintf(f, "tint=%s\n", e.tint.c_str());
-        if (e.anim) fprintf(f, "anim=%d\n", e.anim);
-        if (!e.keys.empty()) fprintf(f, "keys=%s\n", e.keys.c_str());
-    };
+    auto put = [&](int m, const Elem& e) { ++total; PutElem(f, m, e); };
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
     for (auto& e : g_kit) put(0, e);
     SaveMenus(f);
     fclose(f); g_dirty = false;
     Log("ui editor: saved %d element(s) to %s", total, g_layoutPath.c_str());
+}
+static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // one "key=value" of an [element]
+    if (k == "mode") { for (int m = 0; m < NMODES; ++m) if (v == kModeKey[m]) e.mode = m; }
+    else if (k == "type") e.type = v == "text" ? E_TEXT : E_IMAGE;
+    else if (k == "name") e.name = Unesc(v);
+    else if (k == "anchor") e.anchor = std::max(0, std::min(8, atoi(v.c_str())));
+    else if (k == "x") e.x = (float)atof(v.c_str()); else if (k == "y") e.y = (float)atof(v.c_str());
+    else if (k == "w") e.w = (float)atof(v.c_str()); else if (k == "h") e.h = (float)atof(v.c_str());
+    else if (k == "scale") e.scale = (float)atof(v.c_str());
+    else if (k == "color") sscanf(v.c_str(), "%f %f %f %f", &e.col[0], &e.col[1], &e.col[2], &e.col[3]);
+    else if (k == "visible") e.visible = atoi(v.c_str()) != 0;
+    else if (k == "texture") e.tex = v; else if (k == "pack") e.pack = v;
+    else if (k == "uv") sscanf(v.c_str(), "%f %f %f %f", &e.u0, &e.v0, &e.u1, &e.v1);
+    else if (k == "rot") e.rot = (float)atof(v.c_str());
+    else if (k == "layer") e.layer = atoi(v.c_str());
+    else if (k == "font") e.font = v; else if (k == "text") e.text = Unesc(v);
+    else if (k == "align") e.align = atoi(v.c_str());
+    else if (k == "row") e.row = std::max(0, atoi(v.c_str()));
+    else if (k == "group") e.group = Unesc(v);
+    else if (k == "highlight") { e.hiMine = true; sscanf(v.c_str(), "%f %f %f %f", &e.hiCol[0], &e.hiCol[1], &e.hiCol[2], &e.hiCol[3]); }
+    else if (k == "role") e.role = v;
+    else if (k == "selonly") e.selOnly = atoi(v.c_str()) != 0;
+    else if (k == "kit") e.kit = Unesc(v);
+    else if (k == "showif") e.showIf = v;
+    else if (k == "bind") e.bind = v;
+    else if (k == "bindkind") e.bindKind = std::max(0, std::min(4, atoi(v.c_str())));
+    else if (k == "bindrange") sscanf(v.c_str(), "%f %f", &e.bindMin, &e.bindMax);
+    else if (k == "bindrot") sscanf(v.c_str(), "%f %f", &e.rotMin, &e.rotMax);
+    else if (k == "bindcut") sscanf(v.c_str(), "%f %f", &e.cutLo, &e.cutHi);
+    else if (k == "pivot") sscanf(v.c_str(), "%f %f", &e.pivX, &e.pivY);
+    else if (k == "follow") e.follow = (unsigned)strtoul(v.c_str(), nullptr, 16);
+    else if (k == "circle") e.circle = atoi(v.c_str()) != 0;
+    else if (k == "additive") e.additive = atoi(v.c_str()) != 0;
+    else if (k == "tint") e.tint = v;
+    else if (k == "anim") e.anim = std::max(0, std::min(3, atoi(v.c_str())));
+    else if (k == "keys") e.keys = v;
+    else if (k == "flags") { e.flags.clear(); size_t p = 0; while (p <= v.size()) { size_t q = v.find(',', p); if (q == std::string::npos) q = v.size(); if (q > p) e.flags.push_back(v.substr(p, q - p)); p = q + 1; } }
 }
 // intoMode >= 0: every element goes in that layout; merge: added to what's there (an import), not instead
 static bool LoadFile(const std::string& path, int intoMode, bool merge) {
@@ -789,43 +859,13 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
             else if (k == "boardrows") boardRows = std::max(1, std::min(22, atoi(v.c_str())));
             else if (k == "boardfollow") boardFollow = atoi(v.c_str()) != 0;
             else if (k == "listheight") g_listH = std::max(80.f, std::min(1400.f, (float)atof(v.c_str())));
+            else if (k == "flagdef") {   // "key hidden-when-missing": a mod's flag, for when that mod isn't loaded
+                char key[64] = {}; int hm = 0;
+                if (sscanf(v.c_str(), "%63s %d", key, &hm) >= 1 && !FlagOf(key)) { FlagDef d; d.key = key; d.hideMissing = hm != 0; g_flagDefs.push_back(d); }
+            }
             continue;
         }
-        Elem& e = *cur;
-        if (k == "mode") { for (int m = 0; m < NMODES; ++m) if (v == kModeKey[m]) e.mode = m; }
-        else if (k == "type") e.type = v == "text" ? E_TEXT : E_IMAGE;
-        else if (k == "name") e.name = Unesc(v);
-        else if (k == "anchor") e.anchor = std::max(0, std::min(8, atoi(v.c_str())));
-        else if (k == "x") e.x = (float)atof(v.c_str()); else if (k == "y") e.y = (float)atof(v.c_str());
-        else if (k == "w") e.w = (float)atof(v.c_str()); else if (k == "h") e.h = (float)atof(v.c_str());
-        else if (k == "scale") e.scale = (float)atof(v.c_str());
-        else if (k == "color") sscanf(v.c_str(), "%f %f %f %f", &e.col[0], &e.col[1], &e.col[2], &e.col[3]);
-        else if (k == "visible") e.visible = atoi(v.c_str()) != 0;
-        else if (k == "texture") e.tex = v; else if (k == "pack") e.pack = v;
-        else if (k == "uv") sscanf(v.c_str(), "%f %f %f %f", &e.u0, &e.v0, &e.u1, &e.v1);
-        else if (k == "rot") e.rot = (float)atof(v.c_str());
-        else if (k == "layer") e.layer = atoi(v.c_str());
-        else if (k == "font") e.font = v; else if (k == "text") e.text = Unesc(v);
-        else if (k == "align") e.align = atoi(v.c_str());
-        else if (k == "row") e.row = std::max(0, atoi(v.c_str()));
-        else if (k == "group") e.group = Unesc(v);
-        else if (k == "highlight") { e.hiMine = true; sscanf(v.c_str(), "%f %f %f %f", &e.hiCol[0], &e.hiCol[1], &e.hiCol[2], &e.hiCol[3]); }
-        else if (k == "role") e.role = v;
-        else if (k == "selonly") e.selOnly = atoi(v.c_str()) != 0;
-        else if (k == "kit") e.kit = Unesc(v);
-        else if (k == "showif") e.showIf = v;
-        else if (k == "bind") e.bind = v;
-        else if (k == "bindkind") e.bindKind = std::max(0, std::min(4, atoi(v.c_str())));
-        else if (k == "bindrange") sscanf(v.c_str(), "%f %f", &e.bindMin, &e.bindMax);
-        else if (k == "bindrot") sscanf(v.c_str(), "%f %f", &e.rotMin, &e.rotMax);
-        else if (k == "bindcut") sscanf(v.c_str(), "%f %f", &e.cutLo, &e.cutHi);
-        else if (k == "pivot") sscanf(v.c_str(), "%f %f", &e.pivX, &e.pivY);
-        else if (k == "follow") e.follow = (unsigned)strtoul(v.c_str(), nullptr, 16);
-        else if (k == "circle") e.circle = atoi(v.c_str()) != 0;
-        else if (k == "additive") e.additive = atoi(v.c_str()) != 0;
-        else if (k == "tint") e.tint = v;
-        else if (k == "anim") e.anim = std::max(0, std::min(3, atoi(v.c_str())));
-        else if (k == "keys") e.keys = v;
+        ElemKey(*cur, k, v);
     }
     fclose(f);
     if (merge) g_dirty = true; else g_dirty = false;
@@ -834,6 +874,62 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
     return true;
 }
 static void Load() { LoadFile(g_layoutPath, -1, false); }
+// ---------------------------------------------------------------- prefabs
+// A group (with the groups inside it) saved to scripts\NFSU2_REUI_prefabs\<name>.txt; adding one puts a copy in the
+// game mode being edited, as a new top-level group (renamed "<name> 2"... if that name is taken).
+static std::string PrefabDir() { return g_dir + "\\scripts\\NFSU2_REUI_prefabs\\"; }
+static std::string g_prefabMsg;
+static bool SavePrefab(const std::string& group, std::string name) {
+    for (char& c : name) if (strchr("\\/:*?\"<>|", c)) c = '_';
+    if (name.empty()) return false;
+    CreateDirectoryA(PrefabDir().c_str(), nullptr);
+    std::string path = PrefabDir() + name + ".txt";
+    FILE* f = fopen(path.c_str(), "w");
+    if (!f) { g_prefabMsg = "couldn't write " + path; return false; }
+    fprintf(f, "# NFSU2_REUI prefab\nroot=%s\n", Esc(group).c_str());
+    int n = 0;
+    for (auto& e : Elems()) if (e.group == group || InGroup(e.group, group)) { PutElem(f, g_editMode, e); ++n; }
+    fclose(f);
+    g_prefabMsg = "saved \"" + name + "\" (" + std::to_string(n) + " elements)";
+    Log("ui editor: prefab %s", g_prefabMsg.c_str());
+    return true;
+}
+static std::vector<std::string> PrefabList() {
+    std::vector<std::string> out;
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA((PrefabDir() + "*.txt").c_str(), &fd);
+    if (h == INVALID_HANDLE_VALUE) return out;
+    do { std::string n = fd.cFileName; out.push_back(n.substr(0, n.size() - 4)); } while (FindNextFileA(h, &fd));
+    FindClose(h);
+    std::sort(out.begin(), out.end());
+    return out;
+}
+static void AddPrefab(const std::string& name) {
+    FILE* f = fopen((PrefabDir() + name + ".txt").c_str(), "r");
+    if (!f) { g_prefabMsg = "couldn't read " + name; return; }
+    std::string root; std::vector<Elem> els; Elem* cur = nullptr; char line[2048];
+    while (fgets(line, sizeof line, f)) {
+        std::string s = line; while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
+        if (s.empty() || s[0] == '#') continue;
+        if (s == "[element]") { els.push_back(Elem()); cur = &els.back(); continue; }
+        size_t eq = s.find('='); if (eq == std::string::npos) continue;
+        std::string k = s.substr(0, eq), v = s.substr(eq + 1);
+        if (!cur) { if (k == "root") root = Unesc(v); continue; }
+        ElemKey(*cur, k, v);
+    }
+    fclose(f);
+    if (els.empty()) { g_prefabMsg = "\"" + name + "\" is empty"; return; }
+    std::string base = name, top = base;   // a free top-level group name
+    auto taken = [&](const std::string& g) { for (auto& e : Elems()) if (e.group == g || InGroup(e.group, g)) return true; return false; };
+    for (int i = 2; taken(top); ++i) top = base + " " + std::to_string(i);
+    for (auto& e : els) {
+        e.group = e.group == root ? top : InGroup(e.group, root) ? top + e.group.substr(root.size()) : top;
+        e.mode = g_editMode; e.texIdx = e.fontIdx = -2; e.shownSince = -1;
+        Elems().push_back(e);
+    }
+    g_selGroup = top; g_sel = -1; ClearMulti(); g_dirty = true;
+    g_prefabMsg = "added \"" + name + "\" as " + top;
+}
 
 void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)(const char*)) {
     g_dir = gameDir; g_layoutPath = layoutPath; g_log = log;
@@ -986,6 +1082,7 @@ static void MultiPanel() {
     }
     bool allVis = true; for (int i : P) allVis &= els[i].visible;
     if (ImGui::Checkbox("visible##multi", &allVis)) { for (int i : P) els[i].visible = allVis; g_dirty = true; }
+    { std::vector<Elem*> v; for (int i : P) v.push_back(&els[i]); FlagBoxes(v, "##multi"); }
     {
         int an = els[P[0]].anchor; bool mixed = false; for (int i : P) mixed |= els[i].anchor != an;
         ImGui::SameLine(); ImGui::SetNextItemWidth(140);
@@ -1281,6 +1378,7 @@ static void GroupPanel() {
     if (ImGui::ArrowButton("##gd", ImGuiDir_Down)) { for (int i : mem) Elems()[i].y += 1; g_dirty = true; }
     bool allVis = true; for (int i : mem) allVis &= Elems()[i].visible;
     if (ImGui::Checkbox("visible##grp", &allVis)) { for (int i : mem) Elems()[i].visible = allVis; g_dirty = true; }
+    { std::vector<Elem*> v; for (int i : mem) v.push_back(&Elems()[i]); FlagBoxes(v, "##grp"); }
     {   // anchor for all of them (each keeps its place on screen)
         int an = Elems()[mem[0]].anchor; bool mixed = false;
         for (int i : mem) mixed |= Elems()[i].anchor != an;
@@ -1392,7 +1490,9 @@ static void Selected(Elem& e) {
     char nb[64]; snprintf(nb, sizeof nb, "%s", e.name.c_str());
     if (ImGui::InputText("name", nb, sizeof nb)) { e.name = nb; g_dirty = true; }
     GroupField(e);
-    ImGui::Checkbox("visible", &e.visible); ImGui::SameLine();
+    ImGui::Checkbox("visible", &e.visible);
+    FlagBoxes({&e}, "");
+    ImGui::SameLine();
     { int an = e.anchor; ImGui::SetNextItemWidth(140); if (ImGui::Combo("anchored to", &an, kAnchors, 9)) { SetAnchorKeep(e, an); g_dirty = true; } }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The screen corner / edge it keeps its distance to when the screen's shape changes. Changing it doesn't move it.");
     {
@@ -1728,6 +1828,24 @@ void Panel() {
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", kTokenHelp);
     }
     }  // !menuMode
+    if (ImGui::CollapsingHeader("Prefabs")) {
+        ImGui::TextDisabled("Right-click a group in the list to save it as a prefab. Add puts a copy in this game mode.");
+        auto list = PrefabList();
+        if (list.empty()) ImGui::TextDisabled("(none yet - scripts\\NFSU2_REUI_prefabs)");
+        static std::string confirmDel;
+        for (auto& n : list) {
+            ImGui::PushID(n.c_str());
+            if (ImGui::SmallButton("Add")) AddPrefab(n);
+            ImGui::SameLine();
+            if (confirmDel == n) {
+                if (ImGui::SmallButton("Really delete")) { DeleteFileA((PrefabDir() + n + ".txt").c_str()); g_prefabMsg = "deleted \"" + n + "\""; confirmDel.clear(); }
+                ImGui::SameLine(); if (ImGui::SmallButton("Keep")) confirmDel.clear();
+            } else if (ImGui::SmallButton("Delete")) confirmDel = n;
+            ImGui::SameLine(); ImGui::TextUnformatted(n.c_str());
+            ImGui::PopID();
+        }
+        if (!g_prefabMsg.empty()) ImGui::TextDisabled("%s", g_prefabMsg.c_str());
+    }
     if (ImGui::Button("Add image")) {
         Elem e; e.type = E_IMAGE; e.name = "image " + std::to_string(Elems().size() + 1);
         if (g_texSel >= 0) { e.tex = g_tex[g_texSel].name; e.pack = g_tex[g_texSel].pack; e.texIdx = g_texSel; e.w = g_tex[g_texSel].w; e.h = g_tex[g_texSel].h; e.name = e.tex; }
@@ -1857,6 +1975,21 @@ void Panel() {
                     if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("UIED_ELEM")) { drop.elem = *(const int*)pl->Data; drop.into = child; }
                     if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("UIED_GROUP")) { drop.group = (const char*)pl->Data; drop.into = child; }
                     ImGui::EndDragDropTarget();
+                }
+                if (ImGui::BeginPopupContextItem(("gctx_" + child).c_str())) {   // right click: visible, save as prefab
+                    bool vis = true; for (auto& e : Elems()) if (InGroup(e.group, child)) vis &= e.visible;
+                    if (ImGui::MenuItem("Visible", nullptr, vis)) { for (auto& e : Elems()) if (InGroup(e.group, child)) e.visible = !vis; g_dirty = true; }
+                    ImGui::Separator();
+                    static char pn[64]; static std::string pnFor;
+                    if (pnFor != child) { pnFor = child; snprintf(pn, sizeof pn, "%s", GroupLeaf(child).c_str()); }
+                    ImGui::TextDisabled("Save as prefab");
+                    ImGui::SetNextItemWidth(180);
+                    bool enter = ImGui::InputText("##pfname", pn, sizeof pn, ImGuiInputTextFlags_EnterReturnsTrue);
+                    ImGui::SameLine();
+                    if (ImGui::Button("Save") || enter) { SavePrefab(child, pn); ImGui::CloseCurrentPopup(); }
+                    bool exists = false; for (auto& n : PrefabList()) exists |= n == pn;
+                    if (exists) ImGui::TextDisabled("(replaces the prefab with that name)");
+                    ImGui::EndPopup();
                 }
                 if (open) { level(child); ImGui::TreePop(); }
             }

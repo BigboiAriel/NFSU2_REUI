@@ -54,6 +54,11 @@ typedef void (*PFN_REUI_MenuFrame)(int up, int down, int left, int right, int ac
 // the editor's state a value provider may need: testing a layout (no real race: show sample values), and the
 // leaderboard's row count / follow-me setting. Null pointers are skipped.
 typedef void (*PFN_REUI_EditorState)(int* testMode, int* boardRows, int* boardFollow);
+// An element flag (a checkbox on every element while your mod is loaded): hideNow(ctx) returns 1 while flagged elements
+// are to be hidden. hiddenWhenMissing: what flagged elements do when your mod isn't installed. group > 0: only one flag
+// of the group per element (e.g. "hide online" / "online only").
+typedef int (*REUI_FlagFn)(void* ctx);
+typedef void (*PFN_REUI_AddFlag)(const char* key, const char* label, const char* tooltip, int group, int hiddenWhenMissing, REUI_FlagFn hideNow, void* ctx);
 
 #ifdef __cplusplus
 }

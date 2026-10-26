@@ -69,6 +69,12 @@ EXPORT int REUI_HasMenuPages() { return !uied::MenuPages().empty(); }
 EXPORT int REUI_MenuOpen(const char* page) { return uied::MenuOpen(page ? page : "") ? 1 : 0; }
 EXPORT void REUI_MenuClose() { uied::MenuClose(); }
 EXPORT int REUI_MenuIsOpen() { return uied::MenuIsOpen() ? 1 : 0; }
+EXPORT void REUI_AddFlag(const char* key, const char* label, const char* tooltip, int group, int hiddenWhenMissing, REUI_FlagFn hideNow, void* ctx) {
+    if (!key || !*key) return;
+    uied::AddFlag(key, label ? label : key, tooltip ? tooltip : "", group, hiddenWhenMissing != 0,
+                  hideNow ? std::function<bool()>([hideNow, ctx] { return hideNow(ctx) != 0; }) : std::function<bool()>());
+    reui::Log("api: element flag \"%s\"", key);
+}
 EXPORT void REUI_EditorState(int* testMode, int* boardRows, int* boardFollow) {
     if (testMode) *testMode = uied::testMode;
     if (boardRows) *boardRows = uied::boardRows;
