@@ -355,6 +355,13 @@ static bool Token(const std::string& k, std::string& out) {
         if (car && Readable(car + 0x70, 12)) { const float* v = (const float*)(car + 0x70); sp = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
         snprintf(b, sizeof b, "%.0f", k == "mph" ? sp * 2.23694f : sp * 3.6f); out = b; return true;
     }
+    if (k == "cash" || k == "cash_raw") {   // the career bank (0x861E74, as the HUD's Cash_data shows it: 0x4A9EF0)
+        int c = *(int*)0x861E74;
+        if (k == "cash_raw") { snprintf(b, sizeof b, "%d", c); out = b; return true; }
+        std::string d = std::to_string(c < 0 ? -c : c), g;
+        for (size_t i = 0; i < d.size(); ++i) { if (i && (d.size() - i) % 3 == 0) g += ','; g += d[i]; }
+        out = std::string(c < 0 ? "-" : "") + "$" + g; return true;
+    }
     if (CarToken(k, out)) return true;   // {rpm} {gear} {nos}... (game/car.cpp)
     for (REUI_TokenFn fn : g_tokenProviders) {   // other mods' values (the multiplayer mod's race / leaderboard)
         char buf[256] = {};
@@ -437,7 +444,7 @@ void HostPanel() {
     if (ImGui::CollapsingHeader("Live values")) {
         struct E { const char* k; const char* what; };
         static const E kVals[] = {
-            { "fps", "Frames per second." }, { "speed", "Speed in km/h (from the car's velocity)." }, { "mph", "Speed in mph." },
+            { "fps", "Frames per second." }, { "cash", "Your bank, as $12,345." }, { "cash_raw", "Your bank, just the number." }, { "speed", "Speed in km/h (from the car's velocity)." }, { "mph", "Speed in mph." },
             { "speedo", "Speed as the game's speedometer shows it, in the units picked in the game's options." },
             { "speed_unit", "KPH or MPH, following the game's options." },
             { "rpm", "Engine RPM." }, { "rpm_k", "RPM in thousands (6.5)." }, { "rpm_max", "The tachometer's full scale." },
