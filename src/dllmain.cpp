@@ -1,4 +1,4 @@
-// NFSU2 UI Editor: an ImGui editor for recreating the game's HUD and menus out of its own textures and fonts.
+// NFSU2 REUI: an ImGui editor for recreating the game's HUD and menus out of its own textures and fonts.
 #include "config.h"
 #include "log.h"
 #include "game/addresses.h"
@@ -8,7 +8,7 @@
 #include <windows.h>
 #include <string>
 
-using namespace uiedit;
+using namespace reui;
 
 static bool IsSupportedExe() {
     char path[MAX_PATH];
@@ -24,9 +24,9 @@ static void Start(HMODULE self) {
     std::string dir = path;
     dir = dir.substr(0, dir.find_last_of("\\/") + 1);
     g_scriptsDir = dir;
-    LoadConfig(dir + "NFSU2UIEditor.ini");
-    LogOpen(dir + "NFSU2UIEditor.log", g_config.logFile);
-    Log("NFSU2 UI Editor build " __DATE__ " " __TIME__);
+    LoadConfig(dir + "NFSU2_REUI.ini");
+    LogOpen(dir + "NFSU2_REUI.log", g_config.logFile);
+    Log("NFSU2 REUI build " __DATE__ " " __TIME__);
     if (!IsSupportedExe()) {
         Log("unsupported SPEED2.EXE (expected v1.2 NA, %u bytes); doing nothing", (unsigned)addr::kExeSize);
         return;

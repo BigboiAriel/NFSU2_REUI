@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <d3d9.h>
 
-namespace uiedit {
+namespace reui {
 
 void PanelInit(HWND hwnd, IDirect3DDevice9* device);
 void PanelPollKey();      // the toggle key, once per Present
@@ -14,4 +14,4 @@ void PanelShutdown();
 bool PanelOpen();
 void PanelSetOpen(bool open);
 
-} // namespace uiedit
+} // namespace reui

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds build/NFSU2UIEditor.asi (32-bit Windows DLL).
+# Builds build/NFSU2_REUI.asi (32-bit Windows DLL).
 # Needs: g++-mingw-w64-i686, git. Dependencies are fetched into third_party/ on first run.
 set -e
 cd "$(dirname "$0")"
@@ -26,9 +26,9 @@ SRC="src/dllmain.cpp src/log.cpp src/config.cpp src/panel.cpp src/host.cpp
      $IMGUI/imgui.cpp $IMGUI/imgui_draw.cpp $IMGUI/imgui_tables.cpp $IMGUI/imgui_widgets.cpp
      $IMGUI/backends/imgui_impl_dx9.cpp $IMGUI/backends/imgui_impl_win32.cpp"
 
-$CXX -std=c++17 -O2 -shared -o build/NFSU2UIEditor.asi $SRC \
+$CXX -std=c++17 -O2 -shared -o build/NFSU2_REUI.asi $SRC \
   build/obj/mh_*.o -Isrc -I"$IMGUI" -I"$IMGUI/backends" -I"$MH/include" -I"$TP/nanosvg/src" \
   -ld3d9 -ldwmapi -limm32 -luser32 -lgdi32 -lkernel32 \
   -static -static-libgcc -static-libstdc++ -s -Wl,--enable-stdcall-fixup
 
-echo "built build/NFSU2UIEditor.asi ($(wc -c < build/NFSU2UIEditor.asi) bytes)"
+echo "built build/NFSU2_REUI.asi ($(wc -c < build/NFSU2_REUI.asi) bytes)"

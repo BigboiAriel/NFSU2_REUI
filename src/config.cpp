@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 
-namespace uiedit {
+namespace reui {
 
 Config g_config;
 std::string g_scriptsDir;
@@ -45,7 +45,7 @@ void LoadConfig(const std::string& ini) {
 }
 
 void IniSet(const char* section, const char* key, const std::string& value) {
-    std::string path = g_scriptsDir + "NFSU2UIEditor.ini";
+    std::string path = g_scriptsDir + "NFSU2_REUI.ini";
     std::vector<std::string> lines;
     if (FILE* f = fopen(path.c_str(), "rb")) {
         std::string cur; int c;
@@ -110,4 +110,4 @@ void IniSet(const char* section, const char* key, const std::string& value) {
     }
 }
 
-} // namespace uiedit
+} // namespace reui

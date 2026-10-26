@@ -13,7 +13,7 @@
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-namespace uiedit {
+namespace reui {
 
 static bool g_ready = false, g_open = false, g_keyWasDown = false;
 static HWND g_hwnd = nullptr;
@@ -55,16 +55,16 @@ void PanelShutdown() {
 bool PanelOpen() { return g_open; }
 void PanelSetOpen(bool open) { if (g_open != open) { g_open = open; Log("panel %s", open ? "opened" : "closed"); } }
 
-// scripts\NFSU2UIEditor.quit: closes the game (so a new build can be put in place)
+// scripts\NFSU2_REUI.quit: closes the game (so a new build can be put in place)
 static void PollQuitFile() {
     static DWORD next = 0;
     DWORD now = GetTickCount();
     if (now < next) return;
     next = now + 1000;
-    std::string q = g_scriptsDir + "NFSU2UIEditor.quit";
+    std::string q = g_scriptsDir + "NFSU2_REUI.quit";
     if (GetFileAttributesA(q.c_str()) == INVALID_FILE_ATTRIBUTES) return;
     DeleteFileA(q.c_str());
-    Log("NFSU2UIEditor.quit found: closing the game");
+    Log("NFSU2_REUI.quit found: closing the game");
     if (g_hwnd) PostMessageA(g_hwnd, WM_CLOSE, 0, 0);
 }
 
@@ -95,7 +95,7 @@ void PanelFrame() {
     if (g_open) {
         ImGui::SetNextWindowSize(ImVec2(720, 560), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowPos(ImVec2(40, 40), ImGuiCond_FirstUseEver);
-        if (ImGui::Begin("NFSU2 UI Editor", &g_open)) HostPanel();
+        if (ImGui::Begin("NFSU2 REUI", &g_open)) HostPanel();
         ImGui::End();
     }
     HostDraw();
@@ -104,4 +104,4 @@ void PanelFrame() {
     ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
 }
 
-} // namespace uiedit
+} // namespace reui

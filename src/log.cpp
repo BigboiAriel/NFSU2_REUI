@@ -4,7 +4,7 @@
 #include <cstdarg>
 #include <cstdio>
 
-namespace uiedit {
+namespace reui {
 
 static FILE* g_file = nullptr;
 static CRITICAL_SECTION g_lock;
@@ -41,4 +41,4 @@ void LogClose() {
     }
 }
 
-} // namespace uiedit
+} // namespace reui

@@ -1,11 +1,11 @@
 #pragma once
 #include <string>
 
-namespace uiedit {
+namespace reui {
 
-// Opens scripts\NFSU2UIEditor.log next to the .asi (overwritten each launch).
+// Opens scripts\NFSU2_REUI.log next to the .asi (overwritten each launch).
 void LogOpen(const std::string& path, bool enabled);
 void Log(const char* fmt, ...);
 void LogClose();
 
-} // namespace uiedit
+} // namespace reui

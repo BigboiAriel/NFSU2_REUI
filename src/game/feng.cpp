@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cstdint>
 
-namespace uiedit {
+namespace reui {
 
 namespace fe {
 constexpr uintptr_t PackageInit = 0x54E4A0;
@@ -53,4 +53,4 @@ std::vector<std::pair<void*, std::string>> FengPackages() {
     return v;
 }
 
-} // namespace uiedit
+} // namespace reui

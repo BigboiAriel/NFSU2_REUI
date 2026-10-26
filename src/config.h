@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-namespace uiedit {
+namespace reui {
 
 struct Config {
     int panelKey = 0x75;   // VK_F6: the editor panel
@@ -15,4 +15,4 @@ extern std::string g_scriptsDir;   // folder that holds the .asi, with trailing 
 void LoadConfig(const std::string& iniPath);
 void IniSet(const char* section, const char* key, const std::string& value);   // keeps comments / layout
 
-} // namespace uiedit
+} // namespace reui

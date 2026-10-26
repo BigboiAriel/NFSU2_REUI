@@ -8,7 +8,7 @@
 #include <d3d9.h>
 #include <MinHook.h>
 
-namespace uiedit {
+namespace reui {
 
 using PresentFn = HRESULT(WINAPI*)(IDirect3DDevice9*, const RECT*, const RECT*, HWND, const RGNDATA*);
 using ResetFn = HRESULT(WINAPI*)(IDirect3DDevice9*, D3DPRESENT_PARAMETERS*);
@@ -165,4 +165,4 @@ void StopD3D9Hook() {
     MH_Uninitialize();
 }
 
-} // namespace uiedit
+} // namespace reui

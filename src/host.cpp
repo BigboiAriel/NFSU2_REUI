@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-namespace uiedit {
+namespace reui {
 
 namespace fe {
 enum { kImage = 1, kString = 2, kGroup = 5, kMultiImage = 7, kColoredImage = 9 };
@@ -256,7 +256,7 @@ void HostInit() {
         if (SUCCEEDED(tx->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && w > 0 && h > 0) { *su = (float)w / dd.Width; *sv = (float)h / dd.Height; }
         return tx;
     };
-    uied::Init(gameDir, g_scriptsDir + "NFSU2UIEditor_layout.txt", [](const char* line) { Log("%s", line); });
+    uied::Init(gameDir, g_scriptsDir + "NFSU2_REUI_layout.txt", [](const char* line) { Log("%s", line); });
     g_ready = true;
 }
 // Menu pages without UniPad: the menu key opens the start page, arrows / Enter / Esc drive it (UniPad, when installed,
@@ -311,4 +311,4 @@ void HostPanel() {
 }
 void HostRelease() { if (g_ready) uied::Release(); }
 
-} // namespace uiedit
+} // namespace reui

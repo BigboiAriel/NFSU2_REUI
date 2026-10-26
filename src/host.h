@@ -1,7 +1,7 @@
 #pragma once
 #include <d3d9.h>
 
-namespace uiedit {
+namespace reui {
 
 void HostInit();                         // once, after ImGui is up
 void HostTick(bool focused);             // every Present
@@ -11,4 +11,4 @@ void HostDraw();                         // inside the ImGui frame, after the pa
 void HostPanel();                        // the panel's contents
 void HostRelease();                      // device going away for good
 
-} // namespace uiedit
+} // namespace reui
