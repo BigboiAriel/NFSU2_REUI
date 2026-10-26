@@ -44,7 +44,9 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
 
 - **P5 distribution (later, once REUI is ready).** Light builds of REUI ship with the other mods: a renderer
   without the editor or HUD replacement, which carries the pages built in REUI (decided 2026-10-26).
-  - **UniPad:** renders and drives the UniPad pause-menu pages. Until then, UniPad's own built-in renderer and UI
+  - **UniPad:** renders and drives the UniPad pause-menu pages. Option to look at: bake the pages into
+    NFSU2UniPad.asi (the layout's `mode=menus` part, embedded at build time), with a menus file on disk overriding
+    the built-in copy. Until then, UniPad's own built-in renderer and UI
     editor are left as they are. Standalone UniPad today keeps its older menu-only editor and ships no menu pages,
     so it has no "UniPad Options" item.
   - **Multiplayer mod:** renders the player leaderboards and the mod's new dedicated menus. Until then the
