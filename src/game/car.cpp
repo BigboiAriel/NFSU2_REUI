@@ -177,6 +177,25 @@ static bool EngageToken(const std::string& k, std::string& out) {
     else if (k == "sms_waiting") out = g.state == 4 && sms ? "1" : "";
     else if (k == "sms_any") out = sms && (fresh || g.state == 4) ? "1" : "";
     else if (k == "sms_count") { if (sms) { snprintf(b, sizeof b, "%d", g.count); out = b; } }
+    else if (k == "sms_icon" || k == "sms_color") {
+        // the newest unread message's sender type picks the envelope's icon and colour (0x4ABB1E): the list 0x860A60
+        // (count [0x861E60], record 0x5014A0), skipping read (+4) / removed (+6) ones down to index 1; type = [[rec]+5],
+        // 8 without one; 0x4974A0(type, colour BGRA ints) gives the icon hash
+        int n = *(int*)0x861E60, type = 8;
+        for (int i = n - 1; i > 0 && i < 1000; --i) {
+            uint8_t* m = ((uint8_t*(__thiscall*)(void*, int))0x5014A0)((void*)0x860A60, i);
+            if (!R(m, 8)) break;
+            if (m[4] == 1 || m[6] == 1) continue;
+            uint8_t* d = *(uint8_t**)m;
+            if (R(d, 6)) type = (int8_t)d[5];
+            break;
+        }
+        int col[4] = {255, 255, 255, 255};
+        uint32_t h = ((uint32_t(__cdecl*)(int, int*))0x4974A0)(type, col);
+        if (k == "sms_icon") snprintf(b, sizeof b, "#%08X", h);
+        else snprintf(b, sizeof b, "%d %d %d", col[2] & 0xFF, col[1] & 0xFF, col[0] & 0xFF);
+        out = b;
+    }
     else return false;
     return true;
 }

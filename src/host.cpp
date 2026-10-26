@@ -496,7 +496,7 @@ void HostPanel() {
             { "engage_phone", "1 while the Cingular panel shows the (pulsing) phone: a new message or an event in reach." },
             { "engage_event", "1 while an event / shop is in reach (its icon blinks, D-pad up pulses)." }, { "engage_icon", "Texture: that event's icon." },
             { "sms_new", "1 while a text message has just arrived." }, { "sms_waiting", "1 while unread messages wait (envelope + count)." },
-            { "sms_any", "1 for either." }, { "sms_count", "How many messages (for x3)." }, { "engage_state", "The panel's slot state (2/3 new, 4 waiting)." }, { "engage_type", "Its type (19 = text message)." },
+            { "sms_any", "1 for either." }, { "sms_icon", "Texture: the newest unread message's envelope icon." }, { "sms_color", "Its colour (R G B) - Rachel, races, shops... each have their own." }, { "sms_count", "How many messages (for x3)." }, { "engage_state", "The panel's slot state (2/3 new, 4 waiting)." }, { "engage_type", "Its type (19 = text message)." },
             { "tach_paint_1", "Custom HUD paint 1 (R G B): the dial, the boost dial." }, { "tach_paint_2", "Paint 2: the needles." }, { "tach_paint_3", "Paint 3: the RPM and boost numbers." }, { "gear_grey", "1 when the stock tach shows the gear grey (else orange)." }, { "turbo", "1 when the car has a turbo." },
         };
         ImGui::TextDisabled("Put {key} in a text element. Click a key to copy it. Other mods add theirs (the multiplayer mod: F8 > Live values).");
