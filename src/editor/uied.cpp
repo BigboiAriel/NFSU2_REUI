@@ -1,0 +1,1772 @@
+// UI editor - see uied.h. Copied from nfsu2-multiplayer (src/uied.cpp); keep the two in step when changing it.
+//
+// Game file formats (NFSU2 PC, reverse engineered Oct 24 2026):
+//  * Chunked files: u32 id, u32 size, data; ids with the top bit set hold more chunks.
+//  * Texture pack B3300000: B3310000 { 33310001 header (+0xC pack name), 33310004 texture infos (0x7C each),
+//    33310005 formats (32 each, D3D format / FourCC at +0x14), or 33310003 for packs whose textures are each
+//    JDLZ-compressed (24 each: hash, file offset, size) }, B3320000 { 33320002 data, starting at the next 0x80 }.
+//    Texture info: +0x0C name (24), +0x30 data offset, +0x34 palette offset, +0x38 data size, +0x3C palette size,
+//    +0x40 top level size, +0x44 u16 width, height. Formats: DXT1/DXT3/DXT5, 0x15 A8R8G8B8, 0x29 P8 (+ BGRA palette).
+//    A compressed texture decompresses to: data (size), palette, then its 0x7C info and 0x20 format record.
+//  * .lzc files are one JDLZ block of a whole chunked file.
+//  * Font 30201: +0 name; "FNTF" at +0x200: +0x0A u16 glyph count, +0x14 glyph table, +0x18 kerning table,
+//    +0x24 line height. Glyph (16): u16 char, u8 w, h, u16 u, v, u8 -, s8 x offset, s8 y offset, u8 kerning count,
+//    u16 kerning start, u16 advance. Kerning table: u32 count, then entries (4): u16 PREVIOUS char, s8 adjust,
+//    u8 this char (low byte); a glyph's entries are table+4+ks*4, kc of them (header +0x0C flag 0x40000).
+//    Its texture is the pack texture with the font's name in capitals (LANGUAGES\LanguageTextures.bin).
+#include "uied.h"
+#include "imgui.h"
+#include <vector>
+#include <deque>
+#include <map>
+#include <mutex>
+#include <thread>
+#include <atomic>
+#include <algorithm>
+#include <cstdio>
+#include <cstdarg>
+#include <cstring>
+#include <cstdint>
+#include <cmath>
+#include <ctime>
+
+namespace uied {
+std::function<bool(const std::string&, std::string&)> tokens;
+int boardRows = 4; bool boardFollow = true; bool testMode = false; bool menuMode = false;
+std::function<IDirect3DTexture9*(const std::string&, float*, float*)> liveTexture;
+std::vector<std::string> iconFamilies, iconKeys;
+std::function<IDirect3DTexture9*(int, int, int)> iconTexture;
+std::function<std::string(int, int)> iconLabel;
+std::function<int(const std::string&)> iconForGameTexture;
+std::function<void()> iconReload;
+// "icon:<family folder | auto>:<key>" -> family (-1 = auto) and id
+static bool IconRef(const std::string& tex, int& fam, int& id) {
+    if (tex.compare(0, 5, "icon:") != 0) return false;
+    size_t c = tex.find(':', 5); if (c == std::string::npos) return false;
+    std::string f = tex.substr(5, c - 5), k = tex.substr(c + 1);
+    fam = -2; id = -1;
+    if (f == "auto") fam = -1; else for (size_t i = 0; i < iconFamilies.size(); ++i) if (iconFamilies[i] == f) fam = (int)i;
+    for (size_t i = 0; i < iconKeys.size(); ++i) if (iconKeys[i] == k) id = (int)i;
+    return fam > -2 && id >= 0;
+}
+static std::string IconName(int fam, int id) {   // what the list shows
+    std::string l = iconLabel ? iconLabel(fam < 0 ? 0 : fam, id) : std::string();
+    if (fam < 0) return "icon " + (id >= 0 && id < (int)iconKeys.size() ? iconKeys[id] : std::string("?")) + " (follows the controller)";
+    return "icon " + l + " (" + iconFamilies[fam] + ")";
+}
+
+static std::string g_dir, g_layoutPath;
+static void (*g_log)(const char*) = nullptr;
+static IDirect3DDevice9* g_dev = nullptr;
+static void Log(const char* fmt, ...) {
+    if (!g_log) return;
+    char b[512]; va_list ap; va_start(ap, fmt); vsnprintf(b, sizeof b, fmt, ap); va_end(ap);
+    g_log(b);
+}
+
+// ---------------------------------------------------------------- files
+static bool ReadFile(const std::string& path, std::vector<uint8_t>& out) {
+    FILE* f = fopen(path.c_str(), "rb"); if (!f) return false;
+    fseek(f, 0, SEEK_END); long n = ftell(f); fseek(f, 0, SEEK_SET);
+    if (n <= 0) { fclose(f); return false; }
+    out.resize((size_t)n);
+    size_t got = fread(out.data(), 1, (size_t)n, f); fclose(f);
+    return got == (size_t)n;
+}
+static bool ReadPart(const std::string& path, uint32_t off, uint32_t size, std::vector<uint8_t>& out) {
+    FILE* f = fopen(path.c_str(), "rb"); if (!f) return false;
+    out.resize(size);
+    bool ok = fseek(f, (long)off, SEEK_SET) == 0 && fread(out.data(), 1, size, f) == size;
+    fclose(f); return ok;
+}
+static bool Jdlz(const uint8_t* in, size_t n, std::vector<uint8_t>& out) {
+    if (n < 16 || memcmp(in, "JDLZ", 4) != 0) return false;
+    uint32_t outLen; memcpy(&outLen, in + 8, 4);
+    if (outLen > 64u * 1024 * 1024) return false;
+    out.assign(outLen, 0);
+    unsigned flags1 = 1, flags2 = 1; size_t ip = 16, op = 0;
+    while (ip < n && op < outLen) {
+        if (flags1 == 1) { flags1 = in[ip++] | 0x100; if (ip >= n) break; }
+        if (flags2 == 1) { flags2 = in[ip++] | 0x100; if (ip >= n) break; }
+        if (flags1 & 1) {
+            if (ip + 1 >= n) break;
+            size_t len, t;
+            if (flags2 & 1) { len = (in[ip + 1] | ((in[ip] & 0xF0) << 4)) + 3; t = (in[ip] & 0x0F) + 1; }
+            else { t = (in[ip + 1] | ((in[ip] & 0xE0) << 3)) + 17; len = (in[ip] & 0x1F) + 3; }
+            ip += 2;
+            if (t > op) return false;
+            for (size_t i = 0; i < len && op < outLen; ++i, ++op) out[op] = out[op - t];
+            flags2 >>= 1;
+        } else out[op++] = in[ip++];
+        flags1 >>= 1;
+    }
+    return op == outLen;
+}
+
+// ---------------------------------------------------------------- index
+struct SrcFile { std::string rel, path; bool lzc = false; std::vector<uint8_t> cache; };
+struct Tex {
+    std::string name, pack; int file = -1;
+    bool blob = false; uint32_t blobOff = 0, blobSize = 0;   // compressed texture (33310003)
+    uint32_t dataOff = 0, palOff = 0, size = 0, palSize = 0, top = 0;
+    uint16_t w = 0, h = 0; uint32_t fmt = 0;
+    IDirect3DTexture9* tex = nullptr; bool failed = false; DWORD usedAt = 0;
+};
+struct Glyph { uint16_t c; uint8_t w, h; uint16_t u, v; int8_t xo, yo; uint8_t kc; uint16_t ks; uint16_t adv; };
+struct Font {
+    std::string name, file; std::map<uint16_t, Glyph> g; int line = 20;
+    std::vector<uint8_t> kern; int tex = -1;
+};
+static std::vector<SrcFile> g_files;
+static std::vector<Tex> g_tex;
+static std::vector<Font> g_fonts;
+static std::vector<std::string> g_packs;   // "file: pack" for the filter
+static std::atomic<int> g_state{0};        // 0 not scanned, 1 scanning, 2 ready
+static std::string g_scanMsg;
+
+static uint32_t U32(const std::vector<uint8_t>& d, size_t o) { uint32_t v = 0; if (o + 4 <= d.size()) memcpy(&v, &d[o], 4); return v; }
+static uint16_t U16(const std::vector<uint8_t>& d, size_t o) { uint16_t v = 0; if (o + 2 <= d.size()) memcpy(&v, &d[o], 2); return v; }
+static std::string Str(const std::vector<uint8_t>& d, size_t o, size_t max) {
+    std::string s; for (size_t i = 0; i < max && o + i < d.size() && d[o + i]; ++i) s += (char)d[o + i]; return s;
+}
+
+struct PackCtx { std::string name; size_t info = 0, infoN = 0, fmt = 0, fmtN = 0, comp = 0, compN = 0; };
+static void AddInfoTex(const std::vector<uint8_t>& d, size_t e, uint32_t fmt, int file, const std::string& pack, size_t data0,
+                       bool blob, uint32_t blobOff, uint32_t blobSize, std::vector<Tex>& out) {
+    Tex t; t.name = Str(d, e + 0x0C, 24); t.pack = pack; t.file = file; t.fmt = fmt;
+    t.dataOff = U32(d, e + 0x30); t.palOff = U32(d, e + 0x34); t.size = U32(d, e + 0x38); t.palSize = U32(d, e + 0x3C);
+    t.top = U32(d, e + 0x40); t.w = U16(d, e + 0x44); t.h = U16(d, e + 0x46);
+    if (t.name.empty() || !t.w || !t.h || t.w > 4096 || t.h > 4096) return;
+    if (blob) { t.blob = true; t.blobOff = blobOff; t.blobSize = blobSize; t.palOff = t.size; t.dataOff = 0; }
+    else t.dataOff += (uint32_t)data0, t.palOff += (uint32_t)data0;
+    out.push_back(t);
+}
+static void Walk(const std::vector<uint8_t>& d, size_t off, size_t end, int file, PackCtx& pk, std::vector<Tex>& tex, std::vector<Font>& fonts, int depth) {
+    while (off + 8 <= end) {
+        uint32_t id = U32(d, off), sz = U32(d, off + 4);
+        size_t o = off + 8;
+        if (sz > end - o) return;
+        if (id == 0xB3300000) pk = PackCtx();
+        else if (id == 0x33310001) pk.name = Str(d, o + 0x0C, 28);
+        else if (id == 0x33310004) { pk.info = o; pk.infoN = sz / 0x7C; }
+        else if (id == 0x33310005) { pk.fmt = o; pk.fmtN = sz / 32; }
+        else if (id == 0x33310003) { pk.comp = o; pk.compN = sz / 24; }
+        else if (id == 0x33320002) {
+            size_t data0 = (o + 0x7F) & ~(size_t)0x7F;
+            std::string pack = pk.name.empty() ? std::string("?") : pk.name;
+            for (size_t k = 0; k < pk.infoN; ++k) {
+                uint32_t fmt = k < pk.fmtN ? U32(d, pk.fmt + k * 32 + 0x14) : 0;
+                AddInfoTex(d, pk.info + k * 0x7C, fmt, file, pack, data0, false, 0, 0, tex);
+            }
+            for (size_t k = 0; k < pk.compN; ++k) {
+                uint32_t boff = U32(d, pk.comp + k * 24 + 4), bsz = U32(d, pk.comp + k * 24 + 8);
+                if ((size_t)boff + bsz > d.size() || bsz < 16) continue;
+                std::vector<uint8_t> x;
+                if (!Jdlz(&d[boff], bsz, x) || x.size() < 0x9C) continue;
+                uint32_t fmt = U32(x, x.size() - 0x20 + 0x14);
+                AddInfoTex(x, x.size() - 0x9C, fmt, file, pack, 0, true, boff, bsz, tex);
+            }
+        } else if (id == 0x30201 && sz > 0x280) {
+            Font f; f.name = Str(d, o, 32); f.file = g_files[file].rel;
+            size_t F = o + 0x200;
+            if (F + 0x80 <= o + sz && memcmp(&d[F], "FNTF", 4) == 0) {
+                uint16_t n = U16(d, F + 0x0A); uint32_t go = U32(d, F + 0x14), ko = U32(d, F + 0x18), end2 = U32(d, F + 0x1C);
+                f.line = (int)U32(d, F + 0x24); if (f.line <= 0 || f.line > 200) f.line = 20;
+                for (uint16_t i = 0; i < n; ++i) {
+                    size_t gp = F + go + i * 16; if (gp + 16 > o + sz) break;
+                    Glyph g; g.c = U16(d, gp); g.w = d[gp + 2]; g.h = d[gp + 3]; g.u = U16(d, gp + 4); g.v = U16(d, gp + 6);
+                    g.xo = (int8_t)d[gp + 9]; g.yo = (int8_t)d[gp + 10]; g.kc = d[gp + 11]; g.ks = U16(d, gp + 12); g.adv = U16(d, gp + 14);
+                    f.g[g.c] = g;
+                }
+                if (ko && end2 > ko && F + end2 <= o + sz) f.kern.assign(d.begin() + F + ko, d.begin() + F + end2);
+                if (!f.g.empty()) fonts.push_back(f);
+            }
+        }
+        if ((id & 0x80000000) && depth < 6) Walk(d, o, o + sz, file, pk, tex, fonts, depth + 1);
+        off = o + sz;
+    }
+}
+static void Scan() {
+    std::vector<std::string> rels = {
+        "GLOBAL\\GLOBALA.BUN", "GLOBAL\\GLOBALB.BUN", "GLOBAL\\InGameCommon.bun", "GLOBAL\\InGameRace.bun",
+        "GLOBAL\\InGameDrag.bun", "GLOBAL\\InGameDrift.bun", "GLOBAL\\InGameFreeRoam.bun", "GLOBAL\\InGamePerformanceTuning.bun",
+        "GLOBAL\\HUD_CustomTextures_ALL.bin", "GLOBAL\\GlobalTexturesNA.bin", "GLOBAL\\DYNTEX.BIN",
+        "FRONTEND\\FrontB.lzc", "FRONTEND\\MAGAZINES_FRONTEND.BIN", "FRONTEND\\MAGAZINES_SHOWCASE.BIN",
+        "LANGUAGES\\LanguageTextures.bin", "LANGUAGES\\English.bin" };
+    std::vector<SrcFile> files; std::vector<Tex> tex; std::vector<Font> fonts;
+    g_files.clear();
+    for (auto& r : rels) {
+        SrcFile sf; sf.rel = r; sf.path = g_dir + "\\" + r;
+        std::vector<uint8_t> d;
+        if (!ReadFile(sf.path, d)) continue;
+        if (d.size() >= 16 && memcmp(d.data(), "JDLZ", 4) == 0) {
+            std::vector<uint8_t> x; if (!Jdlz(d.data(), d.size(), x)) { Log("ui editor: couldn't unpack %s", r.c_str()); continue; }
+            d.swap(x); sf.lzc = true;
+        }
+        int idx = (int)g_files.size();
+        g_files.push_back(sf);
+        PackCtx pk; size_t before = tex.size(), fb = fonts.size();
+        Walk(d, 0, d.size(), idx, pk, tex, fonts, 0);
+        if (g_files[idx].lzc) g_files[idx].cache.swap(d);   // keep unpacked frontend data for loading its textures
+        Log("ui editor: %s - %d texture(s), %d font(s)", r.c_str(), (int)(tex.size() - before), (int)(fonts.size() - fb));
+    }
+    // fonts' textures
+    for (auto& f : fonts) {
+        std::string up = f.name; for (auto& c : up) c = (char)toupper((unsigned char)c);
+        for (size_t i = 0; i < tex.size(); ++i) if (tex[i].name == up) { f.tex = (int)i; break; }
+    }
+    std::vector<std::string> packs;
+    for (auto& t : tex) { std::string p = g_files[t.file].rel + ": " + t.pack; if (std::find(packs.begin(), packs.end(), p) == packs.end()) packs.push_back(p); }
+    g_tex.swap(tex); g_fonts.swap(fonts); g_packs.swap(packs);
+    char b[160]; snprintf(b, sizeof b, "%d textures in %d packs, %d fonts", (int)g_tex.size(), (int)g_packs.size(), (int)g_fonts.size());
+    g_scanMsg = b; Log("ui editor: %s", b);
+    g_state = 2;
+}
+
+// ---------------------------------------------------------------- textures
+static int g_loadsThisFrame = 0;
+static bool BytesOf(Tex& t, std::vector<uint8_t>& data, std::vector<uint8_t>& pal) {
+    SrcFile& f = g_files[t.file];
+    uint32_t need = t.top ? t.top : t.size;
+    if (t.blob) {
+        std::vector<uint8_t> c, x;
+        if (!ReadPart(f.path, t.blobOff, t.blobSize, c) || !Jdlz(c.data(), c.size(), x)) return false;
+        if (need > x.size()) return false;
+        data.assign(x.begin(), x.begin() + need);
+        if (t.fmt == 0x29 && (size_t)t.palOff + 1024 <= x.size()) pal.assign(x.begin() + t.palOff, x.begin() + t.palOff + 1024);
+        return true;
+    }
+    if (f.lzc) {
+        if ((size_t)t.dataOff + need > f.cache.size()) return false;
+        data.assign(f.cache.begin() + t.dataOff, f.cache.begin() + t.dataOff + need);
+        if (t.fmt == 0x29 && (size_t)t.palOff + 1024 <= f.cache.size()) pal.assign(f.cache.begin() + t.palOff, f.cache.begin() + t.palOff + 1024);
+        return true;
+    }
+    if (!ReadPart(f.path, t.dataOff, need, data)) return false;
+    if (t.fmt == 0x29) ReadPart(f.path, t.palOff, 1024, pal);
+    return true;
+}
+static IDirect3DTexture9* TexOf(int i, bool mayLoad = true) {
+    if (i < 0 || i >= (int)g_tex.size()) return nullptr;
+    Tex& t = g_tex[i];
+    t.usedAt = GetTickCount();
+    if (t.tex || t.failed || !mayLoad || !g_dev) return t.tex;
+    if (g_loadsThisFrame >= 12) return nullptr;   // spread the work over frames
+    ++g_loadsThisFrame;
+    std::vector<uint8_t> data, pal;
+    if (!BytesOf(t, data, pal)) { t.failed = true; return nullptr; }
+    D3DFORMAT fmt; bool dxt = false, p8 = false; int bpb = 0;
+    if (t.fmt == MAKEFOURCC('D', 'X', 'T', '1')) { fmt = D3DFMT_DXT1; dxt = true; bpb = 8; }
+    else if (t.fmt == MAKEFOURCC('D', 'X', 'T', '3')) { fmt = D3DFMT_DXT3; dxt = true; bpb = 16; }
+    else if (t.fmt == MAKEFOURCC('D', 'X', 'T', '5')) { fmt = D3DFMT_DXT5; dxt = true; bpb = 16; }
+    else if (t.fmt == 0x15) fmt = D3DFMT_A8R8G8B8;
+    else if (t.fmt == 0x29) { fmt = D3DFMT_A8R8G8B8; p8 = true; }
+    else { t.failed = true; return nullptr; }
+    IDirect3DTexture9* tx = nullptr;
+    if (FAILED(g_dev->CreateTexture(t.w, t.h, 1, 0, fmt, D3DPOOL_MANAGED, &tx, nullptr)) || !tx) { t.failed = true; return nullptr; }
+    D3DLOCKED_RECT lr;
+    if (FAILED(tx->LockRect(0, &lr, nullptr, 0))) { tx->Release(); t.failed = true; return nullptr; }
+    bool ok = true;
+    if (dxt) {
+        int bw = (t.w + 3) / 4, bh = (t.h + 3) / 4; size_t row = (size_t)bw * bpb;
+        if (data.size() < row * bh) ok = false;
+        else for (int y = 0; y < bh; ++y) memcpy((uint8_t*)lr.pBits + (size_t)y * lr.Pitch, &data[y * row], row);
+    } else if (p8) {
+        if (data.size() < (size_t)t.w * t.h || pal.size() < 1024) ok = false;
+        else for (int y = 0; y < t.h; ++y) {
+            uint32_t* dst = (uint32_t*)((uint8_t*)lr.pBits + (size_t)y * lr.Pitch);
+            for (int x = 0; x < t.w; ++x) memcpy(&dst[x], &pal[data[(size_t)y * t.w + x] * 4], 4);
+        }
+    } else {
+        size_t row = (size_t)t.w * 4;
+        if (data.size() < row * t.h) ok = false;
+        else for (int y = 0; y < t.h; ++y) memcpy((uint8_t*)lr.pBits + (size_t)y * lr.Pitch, &data[y * row], row);
+    }
+    tx->UnlockRect(0);
+    if (!ok) { tx->Release(); t.failed = true; return nullptr; }
+    t.tex = tx;
+    return tx;
+}
+static int FindTex(const std::string& name, const std::string& pack) {
+    int any = -1;
+    for (size_t i = 0; i < g_tex.size(); ++i) if (g_tex[i].name == name) { if (pack.empty() || g_tex[i].pack == pack) return (int)i; if (any < 0) any = (int)i; }
+    return any;
+}
+static int FindFont(const std::string& name) { for (size_t i = 0; i < g_fonts.size(); ++i) if (g_fonts[i].name == name) return (int)i; return -1; }
+void Release() {
+    for (auto& t : g_tex) if (t.tex) { t.tex->Release(); t.tex = nullptr; }
+}
+static void Trim() {   // keep at most ~400 textures made; drop the least recently used
+    int made = 0; for (auto& t : g_tex) if (t.tex) ++made;
+    if (made <= 400) return;
+    std::vector<int> idx; for (size_t i = 0; i < g_tex.size(); ++i) if (g_tex[i].tex) idx.push_back((int)i);
+    std::sort(idx.begin(), idx.end(), [](int a, int b) { return g_tex[a].usedAt < g_tex[b].usedAt; });
+    for (int k = 0; k < made - 300; ++k) { g_tex[idx[k]].tex->Release(); g_tex[idx[k]].tex = nullptr; }
+}
+
+// ---------------------------------------------------------------- text
+// Kerning as the game does it (0x6F45F0, used by the width / draw code 0x50BCE0): a glyph's list (kerning table
+// +4 + ks*4, kc entries of u16 char, s8 adjust, u8 this char) holds the pairs that END with it, keyed by the
+// character BEFORE it; the adjustment is added before the glyph is placed.
+static int Kern(const Font& f, const Glyph& g, uint16_t prev) {
+    if (!g.kc || f.kern.empty()) return 0;
+    for (int j = 0; j < g.kc; ++j) {
+        size_t o = 4 + ((size_t)g.ks + j) * 4;
+        if (o + 4 > f.kern.size()) break;
+        uint16_t n; memcpy(&n, &f.kern[o], 2);
+        if (n == prev) return (int8_t)f.kern[o + 2];
+    }
+    return 0;
+}
+static float TextWidth(const Font& f, const std::string& s) {
+    float x = 0, best = 0;
+    for (size_t i = 0; i < s.size(); ++i) {
+        unsigned char c = (unsigned char)s[i];
+        if (c == '\n') { best = std::max(best, x); x = 0; continue; }
+        auto it = f.g.find(c); if (it == f.g.end()) it = f.g.find('?'); if (it == f.g.end()) continue;
+        x += it->second.adv + (i > 0 && s[i - 1] != '\n' ? Kern(f, it->second, (unsigned char)s[i - 1]) : 0);
+    }
+    return std::max(best, x);
+}
+static int Lines(const std::string& s) { return 1 + (int)std::count(s.begin(), s.end(), '\n'); }
+// draw s with its top-left at p, glyphs scaled by k (screen pixels per font pixel)
+static void DrawText(ImDrawList* dl, const Font& f, ImVec2 p, float k, ImU32 col, const std::string& s, int align, float boxW) {
+    IDirect3DTexture9* tx = TexOf(f.tex); if (!tx) return;
+    const Tex& t = g_tex[f.tex];
+    float iw = 1.f / t.w, ih = 1.f / t.h;
+    size_t start = 0; float y = p.y;
+    while (start <= s.size()) {
+        size_t e = s.find('\n', start); if (e == std::string::npos) e = s.size();
+        std::string line = s.substr(start, e - start);
+        float lw = TextWidth(f, line) * k;
+        float x = p.x + (align == 1 ? (boxW - lw) * 0.5f : align == 2 ? boxW - lw : 0.f);
+        for (size_t i = 0; i < line.size(); ++i) {
+            unsigned char c = (unsigned char)line[i];
+            auto it = f.g.find(c); if (it == f.g.end()) it = f.g.find('?'); if (it == f.g.end()) continue;
+            const Glyph& g = it->second;
+            if (i > 0) x += Kern(f, g, (unsigned char)line[i - 1]) * k;
+            if (g.w && g.h) {
+                ImVec2 a(x + g.xo * k, y + g.yo * k), b(a.x + g.w * k, a.y + g.h * k);
+                dl->AddImage((ImTextureID)tx, a, b, ImVec2(g.u * iw, g.v * ih), ImVec2((g.u + g.w) * iw, (g.v + g.h) * ih), col);
+            }
+            x += g.adv * k;
+        }
+        y += f.line * k;
+        start = e + 1;
+    }
+}
+// {key} -> live value. In an element bound to leaderboard row N, {name} {pos} ... mean that row's ({rN.name} ...).
+static std::string Expand(const std::string& s, int row = 0) {
+    std::string out;
+    for (size_t i = 0; i < s.size(); ++i) {
+        if (s[i] == '{') {
+            size_t e = s.find('}', i);
+            if (e != std::string::npos) {
+                std::string key = s.substr(i + 1, e - i - 1), v;
+                if (key == "clock") { time_t now = time(nullptr); tm* lt = localtime(&now); char b[16]; strftime(b, sizeof b, "%H:%M", lt); v = b; }
+                else if (row > 0 && key.find('.') == std::string::npos && tokens && tokens("r" + std::to_string(row) + "." + key, v)) {}
+                else if (!(tokens && tokens(key, v))) v = "{" + key + "}";
+                out += v; i = e; continue;
+            }
+        }
+        out += s[i];
+    }
+    return out;
+}
+
+// ---------------------------------------------------------------- overlay
+enum { E_IMAGE = 0, E_TEXT = 1 };
+struct Elem {
+    int type = E_IMAGE; std::string name = "element", tex, pack, font, text = "Text";
+    int anchor = 0;                       // 0..8: top-left, top, top-right, left, centre, right, bottom-left, bottom, bottom-right
+    float x = 20, y = 20, w = 128, h = 64, scale = 1.f;
+    float u0 = 0, v0 = 0, u1 = 1, v1 = 1;
+    float rot = 0;                        // images: degrees clockwise about the centre
+    int layer = 0;                        // draw order: higher layers on top; same layer: later in the list on top
+    float col[4] = { 1, 1, 1, 1 };
+    int align = 0; bool visible = true;
+    int row = 0;                          // > 0: bound to leaderboard row N (hidden when there's no such row)
+    std::string group;                    // elements in a group move / show / duplicate together
+    bool hiMine = false; float hiCol[4] = { 202 / 255.f, 244 / 255.f, 138 / 255.f, 1.f };   // the game's SetPlayerColor green   // colour when that row is you
+    int mode = 0;                         // (only used while loading)
+    int texIdx = -2, fontIdx = -2;        // resolved lazily (-2: not yet)
+    std::string role;                     // menus: what it does in its row / page (uied_menu.inc)
+    bool selOnly = false;                 // menus: shown on the selected row only
+    std::string kit;                      // menus: the widget-kit template it belongs to ("" = in the layout)
+};
+static std::vector<Elem> g_layout[NMODES];   // one overlay per game mode
+static int g_editMode = 0, g_nowMode = -1;
+static const char* kModeKey[NMODES] = { "freeroam", "race", "drag", "drift", "outrun" };
+static const char* kModeName[NMODES] = { "Free roam", "Racing", "Drag racing", "Drift racing", "Outrun" };
+static std::vector<Elem>& Elems() { return g_layout[g_editMode]; }
+static int g_sel = -1;
+static std::string g_selGroup;            // a group picked in the list (then g_sel = -1)
+static std::vector<ImVec2> g_groupOrig;   // members' positions when a group drag started
+// Groups nest: a group is a path, "Race HUD/Leaderboard" is the group Leaderboard inside Race HUD. An element is in
+// group G when its group is G or any group inside G.
+static bool InGroup(const std::string& eg, const std::string& g) {
+    return !g.empty() && (eg == g || (eg.size() > g.size() && eg.compare(0, g.size(), g) == 0 && eg[g.size()] == '/'));
+}
+static bool PickedOf(int i);   // picked, on its own or in a picked group
+static std::string GroupParent(const std::string& g) { size_t k = g.rfind('/'); return k == std::string::npos ? "" : g.substr(0, k); }
+static std::string GroupLeaf(const std::string& g) { size_t k = g.rfind('/'); return k == std::string::npos ? g : g.substr(k + 1); }
+static std::string CleanGroup(std::string g) {   // no empty parts: "/a//b/" -> "a/b"
+    std::string o, part;
+    for (size_t i = 0; i <= g.size(); ++i) {
+        if (i == g.size() || g[i] == '/') { if (!part.empty()) { if (!o.empty()) o += '/'; o += part; } part.clear(); }
+        else part += g[i];
+    }
+    return o;
+}
+// g_dirty: unsaved changes. Setting it counts an edit (gen), which is how undo knows something changed.
+struct DirtyFlag {
+    bool v = false; unsigned gen = 0;
+    DirtyFlag& operator=(bool b) { if (b) ++gen; v = b; return *this; }
+    operator bool() const { return v; }
+};
+static bool g_show = true, g_edit = false, g_onlyWorld = false;
+static DirtyFlag g_dirty;
+// more than one element picked (Ctrl / Shift + click); g_sel stays the last one clicked
+static std::vector<int> g_multi;
+static bool InMulti(int i) { return std::find(g_multi.begin(), g_multi.end(), i) != g_multi.end(); }
+static void MultiToggle(int i) { auto it = std::find(g_multi.begin(), g_multi.end(), i); if (it != g_multi.end()) g_multi.erase(it); else g_multi.push_back(i); }
+static std::vector<std::string> g_multiG;   // groups picked along with them (as groups)
+static bool InMultiG(const std::string& g) { return std::find(g_multiG.begin(), g_multiG.end(), g) != g_multiG.end(); }
+static void MultiToggleG(const std::string& g) { auto it = std::find(g_multiG.begin(), g_multiG.end(), g); if (it != g_multiG.end()) g_multiG.erase(it); else g_multiG.push_back(g); }
+static size_t PickCount() { return g_multi.size() + g_multiG.size(); }
+static void ClearMulti() { g_multi.clear(); g_multiG.clear(); }
+static bool PickedOf(int i) {
+    if (InMulti(i)) return true;
+    if (i < 0 || i >= (int)Elems().size()) return false;
+    for (auto& g : g_multiG) if (InGroup(Elems()[i].group, g)) return true;
+    return false;
+}
+static std::vector<int> PickedElems() {   // every element picked (on its own or in a picked group), in list order
+    std::vector<int> v; for (int i = 0; i < (int)Elems().size(); ++i) if (PickedOf(i)) v.push_back(i); return v;
+}
+static float g_listH = 230.f;   // height of the element list and properties boxes (the bar under them)
+static bool g_hiSel = true;              // green outline around the selected element / group on screen
+static bool g_panelOpen = false;          // the tab was drawn this frame
+static int g_dragging = -1, g_dragMode = 0; static ImVec2 g_dragStart, g_dragOrig, g_dragOrigWH; static float g_dragOrigScale = 1.f;
+
+static const char* kAnchors[] = { "top left", "top", "top right", "left", "centre", "right", "bottom left", "bottom", "bottom right" };
+static float Unit() { ImVec2 ds = ImGui::GetIO().DisplaySize; return ds.y / 480.f; }   // 1 unit = 1/480 of the screen height
+static ImVec2 ElemSize(Elem& e) {
+    if (e.type == E_TEXT) {
+        if (e.fontIdx == -2) e.fontIdx = FindFont(e.font);
+        if (e.fontIdx < 0) return ImVec2(40, 12);
+        const Font& f = g_fonts[e.fontIdx]; std::string s = Expand(e.text, e.row);
+        return ImVec2(std::max(e.w, TextWidth(f, s) * e.scale), Lines(s) * f.line * e.scale);
+    }
+    return ImVec2(e.w, e.h);
+}
+static void ElemRect(Elem& e, ImVec2& a, ImVec2& b) {
+    ImVec2 ds = ImGui::GetIO().DisplaySize; float k = Unit();
+    float ax = (e.anchor % 3) * 0.5f, ay = (e.anchor / 3) * 0.5f;
+    ImVec2 sz = ElemSize(e);
+    // text without a box width: its position is where the text starts / is centred / ends (by its alignment),
+    // so changing text doesn't move it
+    float px = (e.type == E_TEXT && e.w <= 0.f) ? e.align * 0.5f : ax;
+    a = ImVec2(ax * ds.x + e.x * k - px * sz.x * k, ay * ds.y + e.y * k - ay * sz.y * k);
+    b = ImVec2(a.x + sz.x * k, a.y + sz.y * k);
+}
+// a new anchor without moving it on screen
+static void SetAnchorKeep(Elem& e, int na) {
+    if (na == e.anchor || na < 0 || na > 8) return;
+    ImVec2 a0, b0, a1, b1; ElemRect(e, a0, b0);
+    e.anchor = na;
+    ElemRect(e, a1, b1);
+    float k = std::max(0.001f, ImGui::GetIO().DisplaySize.y / 480.f);
+    e.x = roundf((e.x + (a0.x - a1.x) / k) * 10) / 10; e.y = roundf((e.y + (a0.y - a1.y) / k) * 10) / 10;
+}
+static ImU32 Col(const float c[4]) { return ImGui::ColorConvertFloat4ToU32(ImVec4(c[0], c[1], c[2], c[3])); }
+static bool RowShown(const Elem& e, bool& mine) {
+    mine = false;
+    if (e.row <= 0) return true;
+    std::string v;
+    if (e.row > boardRows) return false;
+    if (!(tokens && tokens("r" + std::to_string(e.row) + ".exists", v)) || v.empty()) return false;
+    if (tokens("r" + std::to_string(e.row) + ".me", v)) mine = !v.empty();
+    return true;
+}
+static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
+    if (!e.visible) return;
+    if (e.row > boardRows) return;               // past the rows shown (also while editing)
+    bool mine = false;
+    if (!RowShown(e, mine) && !editing) return;   // (while editing, rows nobody fills are drawn so they can be placed)
+    ImVec2 a, b; ElemRect(e, a, b);
+    ImU32 col = Col(mine && e.hiMine ? e.hiCol : e.col);
+    if (e.type == E_IMAGE) {
+        int ifam, iid;
+        bool icon = IconRef(e.tex, ifam, iid);   // a controller button icon (its own textures)
+        if (e.texIdx == -2) e.texIdx = icon ? -3 : FindTex(e.tex, e.pack);
+        // icons: drawn for their size on screen (an SVG is re-rasterised to it)
+        IDirect3DTexture9* tx = icon ? (iconTexture ? iconTexture(ifam, iid, (int)ceilf(std::max(b.x - a.x, b.y - a.y))) : nullptr) : TexOf(e.texIdx);
+        float su = 1, sv = 1;   // a live texture padded to a power of two: the picture is its top-left part
+        if (!tx && !icon && e.texIdx < 0 && liveTexture && !e.tex.empty()) tx = liveTexture(e.tex, &su, &sv);
+        ImVec2 uv0(e.u0 * su, e.v0 * sv), uv1(e.u1 * su, e.v1 * sv);
+        if (tx && e.rot == 0) dl->AddImage((ImTextureID)tx, a, b, uv0, uv1, col);
+        else if (tx) {
+            float r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
+            ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), hw((b.x - a.x) / 2, (b.y - a.y) / 2);
+            auto P = [&](float x, float y) { return ImVec2(c.x + x * cs - y * sn, c.y + x * sn + y * cs); };
+            dl->AddImageQuad((ImTextureID)tx, P(-hw.x, -hw.y), P(hw.x, -hw.y), P(hw.x, hw.y), P(-hw.x, hw.y),
+                             uv0, ImVec2(uv1.x, uv0.y), uv1, ImVec2(uv0.x, uv1.y), col);
+        }
+    } else {
+        if (e.fontIdx == -2) e.fontIdx = FindFont(e.font);
+        std::string s = Expand(e.text, e.row);
+        if (editing && s.empty()) s = e.text;   // show the template where there's no value yet
+        if (e.fontIdx >= 0) DrawText(dl, g_fonts[e.fontIdx], a, e.scale * Unit(), col, s, e.align, b.x - a.x);
+    }
+}
+
+// ---------------------------------------------------------------- save / load
+static std::string Esc(const std::string& s) { std::string o; for (char c : s) { if (c == '\n') o += "\\n"; else if (c == '\\') o += "\\\\"; else o += c; } return o; }
+static std::string Unesc(const std::string& s) {
+    std::string o; for (size_t i = 0; i < s.size(); ++i) { if (s[i] == '\\' && i + 1 < s.size()) { char n = s[++i]; o += n == 'n' ? '\n' : n; } else o += s[i]; } return o;
+}
+static void SaveMenus(FILE* f);
+static void LoadMenusReset();
+static int LoadMenuSection(const std::string& s);
+static bool LoadMenuKey(int sect, const std::string& k, const std::string& v);
+static void LoadMenuEnd();
+static std::vector<Elem> g_kit;                     // widget-kit template elements (kit = template name, y relative to the row)
+static void Save() {
+    FILE* f = fopen(g_layoutPath.c_str(), "w"); if (!f) { Log("ui editor: couldn't save %s", g_layoutPath.c_str()); return; }
+    fprintf(f, "# NFSU2 overlay (UI editor): one layout per game mode\nshow=%d\nboardrows=%d\nboardfollow=%d\nlistheight=%d\nhighlightsel=%d\n", g_show ? 1 : 0, boardRows, boardFollow ? 1 : 0, (int)g_listH, g_hiSel ? 1 : 0);
+    int total = 0;
+    auto put = [&](int m, const Elem& e) {
+        ++total;
+        fprintf(f, "\n[element]\nmode=%s\ntype=%s\nname=%s\nanchor=%d\nx=%g\ny=%g\nw=%g\nh=%g\nscale=%g\ncolor=%g %g %g %g\nvisible=%d\n",
+                kModeKey[m], e.type == E_TEXT ? "text" : "image", Esc(e.name).c_str(), e.anchor, e.x, e.y, e.w, e.h, e.scale, e.col[0], e.col[1], e.col[2], e.col[3], e.visible ? 1 : 0);
+        if (e.row > 0) fprintf(f, "row=%d\n", e.row);
+        if (!e.group.empty()) fprintf(f, "group=%s\n", Esc(e.group).c_str());
+        if (e.hiMine) fprintf(f, "highlight=%g %g %g %g\n", e.hiCol[0], e.hiCol[1], e.hiCol[2], e.hiCol[3]);
+        if (e.layer != 0) fprintf(f, "layer=%d\n", e.layer);
+        if (e.type == E_IMAGE) {
+            fprintf(f, "texture=%s\npack=%s\nuv=%g %g %g %g\n", e.tex.c_str(), e.pack.c_str(), e.u0, e.v0, e.u1, e.v1);
+            if (e.rot != 0) fprintf(f, "rot=%g\n", e.rot);
+        } else fprintf(f, "font=%s\ntext=%s\nalign=%d\n", e.font.c_str(), Esc(e.text).c_str(), e.align);
+        if (!e.role.empty()) fprintf(f, "role=%s\n", e.role.c_str());
+        if (e.selOnly) fprintf(f, "selonly=1\n");
+        if (!e.kit.empty()) fprintf(f, "kit=%s\n", Esc(e.kit).c_str());
+    };
+    for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
+    for (auto& e : g_kit) put(0, e);
+    SaveMenus(f);
+    fclose(f); g_dirty = false;
+    Log("ui editor: saved %d element(s) to %s", total, g_layoutPath.c_str());
+}
+static void Load() {
+    FILE* f = fopen(g_layoutPath.c_str(), "r"); if (!f) return;
+    for (auto& l : g_layout) l.clear();
+    g_sel = -1;
+    LoadMenusReset(); g_kit.clear(); ClearMulti();
+    std::vector<Elem> all;
+    char line[2048]; Elem* cur = nullptr; int msect = 0;
+    while (fgets(line, sizeof line, f)) {
+        std::string s = line; while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
+        if (s.empty() || s[0] == '#') continue;
+        if (s == "[element]") { all.push_back(Elem()); cur = &all.back(); msect = 0; continue; }
+        if (s[0] == '[') { msect = LoadMenuSection(s); cur = nullptr; continue; }
+        size_t eq = s.find('='); if (eq == std::string::npos) continue;
+        std::string k = s.substr(0, eq), v = s.substr(eq + 1);
+        if (msect) { LoadMenuKey(msect, k, v); continue; }
+        if (!cur) {
+            if (k == "show") g_show = atoi(v.c_str()) != 0;
+            else if (k == "highlightsel") g_hiSel = atoi(v.c_str()) != 0;
+            else if (k == "boardrows") boardRows = std::max(1, std::min(22, atoi(v.c_str())));
+            else if (k == "boardfollow") boardFollow = atoi(v.c_str()) != 0;
+            else if (k == "listheight") g_listH = std::max(80.f, std::min(1400.f, (float)atof(v.c_str())));
+            continue;
+        }
+        Elem& e = *cur;
+        if (k == "mode") { for (int m = 0; m < NMODES; ++m) if (v == kModeKey[m]) e.mode = m; }
+        else if (k == "type") e.type = v == "text" ? E_TEXT : E_IMAGE;
+        else if (k == "name") e.name = Unesc(v);
+        else if (k == "anchor") e.anchor = std::max(0, std::min(8, atoi(v.c_str())));
+        else if (k == "x") e.x = (float)atof(v.c_str()); else if (k == "y") e.y = (float)atof(v.c_str());
+        else if (k == "w") e.w = (float)atof(v.c_str()); else if (k == "h") e.h = (float)atof(v.c_str());
+        else if (k == "scale") e.scale = (float)atof(v.c_str());
+        else if (k == "color") sscanf(v.c_str(), "%f %f %f %f", &e.col[0], &e.col[1], &e.col[2], &e.col[3]);
+        else if (k == "visible") e.visible = atoi(v.c_str()) != 0;
+        else if (k == "texture") e.tex = v; else if (k == "pack") e.pack = v;
+        else if (k == "uv") sscanf(v.c_str(), "%f %f %f %f", &e.u0, &e.v0, &e.u1, &e.v1);
+        else if (k == "rot") e.rot = (float)atof(v.c_str());
+        else if (k == "layer") e.layer = atoi(v.c_str());
+        else if (k == "font") e.font = v; else if (k == "text") e.text = Unesc(v);
+        else if (k == "align") e.align = atoi(v.c_str());
+        else if (k == "row") e.row = std::max(0, atoi(v.c_str()));
+        else if (k == "group") e.group = Unesc(v);
+        else if (k == "highlight") { e.hiMine = true; sscanf(v.c_str(), "%f %f %f %f", &e.hiCol[0], &e.hiCol[1], &e.hiCol[2], &e.hiCol[3]); }
+        else if (k == "role") e.role = v;
+        else if (k == "selonly") e.selOnly = atoi(v.c_str()) != 0;
+        else if (k == "kit") e.kit = Unesc(v);
+    }
+    fclose(f); g_dirty = false;
+    for (auto& e : all) { if (!e.kit.empty()) g_kit.push_back(e); else g_layout[e.mode].push_back(e); }
+    LoadMenuEnd();
+}
+
+void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)(const char*)) {
+    g_dir = gameDir; g_layoutPath = layoutPath; g_log = log;
+    Load();
+    // the overlay needs the index to draw: scan in the background if there's anything to show
+    bool any = false; for (auto& l : g_layout) any |= !l.empty();
+    if (any && g_state == 0) { g_state = 1; std::thread(Scan).detach(); }
+}
+void SetDevice(IDirect3DDevice9* dev) { g_dev = dev; g_loadsThisFrame = 0; }
+static bool MenuOpenNow();
+bool WantsFrames() {   // anything to draw while the host's panel is closed
+    if (testMode || MenuOpenNow()) return true;
+    if (!g_show || g_state != 2) return false;
+    for (auto& l : g_layout) if (!l.empty()) return true;
+    return false;
+}
+
+// ---------------------------------------------------------------- drawing + on-screen editing
+// indices of a layout in drawing order (bottom first)
+static std::vector<int> DrawOrder(const std::vector<Elem>& v) {
+    std::vector<int> o(v.size());
+    for (size_t i = 0; i < v.size(); ++i) o[i] = (int)i;
+    std::stable_sort(o.begin(), o.end(), [&](int a, int b) { return v[a].layer < v[b].layer; });
+    return o;
+}
+static void LayerRange(int& lo, int& hi) {
+    lo = hi = 0; bool any = false;
+    for (auto& e : Elems()) { if (!any || e.layer < lo) lo = e.layer; if (!any || e.layer > hi) hi = e.layer; any = true; }
+}
+
+static std::vector<std::string> GroupNames();
+static void RebaseGroup(const std::string& g, const std::string& to);
+#include "uied_menu.inc"
+
+// ---------------------------------------------------------------- undo
+// A snapshot of everything editable is kept at each settled point (no mouse button down, nothing being typed or
+// dragged); the first frame that settles after edits pushes the previous one. kUndoSteps of them.
+constexpr size_t kUndoSteps = 24;
+struct Snap { std::vector<Elem> lay[NMODES]; std::vector<Elem> kit; std::vector<Widget> widgets; std::vector<Page> pages; std::vector<KitT> kitT; };
+static std::deque<Snap> g_undo, g_redo;
+static Snap g_base; static bool g_baseOk = false; static unsigned g_baseGen = 0;
+static Snap TakeSnap() {
+    Snap s; for (int m = 0; m < NMODES; ++m) s.lay[m] = g_layout[m];
+    s.kit = g_kit; s.widgets = g_widgets; s.pages = g_pages; s.kitT = g_kitT; return s;
+}
+static void PutSnap(const Snap& s) {
+    for (int m = 0; m < NMODES; ++m) g_layout[m] = s.lay[m];
+    g_kit = s.kit; g_widgets = s.widgets; g_pages = s.pages; g_kitT = s.kitT;
+    g_sel = -1; g_selGroup.clear(); ClearMulti(); g_dragging = -1;
+}
+static void UndoReset() { g_undo.clear(); g_redo.clear(); g_baseOk = false; }
+static void UndoCommit(bool evenIfBusy) {   // the edits since the last snapshot become one step
+    if (!g_baseOk) { g_base = TakeSnap(); g_baseGen = g_dirty.gen; g_baseOk = true; return; }
+    if (g_dirty.gen == g_baseGen) return;
+    bool busy = ImGui::IsMouseDown(0) || ImGui::IsAnyItemActive() || g_dragging >= 0;
+    if (busy && !evenIfBusy) return;
+    g_undo.push_back(g_base); if (g_undo.size() > kUndoSteps) g_undo.pop_front();
+    g_redo.clear();
+    g_base = TakeSnap(); g_baseGen = g_dirty.gen;
+}
+static void Undo() {
+    UndoCommit(true);
+    if (g_undo.empty()) return;
+    g_redo.push_back(TakeSnap());
+    PutSnap(g_undo.back()); g_undo.pop_back();
+    g_dirty = true; g_base = TakeSnap(); g_baseGen = g_dirty.gen;
+}
+static void Redo() {
+    if (g_redo.empty()) return;
+    g_undo.push_back(TakeSnap()); if (g_undo.size() > kUndoSteps) g_undo.pop_front();
+    PutSnap(g_redo.back()); g_redo.pop_back();
+    g_dirty = true; g_base = TakeSnap(); g_baseGen = g_dirty.gen;
+}
+
+// ---------------------------------------------------------------- several elements picked
+static void DeleteSelected() {
+    auto& els = Elems();
+    if (PickCount() > 1) {   // the picked elements, and the picked groups with everything in them
+        std::vector<int> v = PickedElems(); std::sort(v.rbegin(), v.rend());
+        for (int i : v) els.erase(els.begin() + i);
+        for (auto& g : g_multiG) MenuForget(g);
+        ClearMulti(); g_sel = -1; g_selGroup.clear();
+    } else if (!g_selGroup.empty()) {
+        for (int i = (int)els.size() - 1; i >= 0; --i) if (InGroup(els[i].group, g_selGroup)) els.erase(els.begin() + i);
+        MenuForget(g_selGroup); g_selGroup.clear(); g_sel = -1; ClearMulti();
+    } else if (g_sel >= 0 && g_sel < (int)els.size()) {
+        els.erase(els.begin() + g_sel);
+        if (g_sel >= (int)els.size()) g_sel = (int)els.size() - 1;
+        ClearMulti();
+    } else return;
+    g_dirty = true;
+}
+// the picked groups into `to` ("" = top level), as groups inside it; the picked loose elements straight into it
+static void PutPickedIn(const std::string& to) {
+    auto& els = Elems();
+    std::vector<std::string> moved;
+    for (auto& g : g_multiG) {
+        if (!to.empty() && InGroup(to, g)) { moved.push_back(g); continue; }   // not into itself
+        std::string dest = CleanGroup((to.empty() ? "" : to + "/") + GroupLeaf(g));
+        if (dest != g) RebaseGroup(g, dest);
+        moved.push_back(dest);
+    }
+    g_multiG = moved;
+    for (int i : g_multi) if (i >= 0 && i < (int)els.size()) els[i].group = to;
+    g_dirty = true;
+}
+static void MultiPanel() {
+    auto& els = Elems();
+    g_multi.erase(std::remove_if(g_multi.begin(), g_multi.end(), [&](int i) { return i < 0 || i >= (int)els.size(); }), g_multi.end());
+    { auto names = GroupNames(); g_multiG.erase(std::remove_if(g_multiG.begin(), g_multiG.end(), [&](const std::string& g) { return std::find(names.begin(), names.end(), g) == names.end(); }), g_multiG.end()); }
+    std::vector<int> P = PickedElems();
+    if (P.empty()) return;
+    ImGui::Text("%d picked:", (int)PickCount());
+    ImGui::SameLine();
+    if (!g_multiG.empty()) { ImGui::TextDisabled("%d group(s)%s", (int)g_multiG.size(), g_multi.empty() ? "" : ","); ImGui::SameLine(); }
+    if (!g_multi.empty()) { ImGui::TextDisabled("%d element(s)", (int)g_multi.size()); ImGui::SameLine(); }
+    ImGui::TextDisabled("(%d elements in all)", (int)P.size());
+    ImGui::SameLine(); if (ImGui::SmallButton("clear")) { ClearMulti(); return; }
+    ImGui::TextDisabled("Ctrl + click: add / remove one (element or group), Shift + click: everything between.\nDrag any of them on screen to move them all.");
+    float d[2] = { 0, 0 };
+    ImGui::SetNextItemWidth(220);
+    if (ImGui::DragFloat2("move by", d, 0.5f, -2000.f, 2000.f, "%.0f")) { for (int i : P) { els[i].x += d[0]; els[i].y += d[1]; } g_dirty = true; }
+    ImGui::SameLine();
+    if (ImGui::ArrowButton("##ml", ImGuiDir_Left)) { for (int i : P) els[i].x -= 1; g_dirty = true; } ImGui::SameLine();
+    if (ImGui::ArrowButton("##mr", ImGuiDir_Right)) { for (int i : P) els[i].x += 1; g_dirty = true; } ImGui::SameLine();
+    if (ImGui::ArrowButton("##mu", ImGuiDir_Up)) { for (int i : P) els[i].y -= 1; g_dirty = true; } ImGui::SameLine();
+    if (ImGui::ArrowButton("##md", ImGuiDir_Down)) { for (int i : P) els[i].y += 1; g_dirty = true; }
+    {   // layers: shifted together, keeping their order among themselves
+        int glo = els[P[0]].layer, ghi = glo;
+        for (int i : P) { glo = std::min(glo, els[i].layer); ghi = std::max(ghi, els[i].layer); }
+        int lo, hi; LayerRange(lo, hi); int L = glo;
+        ImGui::SetNextItemWidth(100);
+        if (ImGui::InputInt("layer (lowest)##multi", &L) && L != glo) { for (int i : P) els[i].layer += L - glo; g_dirty = true; }
+        ImGui::SameLine(); if (ImGui::SmallButton("to front##multi")) { for (int i : P) els[i].layer += hi + 1 - glo; g_dirty = true; }
+        ImGui::SameLine(); if (ImGui::SmallButton("to back##multi")) { for (int i : P) els[i].layer += lo - 1 - ghi; g_dirty = true; }
+    }
+    bool allVis = true; for (int i : P) allVis &= els[i].visible;
+    if (ImGui::Checkbox("visible##multi", &allVis)) { for (int i : P) els[i].visible = allVis; g_dirty = true; }
+    {
+        int an = els[P[0]].anchor; bool mixed = false; for (int i : P) mixed |= els[i].anchor != an;
+        ImGui::SameLine(); ImGui::SetNextItemWidth(140);
+        if (ImGui::BeginCombo("anchored to##multi", mixed ? "(mixed)" : kAnchors[an])) {
+            for (int a = 0; a < 9; ++a) if (ImGui::Selectable(kAnchors[a], !mixed && a == an)) { for (int i : P) SetAnchorKeep(els[i], a); g_dirty = true; }
+            ImGui::EndCombo();
+        }
+    }
+    {   // into a group (picked groups go inside it, as groups)
+        ImGui::SetNextItemWidth(180);
+        if (ImGui::BeginCombo("##multigrp", "put them in a group...")) {
+            if (ImGui::Selectable("(no group / top level)")) PutPickedIn("");
+            for (auto& n : GroupNames()) {
+                bool own = false; for (auto& g : g_multiG) own |= InGroup(n, g);   // not into one of themselves
+                if (!own && ImGui::Selectable(n.c_str())) PutPickedIn(n);
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
+        static char ng[64] = "";
+        ImGui::SetNextItemWidth(160);
+        if (ImGui::InputTextWithHint("##multinew", "or a new group (Enter)", ng, sizeof ng, ImGuiInputTextFlags_EnterReturnsTrue) && CleanGroup(ng)[0]) {
+            PutPickedIn(CleanGroup(ng)); ng[0] = 0;
+        }
+    }
+    if (ImGui::Button("Duplicate them")) {
+        // picked groups as groups ("<name> copy", widgets too), loose elements one by one
+        std::vector<int> copies; std::vector<std::string> newGroups;
+        auto names = GroupNames();
+        for (auto& g : g_multiG) {
+            std::string ng = g + " copy"; for (int k = 2; std::find(names.begin(), names.end(), ng) != names.end(); ++k) ng = g + " copy " + std::to_string(k);
+            names.push_back(ng);
+            std::vector<Elem> add; for (auto& e : els) if (InGroup(e.group, g)) { Elem c = e; c.group = ng + e.group.substr(g.size()); c.x += 10; c.y += 10; add.push_back(c); }
+            for (auto& c : add) els.push_back(c);
+            MenuCopy(g, ng); newGroups.push_back(ng);
+        }
+        for (int i : std::vector<int>(g_multi)) { Elem c = els[i]; c.x += 10; c.y += 10; c.name += " copy"; els.push_back(c); copies.push_back((int)els.size() - 1); }
+        g_multi = copies; g_multiG = newGroups; g_sel = copies.empty() ? -1 : copies.back(); g_dirty = true;
+    }
+    ImGui::SameLine(); if (ImGui::Button("Delete them")) DeleteSelected();
+}
+
+void DrawOverlay(int mode) {
+    bool editing = g_edit && g_panelOpen;
+    bool panel = g_panelOpen;
+    g_panelOpen = false;
+    g_nowMode = mode;
+    if (g_state != 2) return;
+    Trim();
+    if (DrawMenu(ImGui::GetBackgroundDrawList())) { g_dragging = -1; return; }   // the menu, when it's open, is all that's drawn
+    if (!editing && !testMode && (!g_show || mode < 0 || mode >= NMODES)) return;
+    ImDrawList* dl = ImGui::GetBackgroundDrawList();   // under the panel, over the game
+    // while editing or testing: the layout being edited; otherwise the one for what we're doing now
+    {
+        auto& lay = g_layout[editing || testMode ? g_editMode : mode];
+        for (int i : DrawOrder(lay)) DrawElem(dl, lay[i], editing);
+    }
+    if (!editing) {
+        g_dragging = -1;
+        // the editor tab is open without on-screen editing: still outline what's picked, when that layout is the one shown
+        if (panel && g_hiSel && (testMode || mode == g_editMode)) {
+            ImDrawList* fg = ImGui::GetForegroundDrawList();
+            for (int i = 0; i < (int)Elems().size(); ++i) {
+                Elem& e = Elems()[i];
+                if (i != g_sel && !InGroup(e.group, g_selGroup)) continue;
+                bool mine; if (!e.visible || !RowShown(e, mine)) continue;
+                ImVec2 a, b; ElemRect(e, a, b);
+                fg->AddRect(ImVec2(a.x - 2, a.y - 2), ImVec2(b.x + 2, b.y + 2), IM_COL32(0, 0, 0, 200), 0.f, 0, 4.f);
+                fg->AddRect(ImVec2(a.x - 2, a.y - 2), ImVec2(b.x + 2, b.y + 2), IM_COL32(60, 235, 90, 255), 0.f, 0, 2.5f);
+            }
+        }
+        return;
+    }
+    ImGuiIO& io = ImGui::GetIO();
+    ImDrawList* fg = ImGui::GetForegroundDrawList();
+    ImVec2 ga(1e9f, 1e9f), gb(-1e9f, -1e9f);   // the selected group's box
+    for (int i = 0; i < (int)Elems().size(); ++i) {
+        ImVec2 a, b; ElemRect(Elems()[i], a, b);
+        bool inGroup = InGroup(Elems()[i].group, g_selGroup);
+        bool sel = i == g_sel || inGroup || PickedOf(i);
+        // the selected texture / text (or the selected group's members): a green outline on screen
+        const ImU32 green = IM_COL32(60, 235, 90, 255);
+        if (sel && g_hiSel) {
+            fg->AddRect(ImVec2(a.x - 2, a.y - 2), ImVec2(b.x + 2, b.y + 2), IM_COL32(0, 0, 0, 200), 0.f, 0, 4.f);   // dark edge so it shows on any colour
+            fg->AddRect(ImVec2(a.x - 2, a.y - 2), ImVec2(b.x + 2, b.y + 2), green, 0.f, 0, 2.5f);
+        } else fg->AddRect(a, b, IM_COL32(120, 200, 255, 160), 0.f, 0, 1.f);
+        if (i == g_sel) fg->AddRectFilled(ImVec2(b.x - 6, b.y - 6), ImVec2(b.x + 6, b.y + 6), green);   // size handle
+        if (inGroup) { ga.x = std::min(ga.x, a.x); ga.y = std::min(ga.y, a.y); gb.x = std::max(gb.x, b.x); gb.y = std::max(gb.y, b.y); }
+    }
+    if (g_hiSel && gb.x > ga.x) fg->AddRect(ImVec2(ga.x - 4, ga.y - 4), ImVec2(gb.x + 4, gb.y + 4), IM_COL32(255, 150, 40, 255), 3.f, 0, 2.f);
+    bool overUi = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive();
+    if (g_dragging < 0 && ImGui::IsMouseClicked(0) && !overUi) {
+        ImVec2 m = io.MousePos;
+        // the selected element's size handle first, then the topmost element under the mouse
+        if (g_sel >= 0 && g_sel < (int)Elems().size()) {
+            ImVec2 a, b; ElemRect(Elems()[g_sel], a, b);
+            if (fabsf(m.x - b.x) <= 8 && fabsf(m.y - b.y) <= 8) { g_dragging = g_sel; g_dragMode = 1; }
+        }
+        std::vector<int> order = DrawOrder(Elems());
+        if (g_dragging < 0) for (int oi = (int)order.size() - 1; oi >= 0; --oi) {   // topmost first
+            int i = order[oi];
+            if (!Elems()[i].visible) continue;
+            ImVec2 a, b; ElemRect(Elems()[i], a, b);
+            if (m.x >= a.x && m.x <= b.x && m.y >= a.y && m.y <= b.y) {
+                g_dragging = i; g_dragMode = 0;
+                const std::string& grp = Elems()[i].group;
+                // Ctrl / Shift + click: add it to (or take it out of) the picked elements
+                if (io.KeyCtrl || io.KeyShift) {
+                    if (PickCount() == 0 && g_sel >= 0 && g_sel != i) g_multi.push_back(g_sel);
+                    if (PickCount() == 0 && !g_selGroup.empty()) g_multiG.push_back(g_selGroup);
+                    MultiToggle(i); g_sel = i; g_selGroup.clear(); g_dragging = -1;
+                    break;
+                }
+                // one of several picked: they all move
+                if (PickCount() > 1 && PickedOf(i)) { g_dragMode = 3; g_sel = i; break; }
+                ClearMulti();
+                // a member of the picked group: that group moves; Alt + click on any grouped element: its outermost group
+                if (InGroup(grp, g_selGroup)) { g_sel = -1; g_dragMode = 2; }
+                else if (!grp.empty() && io.KeyAlt) { g_selGroup = grp.substr(0, grp.find('/')); g_sel = -1; g_dragMode = 2; }
+                else { g_sel = i; g_selGroup.clear(); }
+                break;
+            }
+        }
+        if (g_dragging >= 0) {
+            Elem& e = Elems()[g_dragging];
+            g_dragStart = m; g_dragOrig = ImVec2(e.x, e.y); g_dragOrigWH = ImVec2(e.w, e.h); g_dragOrigScale = e.scale;
+            g_groupOrig.clear(); for (auto& x : Elems()) g_groupOrig.push_back(ImVec2(x.x, x.y));
+        }
+    }
+    if (g_dragging >= 0 && g_dragging < (int)Elems().size()) {
+        Elem& e = Elems()[g_dragging];
+        float k = Unit();
+        ImVec2 d((io.MousePos.x - g_dragStart.x) / k, (io.MousePos.y - g_dragStart.y) / k);
+        if (g_dragMode == 0) { e.x = roundf(g_dragOrig.x + d.x); e.y = roundf(g_dragOrig.y + d.y); }
+        else if (g_dragMode == 2 || g_dragMode == 3) {
+            for (size_t k2 = 0; k2 < Elems().size() && k2 < g_groupOrig.size(); ++k2)
+                if (g_dragMode == 2 ? InGroup(Elems()[k2].group, g_selGroup) : PickedOf((int)k2)) { Elems()[k2].x = roundf(g_groupOrig[k2].x + d.x); Elems()[k2].y = roundf(g_groupOrig[k2].y + d.y); }
+        }
+        else if (e.type == E_IMAGE) {
+            float ax = (e.anchor % 3) * 0.5f, ay = (e.anchor / 3) * 0.5f;
+            float nw = std::max(2.f, roundf(g_dragOrigWH.x + d.x)), nh = std::max(2.f, roundf(g_dragOrigWH.y + d.y));
+            if (io.KeyShift && g_dragOrigWH.y > 0) nh = roundf(nw * g_dragOrigWH.y / g_dragOrigWH.x);   // keep the shape
+            e.x = g_dragOrig.x + ax * (nw - g_dragOrigWH.x); e.y = g_dragOrig.y + ay * (nh - g_dragOrigWH.y);
+            e.w = nw; e.h = nh;
+        } else {
+            ImVec2 sz = ElemSize(e); float base = sz.y / std::max(0.01f, e.scale);
+            e.scale = std::max(0.1f, g_dragOrigScale + d.y / std::max(1.f, base));
+        }
+        g_dirty = true;
+        if (!ImGui::IsMouseDown(0)) g_dragging = -1;
+    }
+}
+
+// ---------------------------------------------------------------- panel
+static char g_filter[64] = ""; static int g_packSel = 0; static float g_thumb = 64.f; static int g_texSel = -1;
+static char g_fontPreview[128] = "1ST  Lap 2/3  0:42.17"; static float g_fontScale = 1.f; static int g_fontSel = -1;
+static bool g_onlyHud = false;
+
+static const char* FmtName(uint32_t f) {
+    static char b[8];
+    if (f == 0x15) return "A8R8G8B8"; if (f == 0x29) return "P8 (palette)";
+    memcpy(b, &f, 4); b[4] = 0; for (int i = 0; i < 4; ++i) if (b[i] < 32 || b[i] > 126) return "?"; return b;
+}
+static bool PassFilter(const Tex& t) {
+    if (g_packSel > 0) { std::string p = g_files[t.file].rel + ": " + t.pack; if (p != g_packs[g_packSel - 1]) return false; }
+    if (g_onlyHud && t.pack.find("Hud") == std::string::npos && t.pack.find("HUD") == std::string::npos && g_files[t.file].rel.find("InGame") == std::string::npos) return false;
+    if (g_filter[0]) {
+        std::string n = t.name, q = g_filter;
+        for (auto& c : n) c = (char)toupper((unsigned char)c); for (auto& c : q) c = (char)toupper((unsigned char)c);
+        if (n.find(q) == std::string::npos) return false;
+    }
+    return true;
+}
+static const char* kTokenHelp =
+    "Live values (type them in braces):\n"
+    "  anywhere: {fps} {name} {speed} (km/h) {mph} {clock}\n"
+    "  race: {pos} {pos_suffix} (st/nd/rd/th) {racers} {lap} {laps} {race_time} {lap_time} {last_lap} {best_lap}\n"
+    "        {gap_ahead} {gap_behind} {gap_leader} {title} {status} {score} (your drift points)\n"
+    "  a leaderboard row N: {rN.pos} {rN.pos_suffix} {rN.name} {rN.gap} (to you) {rN.gap_leader} {rN.lap} {rN.best}\n"
+    "        {rN.gap_name} (like the game: gaps for 10 s, then names for 2 s; your row always your name;\n"
+    "        drift: points, then names) {rN.score} (drift points)\n"
+    "        {rN.last} {rN.time} (finish time) {rN.status} (finished / out) {rN.me} (1 on your row) {rN.player}\n"
+    "  in an element set to leaderboard row N, the same without 'rN.': {pos} {name} {gap} ...";
+static std::vector<std::string> GroupNames() {   // every group, nested ones and the groups around them too
+    std::vector<std::string> v;
+    for (auto& e : Elems())
+        for (std::string g = e.group; !g.empty(); g = GroupParent(g))
+            if (std::find(v.begin(), v.end(), g) == v.end()) v.push_back(g);
+    std::sort(v.begin(), v.end());
+    return v;
+}
+// move group g (and what's inside it) to path to
+static void RebaseGroup(const std::string& g, const std::string& to) {
+    MenuRebase(g, to);
+    for (auto& e : Elems()) if (InGroup(e.group, g)) e.group = CleanGroup(to + e.group.substr(g.size()));
+    if (InGroup(g_selGroup, g)) g_selGroup = CleanGroup(to + g_selGroup.substr(g.size()));
+    g_dirty = true;
+}
+// Alt + Up / Down in the list: the selected element (or the selected group) swaps places with the entry above / below
+// it in its group, as the list shows them (an element, or a whole group inside it: shown where its first element is).
+// The group's elements are laid back into the list positions they had, in the new order, so nothing else moves.
+static void MoveInList(int dir) {
+    auto& els = Elems();
+    std::string parent, mine;
+    if (!g_selGroup.empty()) { parent = GroupParent(g_selGroup); mine = g_selGroup; }
+    else if (g_sel >= 0 && g_sel < (int)els.size()) { parent = els[g_sel].group; mine = "#" + std::to_string(g_sel); }
+    else return;
+    // the parent's entries in list order, each with its elements (in list order)
+    std::vector<int> slots;
+    std::vector<std::string> keys;
+    std::vector<std::vector<int>> members;
+    for (int i = 0; i < (int)els.size(); ++i) {
+        const std::string& g = els[i].group;
+        if (!parent.empty() && !InGroup(g, parent)) continue;
+        slots.push_back(i);
+        std::string key;
+        if (g == parent) key = "#" + std::to_string(i);
+        else { std::string rest = parent.empty() ? g : g.substr(parent.size() + 1); key = (parent.empty() ? "" : parent + "/") + rest.substr(0, rest.find('/')); }
+        size_t k = std::find(keys.begin(), keys.end(), key) - keys.begin();
+        if (k == keys.size()) { keys.push_back(key); members.emplace_back(); }
+        members[k].push_back(i);
+    }
+    int pos = (int)(std::find(keys.begin(), keys.end(), mine) - keys.begin());
+    int to = pos + dir;
+    if (pos >= (int)keys.size() || to < 0 || to >= (int)keys.size()) return;   // already first / last in its group
+    std::swap(members[pos], members[to]);
+    // lay them back into the same positions
+    std::vector<int> order; for (auto& m : members) order.insert(order.end(), m.begin(), m.end());
+    std::vector<Elem> copy; for (int i : order) copy.push_back(els[i]);
+    int newSel = -1;
+    for (size_t k = 0; k < slots.size(); ++k) { els[slots[k]] = copy[k]; if (g_selGroup.empty() && order[k] == g_sel) newSel = slots[k]; }
+    if (g_selGroup.empty() && newSel >= 0) g_sel = newSel;
+    g_dirty = true;
+}
+static void GroupPanel() {
+    std::string g = g_selGroup;
+    std::vector<int> mem; for (int i = 0; i < (int)Elems().size(); ++i) if (InGroup(Elems()[i].group, g)) mem.push_back(i);
+    if (mem.empty()) { g_selGroup.clear(); return; }
+    std::string parent = GroupParent(g);
+    int subs = 0; for (auto& n : GroupNames()) if (n != g && InGroup(n, g) && GroupParent(n) == g) ++subs;
+    ImGui::Text("Group: %s  (%d elements%s)", GroupLeaf(g).c_str(), (int)mem.size(), subs ? (", " + std::to_string(subs) + " groups inside").c_str() : "");
+    if (!parent.empty()) { ImGui::SameLine(); ImGui::TextDisabled("inside %s", parent.c_str()); ImGui::SameLine(); if (ImGui::SmallButton("select that")) { g_selGroup = parent; return; } }
+    ImGui::TextDisabled("Drag any of its elements on screen to move the group (Alt + drag: a grouped element's outermost group).");
+    static char nb[64]; static std::string nbFor;
+    if (nbFor != g) { snprintf(nb, sizeof nb, "%s", GroupLeaf(g).c_str()); nbFor = g; }
+    ImGui::SetNextItemWidth(200);
+    if (ImGui::InputText("name##grp", nb, sizeof nb, ImGuiInputTextFlags_EnterReturnsTrue) && CleanGroup(nb)[0]) {
+        RebaseGroup(g, (parent.empty() ? "" : parent + "/") + CleanGroup(nb)); nbFor = g_selGroup; return;
+    }
+    ImGui::SameLine(); ImGui::TextDisabled("(Enter to rename)");
+    // put it inside a larger group: an existing one (not itself or one inside it), or a new one by name
+    {
+        ImGui::SetNextItemWidth(200);
+        if (ImGui::BeginCombo("##grpparent", "put inside...")) {
+            if (!parent.empty() && ImGui::Selectable("(top level)")) { RebaseGroup(g, GroupLeaf(g)); ImGui::EndCombo(); return; }
+            for (auto& n : GroupNames()) {
+                if (InGroup(n, g) || n == parent) continue;
+                if (ImGui::Selectable(n.c_str())) { RebaseGroup(g, n + "/" + GroupLeaf(g)); ImGui::EndCombo(); return; }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
+        static char pb[64] = "";
+        ImGui::SetNextItemWidth(160);
+        if (ImGui::InputTextWithHint("##grpnewparent", "new larger group", pb, sizeof pb, ImGuiInputTextFlags_EnterReturnsTrue) && CleanGroup(pb)[0]) {
+            RebaseGroup(g, (parent.empty() ? "" : parent + "/") + CleanGroup(pb) + "/" + GroupLeaf(g)); pb[0] = 0; return;
+        }
+        ImGui::SameLine(); ImGui::TextDisabled("(Enter)");
+    }
+    // layer: the group's members keep their order among themselves; the change shifts them all
+    {
+        int glo = Elems()[mem[0]].layer, ghi = glo;
+        for (int i : mem) { glo = std::min(glo, Elems()[i].layer); ghi = std::max(ghi, Elems()[i].layer); }
+        int lo, hi; LayerRange(lo, hi);
+        int L = glo;
+        ImGui::SetNextItemWidth(100);
+        if (ImGui::InputInt("layer (lowest member)##grp", &L) && L != glo) { for (int i : mem) Elems()[i].layer += L - glo; g_dirty = true; }
+        ImGui::SameLine(); if (ImGui::SmallButton("to front##grp")) { int d = hi + 1 - glo; for (int i : mem) Elems()[i].layer += d; g_dirty = true; }
+        ImGui::SameLine(); if (ImGui::SmallButton("to back##grp")) { int d = lo - 1 - ghi; for (int i : mem) Elems()[i].layer += d; g_dirty = true; }
+        if (ghi != glo) { ImGui::SameLine(); ImGui::TextDisabled("(layers %d..%d)", glo, ghi); }
+    }
+    // move: the first element's position stands for the group's; the change goes to all of them
+    float pos[2] = { Elems()[mem[0]].x, Elems()[mem[0]].y };
+    ImGui::SetNextItemWidth(220);
+    if (ImGui::DragFloat2("move (first element's position)", pos, 0.5f, -2000.f, 2000.f, "%.0f")) {
+        float dx = pos[0] - Elems()[mem[0]].x, dy = pos[1] - Elems()[mem[0]].y;
+        for (int i : mem) { Elems()[i].x += dx; Elems()[i].y += dy; } g_dirty = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::ArrowButton("##gl", ImGuiDir_Left)) { for (int i : mem) Elems()[i].x -= 1; g_dirty = true; } ImGui::SameLine();
+    if (ImGui::ArrowButton("##gr", ImGuiDir_Right)) { for (int i : mem) Elems()[i].x += 1; g_dirty = true; } ImGui::SameLine();
+    if (ImGui::ArrowButton("##gu", ImGuiDir_Up)) { for (int i : mem) Elems()[i].y -= 1; g_dirty = true; } ImGui::SameLine();
+    if (ImGui::ArrowButton("##gd", ImGuiDir_Down)) { for (int i : mem) Elems()[i].y += 1; g_dirty = true; }
+    bool allVis = true; for (int i : mem) allVis &= Elems()[i].visible;
+    if (ImGui::Checkbox("visible##grp", &allVis)) { for (int i : mem) Elems()[i].visible = allVis; g_dirty = true; }
+    {   // anchor for all of them (each keeps its place on screen)
+        int an = Elems()[mem[0]].anchor; bool mixed = false;
+        for (int i : mem) mixed |= Elems()[i].anchor != an;
+        ImGui::SameLine(); ImGui::SetNextItemWidth(140);
+        if (ImGui::BeginCombo("anchored to##grp", mixed ? "(mixed)" : kAnchors[an])) {
+            for (int a = 0; a < 9; ++a) if (ImGui::Selectable(kAnchors[a], !mixed && a == an)) { for (int i : mem) SetAnchorKeep(Elems()[i], a); g_dirty = true; }
+            ImGui::EndCombo();
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Sets every element in the group (and the groups inside it) to this anchor, without moving them.");
+    }
+    if (ImGui::Button("Duplicate group")) {
+        std::string ng = g + " copy"; int k = 2; auto names = GroupNames();
+        while (std::find(names.begin(), names.end(), ng) != names.end()) ng = g + " copy " + std::to_string(k++);
+        for (int i : mem) { Elem c = Elems()[i]; c.group = ng + c.group.substr(g.size()); c.x += 10; c.y += 10; Elems().push_back(c); }
+        MenuCopy(g, ng);
+        g_selGroup = ng; g_dirty = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Ungroup")) {   // drops this level only: what's directly in it goes to the group around it
+        for (int i : mem) Elems()[i].group = CleanGroup(parent + Elems()[i].group.substr(g.size()));
+        g_widgets.erase(std::remove_if(g_widgets.begin(), g_widgets.end(), [&](const Widget& w) { return w.group == g; }), g_widgets.end());
+        g_pages.erase(std::remove_if(g_pages.begin(), g_pages.end(), [&](const Page& p) { return p.group == g; }), g_pages.end());
+        MenuRebase(g, parent);
+        g_selGroup = parent; g_dirty = true;
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Removes this group only; its elements and the groups inside it move up one level.");
+    ImGui::SameLine();
+    if (ImGui::Button("Delete group and its elements")) {
+        for (int k = (int)mem.size() - 1; k >= 0; --k) Elems().erase(Elems().begin() + mem[k]);
+        MenuForget(g);
+        g_selGroup.clear(); g_sel = -1; g_dirty = true;
+        return;
+    }
+    GroupMenuProps(g);
+}
+static void GroupField(Elem& e) {
+    static char gb[64]; static const Elem* gbFor = nullptr; static std::string gbWas;
+    if (gbFor != &e || gbWas != e.group) { snprintf(gb, sizeof gb, "%s", e.group.c_str()); gbFor = &e; gbWas = e.group; }
+    ImGui::SetNextItemWidth(160);
+    if (ImGui::InputTextWithHint("group", "(none) - type a name", gb, sizeof gb, ImGuiInputTextFlags_EnterReturnsTrue)) { e.group = CleanGroup(gb); gbWas = e.group; g_dirty = true; }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Enter to set. A group inside a larger one: Larger/Smaller (e.g. Race HUD/Leaderboard).");
+    auto names = GroupNames();
+    if (!names.empty()) {
+        ImGui::SameLine(); ImGui::SetNextItemWidth(130);
+        if (ImGui::BeginCombo("##grppick", "add to...")) {
+            if (ImGui::Selectable("(no group)")) { e.group.clear(); g_dirty = true; }
+            for (auto& n : names) if (ImGui::Selectable(n.c_str(), n == e.group)) { e.group = n; g_dirty = true; }
+            ImGui::EndCombo();
+        }
+    }
+    if (!e.group.empty()) { ImGui::SameLine(); if (ImGui::SmallButton("select group")) { g_selGroup = e.group; g_sel = -1; } }
+}
+// "Row 1 name" and "Row 12 name" share the scheme "Row # name": every run of digits becomes #
+static std::string NameScheme(const std::string& n) {
+    std::string o;
+    for (size_t i = 0; i < n.size(); ++i) {
+        if (isdigit((unsigned char)n[i])) { o += '#'; while (i + 1 < n.size() && isdigit((unsigned char)n[i + 1])) ++i; }
+        else o += n[i];
+    }
+    return o;
+}
+// copy chosen properties of e to every other element of the same kind whose name follows the same scheme
+static void CopyToSimilar(Elem& e) {
+    static bool cSize = true, cCol = true, cLook = true, cAlign = true, cText = false, cHi = true, cVis = true, cAnchor = true, cX = false, cY = false;
+    std::string sch = NameScheme(e.name);
+    std::vector<int> to;
+    for (int i = 0; i < (int)Elems().size(); ++i) {
+        Elem& o = Elems()[i];
+        if (&o != &e && o.type == e.type && NameScheme(o.name) == sch) to.push_back(i);
+    }
+    if (!ImGui::CollapsingHeader(("Copy to similar names (" + std::to_string(to.size()) + ")###cpsim").c_str())) return;
+    ImGui::TextDisabled("Name scheme: \"%s\" (numbers count as #), same kind (%s)", sch.c_str(), e.type == E_TEXT ? "text" : "image");
+    if (to.empty()) { ImGui::TextDisabled("No other element follows this name scheme."); return; }
+    ImGui::Checkbox("size / scale", &cSize); ImGui::SameLine();
+    ImGui::Checkbox("colour", &cCol); ImGui::SameLine();
+    ImGui::Checkbox(e.type == E_TEXT ? "font" : "texture + UV", &cLook); ImGui::SameLine();
+    if (e.type == E_TEXT) { ImGui::Checkbox("align + box width", &cAlign); ImGui::SameLine(); ImGui::Checkbox("text", &cText); }
+    ImGui::Checkbox("my-row colour", &cHi); ImGui::SameLine();
+    ImGui::Checkbox("visible", &cVis); ImGui::SameLine();
+    ImGui::Checkbox("anchor", &cAnchor); ImGui::SameLine();
+    ImGui::Checkbox("x", &cX); ImGui::SameLine();
+    ImGui::Checkbox("y", &cY);
+    if (ImGui::Button(("Copy to " + std::to_string(to.size()) + " similar").c_str())) {
+        for (int i : to) {
+            Elem& o = Elems()[i];
+            if (cSize) { o.scale = e.scale; if (e.type == E_IMAGE) { o.w = e.w; o.h = e.h; } }
+            if (cCol) memcpy(o.col, e.col, sizeof o.col);
+            if (cLook) {
+                if (e.type == E_TEXT) { o.font = e.font; o.fontIdx = e.fontIdx; }
+                else { o.tex = e.tex; o.pack = e.pack; o.texIdx = e.texIdx; o.u0 = e.u0; o.v0 = e.v0; o.u1 = e.u1; o.v1 = e.v1; o.rot = e.rot; }
+            }
+            if (e.type == E_TEXT && cAlign) { o.align = e.align; o.w = e.w; }
+            if (e.type == E_TEXT && cText) o.text = e.text;
+            if (cHi) { o.hiMine = e.hiMine; memcpy(o.hiCol, e.hiCol, sizeof o.hiCol); }
+            if (cVis) o.visible = e.visible;
+            if (cAnchor) o.anchor = e.anchor;
+            if (cX) o.x = e.x;
+            if (cY) o.y = e.y;
+        }
+        g_dirty = true;
+    }
+    if (ImGui::IsItemHovered()) {
+        std::string l; for (int i : to) l += Elems()[i].name + "\n";
+        ImGui::SetTooltip("%s", l.c_str());
+    }
+}
+static void Selected(Elem& e) {
+    ImGui::PushID(&e);
+    char nb[64]; snprintf(nb, sizeof nb, "%s", e.name.c_str());
+    if (ImGui::InputText("name", nb, sizeof nb)) { e.name = nb; g_dirty = true; }
+    GroupField(e);
+    ImGui::Checkbox("visible", &e.visible); ImGui::SameLine();
+    { int an = e.anchor; ImGui::SetNextItemWidth(140); if (ImGui::Combo("anchored to", &an, kAnchors, 9)) { SetAnchorKeep(e, an); g_dirty = true; } }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The screen corner / edge it keeps its distance to when the screen's shape changes. Changing it doesn't move it.");
+    {
+        int lo, hi; LayerRange(lo, hi);
+        ImGui::SetNextItemWidth(100); if (ImGui::InputInt("layer", &e.layer)) g_dirty = true;
+        ImGui::SameLine(); if (ImGui::SmallButton("to front")) { e.layer = hi + 1; g_dirty = true; }
+        ImGui::SameLine(); if (ImGui::SmallButton("to back")) { e.layer = lo - 1; g_dirty = true; }
+        ImGui::SameLine(); ImGui::TextDisabled("(higher = on top)");
+    }
+    ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("position", &e.x, 0.5f, -2000.f, 2000.f, "%.0f")) g_dirty = true;
+    if (e.type == E_IMAGE) {
+        ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("size", &e.w, 0.5f, 1.f, 2000.f, "%.0f")) g_dirty = true;
+        if (e.texIdx >= 0) { ImGui::SameLine(); if (ImGui::SmallButton("texture's own size")) { e.w = g_tex[e.texIdx].w; e.h = g_tex[e.texIdx].h; g_dirty = true; } }
+        ImGui::SetNextItemWidth(220); if (ImGui::DragFloat4("UV (u0 v0 u1 v1)", &e.u0, 0.002f, -1.f, 2.f, "%.3f")) g_dirty = true;
+        ImGui::SameLine(); if (ImGui::SmallButton("flip H")) { std::swap(e.u0, e.u1); g_dirty = true; }
+        ImGui::SameLine(); if (ImGui::SmallButton("flip V")) { std::swap(e.v0, e.v1); g_dirty = true; }
+        ImGui::SameLine(); if (ImGui::SmallButton("reset UV")) { e.u0 = e.v0 = 0; e.u1 = e.v1 = 1; g_dirty = true; }
+        ImGui::SetNextItemWidth(220); if (ImGui::DragFloat("rotation", &e.rot, 0.5f, -360.f, 360.f, "%.1f deg")) g_dirty = true;
+        ImGui::SameLine(); if (ImGui::SmallButton("+90")) { e.rot = fmodf(e.rot + 90, 360); g_dirty = true; }
+        int ifam, iid;
+        if (IconRef(e.tex, ifam, iid)) {
+            ImGui::Text("button icon: %s", IconName(ifam, iid).c_str());
+            ImGui::SameLine(); if (ImGui::SmallButton("icon size (32)")) { e.w = e.h = 32; g_dirty = true; }
+            ImGui::SameLine();
+            bool follow = ifam < 0;
+            if (ImGui::Checkbox("follows the controller", &follow)) {
+                std::string fam = follow ? "auto" : iconFamilies.empty() ? "xbox" : iconFamilies[0];
+                e.tex = "icon:" + fam + ":" + iconKeys[iid]; g_dirty = true;
+            }
+        } else
+        ImGui::Text("texture: %s (%s)", e.tex.empty() ? "(none - pick one below)" : e.tex.c_str(), e.pack.c_str());
+        if (g_texSel >= 0) { ImGui::SameLine(); if (ImGui::SmallButton("use the selected texture")) { e.tex = g_tex[g_texSel].name; e.pack = g_tex[g_texSel].pack; e.texIdx = g_texSel; g_dirty = true; } }
+    } else {
+        static char tb[512];
+        snprintf(tb, sizeof tb, "%s", e.text.c_str());
+        if (ImGui::InputTextMultiline("text", tb, sizeof tb, ImVec2(320, 54))) { e.text = tb; g_dirty = true; }
+        ImGui::SameLine(); ImGui::TextDisabled("(live values)");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", kTokenHelp);
+        ImGui::SetNextItemWidth(160); if (ImGui::DragFloat("scale", &e.scale, 0.01f, 0.1f, 8.f, "%.2f")) g_dirty = true;
+        ImGui::SameLine(); const char* al[] = { "left", "centre", "right" };
+        ImGui::SetNextItemWidth(100); if (ImGui::Combo("align", &e.align, al, 3)) g_dirty = true;
+        ImGui::SetNextItemWidth(160); if (ImGui::DragFloat("box width (for centre/right)", &e.w, 0.5f, 0.f, 2000.f, "%.0f")) g_dirty = true;
+        std::vector<const char*> fn; int cur = -1;
+        for (size_t i = 0; i < g_fonts.size(); ++i) { fn.push_back(g_fonts[i].name.c_str()); if (g_fonts[i].name == e.font) cur = (int)i; }
+        ImGui::SetNextItemWidth(220);
+        if (ImGui::Combo("font", &cur, fn.data(), (int)fn.size())) { e.font = g_fonts[cur].name; e.fontIdx = cur; g_dirty = true; }
+    }
+    if (ImGui::ColorEdit4("colour / tint", e.col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) g_dirty = true;
+    ImGui::SameLine(); ImGui::SetNextItemWidth(110);
+    if (ImGui::InputInt("leaderboard row", &e.row)) { e.row = std::max(0, std::min(22, e.row)); g_dirty = true; }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = not a leaderboard row.\nN = shown only while there's an Nth racer on the board; in its text {name} {pos} {gap} ... are that racer's.");
+    if (e.row > 0) {
+        ImGui::SameLine(); if (ImGui::Checkbox("other colour on my row", &e.hiMine)) g_dirty = true;
+        if (e.hiMine) { ImGui::SameLine(); if (ImGui::ColorEdit4("##hi", e.hiCol, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) g_dirty = true; }
+    }
+    ElemMenuProps(e);
+    CopyToSimilar(e);
+    ImGui::PopID();
+}
+// The game's race HUD (Global\FEng_Screens\Stripped\HUD_SingleRace.fng in GLOBAL\InGameRace.bun), as elements:
+// FEng positions are from the screen centre in 640x480 units (y down); images are placed by their centre, text by
+// its justification (Sj: 1 centre, 2 right, 4 middle, 8 bottom). Converted here to "anchored top right".
+// More leaderboard rows shown than the layout has: copy the last row's elements down, one row spacing at a time
+// (the spacing between its last two rows, or 20). Fewer: the extra rows are just hidden, not deleted.
+static void EnsureRows(std::vector<Elem>& els, int rows) {
+    int have = 0; for (auto& e : els) have = std::max(have, e.row);
+    if (have <= 0 || have >= rows) return;
+    float dy = 20.f;
+    {   // spacing: same-type elements of the last two rows, in list order
+        std::vector<float> ya, yb;
+        for (auto& e : els) { if (e.row == have) ya.push_back(e.y); if (e.row == have - 1) yb.push_back(e.y); }
+        if (!ya.empty() && ya.size() == yb.size() && ya[0] - yb[0] > 1.f) dy = ya[0] - yb[0];
+    }
+    std::vector<Elem> last; for (auto& e : els) if (e.row == have) last.push_back(e);
+    for (int r = have + 1; r <= rows; ++r) {
+        for (auto e : last) {
+            e.row = r; e.y += dy * (r - have);
+            std::string old = "Row " + std::to_string(have), nw = "Row " + std::to_string(r);
+            if (e.name.compare(0, old.size(), old) == 0) e.name = nw + e.name.substr(old.size());
+            els.push_back(e);
+        }
+    }
+}
+static void ImportRaceHud(std::vector<Elem>& out, int rows) {
+    const char* kWhite = "WHITE16X16_PURE_WHITE";
+    const char* kBig = "font_conduitmditctt38bi";   // FNG font 4
+    const char* kSmall = "conduitmditc_tt14i";       // FNG font 3
+    std::string grp;
+    auto image = [&](const char* name, const char* tex, float cx, float cy, float w, float h, int r, int g, int b, int a, int row) {
+        Elem e; e.type = E_IMAGE; e.name = name; e.tex = tex; e.anchor = 2; e.row = row; e.group = grp;
+        e.x = (320.f + cx + w / 2) - 640.f; e.y = 240.f + cy - h / 2; e.w = w; e.h = h;
+        e.col[0] = r / 255.f; e.col[1] = g / 255.f; e.col[2] = b / 255.f; e.col[3] = a / 255.f;
+        out.push_back(e); return &out.back();
+    };
+    auto text = [&](const char* name, const char* font, float x, float y, float scale, int sj, const char* s, int row) {
+        Elem e; e.type = E_TEXT; e.name = name; e.font = font; e.text = s; e.anchor = 2; e.row = row; e.scale = scale; e.w = 0; e.group = grp;
+        e.align = (sj & 2) ? 2 : (sj & 1) ? 1 : 0;
+        int fi = FindFont(font); float lh = fi >= 0 ? g_fonts[fi].line * scale : 20.f * scale;
+        e.x = 320.f + x - 640.f; e.y = 240.f + y - ((sj & 8) ? lh : (sj & 4) ? lh / 2 : 0.f);
+        e.col[0] = e.col[1] = e.col[2] = 192 / 255.f; e.col[3] = 1.f;
+        out.push_back(e); return &out.back();
+    };
+    // position
+    grp = "Race HUD/Position";
+    image("Position backing", "3RDPERSON_BOXCORNER", 257.f, -182.f, 256.f, 64.f, 255, 255, 255, 255, 0);
+    text("Position", kBig, 173.f, -165.f, 0.9f, 10, "{pos}", 0);
+    text("Position suffix", kBig, 175.f, -166.f, 0.7f, 8, "{pos_suffix}", 0);
+    // laps
+    grp = "Race HUD/Laps";
+    image("Lap backing", "3RDPERSON_BOXLAPS", 253.f, -149.f, 256.f, 64.f, 0, 0, 0, 255, 0);
+    text("Lap label", kBig, 139.5f, -162.2f, 0.6f, 0, "Lap", 0);
+    text("Lap", kBig, 222.5f, -161.2f, 0.6f, 0, "{lap}", 0);
+    text("Laps", kBig, 245.5f, -161.2f, 0.6f, 0, "/{laps}", 0);
+    // leaderboard: the game's 4 rows, 20 apart, and as many more as asked for
+    grp = "Race HUD/Leaderboard";
+    for (int i = 1; i <= rows; ++i) {
+        float dy = 20.f * (i - 1);
+        char n1[32], n2[32], n3[32], n4[32];
+        snprintf(n1, sizeof n1, "Row %d number box", i); snprintf(n2, sizeof n2, "Row %d bar", i);
+        snprintf(n3, sizeof n3, "Row %d position", i); snprintf(n4, sizeof n4, "Row %d name", i);
+        image(n1, kWhite, 143.f, -125.f + dy, 20.5f, 18.f, 0, 0, 0, 190, i);
+        Elem* bar = image(n2, kWhite, 220.5f, -125.f + dy, 134.f, 18.f, 0, 0, 0, 120, i);
+        // your row: the bar goes a darker, more opaque black (the game's SetPlayerColor on LBBacking)
+        bar->hiMine = true; bar->hiCol[0] = 0.f; bar->hiCol[1] = 0.f; bar->hiCol[2] = 0.f; bar->hiCol[3] = 160 / 255.f;
+        text(n3, kBig, 134.5f, -135.f + dy, 0.5f, 0, "{pos} :", i);
+        Elem* nm = text(n4, kSmall, 285.f, -135.f + dy, 0.9f, 2, "{gap_name}", i);
+        // names: the game's grey (LBData INIT 192,192,192), green on your row (SetPlayerColor 202,244,138)
+        nm->col[0] = nm->col[1] = nm->col[2] = 192 / 255.f;
+        nm->hiMine = true; nm->hiCol[0] = 202 / 255.f; nm->hiCol[1] = 244 / 255.f; nm->hiCol[2] = 138 / 255.f; nm->hiCol[3] = 1.f;
+    }
+    // race time (the game's timer box)
+    float ty = -46.f + 20.f * std::max(0, rows - 4);
+    grp = "Race HUD/Time";
+    image("Time backing", "3RDPERSON_BOXTIME", 250.f, ty, 256.f, 32.f, 0, 0, 0, 190, 0);
+    text("Time label", kSmall, 138.f, ty - 9.f, 0.9f, 0, "Time:", 0);
+    text("Time", kSmall, 285.f, ty - 9.f, 0.9f, 2, "{race_time}", 0);
+}
+// ---------------------------------------------------------------- import (UniPad capture)
+static uint32_t BHash(const std::string& s) { uint32_t h = 0xFFFFFFFF; for (unsigned char c : s) h = h * 33 + c; return h; }
+static std::vector<std::pair<std::string, std::vector<ImportItem>>> g_pending;
+void Import(const std::string& group, const std::vector<ImportItem>& items) {
+    g_pending.emplace_back(group, items);
+    if (g_state == 0) { g_state = 1; std::thread(Scan).detach(); }
+}
+static void ResolvePending() {
+    if (g_pending.empty() || g_state != 2) return;
+    std::map<uint32_t, int> tex, font;
+    std::map<std::string, int> texByName;
+    for (size_t i = 0; i < g_tex.size(); ++i) {
+        tex.emplace(BHash(g_tex[i].name), (int)i);
+        std::string up = g_tex[i].name; for (auto& c : up) c = (char)toupper((unsigned char)c);
+        texByName.emplace(up, (int)i);
+    }
+    std::map<std::string, int> live;   // not in the files: drawn from the game's copy
+    for (size_t i = 0; i < g_fonts.size(); ++i) {
+        std::string up = g_fonts[i].name; for (auto& c : up) c = (char)toupper((unsigned char)c);
+        font.emplace(BHash(g_fonts[i].name), (int)i); font.emplace(BHash(up), (int)i);
+    }
+    int added = 0, missing = 0;
+    for (auto& p : g_pending) {
+        for (auto& it : p.second) {
+            Elem e; e.anchor = 4; e.group = p.first; e.name = it.name;
+            for (int k = 0; k < 4; ++k) e.col[k] = it.col[k];
+            if (!it.text) {
+                auto f = tex.find(it.res);
+                int ti = f != tex.end() ? f->second : -1;
+                if (ti < 0 && !it.texName.empty()) {
+                    std::string up = it.texName; for (auto& c : up) c = (char)toupper((unsigned char)c);
+                    auto g = texByName.find(up); if (g != texByName.end()) ti = g->second;
+                }
+                e.type = E_IMAGE;
+                int iconId = iconForGameTexture && !it.texName.empty() ? iconForGameTexture(it.texName) : -1;
+                if (iconId >= 0 && iconId < (int)iconKeys.size()) { e.tex = "icon:auto:" + iconKeys[iconId]; e.pack.clear(); e.texIdx = -2; ti = -1; }
+                else if (ti >= 0) { e.tex = g_tex[ti].name; e.pack = g_tex[ti].pack; e.texIdx = ti; }
+                else if (iconId >= 0) {}
+                else if (!it.texName.empty()) { e.tex = it.texName; e.pack.clear(); e.texIdx = -1; ++live[it.texName]; }
+                else { ++missing; continue; }
+                e.x = it.x; e.y = it.y; e.w = it.w; e.h = it.h; e.u0 = it.u0; e.v0 = it.v0; e.u1 = it.u1; e.v1 = it.v1; e.rot = it.rot; e.layer = it.layer;
+            } else {
+                auto f = font.find(it.res);
+                int fi = f != font.end() ? f->second : FindFont("conduitmditc_tt14i");
+                if (fi < 0) { ++missing; continue; }
+                e.layer = it.layer;
+                e.type = E_TEXT; e.font = g_fonts[fi].name; e.fontIdx = fi; e.text = it.str; e.scale = it.scale; e.w = 0;
+                e.align = (it.just & 2) ? 2 : (it.just & 1) ? 1 : 0;
+                float lh = Lines(it.str) * g_fonts[fi].line * it.scale;
+                e.x = it.x; e.y = it.y + ((it.just & 8) ? -lh / 2 : (it.just & 4) ? 0.f : lh / 2);
+            }
+            Elems().push_back(e); ++added;
+        }
+    }
+    Log("ui editor: imported %d element(s), %d skipped (texture / font not found)", added, missing);
+    if (!live.empty()) {
+        std::string l; for (auto& kv : live) { if (!l.empty()) l += ", "; l += kv.first; }
+        Log("ui editor: %d texture(s) not in the game files, drawn from the game's copy when loaded: %s", (int)live.size(), l.c_str());
+    }
+    g_pending.clear();
+    Save();   // captures are kept right away
+}
+
+void Panel() {
+    g_panelOpen = true;
+    if (g_state == 0) { g_state = 1; std::thread(Scan).detach(); }
+    if (g_state == 1) { ImGui::TextUnformatted("Reading the game's UI textures and fonts..."); return; }
+    ResolvePending();
+    ImGui::TextDisabled("Game files: %s", g_scanMsg.c_str());
+    if (menuMode) {
+        if (g_editMode != 0) { g_editMode = 0; g_sel = -1; }
+        bool t = testMode;
+        if (t) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.45f, 0.1f, 1.f));
+        if (ImGui::Button(t ? "Stop preview" : "Preview")) testMode = !testMode;
+        if (t) ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Shows the layout over the game with this panel closed too.");
+        ImGui::SameLine(); ImGui::Checkbox("Edit on screen", &g_edit);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Drag to move, green corner to resize, Shift keeps the shape.");
+        ImGui::SameLine(); if (ImGui::Checkbox("Highlight selection", &g_hiSel)) g_dirty = true;
+    } else {
+    // ---- overlay
+    ImGui::SeparatorText("Overlay");
+    if (ImGui::Checkbox("Show overlay", &g_show)) g_dirty = true; ImGui::SameLine();
+    {
+        bool t = testMode;
+        if (t) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.45f, 0.1f, 1.f));
+        if (ImGui::Button(t ? "Stop test" : "Test")) testMode = !testMode;
+        if (t) ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Shows the layout picked below right now - in the menus or free roam too, with the menu closed -\nand, when you're not in a race, fills the race values with a sample race (you 3rd of 6, lap 2 of 3).");
+        ImGui::SameLine();
+    }
+    ImGui::Checkbox("Edit on screen (drag to move, green corner to resize, Shift keeps shape)", &g_edit);
+    ImGui::SameLine(); if (ImGui::Checkbox("Highlight selection", &g_hiSel)) g_dirty = true;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Green outline around the selected texture / text (and orange box around a selected group) on screen.");
+    ImGui::TextDisabled("Each game mode has its own layout. Now: %s%s", g_nowMode >= 0 && g_nowMode < NMODES ? kModeName[g_nowMode] : "not driving (menus)",
+                        g_edit ? " - while editing on screen, the layout picked below is shown" : "");
+    if (ImGui::BeginTabBar("##modes")) {
+        for (int m = 0; m < NMODES; ++m) {
+            char lb[48]; snprintf(lb, sizeof lb, "%s (%d)###mode%d", kModeName[m], (int)g_layout[m].size(), m);
+            if (ImGui::BeginTabItem(lb)) { if (g_editMode != m) { g_editMode = m; g_sel = -1; g_dragging = -1; } ImGui::EndTabItem(); }
+        }
+        ImGui::EndTabBar();
+    }
+    {
+        static int copyFrom = 0;
+        ImGui::SetNextItemWidth(130); ImGui::Combo("##copyfrom", &copyFrom, kModeName, NMODES); ImGui::SameLine();
+        if (ImGui::Button("Copy its elements into this layout") && copyFrom != g_editMode) {
+            for (auto e : g_layout[copyFrom]) Elems().push_back(e);
+            g_dirty = true;
+        }
+        if (g_nowMode >= 0 && g_nowMode < NMODES && g_nowMode != g_editMode) { ImGui::SameLine(); if (ImGui::SmallButton("edit the current mode's layout")) { g_editMode = g_nowMode; g_sel = -1; } }
+    }
+    if (g_editMode != FREEROAM) {
+        static int importRows = 4;
+        ImGui::SetNextItemWidth(90); ImGui::InputInt("rows##imp", &importRows); importRows = std::max(1, std::min(12, importRows)); ImGui::SameLine();
+        if (ImGui::Button("Import the game's race HUD (position, laps, leaderboard, time)")) {
+            ImportRaceHud(Elems(), importRows); boardRows = importRows; g_dirty = true;
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Adds the game's own race HUD pieces from HUD_SingleRace.fng - same textures, fonts, colours\nand places - with live values, and as many leaderboard rows as you ask for (the game has 4).");
+        ImGui::SetNextItemWidth(90);
+        if (ImGui::InputInt("leaderboard rows shown", &boardRows)) { boardRows = std::max(1, std::min(22, boardRows)); EnsureRows(Elems(), boardRows); g_dirty = true; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rows past this are hidden; raising it past the rows the layout has copies its last row down.");
+        ImGui::SameLine(); if (ImGui::Checkbox("pick rows like the game", &boardFollow)) g_dirty = true;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Row 1 is always the leader; the other rows show you, the racers just ahead of you\nand the one(s) just behind you - like the game's leaderboard. Off: rows 1, 2, 3 ... in order.");
+        ImGui::SameLine(); ImGui::TextDisabled("(live values)");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", kTokenHelp);
+    }
+    }  // !menuMode
+    if (ImGui::Button("Add image")) {
+        Elem e; e.type = E_IMAGE; e.name = "image " + std::to_string(Elems().size() + 1);
+        if (g_texSel >= 0) { e.tex = g_tex[g_texSel].name; e.pack = g_tex[g_texSel].pack; e.texIdx = g_texSel; e.w = g_tex[g_texSel].w; e.h = g_tex[g_texSel].h; e.name = e.tex; }
+        Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_dirty = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Add text")) {
+        Elem e; e.type = E_TEXT; e.name = "text " + std::to_string(Elems().size() + 1); e.w = 0; e.col[0] = e.col[1] = e.col[2] = 0.753f;
+        int fi = g_fontSel >= 0 ? g_fontSel : FindFont("conduitmditc_tt14i"); if (fi < 0 && !g_fonts.empty()) fi = 0;
+        if (fi >= 0) { e.font = g_fonts[fi].name; e.fontIdx = fi; }
+        Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_dirty = true;
+    }
+    ImGui::SameLine(); if (ImGui::Button(g_dirty ? "Save *" : "Save")) Save();
+    ImGui::SameLine(); if (ImGui::Button("Reload from file")) { Load(); UndoReset(); }
+    ImGui::SameLine(); ImGui::BeginDisabled(g_undo.empty());
+    if (ImGui::Button(("Undo (" + std::to_string(g_undo.size()) + ")").c_str())) Undo();
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Ctrl + Z. Up to %d steps (each finished change: a drag, a typed name...).", kUndoSteps);
+    ImGui::SameLine(); ImGui::BeginDisabled(g_redo.empty());
+    if (ImGui::Button("Redo")) Redo();
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Ctrl + Y");
+    ImGui::SameLine(); ImGui::TextDisabled("(%s)", g_layoutPath.c_str());
+    // element list + properties
+    // element list + properties: one height for both, set with the bar under them; the list's width by its right edge
+    ImGui::BeginChild("##elems", ImVec2(220, g_listH), ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX);
+    static char search[64] = "";
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    ImGui::InputTextWithHint("##search", "search names, text, textures...", search, sizeof search);
+    std::string q = search; for (auto& c : q) c = (char)tolower((unsigned char)c);
+    auto has = [&](const std::string& s) { std::string l = s; for (auto& c : l) c = (char)tolower((unsigned char)c); return l.find(q) != std::string::npos; };
+    // drag and drop in the list: done after the list is drawn (the list is walked by index)
+    struct Drop { int elem = -1; std::string group; int before = -1; std::string into; bool toTop = false; } drop;
+    // the list as shown (elements and groups, top to bottom), for the arrow keys; scroll to the picked one
+    struct Entry { int elem; std::string group; };
+    std::vector<Entry> shownList;
+    int shiftTo = -1; std::string shiftToGroup, shiftFromGroup;   // Shift + click: to an element / a group, from a group
+    static bool scrollToSel = false;
+    auto scrollHere = [&](bool isSel) { if (isSel && scrollToSel) { ImGui::SetScrollHereY(0.5f); scrollToSel = false; } };
+    static int lastSel = -2; static std::string lastGroup;
+    bool revealSel = g_sel != lastSel || g_selGroup != lastGroup;   // picked something new (on screen too)
+    if (revealSel) scrollToSel = true;
+    lastSel = g_sel; lastGroup = g_selGroup;
+    auto dragSource = [&](int i) {
+        if (ImGui::BeginDragDropSource()) {
+            ImGui::SetDragDropPayload("UIED_ELEM", &i, sizeof i);
+            ImGui::TextUnformatted(Elems()[i].name.c_str());
+            ImGui::EndDragDropSource();
+        }
+    };
+    auto item = [&](int i) {
+        ImGui::PushID(i);
+        std::string label = std::string(Elems()[i].type == E_TEXT ? "[T] " : "[I] ") + Elems()[i].name + (Elems()[i].visible ? "" : " (hidden)") +
+                            (Elems()[i].layer ? "  L" + std::to_string(Elems()[i].layer) : "");
+        if (!q.empty() && !Elems()[i].group.empty()) label += "   in " + Elems()[i].group;
+        if (ImGui::Selectable(label.c_str(), (g_sel == i && g_selGroup.empty()) || InMulti(i))) {
+            ImGuiIO& io = ImGui::GetIO();
+            if (io.KeyShift && g_sel >= 0) shiftTo = i;   // a range: done once the list is drawn
+            else if (io.KeyShift && !g_selGroup.empty()) { shiftTo = i; shiftFromGroup = g_selGroup; }
+            else if (io.KeyCtrl) {
+                if (PickCount() == 0 && g_sel >= 0 && g_sel != i && g_selGroup.empty()) g_multi.push_back(g_sel);
+                if (PickCount() == 0 && !g_selGroup.empty()) g_multiG.push_back(g_selGroup);
+                MultiToggle(i); g_sel = i;
+            }
+            else { ClearMulti(); g_sel = i; }
+            g_selGroup.clear();
+        }
+        shownList.push_back({ i, "" }); scrollHere(g_sel == i && g_selGroup.empty());
+        dragSource(i);
+        if (ImGui::BeginDragDropTarget()) {   // dropped on an element: goes just before it, into its group
+            if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("UIED_ELEM")) { drop.elem = *(const int*)pl->Data; drop.before = i; drop.into = Elems()[i].group; }
+            ImGui::EndDragDropTarget();
+        }
+        ImGui::PopID();
+    };
+    if (!q.empty()) {   // search: the matching elements and groups, flat
+        for (auto& g : GroupNames())
+            if (has(GroupLeaf(g))) {
+                ImGui::PushID(("sg_" + g).c_str());
+                if (ImGui::Selectable(("[G] " + g).c_str(), g_selGroup == g)) { g_selGroup = g; g_sel = -1; }
+                shownList.push_back({ -1, g }); scrollHere(g_selGroup == g);
+                ImGui::PopID();
+            }
+        int n = 0;
+        for (int i = 0; i < (int)Elems().size(); ++i) {
+            const Elem& e = Elems()[i];
+            if (has(e.name) || (e.type == E_TEXT && has(e.text)) || (e.type == E_IMAGE && has(e.tex)) || (!e.role.empty() && has(e.role))) { item(i); ++n; }
+        }
+        if (!n) ImGui::TextDisabled("nothing matches");
+    } else {
+        // one level of the tree: elements directly in group `path` and, where their first member is, the groups inside it
+        std::function<void(const std::string&)> level = [&](const std::string& path) {
+            std::vector<std::string> shown;
+            for (int i = 0; i < (int)Elems().size(); ++i) {
+                const std::string& eg = Elems()[i].group;
+                if (eg == path) { item(i); continue; }
+                if (!path.empty() && !InGroup(eg, path)) continue;
+                std::string rest = path.empty() ? eg : eg.substr(path.size() + 1);
+                std::string child = (path.empty() ? "" : path + "/") + rest.substr(0, rest.find('/'));
+                if (std::find(shown.begin(), shown.end(), child) != shown.end()) continue;
+                shown.push_back(child);
+                int n = 0; for (auto& e : Elems()) if (InGroup(e.group, child)) ++n;
+                bool gsel = g_selGroup == child || InMultiG(child);
+                // collapsed to start with; a newly picked element (or group) inside opens the groups around it
+                ImGuiTreeNodeFlags fl = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth | (gsel ? ImGuiTreeNodeFlags_Selected : 0);
+                if (revealSel && ((g_sel >= 0 && g_sel < (int)Elems().size() && g_selGroup.empty() && InGroup(Elems()[g_sel].group, child)) ||
+                                  (!g_selGroup.empty() && g_selGroup != child && InGroup(g_selGroup, child))))
+                    ImGui::SetNextItemOpen(true);
+                bool open = ImGui::TreeNodeEx(("grp_" + child).c_str(), fl, "[G] %s (%d)", GroupLeaf(child).c_str(), n);
+                if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
+                    ImGuiIO& io = ImGui::GetIO();
+                    if (io.KeyShift && (g_sel >= 0 || !g_selGroup.empty())) { shiftToGroup = child; shiftFromGroup = g_selGroup; }
+                    else if (io.KeyCtrl) {   // Ctrl + click on a group: the group joins the picked ones (as a group)
+                        if (PickCount() == 0 && g_sel >= 0 && g_selGroup.empty()) g_multi.push_back(g_sel);
+                        if (PickCount() == 0 && !g_selGroup.empty() && g_selGroup != child) g_multiG.push_back(g_selGroup);
+                        MultiToggleG(child);
+                        g_selGroup.clear(); g_sel = -1;
+                    } else { g_selGroup = child; g_sel = -1; ClearMulti(); }
+                }
+                shownList.push_back({ -1, child }); scrollHere(gsel);
+                if (ImGui::BeginDragDropSource()) {
+                    ImGui::SetDragDropPayload("UIED_GROUP", child.c_str(), child.size() + 1);
+                    ImGui::Text("[G] %s", GroupLeaf(child).c_str());
+                    ImGui::EndDragDropSource();
+                }
+                if (ImGui::BeginDragDropTarget()) {   // dropped on a group: into it
+                    if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("UIED_ELEM")) { drop.elem = *(const int*)pl->Data; drop.into = child; }
+                    if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("UIED_GROUP")) { drop.group = (const char*)pl->Data; drop.into = child; }
+                    ImGui::EndDragDropTarget();
+                }
+                if (open) { level(child); ImGui::TreePop(); }
+            }
+        };
+        level("");
+        // the strip under the list: out of every group
+        ImGui::Dummy(ImVec2(-FLT_MIN, 4));
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+        ImGui::Selectable("(drop here: no group)", false, ImGuiSelectableFlags_Disabled);
+        ImGui::PopStyleColor();
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("UIED_ELEM")) { drop.elem = *(const int*)pl->Data; drop.toTop = true; }
+            if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("UIED_GROUP")) { drop.group = (const char*)pl->Data; drop.toTop = true; }
+            ImGui::EndDragDropTarget();
+        }
+    }
+    // Up / Down: the previous / next entry of the list (while the list has the focus and nothing is being typed);
+    // with Alt: move the selected element / group up or down past its neighbour in the same group
+    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows) && !ImGui::GetIO().WantTextInput && !shownList.empty()) {
+        int d = ImGui::IsKeyPressed(ImGuiKey_UpArrow) ? -1 : ImGui::IsKeyPressed(ImGuiKey_DownArrow) ? 1 : 0;
+        if (d && ImGui::GetIO().KeyAlt) { ClearMulti(); MoveInList(d); scrollToSel = true; d = 0; }
+        if (d) {
+            int cur = -1;
+            for (int k = 0; k < (int)shownList.size(); ++k)
+                if ((shownList[k].elem >= 0 && shownList[k].elem == g_sel && g_selGroup.empty()) || (shownList[k].elem < 0 && shownList[k].group == g_selGroup)) cur = k;
+            int nx = cur < 0 ? (d > 0 ? 0 : (int)shownList.size() - 1) : std::max(0, std::min((int)shownList.size() - 1, cur + d));
+            if (shownList[nx].elem >= 0) { g_sel = shownList[nx].elem; g_selGroup.clear(); }
+            else { g_selGroup = shownList[nx].group; g_sel = -1; }
+            scrollToSel = true;
+        }
+    }
+    ImGui::EndChild();
+    if (shiftTo >= 0 || !shiftToGroup.empty()) {   // Shift + click: every entry shown between the last picked and this one
+        auto at = [&](int elem, const std::string& grp) {
+            for (int k = 0; k < (int)shownList.size(); ++k)
+                if (elem >= 0 ? shownList[k].elem == elem : (shownList[k].elem < 0 && shownList[k].group == grp)) return k;
+            return -1;
+        };
+        int a = shiftFromGroup.empty() ? at(g_sel, "") : at(-1, shiftFromGroup);
+        int b = shiftTo >= 0 ? at(shiftTo, "") : at(-1, shiftToGroup);
+        if (a >= 0 && b >= 0) {
+            if (a > b) std::swap(a, b);
+            ClearMulti();
+            for (int k = a; k <= b; ++k) {
+                if (shownList[k].elem >= 0) {   // an element inside a group already picked comes with it
+                    bool inPicked = false; for (auto& g : g_multiG) inPicked |= InGroup(Elems()[shownList[k].elem].group, g);
+                    if (!inPicked && !InMulti(shownList[k].elem)) g_multi.push_back(shownList[k].elem);
+                } else {
+                    bool inPicked = false; for (auto& g : g_multiG) inPicked |= InGroup(shownList[k].group, g);
+                    if (!inPicked) g_multiG.push_back(shownList[k].group);
+                }
+            }
+        }
+        g_selGroup.clear(); g_sel = shiftTo >= 0 ? shiftTo : -1;
+    }
+    // apply a drop
+    if (drop.elem >= 0 || !drop.group.empty()) ClearMulti();
+    if (drop.elem >= 0 && drop.elem < (int)Elems().size()) {
+        Elem e = Elems()[drop.elem];
+        e.group = drop.toTop ? "" : drop.into;
+        int at;
+        if (drop.before >= 0) at = drop.before > drop.elem ? drop.before - 1 : drop.before;
+        else {   // after the group's last element (or at the end)
+            at = -1;
+            for (int i = 0; i < (int)Elems().size(); ++i) if (i != drop.elem && !e.group.empty() && InGroup(Elems()[i].group, e.group)) at = i;
+            at = at < 0 ? (int)Elems().size() - 1 : (at > drop.elem ? at : at + 1);
+        }
+        Elems().erase(Elems().begin() + drop.elem);
+        at = std::max(0, std::min((int)Elems().size(), at));
+        Elems().insert(Elems().begin() + at, e);
+        g_sel = at; g_selGroup.clear(); g_dirty = true;
+    } else if (!drop.group.empty()) {
+        std::string g = drop.group;
+        if (drop.toTop) { if (!GroupParent(g).empty()) RebaseGroup(g, GroupLeaf(g)); }
+        else if (!InGroup(drop.into, g) && GroupParent(g) != drop.into) RebaseGroup(g, drop.into + "/" + GroupLeaf(g));   // not into itself
+    }
+    ImGui::SameLine();
+    ImGui::BeginChild("##props", ImVec2(0, g_listH), ImGuiChildFlags_Border);
+    if (PickCount() == 1) {   // down to one: an ordinary selection
+        if (!g_multiG.empty()) { g_selGroup = g_multiG[0]; g_sel = -1; } else { g_sel = g_multi[0]; g_selGroup.clear(); }
+        ClearMulti();
+    }
+    if (PickCount() > 1) MultiPanel();
+    else if (!g_selGroup.empty()) GroupPanel();
+    else if (g_sel >= 0 && g_sel < (int)Elems().size()) {
+        if (ImGui::SmallButton("up") && g_sel > 0) { std::swap(Elems()[g_sel], Elems()[g_sel - 1]); --g_sel; g_dirty = true; }
+        ImGui::SameLine(); if (ImGui::SmallButton("down") && g_sel + 1 < (int)Elems().size()) { std::swap(Elems()[g_sel], Elems()[g_sel + 1]); ++g_sel; g_dirty = true; }
+        ImGui::SameLine(); ImGui::TextDisabled("(lower in the list = drawn on top)"); ImGui::SameLine();
+        if (ImGui::SmallButton("duplicate")) { Elem c = Elems()[g_sel]; c.name += " copy"; c.x += 10; c.y += 10; Elems().insert(Elems().begin() + g_sel + 1, c); ++g_sel; g_dirty = true; }
+        ImGui::SameLine(); if (ImGui::SmallButton("delete")) DeleteSelected();
+        if (g_sel >= 0) Selected(Elems()[g_sel]);
+    } else ImGui::TextDisabled("Add an image or text, or pick one on the left. Positions are in 1/480ths of the screen height.\nPut elements in a group (their \"group\" box) to move them together.");
+    ImGui::EndChild();
+    {   // the bar: drag it up / down to size both boxes
+        ImVec2 p = ImGui::GetCursorScreenPos(); float w = ImGui::GetContentRegionAvail().x;
+        ImGui::InvisibleButton("##listbar", ImVec2(w, 8.f));
+        bool hot = ImGui::IsItemHovered() || ImGui::IsItemActive();
+        if (hot) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+        if (ImGui::IsItemActive()) { g_listH = std::max(80.f, std::min(1400.f, g_listH + ImGui::GetIO().MouseDelta.y)); }
+        ImU32 c = hot ? IM_COL32(255, 210, 60, 255) : IM_COL32(140, 140, 150, 160);
+        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(p.x + w * 0.5f - 30.f, p.y + 2.f), ImVec2(p.x + w * 0.5f + 30.f, p.y + 6.f), c, 2.f);
+        ImGui::GetWindowDrawList()->AddLine(ImVec2(p.x, p.y + 4.f), ImVec2(p.x + w, p.y + 4.f), hot ? c : IM_COL32(90, 90, 100, 120), 1.f);
+    }
+
+    {   // keys: Delete removes what's picked; Ctrl + Z / Ctrl + Y (or Ctrl + Shift + Z) undo / redo
+        ImGuiIO& io = ImGui::GetIO();
+        if (!io.WantTextInput) {
+            if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) DeleteSelected();
+            if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false)) { if (io.KeyShift) Redo(); else Undo(); }
+            if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y, false)) Redo();
+        }
+    }
+    UndoCommit(false);
+    KitPanel();
+    // ---- controller button icons
+    if (!iconKeys.empty() && iconTexture && ImGui::CollapsingHeader("Button icons")) {
+        static int fam = 0;   // 0 = follows the controller, 1.. = a family
+        std::vector<std::string> names{"Follows the controller (universal)"};
+        for (auto& f : iconFamilies) names.push_back(f);
+        std::vector<const char*> np; for (auto& n : names) np.push_back(n.c_str());
+        ImGui::SetNextItemWidth(260); ImGui::Combo("##iconfam", &fam, np.data(), (int)np.size());
+        ImGui::SameLine(); if (iconReload && ImGui::SmallButton("reload icon files")) iconReload();
+        ImGui::TextDisabled("Click an icon to add it (32 x 32, the size the game's prompts use).%s",
+                            g_sel >= 0 && g_sel < (int)Elems().size() && Elems()[g_sel].type == E_IMAGE ? "  Shift + click: put it on the selected image." : "");
+        int f = fam - 1;
+        float th = 48;
+        int cols = std::max(1, (int)(ImGui::GetContentRegionAvail().x / (th + 12)));
+        for (int id = 0; id < (int)iconKeys.size(); ++id) {
+            if (id % cols) ImGui::SameLine();
+            ImGui::PushID(id);
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            ImDrawList* dl = ImGui::GetWindowDrawList();
+            dl->AddRectFilled(p, ImVec2(p.x + th, p.y + th), IM_COL32(55, 55, 62, 255), 4.f);
+            if (IDirect3DTexture9* tx = iconTexture(f, id, (int)th - 8)) dl->AddImage((ImTextureID)tx, ImVec2(p.x + 4, p.y + 4), ImVec2(p.x + th - 4, p.y + th - 4));
+            std::string tex = "icon:" + std::string(f < 0 ? "auto" : iconFamilies[f]) + ":" + iconKeys[id];
+            if (ImGui::InvisibleButton("##ic", ImVec2(th, th))) {
+                bool onSel = ImGui::GetIO().KeyShift && g_sel >= 0 && g_sel < (int)Elems().size() && Elems()[g_sel].type == E_IMAGE;
+                if (onSel) { Elem& e = Elems()[g_sel]; e.tex = tex; e.pack.clear(); e.texIdx = -2; e.u0 = e.v0 = 0; e.u1 = e.v1 = 1; }
+                else {
+                    Elem e; e.type = E_IMAGE; e.anchor = 4; e.x = 0; e.y = 0; e.w = e.h = 32; e.tex = tex; e.name = IconName(f, id);
+                    if (!g_selGroup.empty()) e.group = g_selGroup;
+                    e.layer = 0; for (auto& o : Elems()) e.layer = std::max(e.layer, o.layer);   // on top
+                    Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_selGroup.clear();
+                }
+                g_dirty = true;
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", IconName(f, id).c_str());
+            ImGui::PopID();
+        }
+    }
+    // ---- texture browser
+    if (ImGui::CollapsingHeader("Textures")) {
+        ImGui::SetNextItemWidth(180); ImGui::InputTextWithHint("##filter", "search names", g_filter, sizeof g_filter); ImGui::SameLine();
+        std::vector<const char*> pk; pk.push_back("all packs"); for (auto& p : g_packs) pk.push_back(p.c_str());
+        ImGui::SetNextItemWidth(320); ImGui::Combo("##pack", &g_packSel, pk.data(), (int)pk.size()); ImGui::SameLine();
+        ImGui::Checkbox("in-game HUD only", &g_onlyHud); ImGui::SameLine();
+        ImGui::SetNextItemWidth(100); ImGui::SliderFloat("##thumb", &g_thumb, 32.f, 160.f, "thumbs %.0f");
+        std::vector<int> list; for (size_t i = 0; i < g_tex.size(); ++i) if (PassFilter(g_tex[i])) list.push_back((int)i);
+        ImGui::TextDisabled("%d shown", (int)list.size());
+        if (g_texSel >= 0 && g_texSel < (int)g_tex.size()) {
+            Tex& t = g_tex[g_texSel];
+            ImGui::SameLine(); ImGui::Text("| selected: %s  %dx%d %s  (%s, %s)", t.name.c_str(), t.w, t.h, FmtName(t.fmt), t.pack.c_str(), g_files[t.file].rel.c_str());
+        }
+        float avail = ImGui::GetContentRegionAvail().x;
+        int cols = std::max(1, (int)(avail / (g_thumb + 10)));
+        ImGui::BeginChild("##grid", ImVec2(0, std::min(420.f, (g_thumb + 26) * 4)), ImGuiChildFlags_Border | ImGuiChildFlags_ResizeY);
+        int rows = ((int)list.size() + cols - 1) / cols;
+        ImGuiListClipper clip; clip.Begin(rows, g_thumb + 26);
+        while (clip.Step()) for (int r = clip.DisplayStart; r < clip.DisplayEnd; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                int li = r * cols + c; if (li >= (int)list.size()) break;
+                int i = list[li]; Tex& t = g_tex[i];
+                if (c) ImGui::SameLine();
+                ImGui::BeginGroup(); ImGui::PushID(i);
+                ImVec2 p = ImGui::GetCursorScreenPos();
+                ImDrawList* dl = ImGui::GetWindowDrawList();
+                // checkerboard so see-through textures show
+                float cs = g_thumb / 4;
+                for (int yy = 0; yy < 4; ++yy) for (int xx = 0; xx < 4; ++xx)
+                    dl->AddRectFilled(ImVec2(p.x + xx * cs, p.y + yy * cs), ImVec2(p.x + (xx + 1) * cs, p.y + (yy + 1) * cs), ((xx + yy) & 1) ? IM_COL32(90, 90, 90, 255) : IM_COL32(60, 60, 60, 255));
+                IDirect3DTexture9* tx = TexOf(i);
+                float sc = std::min(g_thumb / t.w, g_thumb / t.h);
+                ImVec2 isz(t.w * sc, t.h * sc), off((g_thumb - isz.x) / 2, (g_thumb - isz.y) / 2);
+                if (tx) dl->AddImage((ImTextureID)tx, ImVec2(p.x + off.x, p.y + off.y), ImVec2(p.x + off.x + isz.x, p.y + off.y + isz.y));
+                else if (t.failed) dl->AddText(ImVec2(p.x + 4, p.y + 4), IM_COL32(255, 90, 90, 255), "?");
+                if (ImGui::InvisibleButton("##t", ImVec2(g_thumb, g_thumb))) g_texSel = i;
+                if (i == g_texSel) dl->AddRect(p, ImVec2(p.x + g_thumb, p.y + g_thumb), IM_COL32(255, 210, 60, 255), 0, 0, 2.f);
+                if (ImGui::IsItemHovered()) {
+                    ImGui::BeginTooltip();
+                    ImGui::Text("%s\n%dx%d %s\n%s\n%s", t.name.c_str(), t.w, t.h, FmtName(t.fmt), t.pack.c_str(), g_files[t.file].rel.c_str());
+                    if (tx) { float s2 = std::min(1.f, std::min(256.f / t.w, 256.f / t.h)) * 1.5f; ImGui::Image((ImTextureID)tx, ImVec2(t.w * s2, t.h * s2)); }
+                    ImGui::EndTooltip();
+                }
+                std::string nm = t.name; if (nm.size() > (size_t)(g_thumb / 6)) nm = nm.substr(0, (size_t)(g_thumb / 6)) + "..";
+                ImGui::TextDisabled("%s", nm.c_str());
+                ImGui::PopID(); ImGui::EndGroup();
+            }
+        }
+        ImGui::EndChild();
+    }
+    // ---- fonts
+    if (ImGui::CollapsingHeader("Fonts")) {
+        ImGui::SetNextItemWidth(300); ImGui::InputText("preview text", g_fontPreview, sizeof g_fontPreview); ImGui::SameLine();
+        ImGui::SetNextItemWidth(120); ImGui::SliderFloat("size", &g_fontScale, 0.25f, 3.f, "%.2f");
+        for (int i = 0; i < (int)g_fonts.size(); ++i) {
+            Font& f = g_fonts[i];
+            ImGui::PushID(i);
+            if (ImGui::RadioButton("##sel", g_fontSel == i)) g_fontSel = i;
+            ImGui::SameLine(); ImGui::Text("%s  (%d chars, line %d px, %s)", f.name.c_str(), (int)f.g.size(), f.line, f.file.c_str());
+            if (g_sel >= 0 && g_sel < (int)Elems().size() && Elems()[g_sel].type == E_TEXT) {
+                ImGui::SameLine(); if (ImGui::SmallButton("use for the selected text")) { Elems()[g_sel].font = f.name; Elems()[g_sel].fontIdx = i; g_dirty = true; }
+            }
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            float hgt = f.line * g_fontScale + 6;
+            ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + ImGui::GetContentRegionAvail().x, p.y + hgt), IM_COL32(60, 75, 95, 255));
+            if (f.tex >= 0) DrawText(ImGui::GetWindowDrawList(), f, ImVec2(p.x + 6, p.y + 3), g_fontScale, IM_COL32(255, 255, 255, 255), g_fontPreview, 0, 0);
+            else ImGui::GetWindowDrawList()->AddText(ImVec2(p.x + 6, p.y + 3), IM_COL32(255, 120, 120, 255), "(texture not found)");
+            ImGui::Dummy(ImVec2(10, hgt));
+            ImGui::PopID();
+        }
+    }
+}
+}   // namespace uied

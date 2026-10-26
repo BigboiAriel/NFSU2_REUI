@@ -1,0 +1,7 @@
+*.asi
+*.o
+*.obj
+*.log
+*.dmp
+build/
+third_party/
