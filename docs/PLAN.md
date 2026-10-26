@@ -25,7 +25,9 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   follows REUI's test mode and leaderboard settings (REUI_EditorState). With no menu pages / HUD layouts of its own
   yet, REUI starts from scripts\NFSU2UniPad_menus.txt / NFSU2Multiplayer_overlay.txt. UniPad no longer turns
   itself off when the multiplayer mod is loaded.
-- **P3 live HUD data (RE).** Car: speed, rpm, gear, nitrous, speedbreaker, shift light. Race: position, laps,
+- **P3 live HUD data (RE).** *Car gauges done:* {rpm} {rpm_k} {rpm_max} {rpm_pct} {gear} {reverse} {shift_light} {speedo}
+  {speed_unit} {throttle} {nos} {nos_installed} {nos_on} (game/car.cpp, docs/RE_NOTES.md); F6 > Live values lists them.
+  Car: speed, rpm, gear, nitrous, speedbreaker, shift light. Race: position, laps,
   leaderboard (the multiplayer mod's raceinfo reader as a base), race / lap / best times, countdown, wrong way,
   results. Free roam: cash, SMS / phone, event icons, messages. Minimap: map texture, player / racer / shop
   positions and heading.

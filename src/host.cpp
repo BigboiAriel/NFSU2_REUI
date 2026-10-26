@@ -8,6 +8,7 @@
 #include "editor/uied.h"
 #include "game/feng.h"
 #include "reui_api.h"
+#include "game/car.h"
 
 #include "imgui.h"
 
@@ -227,7 +228,7 @@ static int GameMode() {
     return uied::RACE;
 }
 
-// live values for text elements: {fps} {speed} {mph} {clock} (more come with the HUD data)
+// live values for text elements: {fps} {speed} {mph}, the car's gauges (game/car.cpp), other mods' (reui_api.h)
 static float g_fps = 0;
 static bool Token(const std::string& k, std::string& out) {
     char b[64];
@@ -239,6 +240,7 @@ static bool Token(const std::string& k, std::string& out) {
         if (car && Readable(car + 0x70, 12)) { const float* v = (const float*)(car + 0x70); sp = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
         snprintf(b, sizeof b, "%.0f", k == "mph" ? sp * 2.23694f : sp * 3.6f); out = b; return true;
     }
+    if (CarToken(k, out)) return true;   // {rpm} {gear} {nos}... (game/car.cpp)
     for (REUI_TokenFn fn : g_tokenProviders) {   // other mods' values (the multiplayer mod's race / leaderboard)
         char buf[256] = {};
         if (fn(k.c_str(), buf, sizeof buf)) { out = buf; return true; }
@@ -314,6 +316,36 @@ void HostPanel() {
         ImGui::SameLine();
         if (ImGui::Button("Capture current screen")) CaptureScreen(g_captureName[0] ? g_captureName : "Capture");
         if (!g_lastCapture.empty()) ImGui::TextDisabled("%s", g_lastCapture.c_str());
+    }
+    if (ImGui::CollapsingHeader("Live values")) {
+        struct E { const char* k; const char* what; };
+        static const E kVals[] = {
+            { "fps", "Frames per second." }, { "speed", "Speed in km/h (from the car's velocity)." }, { "mph", "Speed in mph." },
+            { "speedo", "Speed as the game's speedometer shows it, in the units picked in the game's options." },
+            { "speed_unit", "KPH or MPH, following the game's options." },
+            { "rpm", "Engine RPM." }, { "rpm_k", "RPM in thousands (6.5)." }, { "rpm_max", "The tachometer's full scale." },
+            { "rpm_pct", "RPM as 0-100 of the tachometer." }, { "gear", "R, N, 1-7." }, { "reverse", "1 in reverse." },
+            { "shift_light", "1 while the game's shift light is on." }, { "throttle", "Throttle pedal, 0-100." },
+            { "nos", "Nitrous left, 0-100 (blank without nitrous)." }, { "nos_installed", "1 when the car has nitrous." },
+            { "nos_on", "1 while nitrous is firing." },
+        };
+        ImGui::TextDisabled("Put {key} in a text element. Click a key to copy it. Other mods add theirs (the multiplayer mod: F8 > Live values).");
+        if (ImGui::BeginTable("##reuivals", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
+            ImGui::TableSetupColumn("Key", ImGuiTableColumnFlags_WidthFixed, 130);
+            ImGui::TableSetupColumn("Now", ImGuiTableColumnFlags_WidthFixed, 80);
+            ImGui::TableSetupColumn("What it shows");
+            ImGui::TableHeadersRow();
+            for (const E& e : kVals) {
+                ImGui::TableNextRow(); ImGui::TableNextColumn();
+                std::string key = std::string("{") + e.k + "}";
+                if (ImGui::Selectable(key.c_str())) ImGui::SetClipboardText(key.c_str());
+                ImGui::TableNextColumn();
+                std::string v; Token(e.k, v);
+                if (v.empty()) ImGui::TextDisabled("(blank)"); else ImGui::TextUnformatted(v.c_str());
+                ImGui::TableNextColumn(); ImGui::TextWrapped("%s", e.what);
+            }
+            ImGui::EndTable();
+        }
     }
     uied::Panel();
 }
