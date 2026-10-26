@@ -53,5 +53,5 @@ Live textures: a TextureInfo's +0 points at its platform part; the IDirect3DText
 
 ## Rear-view mirror
 - Views are `0x832DE0 + id * 0x70` (0x48B1E0): +8 active, +0x40 camera, +0x58 render target struct (+8 surface, +0xC depth, +0x14 / +0x18 size).
-- The mirror is view 3: camera 0x8718C0, render target 0x86E7BC. The render loop (0x5CAD0 .. 0x5CAFAF) draws the world into it. Then it draws the "RVM" art over it (TextureInfo at 0x8707E8) and RVM_MASK into its alpha (0x8707EC). Both are looked up in 0x5B98B0.
+- The mirror is view 3: camera 0x8718C0, render target 0x86E7BC. The render loop (0x5CAAD0, 0x5CAE3D .. 0x5CAFAF) draws the world into it. Then it draws the "RVM" art over it (TextureInfo at 0x8707E8) and RVM_MASK into its alpha (0x8707EC). Both are looked up in 0x5B98B0.
 - The mirror texture itself is `[0x8708A4]`. 0x5CBF40 draws it on screen at x 200..440, y 15..95 (640x480) when view 3 is active. The `je` at 0x5CC0E6 (`0F 84 0A 01 00 00`) skips that draw; REUI turns it into `90 E9 ...` while an element shows `{rvm}`.
