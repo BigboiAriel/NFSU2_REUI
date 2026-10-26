@@ -117,6 +117,10 @@ static DWORD WINAPI WaitThread(LPVOID) {
         Log("no IDirect3DDevice9 at 0x%X after 2 minutes, giving up", (unsigned)addr::D3DDevice);
         return 0;
     }
+    // Other mods (NFSU2-UniPad, the multiplayer mod) hook these same functions as soon as the device exists. Hooking
+    // at the same moment races them: one of the two hooks gets written over. Waiting until they're in place makes
+    // ours chain onto theirs (MinHook copies their jump into our trampoline).
+    Sleep(4000);
     void** vt = *reinterpret_cast<void***>(dev);
     g_presentTarget = vt[kVtPresent];
     g_resetTarget = vt[kVtReset];
