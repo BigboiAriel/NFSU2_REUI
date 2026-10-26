@@ -20,3 +20,17 @@ nitrous gauge updater is 0x4C6B80. REUI reads the same values (src/game/car.cpp)
 
 The gauge needle angle (0x4AA160) maps a 0..1 value between two angles (nitrous: 104..118 normally, 31..127 in drag).
 NFSU2 has no speedbreaker: "NOS_GameBreaker" / "Tach_NOS_Gamebreaker" objects are leftovers.
+
+## Tachometer needle and the stock gauges' moving parts
+- Tach updater 0x4C68D0, analog style when [0x89E7C0] == 1: angle = 0x4AA0E0(rpm, sweep = [hud+0xC4], handling+0x1F0, ...)
+  = clamp(rpm / handling+0x1F8 (limiter), 0, 1) * sweep (negative sweep + 360), wrapped to 0..360; the needle
+  (hud+0x30) gets it through 0x51CED0(obj, degrees) (a turn about the screen axis, absolute). Other style: 7 lit
+  segments (hud+0x34..), 1 + rpm / (handling+0x1F4) * 7 lit, the 6th / 7th red.
+- Speed text hud+0x58 (0x537BE0 printf), units label hud+0x5C (language 0x8569A25F km/h / 0x8569AB44 mph),
+  gear text hud+0x64 (grey 0xFFC3C3C3 when Car+0x448 is set, else 0xFFFF8040), shift light hud+0x78 (0x50CA50 shows,
+  0x50CA00 hides).
+- Nitrous gauge 0x4C7B20: [0x89E7C0] == 1 (or drag): a vertical fill, 0x4C66F0(hud, obj, value, 1, 45, -9, 1)
+  cuts the picture's V range; else a mask (hud+0x28) turned to v * 152 - 180 degrees, the second bar (hud+0x24)
+  for the extra (value - 1).
+- Boost needle 0x4C6B80: angle 0x4AA160(v, lo, hi) = lo + (v + 1) / 2 * (hi - lo) (360-wrapped): -14..222 normally,
+  158 / 96 in drag (0x78E058..0x78E064).

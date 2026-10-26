@@ -399,6 +399,8 @@ struct Elem {
     std::string showIf, bind;
     int bindKind = 0;
     float bindMin = 0, bindMax = 100, rotMin = 0, rotMax = 270;
+    float cutLo = 0, cutHi = 1;           // fills: the part of the image the value fills (0 = empty sits here, 1 = full)
+    float pivX = 0, pivY = 0;             // images: the point turned about, from the centre (units; e.g. a needle's hub)
 };
 static std::vector<Elem> g_layout[NMODES];   // one overlay per game mode
 static int g_editMode = 0, g_nowMode = -1;
@@ -536,6 +538,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (!tx && !icon && e.texIdx < 0 && liveTexture && !e.tex.empty()) tx = liveTexture(e.tex, &su, &sv);
         ImVec2 uv0(e.u0 * su, e.v0 * sv), uv1(e.u1 * su, e.v1 * sv);
         float rotSave = e.rot, bf = BindFrac(e);
+        if (bf >= 0.f && (e.bindKind == 1 || e.bindKind == 2)) bf = e.cutLo + (e.cutHi - e.cutLo) * bf;
         if (bf >= 0.f && e.bindKind == 1) { b.x = a.x + (b.x - a.x) * bf; uv1.x = uv0.x + (uv1.x - uv0.x) * bf; }
         if (bf >= 0.f && e.bindKind == 2) { a.y = b.y - (b.y - a.y) * bf; uv0.y = uv1.y - (uv1.y - uv0.y) * bf; }
         if (bf >= 0.f && e.bindKind == 3) e.rot = e.rotMin + (e.rotMax - e.rotMin) * bf;
@@ -544,8 +547,10 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (tx && e.rot == 0) dl->AddImage((ImTextureID)tx, a, b, uv0, uv1, col);
         else if (tx) {
             float r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
+            float ku = Unit();
             ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), hw((b.x - a.x) / 2, (b.y - a.y) / 2);
-            auto P = [&](float x, float y) { return ImVec2(c.x + x * cs - y * sn, c.y + x * sn + y * cs); };
+            ImVec2 pv(c.x + e.pivX * ku, c.y + e.pivY * ku);   // turned about the pivot (corners relative to it)
+            auto P = [&](float x, float y) { x += c.x - pv.x; y += c.y - pv.y; return ImVec2(pv.x + x * cs - y * sn, pv.y + x * sn + y * cs); };
             dl->AddImageQuad((ImTextureID)tx, P(-hw.x, -hw.y), P(hw.x, -hw.y), P(hw.x, hw.y), P(-hw.x, hw.y),
                              uv0, ImVec2(uv1.x, uv0.y), uv1, ImVec2(uv0.x, uv1.y), col);
         }
@@ -590,6 +595,8 @@ static void Save() {
         if (!e.showIf.empty()) fprintf(f, "showif=%s\n", e.showIf.c_str());
         if (e.bindKind) fprintf(f, "bind=%s\nbindkind=%d\nbindrange=%g %g\n", e.bind.c_str(), e.bindKind, e.bindMin, e.bindMax);
         if (e.bindKind == 3) fprintf(f, "bindrot=%g %g\n", e.rotMin, e.rotMax);
+        if (e.cutLo != 0 || e.cutHi != 1) fprintf(f, "bindcut=%g %g\n", e.cutLo, e.cutHi);
+        if (e.pivX != 0 || e.pivY != 0) fprintf(f, "pivot=%g %g\n", e.pivX, e.pivY);
     };
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
     for (auto& e : g_kit) put(0, e);
@@ -648,6 +655,8 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
         else if (k == "bindkind") e.bindKind = std::max(0, std::min(3, atoi(v.c_str())));
         else if (k == "bindrange") sscanf(v.c_str(), "%f %f", &e.bindMin, &e.bindMax);
         else if (k == "bindrot") sscanf(v.c_str(), "%f %f", &e.rotMin, &e.rotMax);
+        else if (k == "bindcut") sscanf(v.c_str(), "%f %f", &e.cutLo, &e.cutHi);
+        else if (k == "pivot") sscanf(v.c_str(), "%f %f", &e.pivX, &e.pivY);
     }
     fclose(f);
     if (merge) g_dirty = true; else g_dirty = false;
@@ -1234,6 +1243,8 @@ static void Selected(Elem& e) {
         ImGui::SameLine(); if (ImGui::SmallButton("reset UV")) { e.u0 = e.v0 = 0; e.u1 = e.v1 = 1; g_dirty = true; }
         ImGui::SetNextItemWidth(220); if (ImGui::DragFloat("rotation", &e.rot, 0.5f, -360.f, 360.f, "%.1f deg")) g_dirty = true;
         ImGui::SameLine(); if (ImGui::SmallButton("+90")) { e.rot = fmodf(e.rot + 90, 360); g_dirty = true; }
+        ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("pivot (from centre)", &e.pivX, 0.25f, -2000.f, 2000.f, "%.1f")) g_dirty = true;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The point it turns about, from its centre: a needle's hub.");
         int ifam, iid;
         if (IconRef(e.tex, ifam, iid)) {
             ImGui::Text("button icon: %s", IconName(ifam, iid).c_str());
@@ -1287,6 +1298,11 @@ static void Selected(Elem& e) {
                 ImGui::SetNextItemWidth(160);
                 if (ImGui::DragFloat2("from / to value", &e.bindMin, 1.f, -100000.f, 100000.f, "%.0f")) g_dirty = true;
                 if (e.bindKind == 3) { ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("from / to angle", &e.rotMin, 0.5f, -720.f, 720.f, "%.0f deg")) g_dirty = true; }
+                if (e.bindKind == 1 || e.bindKind == 2) {
+                    ImGui::SetNextItemWidth(160);
+                    if (ImGui::DragFloat2("empty / full at", &e.cutLo, 0.002f, 0.f, 1.f, "%.3f")) g_dirty = true;
+                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Where in the picture an empty and a full value land (0..1 along the fill).\nFor art whose bar doesn't reach its edges.");
+                }
                 float f = BindFrac(e);
                 if (f >= 0) ImGui::TextDisabled("now: %.0f%%", f * 100); else ImGui::TextDisabled("now: no value");
             }
