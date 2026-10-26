@@ -42,6 +42,11 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   New element types: needles / rotation by value, fill bars bound to a value, conditional visibility, a minimap
   widget.
 
+- **P5 distribution (later, once REUI is ready).** Package a light build of REUI that only renders and drives the
+  UniPad pause-menu pages: no editor, no HUD replacement. It ships with UniPad and carries the menu pages built in
+  REUI. Until then, UniPad's own built-in renderer and UI editor are left as they are (decided 2026-10-26).
+  Standalone UniPad today keeps its older menu-only editor, ships no menu pages, and so has no "UniPad Options" item.
+
 ## Status
 Installed for testing next to UniPad (F6, its own scripts\NFSU2_REUI_layout.txt). Repo not created yet: local tree
 /home/claude/nfsu2-reui, pushed once BigboiAriel/NFSU2_REUI exists.
