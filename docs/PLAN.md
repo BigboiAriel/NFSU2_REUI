@@ -35,6 +35,8 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   driven by a value (bind: fill left-right / bottom-top, rotation between two angles).
   Images can follow a stock HUD object (follow = its FEng name hash: the game's place, size, turn, uv, texture and
   visibility every frame) and be clipped to a circle - the minimap is rebuilt that way.
+  The stock tachometer is rebuilt standalone: the car's tach art, HUD colour and paints as values, the needle by
+  {tach_angle}, the nitrous arc by a turning-half reveal with additive glow.
   Hide the game's HUD per element through the HUD feature mask
   (0x600090, thiscall(hudOwner) -> u64; each component switched by a bit; the multiplayer tester returns 0).
   New element types: needles / rotation by value, fill bars bound to a value, conditional visibility, a minimap

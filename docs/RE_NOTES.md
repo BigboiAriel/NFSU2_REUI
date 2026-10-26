@@ -47,3 +47,6 @@ name's hash.
 Nitrous arc (analog style): TACH_NOS drawn only where NOS_MASK's alpha half-disc lets it (the mask turned to
 v * 152 - 180 degrees about its centre); REUI does it with "reveal (turning half)" + additive. Boost needle:
 104 + v * 118 degrees (0x4AA160 with -14 / 222).
+Tach colours: the car's custom HUD paint parts in slots 0xA4 / 0xA5 / 0xA6 (attributes RED / GREEN / BLUE, white
+without a part) tint, in that order, the dial + boost dial, the needles, and the RPM + boost numbers (0x4F57CF..0x4F59C6).
+Live textures: a TextureInfo's +0 points at its platform part; the IDirect3DTexture9* is at platform +0x18.
