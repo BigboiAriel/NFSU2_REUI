@@ -381,6 +381,26 @@ static bool Token(const std::string& k, std::string& out) {
         if (car && Readable(car + 0x70, 12)) { const float* v = (const float*)(car + 0x70); sp = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
         snprintf(b, sizeof b, "%.0f", k == "mph" ? sp * 2.23694f : sp * 3.6f); out = b; return true;
     }
+    if (k == "bank_reward" || k == "bank_reward_on") {
+        // the stock HUD's "Bank Reward: $x" (Cash_Bank, script Cash_Animate, 2.7 s; 0x4A9EF0 when the cash HUD gets a
+        // reward): here, any rise of the bank while driving in free roam starts it
+        static int last = -1, amount = 0; static double at = -100;
+        int c = *(int*)0x861E74;
+        bool roam = GameMode() == uied::FREEROAM;
+        double now = ImGui::GetCurrentContext() ? ImGui::GetTime() : 0;
+        static int lastFrame = -1; int fr = ImGui::GetCurrentContext() ? ImGui::GetFrameCount() : 0;
+        if (fr != lastFrame) {
+            lastFrame = fr;
+            if (last >= 0 && c > last && roam) { amount = (now - at < 2.7 ? amount : 0) + (c - last); at = now; }
+            last = c;
+        }
+        bool on = now - at < 2.7;
+        if (k == "bank_reward_on") { out = on ? "1" : ""; return true; }
+        if (!on) { out.clear(); return true; }
+        std::string d = std::to_string(amount), g;
+        for (size_t i = 0; i < d.size(); ++i) { if (i && (d.size() - i) % 3 == 0) g += ','; g += d[i]; }
+        out = "$" + g; return true;
+    }
     if (k == "cash" || k == "cash_raw") {   // the career bank (0x861E74, as the HUD's Cash_data shows it: 0x4A9EF0)
         int c = *(int*)0x861E74;
         if (k == "cash_raw") { snprintf(b, sizeof b, "%d", c); out = b; return true; }
@@ -459,6 +479,7 @@ void HostBeginFrame(IDirect3DDevice9* dev) {
 }
 void HostDraw() {
     if (!g_ready) return;
+    { std::string t; Token("bank_reward_on", t); }   // watched every frame (a rise during a race / menus isn't a reward)
     uied::DrawOverlay(GameMode());
     if (uied::testMode)
         ImGui::GetForegroundDrawList()->AddText(ImVec2(12, ImGui::GetIO().DisplaySize.y - 28), IM_COL32(255, 170, 60, 255),
@@ -477,7 +498,7 @@ void HostPanel() {
     if (ImGui::CollapsingHeader("Live values")) {
         struct E { const char* k; const char* what; };
         static const E kVals[] = {
-            { "fps", "Frames per second." }, { "cash", "Your bank, as $12,345." }, { "cash_raw", "Your bank, just the number." }, { "speed", "Speed in km/h (from the car's velocity)." }, { "mph", "Speed in mph." },
+            { "fps", "Frames per second." }, { "cash", "Your bank, as $12,345." }, { "cash_raw", "Your bank, just the number." }, { "bank_reward", "The money just added to your bank in free roam ($1,500), for 2.7 s." }, { "bank_reward_on", "1 for those 2.7 s." }, { "speed", "Speed in km/h (from the car's velocity)." }, { "mph", "Speed in mph." },
             { "speedo", "Speed as the game's speedometer shows it, in the units picked in the game's options." },
             { "speed_unit", "KPH or MPH, following the game's options." }, { "speed_unit_hud", "KM/H or MPH, as the stock speedometer labels it." },
             { "rpm", "Engine RPM." }, { "rpm_k", "RPM in thousands (6.5)." }, { "rpm_max", "The tachometer's full scale." },

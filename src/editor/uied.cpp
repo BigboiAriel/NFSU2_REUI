@@ -562,6 +562,7 @@ static void AdditiveOn(const ImDrawList*, const ImDrawCmd*) {   // the next draw
 }
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
+    struct AnimSave { Elem& e; bool on = false; float scale = 1, x = 0, y = 0; ~AnimSave() { if (on) { e.scale = scale; e.x = x; e.y = y; } } } animSave{ e };
     if (!ShowIfOk(e)) { e.shownSince = -1; if (!editing) return; }
     else if (e.shownSince < 0) e.shownSince = ImGui::GetTime();
     if (e.row > boardRows) return;               // past the rows shown (also while editing)
@@ -580,23 +581,36 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (e.anim && !editing) {   // pulse: up to 30% bigger and half faded; blink: hidden half the time
         double t = ImGui::GetTime() - (e.shownSince >= 0 ? e.shownSince : 0);   // from when it came on, like the game's scripts
         if (e.anim == 2 && fmod(t, 0.6) > 0.3) return;
-        if (e.anim == 3 && !e.keys.empty()) {   // the game's FEng script keys (looping): size and alpha
+        if (e.anim == 3 && !e.keys.empty()) {   // the game's FEng script keys (looping): "t sx sy a [dx dy [r g b]]"
             float period = (float)atof(e.keys.c_str());
-            std::vector<float> k;   // t sx sy a ...
+            std::vector<float> k;   // 9 per key: t sx sy a dx dy r g b
             for (size_t p = e.keys.find(';'); p != std::string::npos; p = e.keys.find(';', p + 1)) {
-                float v[4]; if (sscanf(e.keys.c_str() + p + 1, "%f %f %f %f", &v[0], &v[1], &v[2], &v[3]) == 4) k.insert(k.end(), v, v + 4);
+                float v[9] = {0, 1, 1, 1, 0, 0, 1, 1, 1};
+                if (sscanf(e.keys.c_str() + p + 1, "%f %f %f %f %f %f %f %f %f", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8]) >= 4) k.insert(k.end(), v, v + 9);
             }
-            if (period > 0 && k.size() >= 8) {
-                float ph = (float)fmod(t * 1000.0, period), sx = k[1], sy = k[2], al = k[3];
-                for (size_t i = 0; i + 4 < k.size(); i += 4)
-                    if (ph >= k[i] && ph <= k[i + 4]) {
-                        float f = k[i + 4] > k[i] ? (ph - k[i]) / (k[i + 4] - k[i]) : 0.f;
-                        sx = k[i + 1] + (k[i + 5] - k[i + 1]) * f; sy = k[i + 2] + (k[i + 6] - k[i + 2]) * f; al = k[i + 3] + (k[i + 7] - k[i + 3]) * f;
+            if (period > 0 && k.size() >= 18) {
+                float ph = (float)fmod(t * 1000.0, period), v[9];
+                for (int j = 0; j < 9; ++j) v[j] = k[j];
+                if (ph >= k[k.size() - 9]) for (int j = 0; j < 9; ++j) v[j] = k[k.size() - 9 + j];
+                for (size_t i = 0; i + 9 < k.size(); i += 9)
+                    if (ph >= k[i] && ph <= k[i + 9]) {
+                        float f = k[i + 9] > k[i] ? (ph - k[i]) / (k[i + 9] - k[i]) : 0.f;
+                        for (int j = 1; j < 9; ++j) v[j] = k[i + j] + (k[i + 9 + j] - k[i + j]) * f;
                         break;
                     }
-                ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), h((b.x - a.x) / 2 * sx, (b.y - a.y) / 2 * sy);
-                a = ImVec2(c.x - h.x, c.y - h.y); b = ImVec2(c.x + h.x, c.y + h.y);
-                ImVec4 cv = ImGui::ColorConvertU32ToFloat4(col); cv.w *= al; col = ImGui::ColorConvertFloat4ToU32(cv);
+                float sx = v[1], sy = v[2], al = v[3], dx = v[4], dy = v[5];
+                if (e.type == E_TEXT) {   // text grows from its own place (its alignment point), like the game's
+                    animSave.on = true; animSave.scale = e.scale; animSave.x = e.x; animSave.y = e.y;
+                    e.scale *= sx; e.x += dx; e.y += dy;
+                    ElemRect(e, a, b);
+                } else {
+                    float k2 = Unit();
+                    ImVec2 c((a.x + b.x) / 2 + dx * k2, (a.y + b.y) / 2 + dy * k2), h((b.x - a.x) / 2 * sx, (b.y - a.y) / 2 * sy);
+                    a = ImVec2(c.x - h.x, c.y - h.y); b = ImVec2(c.x + h.x, c.y + h.y);
+                }
+                ImVec4 cv = ImGui::ColorConvertU32ToFloat4(col);
+                cv.x = std::min(1.f, cv.x * v[6]); cv.y = std::min(1.f, cv.y * v[7]); cv.z = std::min(1.f, cv.z * v[8]); cv.w *= al;
+                col = ImGui::ColorConvertFloat4ToU32(cv);
                 if (al <= 0.004f) return;
             }
         }
@@ -1463,7 +1477,7 @@ static void Selected(Elem& e) {
             static char kb[256]; snprintf(kb, sizeof kb, "%s", e.keys.c_str());
             ImGui::SetNextItemWidth(320);
             if (ImGui::InputTextWithHint("keys", "800;0 1 1 1;400 1.6 1.7 1;800 1 1 1", kb, sizeof kb)) { e.keys = kb; g_dirty = true; }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Loop length in ms, then keys \"time width-scale height-scale alpha\" separated by ;\n(straight lines between keys; the game's HUD animations as they're stored in its .fng).");
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Loop length in ms, then keys \"time width-scale height-scale alpha [move-x move-y [red green blue]]\" separated by ;\n(scales and colours multiply, moves are units; straight lines between keys; the game's HUD animations as\nthey're stored in its .fng). Text scales from its alignment point.");
         }
         if (e.type == E_IMAGE) {
             const char* kinds[] = { "nothing", "fill left to right", "fill bottom to top", "rotation", "reveal (turning half)" };
