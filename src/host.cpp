@@ -394,6 +394,34 @@ static int GameMode() {
 
 // live values for text elements: {fps} {speed} {mph}, the car's gauges (game/car.cpp), other mods' (reui_api.h)
 static float g_fps = 0;
+// ---- the rear-view mirror
+// The game renders its mirror camera (eView 3: 0x832DE0 + 3 * 0x70, +8 = active; camera 0x8718C0, render target
+// struct 0x86E7BC) into a texture whose pointer is [0x8708A4]; the "RVM" art is drawn over it and RVM_MASK into its
+// alpha (0x5CAE3D..0x5CAFAF), so the texture already has the mirror's shape. 0x5CBF40 then draws it on the screen
+// (x 200..440, y 15..95 of 640x480) when view 3 is active: its "je" at 0x5CC0E6 (0F 84 0A 01 00 00) skips that
+// draw. An element showing {rvm} replaces the game's: while one is drawn, that jump is made unconditional.
+static bool RvmActive() { uint8_t* v = (uint8_t*)(0x832DE0 + 3 * 0x70); return Readable(v, 9) && v[8] != 0; }
+static IDirect3DTexture9* RvmTexture() {
+    IDirect3DTexture9** pp = (IDirect3DTexture9**)0x8708A4;
+    return RvmActive() && Readable(pp, 4) && *pp && Readable(*pp, 4) ? *pp : nullptr;
+}
+static DWORD g_rvmDrawnAt = 0;   // an element showed the mirror (GetTickCount)
+static void RvmStockPatch(bool hide) {
+    static int state = -1;   // -1 unknown, 0 game draws, 1 skipped
+    if (state == (hide ? 1 : 0)) return;
+    uint8_t* at = (uint8_t*)0x5CC0E6;
+    static const uint8_t orig[6] = {0x0F, 0x84, 0x0A, 0x01, 0x00, 0x00}, skip[6] = {0x90, 0xE9, 0x0A, 0x01, 0x00, 0x00};
+    if (state == -1 && memcmp(at, orig, 6) != 0) { state = 2; Log("mirror: unexpected code at 0x5CC0E6, the game's mirror stays"); return; }
+    if (state == 2) return;
+    DWORD old;
+    if (!VirtualProtect(at, 6, PAGE_EXECUTE_READWRITE, &old)) return;
+    memcpy(at, hide ? skip : orig, 6);
+    VirtualProtect(at, 6, old, &old);
+    FlushInstructionCache(GetCurrentProcess(), at, 6);
+    state = hide ? 1 : 0;
+    Log("mirror: the game's own mirror %s", hide ? "hidden (an element shows {rvm})" : "shown");
+}
+
 static bool Token(const std::string& k, std::string& out) {
     char b[64];
     if (k == "fps") { snprintf(b, sizeof b, "%.0f", g_fps); out = b; return true; }
@@ -485,6 +513,8 @@ static bool Token(const std::string& k, std::string& out) {
         for (size_t i = 0; i < d.size(); ++i) { if (i && (d.size() - i) % 3 == 0) g += ','; g += d[i]; }
         out = std::string(c < 0 ? "-" : "") + "$" + g; return true;
     }
+    if (k == "rvm") { out = RvmTexture() ? "@rvm" : ""; return true; }   // texture: the live mirror
+    if (k == "rvm_on") { out = RvmTexture() ? "1" : ""; return true; }
     if (CarToken(k, out)) return true;   // {rpm} {gear} {nos}... (game/car.cpp)
     for (REUI_TokenFn fn : g_tokenProviders) {   // other mods' values (the multiplayer mod's race / leaderboard)
         char buf[256] = {};
@@ -511,6 +541,11 @@ void HostInit() {
     });
     uied::AddFlag("hide_wreck", "hide in a wreck", "Hidden while the game shows a wreck: its crash camera, which slows the world to x0.33\n(World [0x890080] +0x108; the jump camera uses x0.4).", 0, false, [] { return InWreck(); });
     uied::liveTexture = [](const std::string& name, float* su, float* sv) -> IDirect3DTexture9* {
+        if (name == "@rvm") {   // the live rear-view mirror ({rvm})
+            IDirect3DTexture9* t = RvmTexture();
+            if (t) g_rvmDrawnAt = GetTickCount();
+            return t;
+        }
         uint8_t* ti = TexInfo(name.size() == 9 && name[0] == '#' ? (uint32_t)strtoul(name.c_str() + 1, nullptr, 16) : BHash(name.c_str()));   // "#HHHHHHHH": by hash
         if (name[0] == '#') {   // (diagnostics: each hash once)
             static std::vector<std::string> told;
@@ -563,6 +598,7 @@ void HostBeginFrame(IDirect3DDevice9* dev) {
 }
 void HostDraw() {
     if (!g_ready) return;
+    RvmStockPatch(g_rvmDrawnAt && GetTickCount() - g_rvmDrawnAt < 300);
     { std::string t; Token("bank_reward_on", t); }   // watched every frame (a rise during a race / menus isn't a reward)
     WatchCameras();
     { std::string t; Token("region_new", t); Token("trick_on", t); }   // (watched every frame, so a change is caught when it happens)
@@ -595,6 +631,8 @@ void HostPanel() {
             { "nos", "All nitrous left: 100 = a full tank, up to 200 with the extra." },
             { "nos_tank", "The main tank, 0-100 (the gauge's first bar)." }, { "nos_extra", "The extra above a full tank, 0-100 (the second bar)." }, { "nos_installed", "1 when the car has nitrous." },
             { "nos_on", "1 while nitrous is firing." },
+            { "rvm", "Texture: the live rear-view mirror (the game's mirror camera, already mirror-shaped). While an element\nshows it, the game's own mirror is hidden. Only while the mirror is on (game options)." },
+            { "rvm_on", "1 while the game's rear-view mirror is on." },
             { "boost", "Turbo boost needle, 0-100 (rests about 55; blank without a turbo)." },
             { "tach_angle", "The stock tach needle's turn, 0-235 degrees (RPM over the dial's full scale)." },
             { "tach_max", "The dial's full scale (7500 / 8500 / 9500 / 10500)." },
