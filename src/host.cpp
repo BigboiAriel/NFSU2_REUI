@@ -38,6 +38,23 @@ static bool g_ready = false;
 static bool g_uniPad = false;   // NFSU2UniPad.asi is loaded
 
 static bool Readable(const void* p, size_t n) { return p && !IsBadReadPtr(p, n); }
+// A Direct3D texture? (a TextureInfo's +0x18 isn't always one: unloaded / placeholder resources hold other data there)
+// Its vtable has to be in d3d9.dll (the system's or a wrapper's, whichever the game loaded).
+static bool IsD3DTexture(const void* p) {
+    static uintptr_t lo = 0, hi = 0;
+    if (!lo) {
+        HMODULE m = GetModuleHandleA("d3d9.dll");
+        if (!m) return false;
+        const IMAGE_DOS_HEADER* dos = (const IMAGE_DOS_HEADER*)m;
+        const IMAGE_NT_HEADERS* nt = (const IMAGE_NT_HEADERS*)((const uint8_t*)m + dos->e_lfanew);
+        lo = (uintptr_t)m; hi = lo + nt->OptionalHeader.SizeOfImage;
+    }
+    if (!p || IsBadReadPtr(p, 4)) return false;
+    uintptr_t vt = *(const uintptr_t*)p;
+    if (vt < lo || vt >= hi || IsBadReadPtr((const void*)vt, 0x4C)) return false;
+    uintptr_t fn = ((const uintptr_t*)vt)[17];   // GetLevelDesc
+    return fn >= lo && fn < hi;
+}
 static uint8_t* TexInfo(uint32_t hash) {
     uint8_t* ti = ((uint8_t*(__cdecl*)(uint32_t, int, int))fe::GetTextureInfo)(hash, 0, 0);
     return Readable(ti, 0x28) && *(uint32_t*)(ti + 0x24) == hash ? ti : nullptr;
@@ -267,7 +284,7 @@ static void ObjWalk(uint8_t* obj, const Xf& parent, int depth) {
         for (int i = 0; i < 4; ++i) g.col[i] = me.col[i] > 1 ? 1 : me.col[i];
         if (uint8_t* ti = TexInfo(*(uint32_t*)(obj + 0x24))) {
             IDirect3DTexture9* tx = *(IDirect3DTexture9**)(ti + 0x18);
-            if (tx && !IsBadReadPtr(tx, 4)) {
+            if (IsD3DTexture(tx)) {
                 g.tex = tx;
                 D3DSURFACE_DESC dd; int w = *(int16_t*)(ti + 0x44), h = *(int16_t*)(ti + 0x46);
                 if (SUCCEEDED(tx->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && w > 0 && h > 0) { g.su = (float)w / dd.Width; g.sv = (float)h / dd.Height; }
@@ -383,7 +400,7 @@ void HostInit() {
     uied::liveTexture = [](const std::string& name, float* su, float* sv) -> IDirect3DTexture9* {
         uint8_t* ti = TexInfo(BHash(name.c_str()));
         IDirect3DTexture9* tx = ti ? *(IDirect3DTexture9**)(ti + 0x18) : nullptr;
-        if (!tx || IsBadReadPtr(tx, 4)) return nullptr;
+        if (!IsD3DTexture(tx)) return nullptr;
         D3DSURFACE_DESC dd;
         int w = *(int16_t*)(ti + 0x44), h = *(int16_t*)(ti + 0x46);
         if (SUCCEEDED(tx->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && w > 0 && h > 0) { *su = (float)w / dd.Width; *sv = (float)h / dd.Height; }
