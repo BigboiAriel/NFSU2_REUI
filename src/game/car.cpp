@@ -15,12 +15,14 @@
 //   needle = t+0x9C (0..1, damped; resting about 0.55), updated by 0x5A0F30.
 //   Nitrous firing: 0x59FA30 thiscall(Car+0x40) (from the multiplayer mod). Throttle: [Car+0x30]+0x20C.
 #include "car.h"
+#include "../log.h"
 
 #include <windows.h>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 
 namespace reui {
 
@@ -121,7 +123,13 @@ static const TachArt& Tach() {   // once a second (and when the car changes)
     uint8_t* p1 = *(uint8_t**)0x8900AC;
     void* c = R(p1, 8) ? *(void**)(p1 + 4) : nullptr;
     DWORD now = GetTickCount();
-    if (c != car || now - at > 1000) { t = c ? ReadTach() : TachArt(); at = now; car = c; }
+    if (c != car || now - at > 1000) {
+        TachArt n = c ? ReadTach() : TachArt();
+        if (n.ok != t.ok || memcmp(n.tex, t.tex, sizeof n.tex) != 0 || n.scale != t.scale)
+            Log("tach art: %s colour %d scale %.0f limiter %.0f textures %08X %08X %08X %08X %08X %08X %08X %08X", n.ok ? "found" : "none", n.hud, n.scale, n.limiter,
+                n.tex[0], n.tex[1], n.tex[2], n.tex[3], n.tex[4], n.tex[5], n.tex[6], n.tex[7]);
+        t = n; at = now; car = c;
+    }
     return t;
 }
 

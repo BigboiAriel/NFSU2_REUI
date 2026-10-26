@@ -399,6 +399,14 @@ void HostInit() {
     uied::gameObject = GameObjectNow;
     uied::liveTexture = [](const std::string& name, float* su, float* sv) -> IDirect3DTexture9* {
         uint8_t* ti = TexInfo(name.size() == 9 && name[0] == '#' ? (uint32_t)strtoul(name.c_str() + 1, nullptr, 16) : BHash(name.c_str()));   // "#HHHHHHHH": by hash
+        if (name[0] == '#') {   // (diagnostics: each hash once)
+            static std::vector<std::string> told;
+            if (std::find(told.begin(), told.end(), name) == told.end()) {
+                told.push_back(name);
+                IDirect3DTexture9* t = ti ? *(IDirect3DTexture9**)(ti + 0x18) : nullptr;
+                Log("texture %s: %s%s", name.c_str(), ti ? "info found" : "no info", ti ? (IsD3DTexture(t) ? ", loaded" : ", not a texture yet") : "");
+            }
+        }
         IDirect3DTexture9* tx = ti ? *(IDirect3DTexture9**)(ti + 0x18) : nullptr;
         if (!IsD3DTexture(tx)) return nullptr;
         D3DSURFACE_DESC dd;
