@@ -14,6 +14,8 @@ struct CarValues {
     bool metric = true;          // the game's units option
     bool nosInstalled = false, nosOn = false;
     float nos = 0;               // 0..1 left in the bottle
+    bool turbo = false;
+    float boost = 0;             // 0..1, the boost gauge's needle
     float throttle = 0;          // 0..1
 };
 CarValues ReadCar();

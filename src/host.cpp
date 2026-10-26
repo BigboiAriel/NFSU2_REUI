@@ -328,6 +328,7 @@ void HostPanel() {
             { "shift_light", "1 while the game's shift light is on." }, { "throttle", "Throttle pedal, 0-100." },
             { "nos", "Nitrous left, 0-100 (blank without nitrous)." }, { "nos_installed", "1 when the car has nitrous." },
             { "nos_on", "1 while nitrous is firing." },
+            { "boost", "Turbo boost needle, 0-100 (rests about 55; blank without a turbo)." }, { "turbo", "1 when the car has a turbo." },
         };
         ImGui::TextDisabled("Put {key} in a text element. Click a key to copy it. Other mods add theirs (the multiplayer mod: F8 > Live values).");
         if (ImGui::BeginTable("##reuivals", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {
