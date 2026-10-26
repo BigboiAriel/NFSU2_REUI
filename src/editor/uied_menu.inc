@@ -15,6 +15,9 @@ static std::string RowName(std::string label) {
     return label;
 }
 
+// the menu tools show while the Menus workspace is the one being edited
+static bool MenuWs() { return menuMode || g_editMode == MENUS; }
+
 enum WType { W_NONE = 0, W_BUTTON, W_SLIDER, W_PICKER, W_HIGHLIGHT, W_NTYPES };
 static const char* kWType[] = { "(not a widget)", "Button", "Slider", "Picker (left / right)", "Highlight" };
 static const char* kWKey[] = { "none", "button", "slider", "picker", "highlight" };
@@ -112,7 +115,7 @@ constexpr float kBand = 6.f;   // rows this close in height are side by side (co
 // a row's height: its label's, else the middle of its texts, else of all its elements
 static float RowY(const Widget& w) {
     float sum = 0; int n = 0, nt = 0; float st = 0;
-    for (auto& e : Elems()) {
+    for (auto& e : MenuElems()) {
         if (!InGroup(e.group, w.group)) continue;
         if (e.role == "label") return e.y;
         if (e.type == E_TEXT) { st += e.y; ++nt; }
@@ -123,7 +126,7 @@ static float RowY(const Widget& w) {
 // a row's place across: its label's, else the middle of its pieces
 static float RowX(const Widget& w) {
     float lo = 1e9f, hi = -1e9f;
-    for (auto& e : Elems()) {
+    for (auto& e : MenuElems()) {
         if (!InGroup(e.group, w.group)) continue;
         if (e.role == "label") return e.x;
         lo = std::min(lo, e.x); hi = std::max(hi, e.x);
@@ -166,7 +169,7 @@ static int MoveSel(const std::vector<Row>& r, int cur, int dy, int dx, bool wrap
 }
 // the row brings its own highlight (pieces shown on the selected row only, other than picker arrows)
 static bool OwnHighlight(const Widget& w) {
-    for (auto& e : Elems()) if (InGroup(e.group, w.group) && e.selOnly && e.role != "arrowL" && e.role != "arrowR") return true;
+    for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.selOnly && e.role != "arrowL" && e.role != "arrowR") return true;
     return false;
 }
 static Widget* PageHighlight(const Page& p) {
@@ -175,7 +178,7 @@ static Widget* PageHighlight(const Page& p) {
 }
 static float GroupMidY(const std::string& g) {
     float lo = 1e9f, hi = -1e9f;
-    for (auto& e : Elems()) if (InGroup(e.group, g)) { lo = std::min(lo, e.y); hi = std::max(hi, e.y); }
+    for (auto& e : MenuElems()) if (InGroup(e.group, g)) { lo = std::min(lo, e.y); hi = std::max(hi, e.y); }
     return lo <= hi ? (lo + hi) / 2 : 0.f;
 }
 
@@ -323,9 +326,9 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel, int top) {
     }
     // scroller: where the tab sits on the track
     float trTop = 0, trBot = 0; bool track = false;
-    for (auto& e : Elems()) if (InGroup(e.group, p.group) && e.role == "strack") { trTop = e.y - e.h / 2; trBot = e.y + e.h / 2; track = true; }
+    for (auto& e : MenuElems()) if (InGroup(e.group, p.group) && e.role == "strack") { trTop = e.y - e.h / 2; trBot = e.y + e.h / 2; track = true; }
     std::string desc = sel >= 0 && n ? rows[sel].w->desc : "";
-    auto& els = Elems();
+    auto& els = MenuElems();
     for (int i : DrawOrder(els)) {
         Elem& src = els[i];
         if (!InGroup(src.group, p.group) || !src.visible) continue;
@@ -348,7 +351,7 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel, int top) {
                 if (e.role == "bindicon") {
                     if (g_menu.capturing == w) {   // waiting: "???" where the icon is, in the row's font
                         int fi = -1;
-                        for (auto& o : Elems()) if (o.type == E_TEXT && InGroup(o.group, w->group)) { if (o.fontIdx == -2) o.fontIdx = FindFont(o.font); fi = o.fontIdx; if (o.role == "label") break; }
+                        for (auto& o : MenuElems()) if (o.type == E_TEXT && InGroup(o.group, w->group)) { if (o.fontIdx == -2) o.fontIdx = FindFont(o.font); fi = o.fontIdx; if (o.role == "label") break; }
                         if (fi < 0) fi = FindFont("conduitmditc_tt21i");
                         if (fi >= 0) {
                             ImVec2 a, b; ElemRect(e, a, b);
@@ -408,7 +411,7 @@ static std::string Upper(std::string s) { for (auto& c : s) c = (char)toupper((u
 
 // roles from what the pieces are: textures, place, kind
 static void DetectRoles(Widget& w) {
-    std::vector<Elem*> m; for (auto& e : Elems()) if (InGroup(e.group, w.group)) m.push_back(&e);
+    std::vector<Elem*> m; for (auto& e : MenuElems()) if (InGroup(e.group, w.group)) m.push_back(&e);
     Elem* label = nullptr;
     for (Elem* e : m) if (e->type == E_TEXT && (!label || e->x < label->x)) label = e;
     for (Elem* e : m) {
@@ -455,8 +458,8 @@ static std::string GuessBind(const std::string& label, int type) {
 // Build rows: every label in the page's label column becomes a row with the pieces level with it
 static int BuildRows(Page& p) {
     std::vector<int> mine;   // the page's elements not in a widget yet
-    for (int i = 0; i < (int)Elems().size(); ++i) {
-        Elem& e = Elems()[i];
+    for (int i = 0; i < (int)MenuElems().size(); ++i) {
+        Elem& e = MenuElems()[i];
         if (!InGroup(e.group, p.group) || WidgetFor(e.group)) continue;
         mine.push_back(i);
     }
@@ -469,14 +472,14 @@ static int BuildRows(Page& p) {
     }
     // label column: the most common left edge of left-aligned texts
     std::map<int, int> col;
-    for (int i : mine) { Elem& e = Elems()[i]; if (e.type == E_TEXT && e.align == 0 && !WidgetFor(e.group)) col[(int)lroundf(e.x / 4)]++; }
+    for (int i : mine) { Elem& e = MenuElems()[i]; if (e.type == E_TEXT && e.align == 0 && !WidgetFor(e.group)) col[(int)lroundf(e.x / 4)]++; }
     if (col.empty()) return 0;
     int bestK = 0, bestN = 0; for (auto& kv : col) if (kv.second > bestN) { bestN = kv.second; bestK = kv.first; }
     float colX = bestK * 4.f;
     struct L { int i; float y; std::string text, rg; };
     std::vector<L> labels;
     for (int i : mine) {
-        Elem& e = Elems()[i];
+        Elem& e = MenuElems()[i];
         if (e.type != E_TEXT || e.align != 0 || fabsf(e.x - colX) > 6 || WidgetFor(e.group)) continue;
         std::string t = e.text; while (!t.empty() && isspace((unsigned char)t.back())) t.pop_back();
         if (Upper(t) == "DESCRIPTION") { e.role = "desc"; continue; }   // the description line
@@ -498,7 +501,7 @@ static int BuildRows(Page& p) {
         const std::string& rg = lb.rg;
         int members = 0;
         for (int i : mine) {
-            Elem& e = Elems()[i];
+            Elem& e = MenuElems()[i];
             if (WidgetFor(e.group)) continue;
             if (i != lb.i) {
                 if (fabsf(e.y - lb.y) > half) continue;
@@ -510,7 +513,7 @@ static int BuildRows(Page& p) {
         }
         Widget w; w.group = rg;
         bool tab = false, fill = false, arrows = false; int texts = 0;
-        for (auto& e : Elems()) if (e.group == rg) {
+        for (auto& e : MenuElems()) if (e.group == rg) {
             std::string t = Upper(e.tex);
             tab |= t.find("SLIDERBAR_TAB") != std::string::npos; fill |= t.find("WHITE16X16") != std::string::npos;
             arrows |= t.find("MENU_ARROW") != std::string::npos; texts += e.type == E_TEXT;
@@ -526,7 +529,7 @@ static int BuildRows(Page& p) {
         DetectRoles(*w);
         w->bind = GuessBind(lb.text, w->type);
         if (w->type == W_PICKER && w->bind.empty() && w->choices.empty()) {   // its value text as the first choice
-            for (auto& e : Elems()) if (e.group == rg && e.role == "value") { w->choices.push_back(e.text); break; }
+            for (auto& e : MenuElems()) if (e.group == rg && e.role == "value") { w->choices.push_back(e.text); break; }
         }
         ++count;
     }
@@ -534,21 +537,21 @@ static int BuildRows(Page& p) {
     std::vector<Elem> arrowsOf; float arrowY = 0;
     for (auto& w : g_widgets) {
         if (GroupParent(w.group) != p.group || w.type != W_PICKER) continue;
-        std::vector<Elem> a; for (auto& e : Elems()) if (e.group == w.group && (e.role == "arrowL" || e.role == "arrowR")) a.push_back(e);
+        std::vector<Elem> a; for (auto& e : MenuElems()) if (e.group == w.group && (e.role == "arrowL" || e.role == "arrowR")) a.push_back(e);
         if (a.size() == 2) { arrowsOf = a; arrowY = RowY(w); break; }
     }
     if (!arrowsOf.empty())
         for (auto& w : g_widgets) {
             if (GroupParent(w.group) != p.group || w.type != W_PICKER) continue;
-            bool has = false; for (auto& e : Elems()) if (e.group == w.group && (e.role == "arrowL" || e.role == "arrowR")) has = true;
+            bool has = false; for (auto& e : MenuElems()) if (e.group == w.group && (e.role == "arrowL" || e.role == "arrowR")) has = true;
             if (has) continue;
             float dy = RowY(w) - arrowY;
-            for (auto e : arrowsOf) { e.group = w.group; e.y += dy; e.texIdx = -2; Elems().push_back(e); }
+            for (auto e : arrowsOf) { e.group = w.group; e.y += dy; e.texIdx = -2; MenuElems().push_back(e); }
         }
     // the scroller: a scroller tab, and the tall thin piece it runs on
     Elem* stab = nullptr;
-    for (auto& e : Elems()) if (InGroup(e.group, p.group) && !WidgetFor(e.group) && Upper(e.tex).find("SCROLLER_TAB") != std::string::npos) { e.role = "stab"; stab = &e; }
-    if (stab) for (auto& e : Elems())
+    for (auto& e : MenuElems()) if (InGroup(e.group, p.group) && !WidgetFor(e.group) && Upper(e.tex).find("SCROLLER_TAB") != std::string::npos) { e.role = "stab"; stab = &e; }
+    if (stab) for (auto& e : MenuElems())
         if (InGroup(e.group, p.group) && !WidgetFor(e.group) && &e != stab && e.type == E_IMAGE && fabsf(e.x - stab->x) < 6 && e.h > 100 && e.w < 20) e.role = "strack";
     g_dirty = true;
     return count;
@@ -568,7 +571,7 @@ static void Restack(Page& p) {
         if (i == 0 || fabsf(rows[i].y - lineY) > kBand || overlaps) { ++line; lineY = rows[i].y; lineXs.clear(); }
         lineXs.push_back(rows[i].x);
         float dy = p.firstY + line * p.spacing - rows[i].y;
-        for (auto& e : Elems()) if (InGroup(e.group, rows[i].w->group)) e.y += dy;
+        for (auto& e : MenuElems()) if (InGroup(e.group, rows[i].w->group)) e.y += dy;
     }
     }
     g_dirty = true;
@@ -578,7 +581,7 @@ static void SwapRows(Page& p, Widget* w, int dir) {
     for (int i = 0; i < (int)rows.size(); ++i) if (rows[i].w == w) {
         int j = i + dir; if (j < 0 || j >= (int)rows.size()) return;
         float a = rows[i].y, b = rows[j].y;
-        for (auto& e : Elems()) { if (InGroup(e.group, rows[i].w->group)) e.y += b - a; else if (InGroup(e.group, rows[j].w->group)) e.y += a - b; }
+        for (auto& e : MenuElems()) { if (InGroup(e.group, rows[i].w->group)) e.y += b - a; else if (InGroup(e.group, rows[j].w->group)) e.y += a - b; }
         g_dirty = true; return;
     }
 }
@@ -588,7 +591,7 @@ static void SaveTemplate(const Widget& w, const std::string& name) {
     float y0 = RowY(w);
     Page* pg = PageOf(GroupParent(w.group));
     float x0 = pg ? pg->colX + w.col * pg->colDist : 0.f;   // kept as if in the first column, unmoved
-    for (auto& e : Elems()) if (InGroup(e.group, w.group)) {
+    for (auto& e : MenuElems()) if (InGroup(e.group, w.group)) {
         Elem c = e; c.kit = name; c.y -= y0; c.x -= x0; c.group = e.group.size() > w.group.size() ? e.group.substr(w.group.size() + 1) : "";
         g_kit.push_back(c);
     }
@@ -610,7 +613,7 @@ static void StampRow(Page& p, const KitT& k, const std::string& label, const std
     for (auto& e : g_kit) if (e.kit == k.name) {
         Elem c = e; c.kit.clear(); c.y += y; c.x += dx; c.group = c.group.empty() ? rg : rg + "/" + c.group; c.texIdx = -2; c.fontIdx = -2;
         if (c.role == "label" && !label.empty()) { c.text = label; c.name = label; }
-        Elems().push_back(c); (void)layerBase;
+        MenuElems().push_back(c); (void)layerBase;
     }
     Widget w = k.w; w.group = rg; w.bind = bind; w.col = p.addCol; w.x0 += dx; w.x1 += dx; g_widgets.push_back(w);
     g_dirty = true;
@@ -618,7 +621,7 @@ static void StampRow(Page& p, const KitT& k, const std::string& label, const std
 
 // ---------------------------------------------------------------- authoring panels
 static void ElemMenuProps(Elem& e) {
-    if (!menuMode) return;
+    if (!MenuWs()) return;
     int r = 0; for (int i = 0; i < 11; ++i) if (e.role == kRoleKey[i]) r = i;
     ImGui::SetNextItemWidth(170);
     if (ImGui::Combo("role", &r, kRoleName, 11)) { e.role = kRoleKey[r]; g_dirty = true; }
@@ -640,7 +643,7 @@ static void SettingCombo(Widget& w) {
             if (fits && ImGui::Selectable(lb.c_str(), cur == &s)) {
                 w.bind = s.key; g_dirty = true;
                 if (s.kind == 3 && !w.group.empty())   // its icon pieces show what it's bound to
-                    for (auto& e : Elems()) if (InGroup(e.group, w.group) && e.type == E_IMAGE && e.tex.compare(0, 5, "icon:") == 0) e.role = "bindicon";
+                    for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.type == E_IMAGE && e.tex.compare(0, 5, "icon:") == 0) e.role = "bindicon";
             }
         }
         ImGui::EndCombo();
@@ -688,7 +691,7 @@ static void WidgetPanel(Widget& w, Page* page) {
         ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("bar from / to (x)", &w.x0, 0.5f, -2000.f, 2000.f, "%.1f")) g_dirty = true;
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Where the fill bar starts and where it ends at 100%% (the tab moves along it).");
         ImGui::SameLine(); if (ImGui::SmallButton("from the fill bar")) {
-            for (auto& e : Elems()) if (InGroup(e.group, w.group) && e.role == "fill" && e.w > 1) { w.x0 = e.x - (e.anchor % 3) * 0.5f * e.w; w.x1 = w.x0 + e.w; g_dirty = true; }
+            for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.role == "fill" && e.w > 1) { w.x0 = e.x - (e.anchor % 3) * 0.5f * e.w; w.x1 = w.x0 + e.w; g_dirty = true; }
         }
     }
     static char db[256]; static std::string dbFor = "\x01";
@@ -703,7 +706,7 @@ static void WidgetPanel(Widget& w, Page* page) {
         int c = w.col;
         if (ImGui::InputInt("column", &c) && c >= 0 && c != w.col) {   // moves it across by the column distance
             float dx = (c - w.col) * page->colDist;
-            for (auto& e : Elems()) if (InGroup(e.group, w.group)) e.x += dx;
+            for (auto& e : MenuElems()) if (InGroup(e.group, w.group)) e.x += dx;
             w.x0 += dx; w.x1 += dx; w.col = c; g_dirty = true;
         }
         ImGui::SameLine();
@@ -729,7 +732,7 @@ static void PagePanel(Page& p) {
             float d = cd - p.colDist;
             for (auto& w : g_widgets) {
                 if (GroupParent(w.group) != p.group || w.col == 0) continue;
-                for (auto& e : Elems()) if (InGroup(e.group, w.group)) e.x += d * w.col;
+                for (auto& e : MenuElems()) if (InGroup(e.group, w.group)) e.x += d * w.col;
                 w.x0 += d * w.col; w.x1 += d * w.col;
             }
             p.colDist = cd; g_dirty = true;
@@ -742,7 +745,7 @@ static void PagePanel(Page& p) {
             float d = cx - p.colX;
             for (auto& w : g_widgets) {
                 if (GroupParent(w.group) != p.group) continue;
-                for (auto& e : Elems()) if (InGroup(e.group, w.group)) e.x += d;
+                for (auto& e : MenuElems()) if (InGroup(e.group, w.group)) e.x += d;
                 w.x0 += d; w.x1 += d;
             }
             p.colX = cx; g_dirty = true;
@@ -784,7 +787,7 @@ static void PagePanel(Page& p) {
     } else ImGui::TextDisabled("Widget kit is empty: pick a row, then \"save as template\".");
 }
 static void GroupMenuProps(const std::string& g) {
-    if (!menuMode) return;
+    if (!MenuWs()) return;
     ImGui::SeparatorText("Menu");
     if (GroupParent(g).empty()) {
         Page* p = PageOf(g);
@@ -812,7 +815,7 @@ static void GroupMenuProps(const std::string& g) {
     WidgetPanel(*w, page);
 }
 static void KitPanel() {
-    if (!menuMode || !ImGui::CollapsingHeader("Widget kit")) return;
+    if (!MenuWs() || !ImGui::CollapsingHeader("Widget kit")) return;
     ImGui::TextWrapped("1) Make a top-level group a menu page (select it, tick \"menu page\").  2) \"Build rows\" turns its labels "
                        "into rows, or make a group inside it a widget yourself.  3) Pick a finished row and \"save as template\".  "
                        "4) On any page: choose a template, type a label, pick what it changes, \"Add row\".  "

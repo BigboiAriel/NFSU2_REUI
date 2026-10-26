@@ -5,6 +5,7 @@ namespace uiedit {
 
 struct Config {
     int panelKey = 0x75;   // VK_F6: the editor panel
+    int menuKey = 0x76;    // VK_F7: opens the start menu page (when NFSU2-UniPad isn't installed; it drives menus itself)
     bool logFile = true;
     bool replaceHud = true;   // hide the game's HUD where the layout draws its own (per element, later)
 };

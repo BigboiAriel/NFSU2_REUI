@@ -29,6 +29,7 @@ constexpr uintptr_t GetTextureInfo = 0x4901D0;  // cdecl(u32 hash, int returnDef
 } // namespace fe
 
 static bool g_ready = false;
+static bool g_uniPad = false;   // NFSU2UniPad.asi is loaded
 
 static bool Readable(const void* p, size_t n) { return p && !IsBadReadPtr(p, n); }
 static uint8_t* TexInfo(uint32_t hash) {
@@ -244,6 +245,7 @@ void HostInit() {
     size_t sl = gameDir.find_last_of("\\/");
     if (sl != std::string::npos) gameDir.resize(sl);
     uied::menuMode = false;
+    g_uniPad = GetModuleHandleA("NFSU2UniPad.asi") != nullptr;
     uied::tokens = Token;
     uied::liveTexture = [](const std::string& name, float* su, float* sv) -> IDirect3DTexture9* {
         uint8_t* ti = TexInfo(BHash(name.c_str()));
@@ -257,7 +259,27 @@ void HostInit() {
     uied::Init(gameDir, g_scriptsDir + "NFSU2UIEditor_layout.txt", [](const char* line) { Log("%s", line); });
     g_ready = true;
 }
-void HostTick(bool focused) { (void)focused; }
+// Menu pages without UniPad: the menu key opens the start page, arrows / Enter / Esc drive it (UniPad, when installed,
+// drives them with the pad through the API instead)
+void HostTick(bool focused) {
+    if (!g_ready || g_uniPad) return;
+    static bool keyWas = false;
+    static LARGE_INTEGER f = {}, last = {};
+    LARGE_INTEGER now; QueryPerformanceCounter(&now);
+    if (!f.QuadPart) { QueryPerformanceFrequency(&f); last = now; }
+    double dt = std::min(0.25, (double)(now.QuadPart - last.QuadPart) / (double)f.QuadPart); last = now;
+    bool typing = ImGui::GetCurrentContext() && ImGui::GetIO().WantTextInput;
+    auto key = [&](int vk) { return focused && !typing && (GetAsyncKeyState(vk) & 0x8000) != 0; };
+    bool down = key(g_config.menuKey);
+    if (down && !keyWas) { if (uied::MenuIsOpen()) uied::MenuClose(); else if (!uied::MenuOpen()) Log("menu: no menu page yet"); }
+    keyWas = down;
+    if (uied::MenuIsOpen()) {
+        uied::MenuInput in;
+        in.up = key(VK_UP); in.down = key(VK_DOWN); in.left = key(VK_LEFT); in.right = key(VK_RIGHT);
+        in.accept = key(VK_RETURN) || key(VK_SPACE); in.back = key(VK_ESCAPE) || key(VK_BACK);
+        uied::MenuFrame(in, dt);
+    }
+}
 bool HostWantsFrames() { return g_ready && (uied::WantsFrames() || uied::MenuIsOpen()); }
 void HostBeginFrame(IDirect3DDevice9* dev) {
     if (!g_ready) return;

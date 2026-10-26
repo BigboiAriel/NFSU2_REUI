@@ -396,8 +396,10 @@ struct Elem {
 };
 static std::vector<Elem> g_layout[NMODES];   // one overlay per game mode
 static int g_editMode = 0, g_nowMode = -1;
-static const char* kModeKey[NMODES] = { "freeroam", "race", "drag", "drift", "outrun" };
-static const char* kModeName[NMODES] = { "Free roam", "Racing", "Drag racing", "Drift racing", "Outrun" };
+static const char* kModeKey[NMODES] = { "freeroam", "race", "drag", "drift", "outrun", "menus" };
+static const char* kModeName[NMODES] = { "Free roam", "Racing", "Drag racing", "Drift racing", "Outrun", "Menus" };
+// the menu pages live in the Menus workspace (UniPad's own copy: its single layout)
+static std::vector<Elem>& MenuElems() { return menuMode ? g_layout[0] : g_layout[MENUS]; }
 static std::vector<Elem>& Elems() { return g_layout[g_editMode]; }
 static int g_sel = -1;
 static std::string g_selGroup;            // a group picked in the list (then g_sel = -1)
@@ -558,11 +560,11 @@ static void Save() {
     fclose(f); g_dirty = false;
     Log("ui editor: saved %d element(s) to %s", total, g_layoutPath.c_str());
 }
-static void Load() {
-    FILE* f = fopen(g_layoutPath.c_str(), "r"); if (!f) return;
-    for (auto& l : g_layout) l.clear();
-    g_sel = -1;
-    LoadMenusReset(); g_kit.clear(); ClearMulti();
+// intoMode >= 0: every element goes in that layout; merge: added to what's there (an import), not instead
+static bool LoadFile(const std::string& path, int intoMode, bool merge) {
+    FILE* f = fopen(path.c_str(), "r"); if (!f) return false;
+    if (!merge) { for (auto& l : g_layout) l.clear(); LoadMenusReset(); g_kit.clear(); }
+    g_sel = -1; ClearMulti();
     std::vector<Elem> all;
     char line[2048]; Elem* cur = nullptr; int msect = 0;
     while (fgets(line, sizeof line, f)) {
@@ -574,6 +576,7 @@ static void Load() {
         std::string k = s.substr(0, eq), v = s.substr(eq + 1);
         if (msect) { LoadMenuKey(msect, k, v); continue; }
         if (!cur) {
+            if (merge) continue;
             if (k == "show") g_show = atoi(v.c_str()) != 0;
             else if (k == "highlightsel") g_hiSel = atoi(v.c_str()) != 0;
             else if (k == "boardrows") boardRows = std::max(1, std::min(22, atoi(v.c_str())));
@@ -604,10 +607,13 @@ static void Load() {
         else if (k == "selonly") e.selOnly = atoi(v.c_str()) != 0;
         else if (k == "kit") e.kit = Unesc(v);
     }
-    fclose(f); g_dirty = false;
-    for (auto& e : all) { if (!e.kit.empty()) g_kit.push_back(e); else g_layout[e.mode].push_back(e); }
+    fclose(f);
+    if (merge) g_dirty = true; else g_dirty = false;
+    for (auto& e : all) { if (intoMode >= 0) e.mode = intoMode; if (!e.kit.empty()) g_kit.push_back(e); else g_layout[e.mode].push_back(e); }
     LoadMenuEnd();
+    return true;
 }
+static void Load() { LoadFile(g_layoutPath, -1, false); }
 
 void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)(const char*)) {
     g_dir = gameDir; g_layoutPath = layoutPath; g_log = log;
@@ -1402,7 +1408,24 @@ void Panel() {
         }
         if (g_nowMode >= 0 && g_nowMode < NMODES && g_nowMode != g_editMode) { ImGui::SameLine(); if (ImGui::SmallButton("edit the current mode's layout")) { g_editMode = g_nowMode; g_sel = -1; } }
     }
-    if (g_editMode != FREEROAM) {
+    if (g_editMode == MENUS) {   // menu pages: bring in UniPad's
+        ImGui::TextDisabled("Menu pages: a top-level group ticked \"menu page\" (select it). Opened with UniPad's menu key / pause menu item.");
+        if (ImGui::Button("Import UniPad's menus file")) {
+            std::string p = g_dir + "\\scripts\\NFSU2UniPad_menus.txt";
+            if (LoadFile(p, MENUS, true)) Log("ui editor: imported %s into Menus", p.c_str());
+            else Log("ui editor: couldn't read %s", p.c_str());
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Adds the pages, rows and templates from scripts\\NFSU2UniPad_menus.txt to this workspace.");
+    }
+    if (g_editMode != MENUS) {
+        if (ImGui::Button("Import the multiplayer mod's overlay")) {
+            std::string p = g_dir + "\\scripts\\NFSU2Multiplayer_overlay.txt";
+            if (LoadFile(p, -1, true)) Log("ui editor: imported %s", p.c_str());
+            else Log("ui editor: couldn't read %s", p.c_str());
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Adds every game mode's layout from scripts\\NFSU2Multiplayer_overlay.txt to the same modes here.");
+    }
+    if (g_editMode != FREEROAM && g_editMode != MENUS) {
         static int importRows = 4;
         ImGui::SetNextItemWidth(90); ImGui::InputInt("rows##imp", &importRows); importRows = std::max(1, std::min(12, importRows)); ImGui::SameLine();
         if (ImGui::Button("Import the game's race HUD (position, laps, leaderboard, time)")) {

@@ -14,7 +14,8 @@ namespace uied {
     bool WantsFrames();                      // UniPad: something to draw even with the panel closed
     void Panel();                            // the "UI editor" tab
     // game modes, each with its own overlay layout
-    enum Mode { FREEROAM = 0, RACE, DRAG, DRIFT, OUTRUN, NMODES };
+    // MENUS: the menu pages' workspace (menu pages, rows, templates); never drawn as a HUD
+    enum Mode { FREEROAM = 0, RACE, DRAG, DRIFT, OUTRUN, MENUS, NMODES };
     void DrawOverlay(int mode);              // every frame, after NewFrame; mode: one of Mode, -1 = not driving (menus)
     void Release();                          // device going away for good: drop our textures
     // {token} values for text elements (fps, name, speed, ...); return false for an unknown token

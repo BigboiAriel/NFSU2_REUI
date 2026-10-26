@@ -37,6 +37,7 @@ static int ParseKey(const std::string& s, int def) {
 
 void LoadConfig(const std::string& ini) {
     g_config.panelKey = ParseKey(ReadString("General", "PanelKey", "F6", ini), VK_F6);
+    g_config.menuKey = ParseKey(ReadString("General", "MenuKey", "F7", ini), VK_F7);
     std::string v = ReadString("General", "LogFile", "1", ini);
     g_config.logFile = v.empty() || v[0] != '0';
     v = ReadString("Hud", "ReplaceGameHud", "1", ini);
