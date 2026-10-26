@@ -404,6 +404,60 @@ static bool Token(const std::string& k, std::string& out) {
         if (car && Readable(car + 0x70, 12)) { const float* v = (const float*)(car + 0x70); sp = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
         snprintf(b, sizeof b, "%.0f", k == "mph" ? sp * 2.23694f : sp * 3.6f); out = b; return true;
     }
+    if (k.compare(0, 6, "trick_") == 0) {
+        // style points (above the tach): the style-points HUD part [Hud + 0x4C] keeps its tricks in a list at +0x20
+        // (node +8 done, +0xC points, +0x10 multiplier, +0x1C name text id); the first one not done is shown (0x4DA710 /
+        // 0x4AB780): "+%d" or "+%dx%d" (points per multiplier x multiplier), its name; Animate when it starts, FadeOut
+        // (0.9 s) when it ends
+        static std::string name, pts; static bool live = false; static double endAt = -100;
+        static int lastFrame = -1; int fr = ImGui::GetCurrentContext() ? ImGui::GetFrameCount() : 0;
+        double now = ImGui::GetCurrentContext() ? ImGui::GetTime() : 0;
+        if (fr != lastFrame) {
+            lastFrame = fr;
+            uint8_t* p1 = *(uint8_t**)0x8900AC;
+            uint8_t* hud = Readable(p1, 0x9A8) ? *(uint8_t**)(p1 + 0x9A4) : nullptr;
+            uint8_t* sp = Readable(hud, 0x50) ? *(uint8_t**)(hud + 0x4C) : nullptr;
+            uint8_t* cur = nullptr;
+            if (GameMode() >= 0 && Readable(sp, 0x28)) {
+                uint8_t* head = sp + 0x20;
+                int guard = 0;
+                for (uint8_t* n = *(uint8_t**)head; n && n != head && guard < 64 && Readable(n, 0x2C); n = *(uint8_t**)n, ++guard)
+                    if (!n[8]) { cur = n; break; }
+            }
+            if (cur) {
+                uint32_t id = *(uint32_t*)(cur + 0x1C);
+                const char* t = id ? ((const char*(__cdecl*)(uint32_t))0x4FFA80)(id) : nullptr;
+                name = t && !IsBadReadPtr(t, 1) ? t : "";
+                float p = *(float*)(cur + 0xC); int mult = *(int*)(cur + 0x10);
+                int per = (int)(id != 0xA46AAEA8 && mult > 0 ? p / mult : p);
+                char b[48];
+                if (mult > 1 && id != 0xA46AAEA8) snprintf(b, sizeof b, "%s%dx%d", per >= 0 ? "+" : "", per, mult);
+                else snprintf(b, sizeof b, "%s%d", per >= 0 ? "+" : "", per);
+                pts = b; live = true;
+            } else if (live) { live = false; endAt = now; }
+        }
+        bool fading = !live && now - endAt < 0.9;
+        if (k == "trick_on") out = live ? "1" : "";
+        else if (k == "trick_fading") out = fading ? "1" : "";
+        else if (k == "trick_name") out = live || fading ? name : "";
+        else if (k == "trick_points") out = live || fading ? pts : "";
+        else return false;
+        return true;
+    }
+    if (k == "region" || k == "region_new") {
+        // the region popup (Region_Message, 0x4A9E70): the player's +0x9B8 is the current region's text id; when it
+        // changes the HUD prints that text (0x4FFA80) and plays ZoomIn (1.8 s)
+        uint8_t* p1 = *(uint8_t**)0x8900AC;
+        uint32_t id = Readable(p1, 0x9BC) && GameMode() >= 0 ? *(uint32_t*)(p1 + 0x9B8) : 0;
+        static uint32_t last = 0; static double at = -100;
+        double now = ImGui::GetCurrentContext() ? ImGui::GetTime() : 0;
+        static int lastFrame = -1; int fr = ImGui::GetCurrentContext() ? ImGui::GetFrameCount() : 0;
+        if (fr != lastFrame) { lastFrame = fr; if (id && id != last) at = now; if (id) last = id; }
+        if (k == "region_new") { out = now - at < 1.8 ? "1" : ""; return true; }
+        const char* t = last ? ((const char*(__cdecl*)(uint32_t))0x4FFA80)(last) : nullptr;
+        out = t && !IsBadReadPtr(t, 1) ? t : "";
+        return true;
+    }
     if (k == "bank_reward" || k == "bank_reward_on") {
         // the stock HUD's "Bank Reward: $x" (Cash_Bank, script Cash_Animate, 2.7 s; 0x4A9EF0 when the cash HUD gets a
         // reward): here, any rise of the bank while driving in free roam starts it
@@ -511,6 +565,7 @@ void HostDraw() {
     if (!g_ready) return;
     { std::string t; Token("bank_reward_on", t); }   // watched every frame (a rise during a race / menus isn't a reward)
     WatchCameras();
+    { std::string t; Token("region_new", t); Token("trick_on", t); }   // (watched every frame, so a change is caught when it happens)
     uied::DrawOverlay(GameMode());
     if (uied::testMode)
         ImGui::GetForegroundDrawList()->AddText(ImVec2(12, ImGui::GetIO().DisplaySize.y - 28), IM_COL32(255, 170, 60, 255),
@@ -529,7 +584,9 @@ void HostPanel() {
     if (ImGui::CollapsingHeader("Live values")) {
         struct E { const char* k; const char* what; };
         static const E kVals[] = {
-            { "fps", "Frames per second." }, { "cash", "Your bank, as $12,345." }, { "cash_raw", "Your bank, just the number." }, { "bank_reward", "The money just added to your bank in free roam ($1,500), for 2.7 s." }, { "bank_reward_on", "1 for those 2.7 s." }, { "speed", "Speed in km/h (from the car's velocity)." }, { "mph", "Speed in mph." },
+            { "fps", "Frames per second." }, { "cash", "Your bank, as $12,345." }, { "cash_raw", "Your bank, just the number." }, { "bank_reward", "The money just added to your bank in free roam ($1,500), for 2.7 s." }, { "bank_reward_on", "1 for those 2.7 s." }, { "region", "The region you're in, as the game's popup words it." }, { "region_new", "1 for 1.8 s after you drive into a new region." },
+            { "trick_name", "Style points: the trick (HANGY TIMEY!)." }, { "trick_points", "Its points: +25, or +12x3 with a multiplier." },
+            { "trick_on", "1 while a trick is being scored." }, { "trick_fading", "1 for 0.9 s after it ends." }, { "speed", "Speed in km/h (from the car's velocity)." }, { "mph", "Speed in mph." },
             { "speedo", "Speed as the game's speedometer shows it, in the units picked in the game's options." },
             { "speed_unit", "KPH or MPH, following the game's options." }, { "speed_unit_hud", "KM/H or MPH, as the stock speedometer labels it." },
             { "rpm", "Engine RPM." }, { "rpm_k", "RPM in thousands (6.5)." }, { "rpm_max", "The tachometer's full scale." },

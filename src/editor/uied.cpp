@@ -631,14 +631,15 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         double t = ImGui::GetTime() - (e.shownSince >= 0 ? e.shownSince : 0);   // from when it came on, like the game's scripts
         if (e.anim == 2 && fmod(t, 0.6) > 0.3) return;
         if (e.anim == 3 && !e.keys.empty()) {   // the game's FEng script keys (looping): "t sx sy a [dx dy [r g b]]"
-            float period = (float)atof(e.keys.c_str());
+            bool once = e.keys[0] == '!';   // "!600;...": plays once and holds its last key (else it loops)
+            float period = (float)atof(e.keys.c_str() + (once ? 1 : 0));
             std::vector<float> k;   // 9 per key: t sx sy a dx dy r g b
             for (size_t p = e.keys.find(';'); p != std::string::npos; p = e.keys.find(';', p + 1)) {
                 float v[9] = {0, 1, 1, 1, 0, 0, 1, 1, 1};
                 if (sscanf(e.keys.c_str() + p + 1, "%f %f %f %f %f %f %f %f %f", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8]) >= 4) k.insert(k.end(), v, v + 9);
             }
             if (period > 0 && k.size() >= 18) {
-                float ph = (float)fmod(t * 1000.0, period), v[9];
+                float ph = once ? (float)std::min(t * 1000.0, (double)period) : (float)fmod(t * 1000.0, period), v[9];
                 for (int j = 0; j < 9; ++j) v[j] = k[j];
                 if (ph >= k[k.size() - 9]) for (int j = 0; j < 9; ++j) v[j] = k[k.size() - 9 + j];
                 for (size_t i = 0; i + 9 < k.size(); i += 9)
@@ -1601,7 +1602,7 @@ static void Selected(Elem& e) {
             static char kb[256]; snprintf(kb, sizeof kb, "%s", e.keys.c_str());
             ImGui::SetNextItemWidth(320);
             if (ImGui::InputTextWithHint("keys", "800;0 1 1 1;400 1.6 1.7 1;800 1 1 1", kb, sizeof kb)) { e.keys = kb; g_dirty = true; }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Loop length in ms, then keys \"time width-scale height-scale alpha [move-x move-y [red green blue]]\" separated by ;\n(scales and colours multiply, moves are units; straight lines between keys; the game's HUD animations as\nthey're stored in its .fng). Text scales from its alignment point.");
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Loop length in ms (! in front: play once and hold), then keys \"time width-scale height-scale alpha [move-x move-y [red green blue]]\" separated by ;\n(scales and colours multiply, moves are units; straight lines between keys; the game's HUD animations as\nthey're stored in its .fng). Text scales from its alignment point.");
         }
         if (e.type == E_IMAGE) {
             const char* kinds[] = { "nothing", "fill left to right", "fill bottom to top", "rotation", "reveal (turning half)" };
