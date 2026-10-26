@@ -55,6 +55,15 @@ static bool IsD3DTexture(const void* p) {
     uintptr_t fn = ((const uintptr_t*)vt)[17];   // GetLevelDesc
     return fn >= lo && fn < hi;
 }
+// A TextureInfo's Direct3D texture: +0 points at its platform part, which holds the texture at +0x18
+// (UniPad's RE_NOTES "Making textures at runtime"); nullptr when it isn't made / loaded yet
+static IDirect3DTexture9* TexOfInfo(uint8_t* ti) {
+    if (!ti || IsBadReadPtr(ti, 4)) return nullptr;
+    uint8_t* plat = *(uint8_t**)ti;
+    if (!plat || IsBadReadPtr(plat, 0x1C)) return nullptr;
+    IDirect3DTexture9* t = *(IDirect3DTexture9**)(plat + 0x18);
+    return IsD3DTexture(t) ? t : nullptr;
+}
 static uint8_t* TexInfo(uint32_t hash) {
     uint8_t* ti = ((uint8_t*(__cdecl*)(uint32_t, int, int))fe::GetTextureInfo)(hash, 0, 0);
     return Readable(ti, 0x28) && *(uint32_t*)(ti + 0x24) == hash ? ti : nullptr;
@@ -283,8 +292,8 @@ static void ObjWalk(uint8_t* obj, const Xf& parent, int depth) {
         if (flipY) std::swap(g.v0, g.v1);
         for (int i = 0; i < 4; ++i) g.col[i] = me.col[i] > 1 ? 1 : me.col[i];
         if (uint8_t* ti = TexInfo(*(uint32_t*)(obj + 0x24))) {
-            IDirect3DTexture9* tx = *(IDirect3DTexture9**)(ti + 0x18);
-            if (IsD3DTexture(tx)) {
+            IDirect3DTexture9* tx = TexOfInfo(ti);
+            if (tx) {
                 g.tex = tx;
                 D3DSURFACE_DESC dd; int w = *(int16_t*)(ti + 0x44), h = *(int16_t*)(ti + 0x46);
                 if (SUCCEEDED(tx->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && w > 0 && h > 0) { g.su = (float)w / dd.Width; g.sv = (float)h / dd.Height; }
@@ -403,12 +412,11 @@ void HostInit() {
             static std::vector<std::string> told;
             if (std::find(told.begin(), told.end(), name) == told.end()) {
                 told.push_back(name);
-                IDirect3DTexture9* t = ti ? *(IDirect3DTexture9**)(ti + 0x18) : nullptr;
-                Log("texture %s: %s%s", name.c_str(), ti ? "info found" : "no info", ti ? (IsD3DTexture(t) ? ", loaded" : ", not a texture yet") : "");
+                Log("texture %s: %s%s", name.c_str(), ti ? "info found" : "no info", ti ? (TexOfInfo(ti) ? ", loaded" : ", not a texture yet") : "");
             }
         }
-        IDirect3DTexture9* tx = ti ? *(IDirect3DTexture9**)(ti + 0x18) : nullptr;
-        if (!IsD3DTexture(tx)) return nullptr;
+        IDirect3DTexture9* tx = TexOfInfo(ti);
+        if (!tx) return nullptr;
         D3DSURFACE_DESC dd;
         int w = *(int16_t*)(ti + 0x44), h = *(int16_t*)(ti + 0x46);
         if (SUCCEEDED(tx->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && w > 0 && h > 0) { *su = (float)w / dd.Width; *sv = (float)h / dd.Height; }
