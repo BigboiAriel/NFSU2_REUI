@@ -16,6 +16,7 @@
 //    Its texture is the pack texture with the font's name in capitals (LANGUAGES\LanguageTextures.bin).
 #include "uied.h"
 #include "vecart.h"
+#include "deferfree.h"
 #include <windows.h>
 #include <shellapi.h>
 #include "imgui.h"
@@ -312,13 +313,14 @@ static int FindFont(const std::string& name) { for (size_t i = 0; i < g_fonts.si
 void Release() {
     for (auto& t : g_tex) if (t.tex) { t.tex->Release(); t.tex = nullptr; }
     vecart::Release();
+    deferfree::Flush();
 }
 static void Trim() {   // keep at most ~400 textures made; drop the least recently used
     int made = 0; for (auto& t : g_tex) if (t.tex) ++made;
     if (made <= 400) return;
     std::vector<int> idx; for (size_t i = 0; i < g_tex.size(); ++i) if (g_tex[i].tex) idx.push_back((int)i);
     std::sort(idx.begin(), idx.end(), [](int a, int b) { return g_tex[a].usedAt < g_tex[b].usedAt; });
-    for (int k = 0; k < made - 300; ++k) { g_tex[idx[k]].tex->Release(); g_tex[idx[k]].tex = nullptr; }
+    for (int k = 0; k < made - 300; ++k) { deferfree::Later(g_tex[idx[k]].tex); g_tex[idx[k]].tex = nullptr; }   // (may be drawn this frame)
 }
 
 // ---------------------------------------------------------------- text
@@ -814,8 +816,19 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
     if (!e.keys.empty()) fprintf(f, "keys=%s\n", e.keys.c_str());
     if (!e.flags.empty()) { std::string l; for (auto& k : e.flags) { if (!l.empty()) l += ','; l += k; } fprintf(f, "flags=%s\n", l.c_str()); }
 }
+// Written to <path>.tmp and swapped in only when the whole file was written: a crash or a full disk mid-save
+// never leaves a cut-off file. false: nothing was replaced.
+static FILE* BeginWrite(const std::string& path) { return fopen((path + ".tmp").c_str(), "w"); }
+static bool EndWrite(FILE* f, const std::string& path) {
+    bool ok = !ferror(f);
+    ok = (fclose(f) == 0) && ok;
+    std::string tmp = path + ".tmp";
+    if (ok) ok = MoveFileExA(tmp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+    if (!ok) DeleteFileA(tmp.c_str());
+    return ok;
+}
 static void Save() {
-    FILE* f = fopen(g_layoutPath.c_str(), "w"); if (!f) { Log("ui editor: couldn't save %s", g_layoutPath.c_str()); return; }
+    FILE* f = BeginWrite(g_layoutPath); if (!f) { Log("ui editor: couldn't save %s", g_layoutPath.c_str()); return; }
     fprintf(f, "# NFSU2 overlay (UI editor): one layout per game mode\nshow=%d\nboardrows=%d\nboardfollow=%d\nlistheight=%d\nhighlightsel=%d\n", g_show ? 1 : 0, boardRows, boardFollow ? 1 : 0, (int)g_listH, g_hiSel ? 1 : 0);
     for (auto& fd : g_flagDefs) fprintf(f, "flagdef=%s %d\n", fd.key.c_str(), fd.hideMissing ? 1 : 0);
     int total = 0;
@@ -823,7 +836,8 @@ static void Save() {
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
     for (auto& e : g_kit) put(0, e);
     SaveMenus(f);
-    fclose(f); g_dirty = false;
+    if (!EndWrite(f, g_layoutPath)) { Log("ui editor: couldn't save %s (the old file is kept; still unsaved)", g_layoutPath.c_str()); return; }
+    g_dirty = false;
     Log("ui editor: saved %d element(s) to %s", total, g_layoutPath.c_str());
 }
 static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // one "key=value" of an [element]
@@ -930,10 +944,10 @@ static void WriteDeletedPrefabs(const std::vector<std::string>& names) {
     std::string path = PrefabDir() + "_deleted.log";
     if (names.empty()) { DeleteFileA(path.c_str()); return; }
     CreateDirectoryA(PrefabDir().c_str(), nullptr);
-    FILE* f = fopen(path.c_str(), "w");
-    if (!f) return;
+    FILE* f = BeginWrite(path);
+    if (!f) { Log("ui editor: couldn't write %s", path.c_str()); return; }
     for (auto& n : names) fprintf(f, "%s\n", n.c_str());
-    fclose(f);
+    if (!EndWrite(f, path)) Log("ui editor: couldn't write %s", path.c_str());
 }
 static bool PrefabOnDisk(const std::string& name) { return GetFileAttributesA((PrefabDir() + name + ".txt").c_str()) != INVALID_FILE_ATTRIBUTES; }
 static bool PrefabBuiltIn(const std::string& name) { return BakedPrefabText(name) != nullptr; }
@@ -942,12 +956,12 @@ static bool SavePrefab(const std::string& group, std::string name) {
     if (name.empty()) return false;
     CreateDirectoryA(PrefabDir().c_str(), nullptr);
     std::string path = PrefabDir() + name + ".txt";
-    FILE* f = fopen(path.c_str(), "w");
+    FILE* f = BeginWrite(path);
     if (!f) { g_prefabMsg = "couldn't write " + path; return false; }
     fprintf(f, "# NFSU2_REUI prefab\nroot=%s\n", Esc(group).c_str());
     int n = 0;
     for (auto& e : Elems()) if (e.group == group || InGroup(e.group, group)) { PutElem(f, g_editMode, e); ++n; }
-    fclose(f);
+    if (!EndWrite(f, path)) { g_prefabMsg = "couldn't write " + path; return false; }
     {   // saved again under a deleted name: it's back
         auto del = DeletedPrefabs();
         auto it = std::find(del.begin(), del.end(), name);
@@ -1048,7 +1062,10 @@ void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)
     bool any = false; for (auto& l : g_layout) any |= !l.empty();
     if (any && g_state == 0) { g_state = 1; std::thread(Scan).detach(); }
 }
-void SetDevice(IDirect3DDevice9* dev) { g_dev = dev; g_loadsThisFrame = 0; }
+void SetDevice(IDirect3DDevice9* dev) {   // the start of a frame: last frame's draw lists are rendered
+    g_dev = dev; g_loadsThisFrame = 0;
+    deferfree::Flush();
+}
 IDirect3DDevice9* Device() { return g_dev; }
 static bool MenuOpenNow();
 bool WantsFrames() {   // anything to draw while the host's panel is closed
@@ -1797,6 +1814,7 @@ void Import(const std::string& group, const std::vector<ImportItem>& items) {
 }
 static void ResolvePending() {
     if (g_pending.empty() || g_state != 2) return;
+    bool otherEdits = g_dirty;   // unsaved editor changes: the capture isn't saved on its own (that would save them too)
     std::map<uint32_t, int> tex, font;
     std::map<std::string, int> texByName;
     for (size_t i = 0; i < g_tex.size(); ++i) {
@@ -1848,7 +1866,8 @@ static void ResolvePending() {
         Log("ui editor: %d texture(s) not in the game files, drawn from the game's copy when loaded: %s", (int)live.size(), l.c_str());
     }
     g_pending.clear();
-    Save();   // captures are kept right away
+    if (!otherEdits) Save();   // captures are kept right away
+    else { g_dirty = true; Log("ui editor: capture added; not saved on its own because there are other unsaved changes (Save)"); }
 }
 
 void Panel() {

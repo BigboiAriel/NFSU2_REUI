@@ -1,4 +1,5 @@
 #include "vecart.h"
+#include "deferfree.h"
 
 #include <windows.h>
 #include <algorithm>
@@ -56,7 +57,7 @@ void Walk(const std::string& rel, int depth) {
 
 void Drop(const std::string& name) {   // every size made of one art
     for (size_t i = 0; i < g_made.size();)
-        if (g_made[i].name == name) { if (g_made[i].tex) g_made[i].tex->Release(); g_made.erase(g_made.begin() + i); }
+        if (g_made[i].name == name) { deferfree::Later(g_made[i].tex); g_made.erase(g_made.begin() + i); }
         else ++i;
 }
 
@@ -122,7 +123,7 @@ void Rescan() {
     g_list.clear();
     if (!g_dir.empty()) Walk("", 0);
     std::sort(g_list.begin(), g_list.end(), [](const Art& a, const Art& b) { return _stricmp(a.name.c_str(), b.name.c_str()) < 0; });
-    for (auto& m : g_made) if (m.tex) m.tex->Release();
+    for (auto& m : g_made) deferfree::Later(m.tex);
     g_made.clear(); g_stamps.clear();
     g_scanned = true;
 }
@@ -142,14 +143,15 @@ IDirect3DTexture9* Texture(IDirect3DDevice9* dev, const std::string& name, int p
     g_made.push_back(m);   // (a failed one is kept as nullptr: not retried every frame until the file changes)
     // drop sizes not used for a while
     for (size_t i = 0; i < g_made.size();)
-        if (now - g_made[i].used > 10000) { if (g_made[i].tex) g_made[i].tex->Release(); g_made.erase(g_made.begin() + i); }
+        if (now - g_made[i].used > 10000) { deferfree::Later(g_made[i].tex); g_made.erase(g_made.begin() + i); }
         else ++i;
     return m.tex;
 }
 
-void Release() {
+void Release() {   // device going away: nothing is being drawn, released now
     for (auto& m : g_made) if (m.tex) m.tex->Release();
     g_made.clear();
+    deferfree::Flush();
 }
 
 } // namespace vecart

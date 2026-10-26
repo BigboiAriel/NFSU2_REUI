@@ -80,10 +80,11 @@ static void MenuForget(const std::string& g) {
 
 // ---------------------------------------------------------------- values
 static bool g_menuValDirty = false;   // an unbound widget's own value changed (saved with the layout on close)
+static bool g_menuOtherEdits = false; // ... while other editor changes were unsaved: then it isn't saved on its own
 static float WGet(const Widget& w) { Setting* s = SettingOf(w.bind); return s && s->get ? s->get() : w.value; }
 static void WSet(Widget& w, float v) {
     if (Setting* s = SettingOf(w.bind)) { if (s->set) s->set(v); if (menuChanged) menuChanged(); }
-    else { w.value = v; g_dirty = true; g_menuValDirty = true; }
+    else { if (!g_menuValDirty) g_menuOtherEdits = g_dirty; w.value = v; g_dirty = true; g_menuValDirty = true; }
 }
 static void WRange(const Widget& w, float& lo, float& hi, float& st) {
     if (Setting* s = SettingOf(w.bind)) { lo = s->min; hi = s->max; st = s->step; }
@@ -190,7 +191,8 @@ static struct MenuState {
     int sel = 0, top = 0;
     bool was[6] = {}; double held[6] = {}, next[6] = {};
     double flashL = 0, flashR = 0, t = 0;
-    const Widget* capturing = nullptr;   // a binding row waiting for an input
+    std::string capturing;   // the binding row (its group) waiting for an input; looked up each time, as the widget
+                             // list can be replaced (undo, reload, duplicate...) while it waits
 } g_menu;
 
 std::vector<std::string> MenuPages() { std::vector<std::string> v; for (auto& p : g_pages) v.push_back(p.group); return v; }
@@ -214,8 +216,12 @@ bool MenuOpen(const std::string& page) {
 }
 void MenuClose() {
     if (!g_menu.open) return;
-    g_menu.open = false; g_menu.stack.clear(); g_menu.selStack.clear(); g_menu.capturing = nullptr;
-    if (g_menuValDirty) { Save(); g_menuValDirty = false; }   // own values of unbound widgets
+    g_menu.open = false; g_menu.stack.clear(); g_menu.selStack.clear(); g_menu.capturing.clear();
+    if (g_menuValDirty) {   // own values of unbound widgets: saved, unless that would also save other unsaved edits
+        if (!g_menuOtherEdits) Save();
+        else Log("menu: a value changed; not saved on its own because the editor has other unsaved changes (Save there)");
+        g_menuValDirty = false;
+    }
 }
 static void MenuBack() {
     Snd(SND_BACK);
@@ -228,7 +234,7 @@ static void MenuAccept(Widget& w) {
     if (w.type == W_PICKER) { auto c = WChoices(w); if (c.empty()) { Snd(SND_ERROR); return; } WSet(w, (float)(((int)lroundf(WGet(w)) + 1) % (int)c.size())); g_menu.flashR = g_menu.t; Snd(SND_RIGHT); return; }
     if (w.type != W_BUTTON) return;
     if (Setting* s = SettingOf(w.bind)) {
-        if (s->kind == 3 && s->beginCapture && s->capture) { Snd(SND_ACCEPT); s->beginCapture(); g_menu.capturing = &w; return; }
+        if (s->kind == 3 && s->beginCapture && s->capture) { Snd(SND_ACCEPT); s->beginCapture(); g_menu.capturing = w.group; return; }
         if (s->run) { Snd(SND_ACCEPT); s->run(); return; }
     }
     if (w.action.compare(0, 5, "page:") == 0 && PageOf(w.action.substr(5))) { Snd(SND_ACCEPT); MenuGo(w.action.substr(5)); return; }
@@ -259,11 +265,12 @@ void MenuFrame(const MenuInput& in, double dt) {
     auto rows = PageRows(*p);
     int n = (int)rows.size();
     if (n) g_menu.sel = std::max(0, std::min(n - 1, g_menu.sel));
-    if (g_menu.capturing) {   // a binding row is waiting for an input: nothing else moves
-        Setting* s = SettingOf(g_menu.capturing->bind);
-        int r = s && s->capture ? s->capture(dt) : -1;
+    if (!g_menu.capturing.empty()) {   // a binding row is waiting for an input: nothing else moves
+        Widget* cw = WidgetOf(g_menu.capturing);
+        Setting* s = cw ? SettingOf(cw->bind) : nullptr;
+        int r = s && s->capture ? s->capture(dt) : -1;   // (the row went away meanwhile: cancelled)
         if (r != 0) {
-            g_menu.capturing = nullptr;
+            g_menu.capturing.clear();
             Snd(r > 0 ? SND_ACCEPT : SND_BACK);
             for (auto& b : g_menu.was) b = true;     // the input just used doesn't also act on the menu
             for (auto& x : g_menu.next) x = 1e9;
@@ -346,10 +353,10 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel, int top) {
                 if (e.type == E_TEXT) {   // {binding} = the action, {input} = what it's on
                     auto put = [&](const char* tok, const std::string& v) { for (size_t k; (k = e.text.find(tok)) != std::string::npos;) e.text.replace(k, strlen(tok), v); };
                     put("{binding}", bs->label);
-                    put("{input}", g_menu.capturing == w ? std::string("???") : bs->current ? bs->current() : std::string());
+                    put("{input}", g_menu.capturing == w->group ? std::string("???") : bs->current ? bs->current() : std::string());
                 }
                 if (e.role == "bindicon") {
-                    if (g_menu.capturing == w) {   // waiting: "???" where the icon is, in the row's font
+                    if (g_menu.capturing == w->group) {   // waiting: "???" where the icon is, in the row's font
                         int fi = -1;
                         for (auto& o : MenuElems()) if (o.type == E_TEXT && InGroup(o.group, w->group)) { if (o.fontIdx == -2) o.fontIdx = FindFont(o.font); fi = o.fontIdx; if (o.role == "label") break; }
                         if (fi < 0) fi = FindFont("conduitmditc_tt21i");

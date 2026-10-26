@@ -30,6 +30,7 @@ static bool R(const void* p, size_t n) { return p && !IsBadReadPtr(p, n); }
 
 CarValues ReadCar() {
     CarValues c;
+    if (*(int*)0x8654A4 != 6) return c;   // in the world only (front end / loading: the car may be gone; we call game code on it)
     uint8_t* p1 = *(uint8_t**)0x8900AC;
     uint8_t* car = R(p1, 8) ? *(uint8_t**)(p1 + 4) : nullptr;
     if (!R(car, 0x970)) return c;
