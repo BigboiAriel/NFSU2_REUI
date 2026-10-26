@@ -11,6 +11,7 @@ namespace uied {
     // gameDir: the folder SPEED2.EXE is in; layoutPath: where the overlay is saved
     void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)(const char* line));
     void SetDevice(IDirect3DDevice9* dev);   // every Present, before the ImGui frame is built
+    IDirect3DDevice9* Device();
     bool WantsFrames();                      // UniPad: something to draw even with the panel closed
     void Panel();                            // the "UI editor" tab
     // game modes, each with its own overlay layout

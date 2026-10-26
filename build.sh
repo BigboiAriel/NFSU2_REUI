@@ -22,7 +22,7 @@ for f in buffer hook trampoline hde/hde32; do
   $CC -O2 -c "$MH/src/$f.c" -I"$MH/include" -o "build/obj/mh_$(basename $f).o"
 done
 SRC="src/dllmain.cpp src/log.cpp src/config.cpp src/panel.cpp src/host.cpp
-     src/game/d3d9_hook.cpp src/game/feng.cpp src/editor/uied.cpp
+     src/game/d3d9_hook.cpp src/game/feng.cpp src/editor/uied.cpp src/reui_api.cpp
      $IMGUI/imgui.cpp $IMGUI/imgui_draw.cpp $IMGUI/imgui_tables.cpp $IMGUI/imgui_widgets.cpp
      $IMGUI/backends/imgui_impl_dx9.cpp $IMGUI/backends/imgui_impl_win32.cpp"
 

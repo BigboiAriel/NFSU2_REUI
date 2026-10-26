@@ -7,6 +7,7 @@
 #include "panel.h"
 #include "editor/uied.h"
 #include "game/feng.h"
+#include "reui_api.h"
 
 #include "imgui.h"
 
@@ -20,6 +21,9 @@
 #include <vector>
 
 namespace reui {
+
+extern std::vector<REUI_TokenFn> g_tokenProviders;
+extern bool g_menuDriverExternal;
 
 namespace fe {
 enum { kImage = 1, kString = 2, kGroup = 5, kMultiImage = 7, kColoredImage = 9 };
@@ -235,6 +239,10 @@ static bool Token(const std::string& k, std::string& out) {
         if (car && Readable(car + 0x70, 12)) { const float* v = (const float*)(car + 0x70); sp = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]); }
         snprintf(b, sizeof b, "%.0f", k == "mph" ? sp * 2.23694f : sp * 3.6f); out = b; return true;
     }
+    for (REUI_TokenFn fn : g_tokenProviders) {   // other mods' values (the multiplayer mod's race / leaderboard)
+        char buf[256] = {};
+        if (fn(k.c_str(), buf, sizeof buf)) { out = buf; return true; }
+    }
     return false;
 }
 
@@ -262,7 +270,7 @@ void HostInit() {
 // Menu pages without UniPad: the menu key opens the start page, arrows / Enter / Esc drive it (UniPad, when installed,
 // drives them with the pad through the API instead)
 void HostTick(bool focused) {
-    if (!g_ready || g_uniPad) return;
+    if (!g_ready || g_uniPad || g_menuDriverExternal) return;
     static bool keyWas = false;
     static LARGE_INTEGER f = {}, last = {};
     LARGE_INTEGER now; QueryPerformanceCounter(&now);

@@ -623,6 +623,7 @@ void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)
     if (any && g_state == 0) { g_state = 1; std::thread(Scan).detach(); }
 }
 void SetDevice(IDirect3DDevice9* dev) { g_dev = dev; g_loadsThisFrame = 0; }
+IDirect3DDevice9* Device() { return g_dev; }
 static bool MenuOpenNow();
 bool WantsFrames() {   // anything to draw while the host's panel is closed
     if (testMode || MenuOpenNow()) return true;
