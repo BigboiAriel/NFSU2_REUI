@@ -49,6 +49,8 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
     the built-in copy. Until then, UniPad's own built-in renderer and UI
     editor are left as they are. Standalone UniPad today keeps its older menu-only editor and ships no menu pages,
     so it has no "UniPad Options" item.
+  - **Vector art:** the SVGs in scripts\NFSU2_REUI_vector are baked in only once the mod is complete; until then
+    they're loose files (prefabs are the only thing baked now).
   - **Multiplayer mod:** renders the player leaderboards and the mod's new dedicated menus. Until then the
     multiplayer mod keeps its own overlay as it is.
 
