@@ -420,6 +420,7 @@ struct Elem {
     unsigned follow = 0;
     bool circle = false;
     bool additive = false;                // images: added onto what's under them (glows; black = nothing)
+    std::string tint;                     // a value key giving "R G B" (0-255) that multiplies the colour (the car's HUD paints)
 };
 static std::vector<Elem> g_layout[NMODES];   // one overlay per game mode
 static int g_editMode = 0, g_nowMode = -1;
@@ -564,6 +565,14 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!RowShown(e, mine) && !editing) return;   // (while editing, rows nobody fills are drawn so they can be placed)
     ImVec2 a, b; ElemRect(e, a, b);
     ImU32 col = Col(mine && e.hiMine ? e.hiCol : e.col);
+    if (!e.tint.empty()) {   // colour times a value's "R G B"
+        std::string v; int r, g, b2;
+        if (tokens && tokens(e.tint, v) && sscanf(v.c_str(), "%d %d %d", &r, &g, &b2) == 3) {
+            const float* c0 = mine && e.hiMine ? e.hiCol : e.col;
+            float c[4] = {c0[0] * r / 255.f, c0[1] * g / 255.f, c0[2] * b2 / 255.f, c0[3]};
+            col = Col(c);
+        }
+    }
     GameObject go; bool following = false;
     if (e.type == E_IMAGE && e.follow) {
         following = FollowBox(e, go, a, b);
@@ -700,6 +709,7 @@ static void Save() {
         if (e.follow) fprintf(f, "follow=%08X\n", e.follow);
         if (e.circle) fprintf(f, "circle=1\n");
         if (e.additive) fprintf(f, "additive=1\n");
+        if (!e.tint.empty()) fprintf(f, "tint=%s\n", e.tint.c_str());
     };
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
     for (auto& e : g_kit) put(0, e);
@@ -763,6 +773,7 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
         else if (k == "follow") e.follow = (unsigned)strtoul(v.c_str(), nullptr, 16);
         else if (k == "circle") e.circle = atoi(v.c_str()) != 0;
         else if (k == "additive") e.additive = atoi(v.c_str()) != 0;
+        else if (k == "tint") e.tint = v;
     }
     fclose(f);
     if (merge) g_dirty = true; else g_dirty = false;
@@ -1403,6 +1414,12 @@ static void Selected(Elem& e) {
         ImGui::SetNextItemWidth(160);
         if (ImGui::InputTextWithHint("show only while", "value key, e.g. nos_on", sb, sizeof sb)) { e.showIf = sb; g_dirty = true; }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("A live value's key (no braces). Shown only while it isn't blank or 0.\n!key: only while it is. Empty: always.");
+        {
+            static char tb2[64]; snprintf(tb2, sizeof tb2, "%s", e.tint.c_str());
+            ImGui::SameLine(); ImGui::SetNextItemWidth(140);
+            if (ImGui::InputTextWithHint("tint from", "e.g. tach_paint_1", tb2, sizeof tb2)) { e.tint = tb2; g_dirty = true; }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("A live value giving \"R G B\" (0-255) that multiplies the colour - the car's custom HUD paints.");
+        }
         if (e.type == E_IMAGE) {
             const char* kinds[] = { "nothing", "fill left to right", "fill bottom to top", "rotation", "reveal (turning half)" };
             ImGui::SetNextItemWidth(160);

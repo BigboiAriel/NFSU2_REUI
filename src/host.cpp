@@ -492,7 +492,8 @@ void HostPanel() {
             { "tach_fill", "Texture: the car's tach dial (its custom HUD colour)." }, { "tach_lines", "Texture: the RPM numbers ring for this car." },
             { "tach_redline", "Texture: the red arc at this car's redline." }, { "tach_needle", "Texture: the tach needle." },
             { "turbo_fill", "Texture: the boost dial." }, { "turbo_lines", "Texture: the boost numbers." }, { "turbo_needle", "Texture: the boost needle." },
-            { "hud_color", "The car's custom HUD colour, 00-10." }, { "gear_grey", "1 when the stock tach shows the gear grey (else orange)." }, { "turbo", "1 when the car has a turbo." },
+            { "hud_color", "The car's custom HUD colour, 00-10." },
+            { "tach_paint_1", "Custom HUD paint 1 (R G B): the dial, the boost dial." }, { "tach_paint_2", "Paint 2: the needles." }, { "tach_paint_3", "Paint 3: the RPM and boost numbers." }, { "gear_grey", "1 when the stock tach shows the gear grey (else orange)." }, { "turbo", "1 when the car has a turbo." },
         };
         ImGui::TextDisabled("Put {key} in a text element. Click a key to copy it. Other mods add theirs (the multiplayer mod: F8 > Live values).");
         if (ImGui::BeginTable("##reuivals", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingStretchProp)) {

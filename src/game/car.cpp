@@ -97,7 +97,7 @@ static const CarValues& Car() {
 // {lines, redline, fill, -, needle, turbo lines, turbo fill, turbo needle}. The dial's full scale by 0x60FE10's class
 // (0..7): 10500 10500 9500 9500 8500 8500 7500 7500; the needle turns clamp(rpm, 0, limiter) / scale * 235 degrees.
 static const CarValues& Car();
-struct TachArt { bool ok = false; uint32_t tex[8] = {}; float scale = 0, limiter = 0; int hud = 0; };
+struct TachArt { bool ok = false; uint32_t tex[8] = {}; float scale = 0, limiter = 0; int hud = 0; int paint[3][3] = {{255, 255, 255}, {255, 255, 255}, {255, 255, 255}}; };
 static TachArt ReadTach() {
     TachArt t;
     if (*(int*)0x8654A4 != 6) return t;
@@ -110,6 +110,14 @@ static TachArt ReadTach() {
     void* part = ((void*(__thiscall*)(void*, int))0x6102F0)(r, 0xA3);
     uint32_t key = ((uint32_t(__cdecl*)(const char*))0x43DB50)("HUDINDEX");
     t.hud = part && R(part, 4) ? ((int(__thiscall*)(void*, uint32_t, int))0x61B500)(part, key, 0) : 0;
+    // its three paints (parts in slots 0xA4..0xA6, attributes RED / GREEN / BLUE; white without one): 0x4F57CF..
+    // paint 1 = the dial and the boost dial, 2 = the needles, 3 = the RPM and boost numbers (0x4F5977..)
+    static const char* kRGB[3] = {"RED", "GREEN", "BLUE"};
+    for (int p = 0; p < 3; ++p) {
+        void* pp = ((void*(__thiscall*)(void*, int))0x6102F0)(r, 0xA4 + p);
+        if (!pp || !R(pp, 4)) continue;
+        for (int c = 0; c < 3; ++c) t.paint[p][c] = ((int(__thiscall*)(void*, uint32_t, int))0x61B500)(pp, ((uint32_t(__cdecl*)(const char*))0x43DB50)(kRGB[c]), 0) & 0xFF;
+    }
     ((void(__cdecl*)(uint32_t, float*, int, uint32_t*, int))0x5ED9B0)(*(uint32_t*)r, hp, 0, t.tex, t.hud);
     int cls = ((int(__cdecl*)(float*))0x60FE10)(hp);
     static const float kScale[8] = {10500, 10500, 9500, 9500, 8500, 8500, 7500, 7500};
@@ -148,6 +156,11 @@ bool CarToken(const std::string& k, std::string& out) {
         }
         if (k == "tach_max") { if (t.ok) { snprintf(b, sizeof b, "%.0f", t.scale); out = b; } return true; }
         if (k == "hud_color") { if (t.ok) { snprintf(b, sizeof b, "%02d", t.hud); out = b; } return true; }
+        if (k.size() == 12 && k.compare(0, 11, "tach_paint_") == 0 && k[11] >= '1' && k[11] <= '3') {   // "R G B" for tint
+            const int* p = t.paint[k[11] - '1'];
+            if (t.ok) { snprintf(b, sizeof b, "%d %d %d", p[0], p[1], p[2]); out = b; }
+            return true;
+        }
         return false;
     }
     static const char* kKeys[] = { "rpm", "rpm_max", "rpm_pct", "rpm_k", "gear", "shift_light", "speedo", "speed_unit", "speed_unit_hud",
