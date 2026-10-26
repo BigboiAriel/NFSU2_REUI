@@ -20,6 +20,11 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   values), settings incl. binding rows (UniPad), icon provider (UniPad's SVG / PNG button icons), menu sounds,
   menu open / close / frame (UniPad's pad + pause-menu item). UniPad and the multiplayer mod detect the module
   and turn their own editors off.
+  *Done (src/reui_api.h / reui_api.cpp).* UniPad hands over its settings, binding rows, icons and sounds and drives
+  the menus (its F7 key, pad and pause item); the multiplayer mod adds {name} and its race / leaderboard values and
+  follows REUI's test mode and leaderboard settings (REUI_EditorState). With no menu pages / HUD layouts of its own
+  yet, REUI starts from scripts\NFSU2UniPad_menus.txt / NFSU2Multiplayer_overlay.txt. UniPad no longer turns
+  itself off when the multiplayer mod is loaded.
 - **P3 live HUD data (RE).** Car: speed, rpm, gear, nitrous, speedbreaker, shift light. Race: position, laps,
   leaderboard (the multiplayer mod's raceinfo reader as a base), race / lap / best times, countdown, wrong way,
   results. Free roam: cash, SMS / phone, event icons, messages. Minimap: map texture, player / racer / shop

@@ -51,6 +51,9 @@ typedef int (*PFN_REUI_MenuOpen)(const char* page);         // "" / null = the s
 typedef void (*PFN_REUI_MenuClose)(void);
 typedef int (*PFN_REUI_MenuIsOpen)(void);
 typedef void (*PFN_REUI_MenuFrame)(int up, int down, int left, int right, int accept, int back, double dt);   // held buttons
+// the editor's state a value provider may need: testing a layout (no real race: show sample values), and the
+// leaderboard's row count / follow-me setting. Null pointers are skipped.
+typedef void (*PFN_REUI_EditorState)(int* testMode, int* boardRows, int* boardFollow);
 
 #ifdef __cplusplus
 }

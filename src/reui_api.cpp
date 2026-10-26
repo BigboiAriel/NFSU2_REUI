@@ -69,6 +69,11 @@ EXPORT int REUI_HasMenuPages() { return !uied::MenuPages().empty(); }
 EXPORT int REUI_MenuOpen(const char* page) { return uied::MenuOpen(page ? page : "") ? 1 : 0; }
 EXPORT void REUI_MenuClose() { uied::MenuClose(); }
 EXPORT int REUI_MenuIsOpen() { return uied::MenuIsOpen() ? 1 : 0; }
+EXPORT void REUI_EditorState(int* testMode, int* boardRows, int* boardFollow) {
+    if (testMode) *testMode = uied::testMode;
+    if (boardRows) *boardRows = uied::boardRows;
+    if (boardFollow) *boardFollow = uied::boardFollow;
+}
 EXPORT void REUI_MenuFrame(int up, int down, int left, int right, int accept, int back, double dt) {
     uied::MenuInput in; in.up = up; in.down = down; in.left = left; in.right = right; in.accept = accept; in.back = back;
     uied::MenuFrame(in, dt);

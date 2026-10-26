@@ -618,6 +618,19 @@ static void Load() { LoadFile(g_layoutPath, -1, false); }
 void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)(const char*)) {
     g_dir = gameDir; g_layoutPath = layoutPath; g_log = log;
     Load();
+    // no menu pages yet: UniPad's menus (made in its own editor before REUI) come in, until this workspace is saved
+    if (!menuMode && g_layout[MENUS].empty()) {
+        std::string p = g_dir + "\\scripts\\NFSU2UniPad_menus.txt";
+        if (GetFileAttributesA(p.c_str()) != INVALID_FILE_ATTRIBUTES && LoadFile(p, MENUS, true))
+            Log("ui editor: no menu pages here yet - using %s (Save to keep them in this workspace)", p.c_str());
+    }
+    // no HUD layouts yet: the multiplayer mod's (made in its own editor before REUI) come in the same way
+    bool hud = false; for (int m = 0; m < NMODES; ++m) if (m != MENUS) hud |= !g_layout[m].empty();
+    if (!hud) {
+        std::string p = g_dir + "\\scripts\\NFSU2Multiplayer_overlay.txt";
+        if (GetFileAttributesA(p.c_str()) != INVALID_FILE_ATTRIBUTES && LoadFile(p, -1, true))
+            Log("ui editor: no HUD layouts here yet - using %s (Save to keep them in this workspace)", p.c_str());
+    }
     // the overlay needs the index to draw: scan in the background if there's anything to show
     bool any = false; for (auto& l : g_layout) any |= !l.empty();
     if (any && g_state == 0) { g_state = 1; std::thread(Scan).detach(); }
