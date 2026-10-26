@@ -1,0 +1,20 @@
+# NFSU2_REUI prefab
+root=Rear-view mirror
+
+[element]
+mode=freeroam
+type=image
+name=Mirror
+anchor=1
+x=0
+y=15
+w=240
+h=80
+scale=1
+color=1 1 1 1
+visible=1
+group=Rear-view mirror
+texture={rvm}
+pack=
+uv=0 0 1 1
+showif=rvm_on

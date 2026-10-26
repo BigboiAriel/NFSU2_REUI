@@ -16,6 +16,9 @@ mkdir -p "$TP" build/obj
 [ -d "$TP/minhook" ] || git clone -q --depth 1 --branch "$MINHOOK_TAG" https://github.com/TsudaKageyu/minhook.git "$TP/minhook"
 [ -d "$TP/nanosvg" ] || { git clone -q https://github.com/memononen/nanosvg.git "$TP/nanosvg" && git -C "$TP/nanosvg" checkout -q "$NANOSVG_REV"; }
 
+# built-in prefabs: prefabs/*.txt -> src/editor/baked_prefabs.inc. Before building with the game's latest prefabs,
+# run tools/sync_prefabs.py on a copy of scripts\NFSU2_REUI_prefabs (adds new / changed ones, drops _deleted.log's).
+python3 -I tools/bake_prefabs.py
 IMGUI="$TP/imgui"
 MH="$TP/minhook"
 for f in buffer hook trampoline hde/hde32; do

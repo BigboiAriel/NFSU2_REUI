@@ -5,3 +5,4 @@
 *.dmp
 build/
 third_party/
+src/editor/baked_prefabs.inc

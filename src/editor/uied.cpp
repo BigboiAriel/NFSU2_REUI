@@ -896,8 +896,40 @@ static void Load() { LoadFile(g_layoutPath, -1, false); }
 // ---------------------------------------------------------------- prefabs
 // A group (with the groups inside it) saved to scripts\NFSU2_REUI_prefabs\<name>.txt; adding one puts a copy in the
 // game mode being edited, as a new top-level group (renamed "<name> 2"... if that name is taken).
+// Built-in prefabs: the repo's prefabs/*.txt, baked into the .asi at build time (tools/bake_prefabs.py). A file of the
+// same name on disk overrides one. Delete removes the file and logs the name in _deleted.log, which hides a built-in
+// one now and drops it from the repo at the next build (tools/sync_prefabs.py).
+struct BakedPrefab { const char* name; const char* text; };
+#include "baked_prefabs.inc"
 static std::string PrefabDir() { return g_dir + "\\scripts\\NFSU2_REUI_prefabs\\"; }
 static std::string g_prefabMsg;
+static const char* BakedPrefabText(const std::string& name) {
+    for (const BakedPrefab* b = kBakedPrefabs; b->name; ++b) if (name == b->name) return b->text;
+    return nullptr;
+}
+static std::vector<std::string> DeletedPrefabs() {
+    std::vector<std::string> out;
+    FILE* f = fopen((PrefabDir() + "_deleted.log").c_str(), "r");
+    if (!f) return out;
+    char line[512];
+    while (fgets(line, sizeof line, f)) {
+        std::string s = line; while (!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' ')) s.pop_back();
+        if (!s.empty() && std::find(out.begin(), out.end(), s) == out.end()) out.push_back(s);
+    }
+    fclose(f);
+    return out;
+}
+static void WriteDeletedPrefabs(const std::vector<std::string>& names) {
+    std::string path = PrefabDir() + "_deleted.log";
+    if (names.empty()) { DeleteFileA(path.c_str()); return; }
+    CreateDirectoryA(PrefabDir().c_str(), nullptr);
+    FILE* f = fopen(path.c_str(), "w");
+    if (!f) return;
+    for (auto& n : names) fprintf(f, "%s\n", n.c_str());
+    fclose(f);
+}
+static bool PrefabOnDisk(const std::string& name) { return GetFileAttributesA((PrefabDir() + name + ".txt").c_str()) != INVALID_FILE_ATTRIBUTES; }
+static bool PrefabBuiltIn(const std::string& name) { return BakedPrefabText(name) != nullptr; }
 static bool SavePrefab(const std::string& group, std::string name) {
     for (char& c : name) if (strchr("\\/:*?\"<>|", c)) c = '_';
     if (name.empty()) return false;
@@ -909,27 +941,40 @@ static bool SavePrefab(const std::string& group, std::string name) {
     int n = 0;
     for (auto& e : Elems()) if (e.group == group || InGroup(e.group, group)) { PutElem(f, g_editMode, e); ++n; }
     fclose(f);
+    {   // saved again under a deleted name: it's back
+        auto del = DeletedPrefabs();
+        auto it = std::find(del.begin(), del.end(), name);
+        if (it != del.end()) { del.erase(it); WriteDeletedPrefabs(del); }
+    }
     g_prefabMsg = "saved \"" + name + "\" (" + std::to_string(n) + " elements)";
     Log("ui editor: prefab %s", g_prefabMsg.c_str());
     return true;
 }
-static std::vector<std::string> PrefabList() {
+static std::vector<std::string> PrefabList() {   // built-in ones and the files on disk, minus deleted names
     std::vector<std::string> out;
+    for (const BakedPrefab* b = kBakedPrefabs; b->name; ++b) out.push_back(b->name);
     WIN32_FIND_DATAA fd;
     HANDLE h = FindFirstFileA((PrefabDir() + "*.txt").c_str(), &fd);
-    if (h == INVALID_HANDLE_VALUE) return out;
-    do { std::string n = fd.cFileName; out.push_back(n.substr(0, n.size() - 4)); } while (FindNextFileA(h, &fd));
-    FindClose(h);
+    if (h != INVALID_HANDLE_VALUE) {
+        do {
+            std::string n = fd.cFileName; n = n.substr(0, n.size() - 4);
+            if (!n.empty() && n[0] != '_' && std::find(out.begin(), out.end(), n) == out.end()) out.push_back(n);
+        } while (FindNextFileA(h, &fd));
+        FindClose(h);
+    }
+    auto del = DeletedPrefabs();
+    out.erase(std::remove_if(out.begin(), out.end(), [&](const std::string& n) {
+        return !PrefabOnDisk(n) && std::find(del.begin(), del.end(), n) != del.end(); }), out.end());
     std::sort(out.begin(), out.end());
     return out;
 }
-static bool LoadPrefab(const std::string& name, std::string& root, std::vector<Elem>& els) {
-    els.clear(); root.clear();
-    FILE* f = fopen((PrefabDir() + name + ".txt").c_str(), "r");
-    if (!f) return false;
-    Elem* cur = nullptr; char line[2048];
-    while (fgets(line, sizeof line, f)) {
-        std::string s = line; while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
+static void ParsePrefab(const std::string& text, std::string& root, std::vector<Elem>& els) {
+    Elem* cur = nullptr;
+    size_t at = 0;
+    while (at < text.size()) {
+        size_t nl = text.find('\n', at); if (nl == std::string::npos) nl = text.size();
+        std::string s = text.substr(at, nl - at); at = nl + 1;
+        while (!s.empty() && s.back() == '\r') s.pop_back();
         if (s.empty() || s[0] == '#') continue;
         if (s == "[element]") { els.push_back(Elem()); cur = &els.back(); continue; }
         size_t eq = s.find('='); if (eq == std::string::npos) continue;
@@ -937,8 +982,26 @@ static bool LoadPrefab(const std::string& name, std::string& root, std::vector<E
         if (!cur) { if (k == "root") root = Unesc(v); continue; }
         ElemKey(*cur, k, v);
     }
-    fclose(f);
+}
+static bool LoadPrefab(const std::string& name, std::string& root, std::vector<Elem>& els) {   // the file, else the built-in one
+    els.clear(); root.clear();
+    std::string text;
+    if (FILE* f = fopen((PrefabDir() + name + ".txt").c_str(), "rb")) {
+        char buf[4096]; size_t n;
+        while ((n = fread(buf, 1, sizeof buf, f)) > 0) text.append(buf, n);
+        fclose(f);
+    } else if (const char* b = BakedPrefabText(name)) text = b;
+    else return false;
+    ParsePrefab(text, root, els);
     return true;
+}
+static void DeletePrefab(const std::string& name) {
+    bool file = PrefabOnDisk(name), builtIn = PrefabBuiltIn(name);
+    if (file) DeleteFileA((PrefabDir() + name + ".txt").c_str());
+    auto del = DeletedPrefabs();
+    if (std::find(del.begin(), del.end(), name) == del.end()) { del.push_back(name); WriteDeletedPrefabs(del); }
+    g_prefabMsg = "deleted \"" + name + "\"" + (builtIn ? " (built in: hidden now, removed from REUI at the next build)" : "");
+    Log("ui editor: prefab %s (logged in _deleted.log)", g_prefabMsg.c_str());
 }
 static void AddPrefab(const std::string& name) {
     std::string root; std::vector<Elem> els;
@@ -2120,8 +2183,10 @@ void Panel() {
         ImGui::BeginChild("##pflist", ImVec2(230, h), ImGuiChildFlags_Border);
         if (list.empty()) ImGui::TextDisabled("(no prefabs yet)");
         for (auto& n : list) {
-            if (ImGui::Selectable(n.c_str(), pick == n, ImGuiSelectableFlags_AllowDoubleClick)) { pick = n; if (ImGui::IsMouseDoubleClicked(0)) AddPrefab(n); }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Double-click: add it");
+            bool builtIn = PrefabBuiltIn(n), file = PrefabOnDisk(n);
+            std::string label = builtIn ? n + (file ? "  (built in, file)" : "  (built in)") : n;
+            if (ImGui::Selectable((label + "##" + n).c_str(), pick == n, ImGuiSelectableFlags_AllowDoubleClick)) { pick = n; if (ImGui::IsMouseDoubleClicked(0)) AddPrefab(n); }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Double-click: add it%s", builtIn ? (file ? "\nBuilt into REUI; the file on disk is the one used." : "\nBuilt into REUI.") : "");
         }
         ImGui::EndChild();
         ImGui::SameLine();
@@ -2159,8 +2224,9 @@ void Panel() {
         if (have) { ImGui::SameLine(); ImGui::TextDisabled("%s - %d elements", pick.c_str(), (int)cache.size()); }
         if (ImGui::BeginPopupModal("Delete prefab?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::Text("Are you sure you want to delete the prefab \"%s\"?", pick.c_str());
-            ImGui::TextDisabled("Its file goes for good; groups already added from it stay.");
-            if (ImGui::Button("Delete it")) { DeleteFileA((PrefabDir() + pick + ".txt").c_str()); g_prefabMsg = "deleted \"" + pick + "\""; pick.clear(); cacheName.clear(); ImGui::CloseCurrentPopup(); }
+            if (PrefabBuiltIn(pick)) ImGui::TextDisabled("It's built into REUI: hidden from now on, and gone from the next build.\nGroups already added from it stay.");
+            else ImGui::TextDisabled("Its file goes for good; groups already added from it stay.");
+            if (ImGui::Button("Delete it")) { DeletePrefab(pick); pick.clear(); cacheName.clear(); ImGui::CloseCurrentPopup(); }
             ImGui::SameLine(); if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
             ImGui::EndPopup();
         }

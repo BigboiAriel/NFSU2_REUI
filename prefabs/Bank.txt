@@ -1,0 +1,114 @@
+# NFSU2_REUI prefab
+root=Bank
+
+[element]
+mode=freeroam
+type=image
+name=Backing
+anchor=2
+x=80
+y=50
+w=280
+h=28
+scale=1
+color=1 1 1 1
+visible=1
+group=Bank/backing
+texture=3RDPERSON_BOXTIME
+pack=?
+uv=0 0 1 1
+
+[element]
+mode=freeroam
+type=image
+name=Backing copy
+anchor=2
+x=80
+y=36
+w=280
+h=28
+scale=1
+color=1 1 1 1
+visible=1
+group=Bank/backing
+texture=3RDPERSON_BOXTIME
+pack=?
+uv=0 1 1 0
+
+[element]
+mode=freeroam
+type=text
+name=Bank label
+anchor=2
+x=-183
+y=47
+w=0
+h=12
+scale=0.9
+color=0.7529 0.7529 0.7529 1
+visible=1
+group=Bank
+layer=2
+font=conduitmditc_tt14i
+text=Bank:
+align=0
+
+[element]
+mode=freeroam
+type=text
+name=Bank
+anchor=2
+x=-26
+y=46
+w=0
+h=12
+scale=0.6
+color=0.7529 0.7529 0.7529 1
+visible=1
+group=Bank
+layer=1
+font=font_conduitmditctt38bi
+text={cash}
+align=2
+
+[element]
+mode=freeroam
+type=text
+name=Bank (green flash)
+anchor=2
+x=-38
+y=46
+w=0
+h=12
+scale=0.6
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Bank
+layer=2
+font=font_conduitmditctt38bi
+text={cash}
+align=2
+showif=bank_reward_on
+anim=3
+keys=2700;0 1 1 0;60 1 1 1;240 1 1 1;300 1 1 0;2700 1 1 0
+
+[element]
+mode=freeroam
+type=text
+name=Bank Reward
+anchor=2
+x=-37
+y=77
+w=0
+h=12
+scale=0.85
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Bank
+layer=3
+font=font_conduitmditctt38bi
+text=Bank Reward: {bank_reward}
+align=2
+showif=bank_reward_on
+anim=3
+keys=2700;0 0.321 0.321 0 11 1;280 1 1 1 0 0;360 1.176 1.176 1 -4 0;440 1 1 1 0 0;2500 1 1 1 0 0;2600 0.529 0.529 0 0 -26;2700 0.529 0.529 0 0 -26

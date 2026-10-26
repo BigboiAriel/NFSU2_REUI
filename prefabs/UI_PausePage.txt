@@ -1,0 +1,583 @@
+# NFSU2_REUI prefab
+root=UniPad Options menu/UI_PausePage
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=-270
+y=161
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=2
+font=conduitmditc_tt21i
+text=Description
+align=0
+role=desc
+
+[element]
+mode=menus
+type=text
+name=UniPad Options
+anchor=4
+x=-287.714
+y=-196.286
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=2
+font=conduitmditc_tt21i
+text=UniPad Options
+align=0
+
+[element]
+mode=menus
+type=image
+name=image 5E1208DF
+anchor=4
+x=-288
+y=-206
+w=16
+h=16
+scale=1
+color=1 1 1 0.921569
+visible=1
+group=UniPad Options menu/UI_PausePage
+texture=U2_MENU_ROUNDEDCORNER_B
+pack=?
+uv=1 1 0 0
+
+[element]
+mode=menus
+type=image
+name=image 0894389E
+anchor=4
+x=-288
+y=4
+w=16
+h=404
+scale=1
+color=1 1 1 0.921569
+visible=1
+group=UniPad Options menu/UI_PausePage
+texture=U2_MENU_BOX_BLACK
+pack=?
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=image A67C3FE2
+anchor=4
+x=1
+y=4
+w=562
+h=436
+scale=1
+color=1 1 1 0.921569
+visible=1
+group=UniPad Options menu/UI_PausePage
+texture=U2_MENU_BOX_BLACK
+pack=?
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=image 0A570002
+anchor=4
+x=290
+y=214
+w=16
+h=16
+scale=1
+color=1 1 1 0.921569
+visible=1
+group=UniPad Options menu/UI_PausePage
+texture=U2_MENU_ROUNDEDCORNER_B
+pack=?
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=image A67C3FE2
+anchor=4
+x=290
+y=4
+w=16
+h=404
+scale=1
+color=1 1 1 0.921569
+visible=1
+group=UniPad Options menu/UI_PausePage
+texture=U2_MENU_BOX_BLACK
+pack=?
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=image 5E11FBFB
+anchor=4
+x=290
+y=-206
+w=16
+h=16
+scale=1
+color=1 1 1 0.921569
+visible=1
+group=UniPad Options menu/UI_PausePage
+texture=U2_MENU_ROUNDEDCORNER_B
+pack=?
+uv=0 1 1 0
+
+[element]
+mode=menus
+type=image
+name=image 5E12089D
+anchor=4
+x=-288
+y=214
+w=16
+h=16
+scale=1
+color=1 1 1 0.921569
+visible=1
+group=UniPad Options menu/UI_PausePage
+texture=U2_MENU_ROUNDEDCORNER_B
+pack=?
+uv=0 0 1 1
+rot=90
+
+[element]
+mode=menus
+type=image
+name=image 0A570002
+anchor=4
+x=-281
+y=-164
+w=16
+h=16
+scale=1
+color=0.882353 0.882353 0.882353 0.392157
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=1
+texture=U2_MENU_CORNER_WHITE
+pack=?
+uv=1 1 0 0
+
+[element]
+mode=menus
+type=image
+name=image A67C3FE2
+anchor=4
+x=-281
+y=9
+w=16
+h=330
+scale=1
+color=0.882353 0.882353 0.882353 0.392157
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=1
+texture=U2_MENU_BOX_WHITE
+pack=?
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=image 5E11FBFB
+anchor=4
+x=-281
+y=182
+w=16
+h=16
+scale=1
+color=0.882353 0.882353 0.882353 0.392157
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=1
+texture=U2_MENU_CORNER_WHITE
+pack=?
+uv=1 0 0 1
+
+[element]
+mode=menus
+type=image
+name=image A67C3FE2
+anchor=4
+x=1
+y=9
+w=548
+h=362
+scale=1
+color=0.882353 0.882353 0.882353 0.392157
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=1
+texture=U2_MENU_BOX_WHITE
+pack=?
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=image 0A570002
+anchor=4
+x=283
+y=182
+w=16
+h=16
+scale=1
+color=0.882353 0.882353 0.882353 0.392157
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=1
+texture=U2_MENU_CORNER_WHITE
+pack=?
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=image A67C3FE2
+anchor=4
+x=283
+y=9
+w=16
+h=330
+scale=1
+color=0.882353 0.882353 0.882353 0.399846
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=1
+texture=U2_MENU_BOX_WHITE
+pack=?
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=image 5E11FBFB
+anchor=4
+x=283
+y=-164
+w=16
+h=16
+scale=1
+color=0.882353 0.882353 0.882353 0.392157
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=1
+texture=U2_MENU_CORNER_WHITE
+pack=?
+uv=0 1 1 0
+
+[element]
+mode=menus
+type=image
+name=image 9C7C3C73
+anchor=4
+x=275
+y=-135
+w=8
+h=8
+scale=1
+color=1 1 1 0.392157
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=2
+texture=U2_SCROLLER_CORNER
+pack=?
+uv=0 0 1 1
+rot=90
+
+[element]
+mode=menus
+type=image
+name=image C07219CF
+anchor=4
+x=275
+y=155
+w=8
+h=8
+scale=1
+color=1 1 1 0.392157
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=2
+texture=U2_SCROLLER_CORNER
+pack=?
+uv=0 0 1 1
+rot=-90
+
+[element]
+mode=menus
+type=text
+name=Controls
+anchor=4
+x=288.326
+y=-196.29
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=2
+font=conduitmditc_tt21i
+text=Controls
+align=2
+
+[element]
+mode=menus
+type=image
+name=image 39CC2F66
+anchor=4
+x=1.75
+y=-213.5
+w=8
+h=574.5
+scale=1
+color=0.772549 0.854902 0.647059 1
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=3
+texture=U2_HIGHLIGHT_BOX
+pack=?
+uv=0 0 1 1
+rot=-90
+
+[element]
+mode=menus
+type=image
+name=image DDE4A5E5
+anchor=4
+x=-293.5
+y=-211.5
+w=16
+h=16
+scale=1
+color=0.772549 0.854902 0.647059 1
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=3
+texture=U2_HIGHLIGHT_CORNER
+pack=?
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=image DDE4A5E8
+anchor=4
+x=-294.5
+y=219
+w=16
+h=16
+scale=1
+color=0.772549 0.854902 0.647059 1
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=3
+texture=U2_HIGHLIGHT_CORNER
+pack=?
+uv=0 0 1 1
+rot=-90
+
+[element]
+mode=menus
+type=image
+name=image BE9AB445
+anchor=4
+x=-296.5
+y=3.74918
+w=8
+h=414.498
+scale=1
+color=0.772549 0.854902 0.647059 1
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=3
+texture=U2_HIGHLIGHT_BOX
+pack=?
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=image 39CC2F45
+anchor=4
+x=1
+y=222
+w=8
+h=574.586
+scale=1
+color=0.772549 0.854902 0.647059 1
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=3
+texture=U2_HIGHLIGHT_BOX
+pack=?
+uv=0 0 1 1
+rot=-90
+
+[element]
+mode=menus
+type=image
+name=image DDE4A5E7
+anchor=4
+x=296
+y=220
+w=16
+h=16
+scale=1
+color=0.772549 0.854902 0.647059 1
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=3
+texture=U2_HIGHLIGHT_CORNER
+pack=?
+uv=1 1 0 0
+
+[element]
+mode=menus
+type=image
+name=image 39CC2F24
+anchor=4
+x=299
+y=4.73312
+w=8
+h=414.466
+scale=1
+color=0.772549 0.854902 0.647059 1
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=3
+texture=U2_HIGHLIGHT_BOX
+pack=?
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=image DDE4A5E6
+anchor=4
+x=297
+y=-210.5
+w=16
+h=16
+scale=1
+color=0.772549 0.854902 0.647059 1
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=3
+texture=U2_HIGHLIGHT_CORNER
+pack=?
+uv=0 0 1 1
+rot=90
+
+[element]
+mode=menus
+type=image
+name=image 3FBB7A4E
+anchor=4
+x=274.781
+y=98.6667
+w=16
+h=16
+scale=1
+color=1 1 1 0.588235
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=6
+texture=U2_SCROLLER_TAB
+pack=?
+uv=0 0 1 1
+role=stab
+
+[element]
+mode=menus
+type=image
+name=image 444969FE
+anchor=4
+x=275
+y=175
+w=24
+h=24
+scale=1
+color=1 1 1 0.588235
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=6
+texture=U2_MENU_ARROW_WHITE
+pack=?
+uv=0 0 1 1
+rot=90
+
+[element]
+mode=menus
+type=image
+name=image 444969FD
+anchor=4
+x=275
+y=-154
+w=24
+h=24
+scale=1
+color=1 1 1 0.588235
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=6
+texture=U2_MENU_ARROW_WHITE
+pack=?
+uv=0 0 1 1
+rot=-90
+
+[element]
+mode=menus
+type=image
+name=image 688A1551
+anchor=4
+x=275
+y=10
+w=8
+h=282
+scale=1
+color=1 1 1 0.392157
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=5
+texture=U2_MENU_BOX_WHITE
+pack=?
+uv=0 0 1 1
+role=strack
+
+[element]
+mode=menus
+type=image
+name=image 654668EC
+anchor=4
+x=280
+y=357
+w=234.918
+h=32
+scale=1
+color=1 1 1 0.882353
+visible=1
+group=UniPad Options menu/UI_PausePage
+layer=2
+texture=U2_TEMP_SLIDERBG
+pack=?
+uv=0 0 1 1

@@ -1,0 +1,344 @@
+# NFSU2_REUI prefab
+root=Tachometer
+
+[element]
+mode=freeroam
+type=image
+name=Dial
+anchor=2
+x=97
+y=321
+w=256
+h=256
+scale=1
+color=1 1 1 1
+visible=1
+group=Tachometer
+texture={tach_fill}
+pack=
+uv=0 0 1 1
+tint=tach_paint_1
+
+[element]
+mode=freeroam
+type=image
+name=Redline
+anchor=2
+x=-39
+y=326
+w=128
+h=32
+scale=1
+color=0.4588 0.0431 0.0431 0.7843
+visible=1
+group=Tachometer
+layer=1
+texture={tach_redline}
+pack=
+uv=0 0 1 1
+
+[element]
+mode=freeroam
+type=image
+name=RPM numbers
+anchor=2
+x=-28
+y=326
+w=128
+h=128
+scale=1
+color=1 1 1 1
+visible=1
+group=Tachometer
+layer=2
+texture={tach_lines}
+pack=
+uv=0 0 1 1
+tint=tach_paint_3
+
+[element]
+mode=freeroam
+type=image
+name=N2O backing
+anchor=2
+x=71
+y=277
+w=256
+h=128
+scale=1
+color=1 1 1 0.3922
+visible=1
+group=Tachometer
+layer=3
+texture=TACH_NOS_BACKING
+pack=
+uv=0 0 1 1
+showif=nos_installed
+
+[element]
+mode=freeroam
+type=image
+name=N2O
+anchor=2
+x=71
+y=275
+w=256
+h=128
+scale=1
+color=0 0.502 0.7529 0.5882
+visible=1
+group=Tachometer
+layer=4
+texture=TACH_NOS
+pack=
+uv=0 0 1 1
+showif=nos_installed
+bind=nos_tank
+bindkind=4
+bindrange=0 100
+bindrot=-180 -28
+pivot=-31 52
+additive=1
+
+[element]
+mode=freeroam
+type=image
+name=N2O extra
+anchor=2
+x=71
+y=275
+w=256
+h=128
+scale=1
+color=0.549 0.8627 1 0.7843
+visible=1
+group=Tachometer
+layer=4
+texture=TACH_NOS_ALPHA
+pack=
+uv=0 0 1 1
+showif=nos_extra
+bind=nos_extra
+bindkind=4
+bindrange=0 100
+bindrot=-180 -28
+pivot=-31 52
+additive=1
+
+[element]
+mode=freeroam
+type=image
+name=Needle
+anchor=2
+x=-82
+y=327
+w=16
+h=128
+scale=1
+color=1 1 1 1
+visible=1
+group=Tachometer
+layer=5
+texture={tach_needle}
+pack=
+uv=0 0 1 1
+bind=tach_angle
+bindkind=3
+bindrange=0 235
+bindrot=0 235
+tint=tach_paint_2
+
+[element]
+mode=freeroam
+type=image
+name=Shift light
+anchor=2
+x=-58
+y=373
+w=16
+h=16
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Tachometer
+layer=7
+texture=SHIFT_UP_ICON
+pack=
+uv=0 0 1 1
+showif=shift_light
+
+[element]
+mode=freeroam
+type=text
+name=Speed
+anchor=2
+x=-37
+y=389
+w=0
+h=12
+scale=0.8
+color=0.7529 0.7529 0.7529 1
+visible=1
+group=Tachometer
+layer=6
+font=font_conduitmditctt38bi
+text={speedo}
+align=2
+
+[element]
+mode=freeroam
+type=text
+name=Speed units
+anchor=2
+x=-40
+y=417
+w=0
+h=12
+scale=0.75
+color=0.7529 0.7529 0.7529 1
+visible=1
+group=Tachometer
+layer=6
+font=conduitmditc_tt14i
+text={speed_unit_hud}
+align=2
+
+[element]
+mode=freeroam
+type=text
+name=Gear
+anchor=2
+x=-39
+y=368
+w=0
+h=12
+scale=0.6
+color=1 0.502 0.251 1
+visible=1
+group=Tachometer
+layer=6
+font=font_conduitmditctt38bi
+text={gear}
+align=2
+showif=!gear_grey
+
+[element]
+mode=freeroam
+type=text
+name=Gear (grey)
+anchor=2
+x=-39
+y=368
+w=0
+h=12
+scale=0.6
+color=0.7647 0.7647 0.7647 1
+visible=1
+group=Tachometer
+layer=6
+font=font_conduitmditctt38bi
+text={gear}
+align=2
+showif=gear_grey
+
+[element]
+mode=freeroam
+type=image
+name=Boost dial
+anchor=2
+x=-93
+y=388
+w=128
+h=128
+scale=1
+color=1 1 1 1
+visible=1
+group=Tachometer/Boost
+texture={turbo_fill}
+pack=
+uv=0 0 1 1
+showif=turbo
+tint=tach_paint_1
+
+[element]
+mode=freeroam
+type=image
+name=Boost red 1
+anchor=2
+x=-154
+y=386
+w=32
+h=32
+scale=1
+color=0.4588 0.0431 0.0431 0.7843
+visible=1
+group=Tachometer/Boost
+layer=1
+texture=3RDPERSON_TURBORED_1
+pack=
+uv=0 0 1 1
+showif=turbo
+
+[element]
+mode=freeroam
+type=image
+name=Boost red 2
+anchor=2
+x=-181
+y=432
+w=32
+h=32
+scale=1
+color=0.4588 0.0431 0.0431 0.7843
+visible=1
+group=Tachometer/Boost
+layer=1
+texture=3RDPERSON_TURBORED_1
+pack=
+uv=0 0 1 1
+rot=171.5
+showif=turbo
+
+[element]
+mode=freeroam
+type=image
+name=Boost numbers
+anchor=2
+x=-93
+y=388
+w=128
+h=128
+scale=1
+color=1 1 1 1
+visible=1
+group=Tachometer/Boost
+layer=2
+texture={turbo_lines}
+pack=
+uv=0 0 1 1
+showif=turbo
+tint=tach_paint_3
+
+[element]
+mode=freeroam
+type=image
+name=Boost needle
+anchor=2
+x=-177
+y=392
+w=16
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+group=Tachometer/Boost
+layer=5
+texture={turbo_needle}
+pack=
+uv=0 0 1 1
+showif=turbo
+bind=boost
+bindkind=3
+bindrange=0 100
+bindrot=104 222
+tint=tach_paint_2

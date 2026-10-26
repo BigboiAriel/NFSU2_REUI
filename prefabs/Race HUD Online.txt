@@ -1,0 +1,1578 @@
+# NFSU2_REUI prefab
+root=Race HUD Online
+
+[element]
+mode=race
+type=image
+name=Position backing
+anchor=2
+x=65
+y=26
+w=256
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+group=Race HUD Online/Position
+texture=3RDPERSON_BOXCORNER
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Position
+anchor=2
+x=-147
+y=39.9
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Position
+font=font_conduitmditctt38bi
+text={pos}
+align=2
+
+[element]
+mode=race
+type=text
+name=Position suffix
+anchor=2
+x=-145
+y=46.7
+w=0
+h=64
+scale=0.7
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Position
+font=font_conduitmditctt38bi
+text={pos_suffix}
+align=0
+
+[element]
+mode=race
+type=image
+name=Lap backing
+anchor=2
+x=61
+y=59
+w=256
+h=64
+scale=1
+color=0 0 0 1
+visible=1
+group=Race HUD Online/Laps
+texture=3RDPERSON_BOXLAPS
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Lap label
+anchor=2
+x=-180.5
+y=77.8
+w=0
+h=64
+scale=0.6
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Laps
+font=font_conduitmditctt38bi
+text=Lap
+align=0
+
+[element]
+mode=race
+type=text
+name=Lap
+anchor=2
+x=-97.5
+y=78.8
+w=0
+h=64
+scale=0.6
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Laps
+font=font_conduitmditctt38bi
+text={lap}
+align=0
+
+[element]
+mode=race
+type=text
+name=Laps
+anchor=2
+x=-74.5
+y=78.8
+w=0
+h=64
+scale=0.6
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Laps
+font=font_conduitmditctt38bi
+text=/{laps}
+align=0
+
+[element]
+mode=race
+type=image
+name=Row 1 number box
+anchor=2
+x=-166.75
+y=106
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=1
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 1 bar
+anchor=2
+x=-32.5
+y=106
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=1
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 1 position
+anchor=2
+x=-185.5
+y=105
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=1
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 1 name
+anchor=2
+x=-35
+y=105
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=1
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 2 number box
+anchor=2
+x=-166.75
+y=126
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=2
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 2 bar
+anchor=2
+x=-32.5
+y=126
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=2
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 2 position
+anchor=2
+x=-185.5
+y=125
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=2
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 2 name
+anchor=2
+x=-35
+y=125
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=2
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 3 number box
+anchor=2
+x=-166.75
+y=146
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=3
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 3 bar
+anchor=2
+x=-32.5
+y=146
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=3
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 3 position
+anchor=2
+x=-185.5
+y=145
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=3
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 3 name
+anchor=2
+x=-35
+y=145
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=3
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 4 number box
+anchor=2
+x=-166.75
+y=166
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=4
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 4 bar
+anchor=2
+x=-32.5
+y=166
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=4
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 4 position
+anchor=2
+x=-185.5
+y=165
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=4
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 4 name
+anchor=2
+x=-35
+y=165
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=4
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 5 number box
+anchor=2
+x=-166.75
+y=186
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=5
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 5 bar
+anchor=2
+x=-32.5
+y=186
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=5
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 5 position
+anchor=2
+x=-185.5
+y=185
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=5
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 5 name
+anchor=2
+x=-35
+y=185
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=5
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 6 number box
+anchor=2
+x=-166.75
+y=206
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=6
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 6 bar
+anchor=2
+x=-32.5
+y=206
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=6
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 6 position
+anchor=2
+x=-185.5
+y=205
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=6
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 6 name
+anchor=2
+x=-35
+y=205
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=6
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 7 number box
+anchor=2
+x=-166.75
+y=226
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=7
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 7 bar
+anchor=2
+x=-32.5
+y=226
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=7
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 7 position
+anchor=2
+x=-185.5
+y=225
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=7
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 7 name
+anchor=2
+x=-35
+y=225
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=7
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 8 number box
+anchor=2
+x=-166.75
+y=246
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=8
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 8 bar
+anchor=2
+x=-32.5
+y=246
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=8
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 8 position
+anchor=2
+x=-185.5
+y=245
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=8
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 8 name
+anchor=2
+x=-35
+y=245
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=8
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 9 number box
+anchor=2
+x=-166.75
+y=266
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=9
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 9 bar
+anchor=2
+x=-32.5
+y=266
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=9
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 9 position
+anchor=2
+x=-185.5
+y=265
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=9
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 9 name
+anchor=2
+x=-35
+y=265
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=9
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 10 number box
+anchor=2
+x=-166.75
+y=286
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=10
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 10 bar
+anchor=2
+x=-32.5
+y=286
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=10
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 10 position
+anchor=2
+x=-185.5
+y=285
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=10
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 10 name
+anchor=2
+x=-35
+y=285
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=10
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 11 number box
+anchor=2
+x=-166.75
+y=306
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=11
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 11 bar
+anchor=2
+x=-32.5
+y=306
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=11
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 11 position
+anchor=2
+x=-185.5
+y=305
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=11
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 11 name
+anchor=2
+x=-35
+y=305
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=11
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 12 number box
+anchor=2
+x=-166.75
+y=326
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=12
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 12 bar
+anchor=2
+x=-32.5
+y=326
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=12
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 12 position
+anchor=2
+x=-185.5
+y=325
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=12
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 12 name
+anchor=2
+x=-35
+y=325
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=12
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Time backing
+anchor=2
+x=58
+y=178
+w=256
+h=32
+scale=1
+color=0 0 0 0.745098
+visible=1
+group=Race HUD Online/Time
+texture=3RDPERSON_BOXTIME
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Time label
+anchor=2
+x=-182
+y=185
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Time
+font=conduitmditc_tt14i
+text=Time:
+align=0
+
+[element]
+mode=race
+type=text
+name=Time
+anchor=2
+x=-35
+y=185
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Time
+font=conduitmditc_tt14i
+text={race_time}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 13 number box
+anchor=2
+x=-166.75
+y=346
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=13
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 13 bar
+anchor=2
+x=-32.5
+y=346
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=13
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 13 position
+anchor=2
+x=-185.5
+y=345
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=13
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 13 name
+anchor=2
+x=-35
+y=345
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=13
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 14 number box
+anchor=2
+x=-166.75
+y=366
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=14
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 14 bar
+anchor=2
+x=-32.5
+y=366
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=14
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 14 position
+anchor=2
+x=-185.5
+y=365
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=14
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 14 name
+anchor=2
+x=-35
+y=365
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=14
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 15 number box
+anchor=2
+x=-166.75
+y=386
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=15
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 15 bar
+anchor=2
+x=-32.5
+y=386
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=15
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 15 position
+anchor=2
+x=-185.5
+y=385
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=15
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 15 name
+anchor=2
+x=-35
+y=385
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=15
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 16 number box
+anchor=2
+x=-166.75
+y=406
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=16
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 16 bar
+anchor=2
+x=-32.5
+y=406
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=16
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 16 position
+anchor=2
+x=-185.5
+y=405
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=16
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 16 name
+anchor=2
+x=-35
+y=405
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=16
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 17 number box
+anchor=2
+x=-166.75
+y=426
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=17
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 17 bar
+anchor=2
+x=-32.5
+y=426
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=17
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 17 position
+anchor=2
+x=-185.5
+y=425
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=17
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 17 name
+anchor=2
+x=-35
+y=425
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=17
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 18 number box
+anchor=2
+x=-166.75
+y=446
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=18
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 18 bar
+anchor=2
+x=-32.5
+y=446
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=18
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 18 position
+anchor=2
+x=-185.5
+y=445
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=18
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 18 name
+anchor=2
+x=-35
+y=445
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=18
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 19 number box
+anchor=2
+x=-166.75
+y=466
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=19
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 19 bar
+anchor=2
+x=-32.5
+y=466
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=19
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 19 position
+anchor=2
+x=-185.5
+y=465
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=19
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 19 name
+anchor=2
+x=-35
+y=465
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=19
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
