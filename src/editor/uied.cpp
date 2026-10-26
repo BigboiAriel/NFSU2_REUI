@@ -421,7 +421,9 @@ struct Elem {
     bool circle = false;
     bool additive = false;                // images: added onto what's under them (glows; black = nothing)
     std::string tint;                     // a value key giving "R G B" (0-255) that multiplies the colour (the car's HUD paints)
-    int anim = 0;                         // 1 pulse (grows and fades, ~1 s), 2 blink (on / off, ~0.5 s)
+    int anim = 0;                         // 1 pulse (grows and fades, ~1 s), 2 blink (on / off, ~0.5 s), 3 keyframes
+    std::string keys;                     // anim 3: "period ms;t sx sy a;t sx sy a;..." - size and alpha multipliers, linear, looping
+    double shownSince = -1;               // (running) when its show-only-while value last came on: animations start there
 };
 static std::vector<Elem> g_layout[NMODES];   // one overlay per game mode
 static int g_editMode = 0, g_nowMode = -1;
@@ -560,7 +562,8 @@ static void AdditiveOn(const ImDrawList*, const ImDrawCmd*) {   // the next draw
 }
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
-    if (!editing && !ShowIfOk(e)) return;
+    if (!ShowIfOk(e)) { e.shownSince = -1; if (!editing) return; }
+    else if (e.shownSince < 0) e.shownSince = ImGui::GetTime();
     if (e.row > boardRows) return;               // past the rows shown (also while editing)
     bool mine = false;
     if (!RowShown(e, mine) && !editing) return;   // (while editing, rows nobody fills are drawn so they can be placed)
@@ -575,8 +578,28 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         }
     }
     if (e.anim && !editing) {   // pulse: up to 30% bigger and half faded; blink: hidden half the time
-        double t = ImGui::GetTime();
+        double t = ImGui::GetTime() - (e.shownSince >= 0 ? e.shownSince : 0);   // from when it came on, like the game's scripts
         if (e.anim == 2 && fmod(t, 0.6) > 0.3) return;
+        if (e.anim == 3 && !e.keys.empty()) {   // the game's FEng script keys (looping): size and alpha
+            float period = (float)atof(e.keys.c_str());
+            std::vector<float> k;   // t sx sy a ...
+            for (size_t p = e.keys.find(';'); p != std::string::npos; p = e.keys.find(';', p + 1)) {
+                float v[4]; if (sscanf(e.keys.c_str() + p + 1, "%f %f %f %f", &v[0], &v[1], &v[2], &v[3]) == 4) k.insert(k.end(), v, v + 4);
+            }
+            if (period > 0 && k.size() >= 8) {
+                float ph = (float)fmod(t * 1000.0, period), sx = k[1], sy = k[2], al = k[3];
+                for (size_t i = 0; i + 4 < k.size(); i += 4)
+                    if (ph >= k[i] && ph <= k[i + 4]) {
+                        float f = k[i + 4] > k[i] ? (ph - k[i]) / (k[i + 4] - k[i]) : 0.f;
+                        sx = k[i + 1] + (k[i + 5] - k[i + 1]) * f; sy = k[i + 2] + (k[i + 6] - k[i + 2]) * f; al = k[i + 3] + (k[i + 7] - k[i + 3]) * f;
+                        break;
+                    }
+                ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), h((b.x - a.x) / 2 * sx, (b.y - a.y) / 2 * sy);
+                a = ImVec2(c.x - h.x, c.y - h.y); b = ImVec2(c.x + h.x, c.y + h.y);
+                ImVec4 cv = ImGui::ColorConvertU32ToFloat4(col); cv.w *= al; col = ImGui::ColorConvertFloat4ToU32(cv);
+                if (al <= 0.004f) return;
+            }
+        }
         if (e.anim == 1) {
             float s = 0.5f - 0.5f * cosf((float)fmod(t, 1.0) * 6.2831853f);   // 0..1..0
             ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), h((b.x - a.x) / 2 * (1 + 0.3f * s), (b.y - a.y) / 2 * (1 + 0.3f * s));
@@ -722,6 +745,7 @@ static void Save() {
         if (e.additive) fprintf(f, "additive=1\n");
         if (!e.tint.empty()) fprintf(f, "tint=%s\n", e.tint.c_str());
         if (e.anim) fprintf(f, "anim=%d\n", e.anim);
+        if (!e.keys.empty()) fprintf(f, "keys=%s\n", e.keys.c_str());
     };
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
     for (auto& e : g_kit) put(0, e);
@@ -786,7 +810,8 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
         else if (k == "circle") e.circle = atoi(v.c_str()) != 0;
         else if (k == "additive") e.additive = atoi(v.c_str()) != 0;
         else if (k == "tint") e.tint = v;
-        else if (k == "anim") e.anim = std::max(0, std::min(2, atoi(v.c_str())));
+        else if (k == "anim") e.anim = std::max(0, std::min(3, atoi(v.c_str())));
+        else if (k == "keys") e.keys = v;
     }
     fclose(f);
     if (merge) g_dirty = true; else g_dirty = false;
@@ -1433,7 +1458,13 @@ static void Selected(Elem& e) {
             if (ImGui::InputTextWithHint("tint from", "e.g. tach_paint_1", tb2, sizeof tb2)) { e.tint = tb2; g_dirty = true; }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("A live value giving \"R G B\" (0-255) that multiplies the colour - the car's custom HUD paints.");
         }
-        { const char* an[] = { "still", "pulse", "blink" }; ImGui::SameLine(); ImGui::SetNextItemWidth(80); if (ImGui::Combo("animation", &e.anim, an, 3)) g_dirty = true; }
+        { const char* an[] = { "still", "pulse", "blink", "keyframes" }; ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::Combo("animation", &e.anim, an, 4)) g_dirty = true; }
+        if (e.anim == 3) {
+            static char kb[256]; snprintf(kb, sizeof kb, "%s", e.keys.c_str());
+            ImGui::SetNextItemWidth(320);
+            if (ImGui::InputTextWithHint("keys", "800;0 1 1 1;400 1.6 1.7 1;800 1 1 1", kb, sizeof kb)) { e.keys = kb; g_dirty = true; }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Loop length in ms, then keys \"time width-scale height-scale alpha\" separated by ;\n(straight lines between keys; the game's HUD animations as they're stored in its .fng).");
+        }
         if (e.type == E_IMAGE) {
             const char* kinds[] = { "nothing", "fill left to right", "fill bottom to top", "rotation", "reveal (turning half)" };
             ImGui::SetNextItemWidth(160);
