@@ -904,10 +904,11 @@ static std::vector<std::string> PrefabList() {
     std::sort(out.begin(), out.end());
     return out;
 }
-static void AddPrefab(const std::string& name) {
+static bool LoadPrefab(const std::string& name, std::string& root, std::vector<Elem>& els) {
+    els.clear(); root.clear();
     FILE* f = fopen((PrefabDir() + name + ".txt").c_str(), "r");
-    if (!f) { g_prefabMsg = "couldn't read " + name; return; }
-    std::string root; std::vector<Elem> els; Elem* cur = nullptr; char line[2048];
+    if (!f) return false;
+    Elem* cur = nullptr; char line[2048];
     while (fgets(line, sizeof line, f)) {
         std::string s = line; while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
         if (s.empty() || s[0] == '#') continue;
@@ -918,6 +919,11 @@ static void AddPrefab(const std::string& name) {
         ElemKey(*cur, k, v);
     }
     fclose(f);
+    return true;
+}
+static void AddPrefab(const std::string& name) {
+    std::string root; std::vector<Elem> els;
+    if (!LoadPrefab(name, root, els)) { g_prefabMsg = "couldn't read " + name; return; }
     if (els.empty()) { g_prefabMsg = "\"" + name + "\" is empty"; return; }
     std::string base = name, top = base;   // a free top-level group name
     auto taken = [&](const std::string& g) { for (auto& e : Elems()) if (e.group == g || InGroup(e.group, g)) return true; return false; };
@@ -1828,24 +1834,6 @@ void Panel() {
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", kTokenHelp);
     }
     }  // !menuMode
-    if (ImGui::CollapsingHeader("Prefabs")) {
-        ImGui::TextDisabled("Right-click a group in the list to save it as a prefab. Add puts a copy in this game mode.");
-        auto list = PrefabList();
-        if (list.empty()) ImGui::TextDisabled("(none yet - scripts\\NFSU2_REUI_prefabs)");
-        static std::string confirmDel;
-        for (auto& n : list) {
-            ImGui::PushID(n.c_str());
-            if (ImGui::SmallButton("Add")) AddPrefab(n);
-            ImGui::SameLine();
-            if (confirmDel == n) {
-                if (ImGui::SmallButton("Really delete")) { DeleteFileA((PrefabDir() + n + ".txt").c_str()); g_prefabMsg = "deleted \"" + n + "\""; confirmDel.clear(); }
-                ImGui::SameLine(); if (ImGui::SmallButton("Keep")) confirmDel.clear();
-            } else if (ImGui::SmallButton("Delete")) confirmDel = n;
-            ImGui::SameLine(); ImGui::TextUnformatted(n.c_str());
-            ImGui::PopID();
-        }
-        if (!g_prefabMsg.empty()) ImGui::TextDisabled("%s", g_prefabMsg.c_str());
-    }
     if (ImGui::Button("Add image")) {
         Elem e; e.type = E_IMAGE; e.name = "image " + std::to_string(Elems().size() + 1);
         if (g_texSel >= 0) { e.tex = g_tex[g_texSel].name; e.pack = g_tex[g_texSel].pack; e.texIdx = g_texSel; e.w = g_tex[g_texSel].w; e.h = g_tex[g_texSel].h; e.name = e.tex; }
@@ -2104,6 +2092,62 @@ void Panel() {
     }
     UndoCommit(false);
     KitPanel();
+    // ---- prefabs: a list, a preview of the picked one, Add / Delete
+    if (!menuMode && ImGui::CollapsingHeader("Prefabs")) {
+        static std::string pick, cacheName; static std::vector<Elem> cache; static double cacheAt = -10;
+        auto list = PrefabList();
+        ImGui::TextDisabled("Right-click a group in the element list to save it as a prefab (scripts\\NFSU2_REUI_prefabs).");
+        float h = 230;
+        ImGui::BeginChild("##pflist", ImVec2(230, h), ImGuiChildFlags_Border);
+        if (list.empty()) ImGui::TextDisabled("(no prefabs yet)");
+        for (auto& n : list) {
+            if (ImGui::Selectable(n.c_str(), pick == n, ImGuiSelectableFlags_AllowDoubleClick)) { pick = n; if (ImGui::IsMouseDoubleClicked(0)) AddPrefab(n); }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Double-click: add it");
+        }
+        ImGui::EndChild();
+        ImGui::SameLine();
+        ImGui::BeginGroup();
+        bool have = std::find(list.begin(), list.end(), pick) != list.end();
+        if (have && (cacheName != pick || ImGui::GetTime() - cacheAt > 2.0)) {   // (re-read now and then: it may have been replaced)
+            std::string root; LoadPrefab(pick, root, cache); cacheName = pick; cacheAt = ImGui::GetTime();
+        }
+        ImVec2 box(std::max(200.f, ImGui::GetContentRegionAvail().x), h - ImGui::GetFrameHeightWithSpacing());
+        ImVec2 p0 = ImGui::GetCursorScreenPos(), p1(p0.x + box.x, p0.y + box.y);
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->AddRectFilled(p0, p1, IM_COL32(28, 30, 36, 255), 4.f);
+        dl->AddRect(p0, p1, IM_COL32(80, 84, 96, 255), 4.f);
+        ImGui::Dummy(box);
+        if (have && !cache.empty()) {
+            // drawn as on the game screen, then fitted into the box (every vertex scaled about the pieces' bounds)
+            ImVec2 lo(1e9f, 1e9f), hi(-1e9f, -1e9f);
+            for (auto& e : cache) { if (!e.visible) continue; ImVec2 a, b; ElemRect(e, a, b); lo.x = std::min(lo.x, a.x); lo.y = std::min(lo.y, a.y); hi.x = std::max(hi.x, b.x); hi.y = std::max(hi.y, b.y); }
+            if (hi.x > lo.x && hi.y > lo.y) {
+                dl->PushClipRect(p0, p1, true);
+                int v0 = dl->VtxBuffer.Size;
+                for (int i : DrawOrder(cache)) DrawElem(dl, cache[i], true);
+                float sc = std::min((box.x - 16) / (hi.x - lo.x), (box.y - 16) / (hi.y - lo.y));
+                ImVec2 off(p0.x + (box.x - (hi.x - lo.x) * sc) / 2, p0.y + (box.y - (hi.y - lo.y) * sc) / 2);
+                for (int i = v0; i < dl->VtxBuffer.Size; ++i) { ImVec2& v = dl->VtxBuffer[i].pos; v = ImVec2(off.x + (v.x - lo.x) * sc, off.y + (v.y - lo.y) * sc); }
+                dl->PopClipRect();
+            }
+        } else dl->AddText(ImVec2(p0.x + 10, p0.y + 10), IM_COL32(140, 140, 150, 255), have ? "(empty)" : "Pick a prefab to see it here");
+        ImGui::BeginDisabled(!have);
+        if (ImGui::Button("Add")) AddPrefab(pick);
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("A copy in this game mode (%s), as a new group.", kModeName[g_editMode]);
+        ImGui::SameLine();
+        if (ImGui::Button("Delete")) ImGui::OpenPopup("Delete prefab?");
+        ImGui::EndDisabled();
+        if (have) { ImGui::SameLine(); ImGui::TextDisabled("%s - %d elements", pick.c_str(), (int)cache.size()); }
+        if (ImGui::BeginPopupModal("Delete prefab?", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+            ImGui::Text("Are you sure you want to delete the prefab \"%s\"?", pick.c_str());
+            ImGui::TextDisabled("Its file goes for good; groups already added from it stay.");
+            if (ImGui::Button("Delete it")) { DeleteFileA((PrefabDir() + pick + ".txt").c_str()); g_prefabMsg = "deleted \"" + pick + "\""; pick.clear(); cacheName.clear(); ImGui::CloseCurrentPopup(); }
+            ImGui::SameLine(); if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
+        ImGui::EndGroup();
+        if (!g_prefabMsg.empty()) ImGui::TextDisabled("%s", g_prefabMsg.c_str());
+    }
     // ---- controller button icons
     if (!iconKeys.empty() && iconTexture && ImGui::CollapsingHeader("Button icons")) {
         static int fam = 0;   // 0 = follows the controller, 1.. = a family
