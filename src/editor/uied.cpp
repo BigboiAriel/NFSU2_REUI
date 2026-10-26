@@ -393,6 +393,12 @@ struct Elem {
     std::string role;                     // menus: what it does in its row / page (uied_menu.inc)
     bool selOnly = false;                 // menus: shown on the selected row only
     std::string kit;                      // menus: the widget-kit template it belongs to ("" = in the layout)
+    // live-value rules: showIf = a value key ("!key": the opposite) - shown only while it's set (not blank / "0");
+    // bind = a value key driving the element: bindKind 1 fill left to right, 2 fill bottom to top (images: cut, not
+    // squashed), 3 rotation (images; rotMin..rotMax degrees); the value is mapped from bindMin..bindMax
+    std::string showIf, bind;
+    int bindKind = 0;
+    float bindMin = 0, bindMax = 100, rotMin = 0, rotMax = 270;
 };
 static std::vector<Elem> g_layout[NMODES];   // one overlay per game mode
 static int g_editMode = 0, g_nowMode = -1;
@@ -491,8 +497,30 @@ static bool RowShown(const Elem& e, bool& mine) {
     if (tokens("r" + std::to_string(e.row) + ".me", v)) mine = !v.empty();
     return true;
 }
+static bool ValueOf(const std::string& key, float& out) {
+    std::string v;
+    if (key.empty() || !(tokens && tokens(key, v)) || v.empty()) return false;
+    char* end = nullptr; out = strtof(v.c_str(), &end);
+    return end != v.c_str();
+}
+static bool ShowIfOk(const Elem& e) {
+    if (e.showIf.empty()) return true;
+    bool neg = e.showIf[0] == '!';
+    std::string v, key = neg ? e.showIf.substr(1) : e.showIf;
+    bool set = tokens && tokens(key, v) && !v.empty() && v != "0";
+    return neg ? !set : set;
+}
+// 0..1 along the element's bind range (-1: no value now)
+static float BindFrac(const Elem& e) {
+    float v;
+    if (e.bindKind == 0 || !ValueOf(e.bind, v)) return -1.f;
+    float d = e.bindMax - e.bindMin;
+    float f = d != 0 ? (v - e.bindMin) / d : 0.f;
+    return f < 0 ? 0.f : f > 1 ? 1.f : f;
+}
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
+    if (!editing && !ShowIfOk(e)) return;
     if (e.row > boardRows) return;               // past the rows shown (also while editing)
     bool mine = false;
     if (!RowShown(e, mine) && !editing) return;   // (while editing, rows nobody fills are drawn so they can be placed)
@@ -507,6 +535,12 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         float su = 1, sv = 1;   // a live texture padded to a power of two: the picture is its top-left part
         if (!tx && !icon && e.texIdx < 0 && liveTexture && !e.tex.empty()) tx = liveTexture(e.tex, &su, &sv);
         ImVec2 uv0(e.u0 * su, e.v0 * sv), uv1(e.u1 * su, e.v1 * sv);
+        float rotSave = e.rot, bf = BindFrac(e);
+        if (bf >= 0.f && e.bindKind == 1) { b.x = a.x + (b.x - a.x) * bf; uv1.x = uv0.x + (uv1.x - uv0.x) * bf; }
+        if (bf >= 0.f && e.bindKind == 2) { a.y = b.y - (b.y - a.y) * bf; uv0.y = uv1.y - (uv1.y - uv0.y) * bf; }
+        if (bf >= 0.f && e.bindKind == 3) e.rot = e.rotMin + (e.rotMax - e.rotMin) * bf;
+        struct Restore { Elem& e; float r; ~Restore() { e.rot = r; } } restore{ e, rotSave };
+        if (tx && (bf == 0.f && (e.bindKind == 1 || e.bindKind == 2))) tx = nullptr;   // empty bar: nothing
         if (tx && e.rot == 0) dl->AddImage((ImTextureID)tx, a, b, uv0, uv1, col);
         else if (tx) {
             float r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
@@ -553,6 +587,9 @@ static void Save() {
         if (!e.role.empty()) fprintf(f, "role=%s\n", e.role.c_str());
         if (e.selOnly) fprintf(f, "selonly=1\n");
         if (!e.kit.empty()) fprintf(f, "kit=%s\n", Esc(e.kit).c_str());
+        if (!e.showIf.empty()) fprintf(f, "showif=%s\n", e.showIf.c_str());
+        if (e.bindKind) fprintf(f, "bind=%s\nbindkind=%d\nbindrange=%g %g\n", e.bind.c_str(), e.bindKind, e.bindMin, e.bindMax);
+        if (e.bindKind == 3) fprintf(f, "bindrot=%g %g\n", e.rotMin, e.rotMax);
     };
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
     for (auto& e : g_kit) put(0, e);
@@ -606,6 +643,11 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
         else if (k == "role") e.role = v;
         else if (k == "selonly") e.selOnly = atoi(v.c_str()) != 0;
         else if (k == "kit") e.kit = Unesc(v);
+        else if (k == "showif") e.showIf = v;
+        else if (k == "bind") e.bind = v;
+        else if (k == "bindkind") e.bindKind = std::max(0, std::min(3, atoi(v.c_str())));
+        else if (k == "bindrange") sscanf(v.c_str(), "%f %f", &e.bindMin, &e.bindMax);
+        else if (k == "bindrot") sscanf(v.c_str(), "%f %f", &e.rotMin, &e.rotMax);
     }
     fclose(f);
     if (merge) g_dirty = true; else g_dirty = false;
@@ -1227,6 +1269,28 @@ static void Selected(Elem& e) {
     if (e.row > 0) {
         ImGui::SameLine(); if (ImGui::Checkbox("other colour on my row", &e.hiMine)) g_dirty = true;
         if (e.hiMine) { ImGui::SameLine(); if (ImGui::ColorEdit4("##hi", e.hiCol, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) g_dirty = true; }
+    }
+    {   // live-value rules
+        static char sb[64], bb[64];
+        snprintf(sb, sizeof sb, "%s", e.showIf.c_str());
+        ImGui::SetNextItemWidth(160);
+        if (ImGui::InputTextWithHint("show only while", "value key, e.g. nos_on", sb, sizeof sb)) { e.showIf = sb; g_dirty = true; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("A live value's key (no braces). Shown only while it isn't blank or 0.\n!key: only while it is. Empty: always.");
+        if (e.type == E_IMAGE) {
+            const char* kinds[] = { "nothing", "fill left to right", "fill bottom to top", "rotation" };
+            ImGui::SetNextItemWidth(160);
+            if (ImGui::Combo("value drives", &e.bindKind, kinds, 4)) g_dirty = true;
+            if (e.bindKind) {
+                snprintf(bb, sizeof bb, "%s", e.bind.c_str());
+                ImGui::SetNextItemWidth(160);
+                if (ImGui::InputTextWithHint("value", "key, e.g. rpm_pct", bb, sizeof bb)) { e.bind = bb; g_dirty = true; }
+                ImGui::SetNextItemWidth(160);
+                if (ImGui::DragFloat2("from / to value", &e.bindMin, 1.f, -100000.f, 100000.f, "%.0f")) g_dirty = true;
+                if (e.bindKind == 3) { ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("from / to angle", &e.rotMin, 0.5f, -720.f, 720.f, "%.0f deg")) g_dirty = true; }
+                float f = BindFrac(e);
+                if (f >= 0) ImGui::TextDisabled("now: %.0f%%", f * 100); else ImGui::TextDisabled("now: no value");
+            }
+        }
     }
     ElemMenuProps(e);
     CopyToSimilar(e);

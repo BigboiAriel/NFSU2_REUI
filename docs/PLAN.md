@@ -31,7 +31,9 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   leaderboard (the multiplayer mod's raceinfo reader as a base), race / lap / best times, countdown, wrong way,
   results. Free roam: cash, SMS / phone, event icons, messages. Minimap: map texture, player / racer / shop
   positions and heading.
-- **P4 replace the HUD + element types.** Hide the game's HUD per element through the HUD feature mask
+- **P4 replace the HUD + element types.** *Started:* elements can be shown only while a value is set (showif) and
+  driven by a value (bind: fill left-right / bottom-top, rotation between two angles).
+  Hide the game's HUD per element through the HUD feature mask
   (0x600090, thiscall(hudOwner) -> u64; each component switched by a bit; the multiplayer tester returns 0).
   New element types: needles / rotation by value, fill bars bound to a value, conditional visibility, a minimap
   widget.
