@@ -688,7 +688,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (e.type == E_IMAGE) {
         int ifam, iid;
         bool icon = IconRef(e.tex, ifam, iid);   // a controller button icon (its own textures)
-        bool vec = !icon && vecart::IsRef(e.tex);   // "vec:<name>": vector art (scripts\NFSU2_REUI_vector)
+        bool vec = !icon && vecart::IsRef(e.tex);   // "vec:<name>": vector art (REUI\vector)
         bool texVal = !icon && !vec && e.tex.find('{') != std::string::npos;   // "{tach_fill}": the texture a live value names
         if (e.texIdx == -2) e.texIdx = icon || vec ? -3 : texVal ? -1 : FindTex(e.tex, e.pack);
         // icons and vector art: drawn for their size on screen (an SVG is re-rasterised to it)
@@ -1028,7 +1028,8 @@ static void AddPrefab(const std::string& name) {
 
 void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)(const char*)) {
     g_dir = gameDir; g_layoutPath = layoutPath; g_log = log;
-    vecart::SetDir(g_dir + "\\scripts\\NFSU2_REUI_vector\\");
+    CreateDirectoryA((g_dir + "\\REUI").c_str(), nullptr);   // REUI's own folder in the game's root
+    vecart::SetDir(g_dir + "\\REUI\\vector\\");
     Load();
     // no menu pages yet: UniPad's menus (made in its own editor before REUI) come in, until this workspace is saved
     if (!menuMode && g_layout[MENUS].empty()) {
@@ -2293,7 +2294,7 @@ void Panel() {
         ImGui::SameLine(); if (ImGui::SmallButton("open folder")) ShellExecuteA(nullptr, "open", vecart::Dir().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         ImGui::SameLine(); ImGui::SetNextItemWidth(100); ImGui::SliderFloat("##vth", &vth, 32.f, 160.f, "thumbs %.0f");
         bool selImage = g_sel >= 0 && g_sel < (int)Elems().size() && Elems()[g_sel].type == E_IMAGE;
-        ImGui::TextDisabled("SVG files in scripts\\NFSU2_REUI_vector (subfolders too), sharp at any size; colour tints them.\n"
+        ImGui::TextDisabled("SVG files in REUI\\vector in the game folder (subfolders too), sharp at any size; colour tints them.\n"
                             "Click one to add it at its own size%s", selImage ? ";  Shift + click: put it on the selected image." : ".");
         if (arts.empty()) ImGui::TextDisabled("(no .svg files there yet)");
         float th = vth;

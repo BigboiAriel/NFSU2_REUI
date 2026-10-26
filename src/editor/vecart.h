@@ -1,5 +1,5 @@
 #pragma once
-// Vector art: SVG files in scripts\NFSU2_REUI_vector (and its subfolders), drawn with nanosvg at the size they're
+// Vector art: SVG files in <game>\REUI\vector (and its subfolders), drawn with nanosvg at the size they're
 // shown on screen, so they stay sharp at any scale. Elements use them as the texture "vec:<name>" (the file's path
 // in that folder, '/'-separated, without .svg). Separate from the controller button icons (UniPad's glyphs).
 #include <d3d9.h>
