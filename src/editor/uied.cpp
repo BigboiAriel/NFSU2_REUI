@@ -23,6 +23,7 @@
 #include <vector>
 #include <deque>
 #include <map>
+#include <unordered_map>
 #include <mutex>
 #include <thread>
 #include <atomic>
@@ -39,6 +40,7 @@ std::function<bool(const std::string&, std::string&)> tokens;
 int boardRows = 4; bool boardFollow = true; bool testMode = false; bool menuMode = false;
 std::function<IDirect3DTexture9*(const std::string&, float*, float*)> liveTexture;
 std::function<bool(unsigned, GameObject&)> gameObject;
+std::function<bool(MapView&)> mapView;
 std::vector<std::string> iconFamilies, iconKeys;
 std::function<IDirect3DTexture9*(int, int, int)> iconTexture;
 std::function<std::string(int, int)> iconLabel;
@@ -431,6 +433,10 @@ struct Elem {
     std::string keys;                     // anim 3: "period ms;t sx sy a;t sx sy a;..." - size and alpha multipliers, linear, looping
     double shownSince = -1;               // (running) when its show-only-while value last came on: animations start there
     std::vector<std::string> flags;       // other mods' flags (AddFlag), by key
+    // minimap: drawn as the track map around the car (the host's mapView), round, with the game's icons and other
+    // mods' markers on it; mapZoom multiplies the game's zoom, mapBlip the icons' size; mapPlayer: the player's icon
+    bool minimap = false, mapPlayer = true;
+    float mapZoom = 1, mapBlip = 1;
 };
 struct FlagDef { std::string key, label, tip; int group = 0; bool hideMissing = false, live = false; std::function<bool()> hide; };
 static std::vector<FlagDef> g_flagDefs;   // registered ones (live) and ones known from the layout file
@@ -648,6 +654,119 @@ static float BindFrac(const Elem& e) {
 static void AdditiveOn(const ImDrawList*, const ImDrawCmd*) {   // the next draws add onto the screen
     if (g_dev) { g_dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA); g_dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE); }
 }
+// ---- minimap
+static double g_mapDrawnAt = -1;   // a minimap element was drawn in game (ImGui time)
+bool MinimapShown(double within) { return g_mapDrawnAt >= 0 && ImGui::GetCurrentContext() && ImGui::GetTime() - g_mapDrawnAt <= within; }
+// a texture by name, as image elements take it: a button icon, "vec:" art, a file texture or the game's live one
+static IDirect3DTexture9* NamedTex(const std::string& name, int px, float& su, float& sv) {
+    su = sv = 1;
+    if (name.empty()) return nullptr;
+    int fam, id;
+    if (IconRef(name, fam, id)) return iconTexture ? iconTexture(fam, id, px) : nullptr;
+    if (vecart::IsRef(name)) return vecart::Texture(g_dev, vecart::RefName(name), px);
+    static std::unordered_map<std::string, int> found;
+    static size_t foundFor = 0;   // (indices into the texture list: forgotten when it's rescanned)
+    if (foundFor != g_tex.size()) { found.clear(); foundFor = g_tex.size(); }
+    auto it = found.find(name);
+    int i = it != found.end() ? it->second : (found[name] = FindTex(name, ""));
+    if (IDirect3DTexture9* t = TexOf(i)) return t;
+    return liveTexture ? liveTexture(name, &su, &sv) : nullptr;
+}
+// the map outside the texture is empty, not its edge pixels repeated: border addressing while the map is drawn
+static DWORD g_mapAddr[3];
+static void MapAddrOn(const ImDrawList*, const ImDrawCmd*) {
+    if (!g_dev) return;
+    g_dev->GetSamplerState(0, D3DSAMP_ADDRESSU, &g_mapAddr[0]); g_dev->GetSamplerState(0, D3DSAMP_ADDRESSV, &g_mapAddr[1]);
+    g_dev->GetSamplerState(0, D3DSAMP_BORDERCOLOR, &g_mapAddr[2]);
+    g_dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_BORDER); g_dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_BORDER);
+    g_dev->SetSamplerState(0, D3DSAMP_BORDERCOLOR, 0);
+}
+static void MapAddrOff(const ImDrawList*, const ImDrawCmd*) {
+    if (!g_dev) return;
+    g_dev->SetSamplerState(0, D3DSAMP_ADDRESSU, g_mapAddr[0]); g_dev->SetSamplerState(0, D3DSAMP_ADDRESSV, g_mapAddr[1]);
+    g_dev->SetSamplerState(0, D3DSAMP_BORDERCOLOR, g_mapAddr[2]);
+}
+static ImU32 Mul(ImU32 a, const float c[4]) {
+    ImVec4 v = ImGui::ColorConvertU32ToFloat4(a);
+    return ImGui::ColorConvertFloat4ToU32(ImVec4(v.x * c[0], v.y * c[1], v.z * c[2], v.w * c[3]));
+}
+// a quad of size w x h centred on p, turned deg clockwise
+static void TurnedQuad(ImDrawList* dl, IDirect3DTexture9* tx, ImVec2 p, float w, float h, float deg, ImVec2 uv0, ImVec2 uv1, ImU32 col) {
+    float r = deg * 3.14159265f / 180, cs = cosf(r), sn = sinf(r), hw = w / 2, hh = h / 2;
+    auto at = [&](float x, float y) { return ImVec2(p.x + x * cs - y * sn, p.y + x * sn + y * cs); };
+    dl->AddImageQuad((ImTextureID)tx, at(-hw, -hh), at(hw, -hh), at(hw, hh), at(-hw, hh), uv0, ImVec2(uv1.x, uv0.y), uv1, ImVec2(uv0.x, uv1.y), col);
+}
+static void Arrow(ImDrawList* dl, ImVec2 p, float w, float h, float deg, ImU32 fill) {   // the multiplayer mod's look: a flat-backed triangle
+    float r = deg * 3.14159265f / 180;
+    ImVec2 f(sinf(r), -cosf(r)), sd(-f.y, f.x);
+    ImVec2 tip(p.x + f.x * h * 0.5f, p.y + f.y * h * 0.5f);
+    ImVec2 bl(p.x - f.x * h * 0.3f + sd.x * w * 0.5f, p.y - f.y * h * 0.3f + sd.y * w * 0.5f);
+    ImVec2 br(p.x - f.x * h * 0.3f - sd.x * w * 0.5f, p.y - f.y * h * 0.3f - sd.y * w * 0.5f);
+    dl->AddTriangleFilled(tip, bl, br, fill);
+    ImVec2 poly[3] = {tip, bl, br};
+    dl->AddPolyline(poly, 3, IM_COL32(0, 0, 0, (int)(220 * ImGui::ColorConvertU32ToFloat4(fill).w)), ImDrawFlags_Closed, std::max(1.f, h * 0.08f));
+}
+// The game's minimap (0x4CA840), drawn standalone: the window of the track map around the car (span uv across),
+// turned heading-up when the game's radar option says so; icons placed by their distance in minimap widths -
+// past `limit` dropped, past 0.55 (the rim) held on it or hidden; the player's on top.
+static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bool editing) {
+    ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2);
+    float R = std::min(b.x - a.x, b.y - a.y) / 2;
+    if (R < 2) return;
+    MapView mv;
+    bool ok = mapView && mapView(mv) && mv.tex && mv.size > 0 && mv.span > 0;
+    if (!ok) {   // nothing to show: in the editor, where it goes
+        if (!editing) return;
+        dl->AddCircleFilled(c, R, Mul(IM_COL32(20, 32, 40, 200), e.col), 64);
+        dl->AddCircle(c, R, Mul(IM_COL32(120, 200, 255, 200), e.col), 64, 1.5f);
+        dl->AddLine(ImVec2(c.x - R, c.y), ImVec2(c.x + R, c.y), IM_COL32(120, 200, 255, 70));
+        dl->AddLine(ImVec2(c.x, c.y - R), ImVec2(c.x, c.y + R), IM_COL32(120, 200, 255, 70));
+        Arrow(dl, c, R * 0.2f, R * 0.25f, 0, IM_COL32(48, 207, 48, 255));
+        dl->AddText(ImVec2(c.x - ImGui::CalcTextSize("minimap").x / 2, c.y + R * 0.35f), IM_COL32(200, 230, 255, 200), "minimap");
+        return;
+    }
+    g_mapDrawnAt = ImGui::GetTime();   // (other mods put their markers here instead of drawing their own)
+    const float kPi = 3.14159265f;
+    float span = mv.span / e.mapZoom;
+    float psi = mv.rotate ? -mv.bearing : 0;   // the world's turn on screen (degrees clockwise)
+    float pr = psi * kPi / 180, pc = cosf(pr), ps = sinf(pr);
+    float pu = (mv.px - mv.x0) / mv.size, pv = (mv.y0 - mv.py) / mv.size;
+    // the map: a fan over the circle, each rim point's uv turned back by the world's turn
+    const int N = 64;
+    dl->AddCallback(MapAddrOn, nullptr);
+    dl->PushTextureID((ImTextureID)mv.tex);
+    dl->PrimReserve(N * 3, N + 1);
+    ImDrawIdx base = (ImDrawIdx)dl->_VtxCurrentIdx;
+    dl->PrimWriteVtx(c, ImVec2(pu * mv.su, pv * mv.sv), col);
+    for (int i = 0; i < N; ++i) {
+        float t = i * 2 * kPi / N, sx = cosf(t), sy = sinf(t);   // on screen, unit circle
+        float du = (sx * pc + sy * ps) * span / 2, dv = (-sx * ps + sy * pc) * span / 2;
+        dl->PrimWriteVtx(ImVec2(c.x + sx * R, c.y + sy * R), ImVec2((pu + du) * mv.su, (pv + dv) * mv.sv), col);
+    }
+    for (int i = 0; i < N; ++i) { dl->PrimWriteIdx(base); dl->PrimWriteIdx((ImDrawIdx)(base + 1 + i)); dl->PrimWriteIdx((ImDrawIdx)(base + 1 + (i + 1) % N)); }
+    dl->PopTextureID();
+    dl->AddCallback(MapAddrOff, nullptr);
+    // icons and markers (the player's last)
+    float k = 2 * R / 128 * e.mapBlip;   // game units on a 128-unit minimap -> pixels
+    ImVec4 ec = ImGui::ColorConvertU32ToFloat4(col);
+    for (int pass = 0; pass < 2; ++pass)
+        for (auto& bl : mv.blips) {
+            if (bl.player != (pass == 1) || (bl.player && !e.mapPlayer)) continue;
+            float ox = (bl.x - mv.px) / mv.size / span, oy = (mv.py - bl.y) / mv.size / span;   // minimap widths, y down
+            float d = sqrtf(ox * ox + oy * oy);
+            if (!bl.farOk && d > mv.limit) continue;
+            if (d > 0.55f) { if (bl.hideOff) continue; ox *= 0.55f / d; oy *= 0.55f / d; }
+            ImVec2 p(c.x + (ox * pc - oy * ps) * 2 * R, c.y + (ox * ps + oy * pc) * 2 * R);
+            float deg = (bl.dirX != 0 || bl.dirY != 0) ? atan2f(bl.dirX, bl.dirY) * 180 / kPi + psi : 0;
+            float bc[4] = {bl.col[0] * ec.x, bl.col[1] * ec.y, bl.col[2] * ec.z, bl.col[3] * ec.w};
+            ImU32 bcol = Col(bc);
+            float su = 1, sv = 1;
+            IDirect3DTexture9* tx = bl.tex;
+            if (!tx && !bl.texName.empty()) tx = NamedTex(bl.texName, (int)ceilf(std::max(bl.w, bl.h) * k), su, sv);
+            if (tx) TurnedQuad(dl, tx, p, bl.w * k, bl.h * k, deg, ImVec2(bl.u0 * su, bl.v0 * sv), ImVec2(bl.u1 * su, bl.v1 * sv), bcol);
+            else if (bl.texName.empty()) Arrow(dl, p, bl.w * k, bl.h * k, deg, bcol);
+        }
+}
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
     if (!editing && !e.flags.empty() && FlagsHide(e)) return;
@@ -722,6 +841,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             col = Col(c);
         }
     }
+    if (e.type == E_IMAGE && e.minimap) { DrawMinimap(dl, e, a, b, col, editing); return; }
     if (e.type == E_IMAGE) {
         int ifam, iid;
         bool icon = IconRef(e.tex, ifam, iid);   // a controller button icon (its own textures)
@@ -845,6 +965,7 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
     if (e.pivX != 0 || e.pivY != 0) fprintf(f, "pivot=%g %g\n", e.pivX, e.pivY);
     if (e.follow) fprintf(f, "follow=%08X\n", e.follow);
     if (e.circle) fprintf(f, "circle=1\n");
+    if (e.minimap) fprintf(f, "minimap=1\nmapzoom=%g\nmapblip=%g\nmapplayer=%d\n", e.mapZoom, e.mapBlip, e.mapPlayer ? 1 : 0);
     if (e.additive) fprintf(f, "additive=1\n");
     if (!e.tint.empty()) fprintf(f, "tint=%s\n", e.tint.c_str());
     if (e.anim) fprintf(f, "anim=%d\n", e.anim);
@@ -906,6 +1027,10 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "pivot") sscanf(v.c_str(), "%f %f", &e.pivX, &e.pivY);
     else if (k == "follow") e.follow = (unsigned)strtoul(v.c_str(), nullptr, 16);
     else if (k == "circle") e.circle = atoi(v.c_str()) != 0;
+    else if (k == "minimap") e.minimap = atoi(v.c_str()) != 0;
+    else if (k == "mapzoom") e.mapZoom = std::max(0.1f, std::min(10.f, (float)atof(v.c_str())));
+    else if (k == "mapblip") e.mapBlip = std::max(0.1f, std::min(10.f, (float)atof(v.c_str())));
+    else if (k == "mapplayer") e.mapPlayer = atoi(v.c_str()) != 0;
     else if (k == "additive") e.additive = atoi(v.c_str()) != 0;
     else if (k == "tint") e.tint = v;
     else if (k == "anim") e.anim = std::max(0, std::min(3, atoi(v.c_str())));
@@ -1662,6 +1787,15 @@ static void Selected(Elem& e) {
         ImGui::SetNextItemWidth(220); if (ImGui::DragFloat("rotation", &e.rot, 0.5f, -360.f, 360.f, "%.1f deg")) g_dirty = true;
         ImGui::SameLine(); if (ImGui::SmallButton("+90")) { e.rot = fmodf(e.rot + 90, 360); g_dirty = true; }
         ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("pivot (from centre)", &e.pivX, 0.25f, -2000.f, 2000.f, "%.1f")) g_dirty = true;
+        if (ImGui::Checkbox("minimap", &e.minimap)) g_dirty = true;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Drawn as the game's minimap: the track map around your car (round, in this box), turned\nheading-up when the game's radar option is on, with the game's icons (racers, shops, events,\nyour car) and other mods' markers (the multiplayer mod's players). Its texture and UV aren't used.\nAdd the frame and north arrow as images ({map_north} turns the arrow; {map_heading} turns your own\narrow if you hide the game's). Flag it \"replace: minimap\" to hide the stock one.");
+        if (e.minimap) {
+            ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("zoom", &e.mapZoom, 0.01f, 0.1f, 10.f, "x%.2f")) g_dirty = true;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Times the game's own zoom (x1: the stock minimap's view across this box).");
+            ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("icons", &e.mapBlip, 0.01f, 0.1f, 10.f, "x%.2f")) g_dirty = true;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Icon size (x1: as big against the map as the stock minimap's).");
+            ImGui::SameLine(); if (ImGui::Checkbox("your car's icon", &e.mapPlayer)) g_dirty = true;
+        }
         if (ImGui::Checkbox("clip to a circle", &e.circle)) g_dirty = true;
         ImGui::SameLine(); if (ImGui::Checkbox("glow (additive)", &e.additive)) g_dirty = true;
         ImGui::SameLine();

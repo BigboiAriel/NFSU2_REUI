@@ -60,6 +60,23 @@ typedef void (*PFN_REUI_EditorState)(int* testMode, int* boardRows, int* boardFo
 typedef int (*REUI_FlagFn)(void* ctx);
 typedef void (*PFN_REUI_AddFlag)(const char* key, const char* label, const char* tooltip, int group, int hiddenWhenMissing, REUI_FlagFn hideNow, void* ctx);
 
+// Minimap markers (REUI's minimap element, "minimap" on an image): a provider fills out[0..max) with markers in the
+// game's world (metres: the car's x / y, as Car+0x50 / +0x54) and returns how many. Asked every frame a minimap is
+// drawn. Markers further out than the map shows are held on its rim (flags bit 0: hidden instead).
+typedef struct REUI_MapMarker {
+    float x, y;           // world position
+    float dirX, dirY;     // heading: the world forward vector (e.g. the car matrix's first row); 0, 0 = none
+    unsigned color;       // 0xAARRGGBB
+    float size;           // 1 = a stock car icon's size
+    int flags;            // bit 0: hidden off the map (else held on the rim); bit 1: drawn upright (no heading)
+    const char* icon;     // a texture: a game texture name ("MINIMAP_ICON_CAR"), "vec:<name>" (REUI\vector),
+                          // or null / "" = REUI's arrow (outlined triangle)
+} REUI_MapMarker;
+typedef int (*REUI_MapMarkerFn)(REUI_MapMarker* out, int max, void* ctx);
+typedef void (*PFN_REUI_AddMapMarkers)(REUI_MapMarkerFn fn, void* ctx);
+// 1 while a REUI minimap is on screen (drawn in the last 0.3 s): put your markers on it instead of drawing your own
+typedef int (*PFN_REUI_MinimapShown)(void);
+
 #ifdef __cplusplus
 }
 #endif

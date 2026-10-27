@@ -86,3 +86,26 @@ Live textures: a TextureInfo's +0 points at its platform part; the IDirect3DText
   | 0x78 | 0x4F5060 | bit 39 | cash reward |
   | 0x80 | 0x4F4F10 | bit 51 | bank |
 - "Replace stock HUD [x]": REUI zeroes a component's bits, calls 0x4C6690 again, and repeats that every 0.5 s while the replacing element shows. It restores the constructor's bits afterwards.
+
+## Minimap (HUD+0x5C, update 0x4CA840)
+- Component (ctor 0x4F73E0): +0 its icon list (a ring; the component itself is the end, 0x502FD0 returns `this`),
+  +8 the map object (Track2000_map), +0xC TrackMapTargetRing, +0x10 Minimap_North_indicator, +0x14 track info cache.
+  Feature bit 0 (shared with the region popup); +0x18 is the HUD's last mask, so `[comp+0x18] & 1` = shown now.
+- Track info 0x5D3E40 (cdecl track [0x89E7A0]): +0xAC / +0xB0 the map texture's top-left world x / y, +0xB4 its
+  size (m), +0xC0 zoom. Window across the minimap: st = 0.3 / [+0xC0] (0.3 / [0x78E098] when that is above 1).
+  uv = ((x - ac) / b4, (b0 - y) / b4); the map object gets uv centre +- st / 2 (0x5179D0 corners 5 / 6). Texture
+  "TRACKMAP%d".
+- Turned only when the radar option is 2 ([0x83AA1C] free roam, [0x83AA1B] racing). a = bearing of the player's
+  heading (0x43E6D0 is a compass bearing, clockwise from north, 0..65535 -> x 360 / 65536). FE angles are clockwise
+  on screen. Map and ring turn by -a; north indicator by A(east) - a + 270 = -a, its pivot 72 units below it.
+- Icon node: +0 next, +8 id, +0xC / +0x10 x / y, +0x14 heading (deg; dir = (cos, sin)), +0x18 flags (bit 0 hidden
+  past the rim, bit 1 hidden), +0x1C info {+0 FE object, +4 type}. 0x4CA800 thiscall(comp, type, id) ret 8 finds one.
+  0x4AC2B0 thiscall(node, float pos[2], float dir[2]) ret 8: types 1-2 and 5-18 static (+0xC.. / +0x14), 3 an AI car
+  (0x5F0E30 thiscall([0x890080], id): car +0x50 / +0x54, u16 heading +0x40C, dir (cos, sin)), 4 Player[id]'s car.
+  0x4CA6D0 thiscall(node) -> al: shown now (0-2 never; 3 racer checks; 4 always; 5-18 free-roam / career checks).
+- Placement: offset = ((u, v) - player) / st turned by -a; r = its length (0.5 = the map object's edge). Dropped
+  past 1.0 (10 in free roam / some states), past 0.55 hidden if flag bit 0, else held at 0.55; screen = offset x the
+  map object's size (0x51D4D0 obj, x, y); icon turn = bearing(dir) - a (0x51CED0). Hidden icons go to (0, 512).
+- Stock layout (640x480 units, 16:9 dump): mask / map 128 x 128 at (-223, 142) from the screen centre, border 4 x
+  MINIMAP_BORDER 128 at +-16 turned 0 / 90 / 180 / -90 (alpha 100), north indicator 32 x 16 (207 128 48 200), icons
+  12.5 x 16 (cars), 14.5 (shops / events), 20 (start line); player icon z 2 above the rest (z 8), map z 9, mask z 10.

@@ -42,6 +42,32 @@ namespace uied {
     // texture (su / sv: the picture's share of a padded texture). Not found / hidden: false.
     struct GameObject { float x = 0, y = 0, w = 0, h = 0, rot = 0, u0 = 0, v0 = 0, u1 = 1, v1 = 1, col[4] = {1, 1, 1, 1}, su = 1, sv = 1; IDirect3DTexture9* tex = nullptr; };
     extern std::function<bool(unsigned nameHash, GameObject& out)> gameObject;
+    // The minimap (an image with "minimap" on): the track map around the car, its icons and other mods' markers,
+    // supplied by the host every frame. World = the game's x / y in metres (y north); the map texture covers
+    // x0 .. x0 + size east and y0 .. y0 - size south (uv = ((x - x0) / size, (y0 - y) / size)).
+    struct MapBlip {
+        float x = 0, y = 0;                 // world
+        float dirX = 0, dirY = 0;           // heading (world forward); 0, 0 = upright
+        IDirect3DTexture9* tex = nullptr;   // the game's icon, or
+        std::string texName;                // a texture by name (an icon / "vec:" / game texture), or neither = an arrow
+        float u0 = 0, v0 = 0, u1 = 1, v1 = 1;
+        float w = 14.5f, h = 14.5f;         // size in the game's units on a 128-unit minimap
+        float col[4] = {1, 1, 1, 1};
+        bool hideOff = false;               // hidden past the rim (else held on it)
+        bool farOk = false;                 // not dropped however far (other mods' markers)
+        bool player = false;                // the player's own icon (drawn on top)
+    };
+    struct MapView {
+        IDirect3DTexture9* tex = nullptr; float su = 1, sv = 1;
+        float x0 = 0, y0 = 0, size = 1;     // the map texture's world square
+        float px = 0, py = 0, bearing = 0;  // the player: position, heading (degrees clockwise from north)
+        float span = 0.2f;                  // uv across the minimap at the game's zoom
+        bool rotate = false;                // heading-up (the game's radar option), else north-up
+        float limit = 1;                    // game icons further than this (in minimap widths) are dropped
+        std::vector<MapBlip> blips;
+    };
+    extern std::function<bool(MapView& out)> mapView;   // false: no minimap now (menus, drag races, loading)
+    bool MinimapShown(double withinSeconds = 0.3);      // a minimap element was drawn in game lately
     // Element flags other mods add (the multiplayer mod: "hide online", "online only"): a checkbox on every element while
     // the mod is loaded; hide() says whether flagged elements are hidden now. Flags in a layout whose mod isn't loaded
     // keep what they said when it was (hiddenWhenMissing, saved with the layout). group > 0: one flag of a group per element.

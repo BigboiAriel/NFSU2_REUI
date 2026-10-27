@@ -11,6 +11,7 @@
 namespace reui {
 std::vector<REUI_TokenFn> g_tokenProviders;   // asked after REUI's own values (host.cpp)
 bool g_menuDriverExternal = false;            // another mod drives the menus (host.cpp leaves its menu key off)
+std::vector<std::pair<REUI_MapMarkerFn, void*>> g_mapMarkers;   // minimap marker providers (host.cpp asks them)
 }
 using namespace reui;
 
@@ -84,3 +85,10 @@ EXPORT void REUI_MenuFrame(int up, int down, int left, int right, int accept, in
     uied::MenuInput in; in.up = up; in.down = down; in.left = left; in.right = right; in.accept = accept; in.back = back;
     uied::MenuFrame(in, dt);
 }
+EXPORT void REUI_AddMapMarkers(REUI_MapMarkerFn fn, void* ctx) {
+    if (!fn) return;
+    for (auto& p : g_mapMarkers) if (p.first == fn && p.second == ctx) return;
+    g_mapMarkers.push_back({fn, ctx});
+    reui::Log("api: minimap markers from another mod");
+}
+EXPORT int REUI_MinimapShown() { return uied::MinimapShown() ? 1 : 0; }

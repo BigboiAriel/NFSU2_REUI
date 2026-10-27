@@ -26,6 +26,7 @@ namespace reui {
 
 extern std::vector<REUI_TokenFn> g_tokenProviders;
 extern bool g_menuDriverExternal;
+extern std::vector<std::pair<REUI_MapMarkerFn, void*>> g_mapMarkers;
 
 namespace fe {
 enum { kImage = 1, kString = 2, kGroup = 5, kMultiImage = 7, kColoredImage = 9 };
@@ -486,6 +487,106 @@ static void ApplyHudReplace() {
     }
 }
 
+// ---- the minimap, standalone (uied::MapView; the game's own is 0x4CA840 on its component HUD+0x5C, docs/RE_NOTES.md)
+// Component: +0 its icon list (a ring: the component is the end), +0x14 the track info cache. Track info
+// 0x5D3E40(cdecl track [0x89E7A0]): +0xAC / +0xB0 the map's top-left world x / y, +0xB4 its size (m), +0xC0 zoom: the
+// minimap shows 0.3 / zoom of the map across (0.3 / [0x78E098] when that is above 1). Map texture "TRACKMAP<track>".
+// Heading-up when the radar option ([0x83AA1C] free roam, [0x83AA1B] racing) is 2.
+// Icon node: +0 next, +8 id, +0xC / +0x10 x / y, +0x14 heading (deg), +0x18 flags (bit 0 hidden past the rim, bit 1
+// hidden), +0x1C info {+0 its FE object, +4 type: 3 AI racer (car by id 0x5F0E30), 4 player (Player[id]), 5..18 shops
+// / events, 0..2 never shown}. 0x4AC2B0 thiscall(node, float pos[2], float dir[2]) ret 8 gives position and heading;
+// 0x4CA6D0 thiscall(node) -> al: whether it's shown now. Dropped past 1 minimap width (10 in free roam).
+static bool MapViewNow(uied::MapView& out) {
+    static int frame = -1; static bool have = false; static uied::MapView cache;
+    int fr = ImGui::GetCurrentContext() ? ImGui::GetFrameCount() : 0;
+    if (fr == frame) { if (have) out = cache; return have; }
+    frame = fr; have = false; cache = uied::MapView();
+    if (*(int*)0x8654A4 != 6) return false;
+    uint8_t* p1 = *(uint8_t**)0x8900AC;
+    if (!Readable(p1, 0x9A8)) return false;
+    uint8_t* car = *(uint8_t**)(p1 + 4);
+    uint8_t* hud = *(uint8_t**)(p1 + 0x9A4);
+    if (!Readable(car, 0x410) || !Readable(hud, 0x60)) return false;
+    uint8_t* comp = *(uint8_t**)(hud + 0x5C);
+    if (!Readable(comp, 0x20) || !(*(uint32_t*)(comp + 0x18) & 1)) return false;   // the game isn't showing a minimap now
+    int track = *(int*)0x89E7A0;
+    uint8_t* ti = ((uint8_t*(__cdecl*)(int))0x5D3E40)(track);
+    if (!Readable(ti, 0xC4)) return false;
+    uied::MapView& v = cache;
+    v.x0 = *(float*)(ti + 0xAC); v.y0 = *(float*)(ti + 0xB0); v.size = *(float*)(ti + 0xB4);
+    float zoom = *(float*)(ti + 0xC0), zg = *(float*)0x78E098;
+    v.span = zg > 1 ? 0.3f / zg : zoom > 1e-4f ? 0.3f / zoom : 0;
+    if (!(v.size > 1 && v.size < 1e6f) || !(v.span > 1e-4f && v.span < 10)) return false;
+    char tn[32]; snprintf(tn, sizeof tn, "TRACKMAP%d", track);
+    uint8_t* tinfo = TexInfo(BHash(tn));
+    v.tex = TexOfInfo(tinfo);
+    if (!v.tex) return false;
+    D3DSURFACE_DESC dd; int tw = *(int16_t*)(tinfo + 0x44), th = *(int16_t*)(tinfo + 0x46);
+    if (SUCCEEDED(v.tex->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && tw > 0 && th > 0) { v.su = (float)tw / dd.Width; v.sv = (float)th / dd.Height; }
+    bool freeRoam = *(int*)0x89E7B0 == 0;
+    v.rotate = *(uint8_t*)(freeRoam ? 0x83AA1C : 0x83AA1B) == 2;
+    v.limit = freeRoam ? 10.f : 1.f;
+    v.px = *(float*)(car + 0x50); v.py = *(float*)(car + 0x54);
+    float hr = *(uint16_t*)(car + 0x40C) * 6.2831853f / 65536;
+    v.bearing = atan2f(cosf(hr), sinf(hr)) * 180 / 3.14159265f;   // dir (cos, sin): degrees clockwise from north
+    // the game's icons
+    uint8_t* node = *(uint8_t**)comp;
+    for (int guard = 0; node && node != comp && guard < 512; ++guard, node = *(uint8_t**)node) {
+        if (!Readable(node, 0x20)) break;
+        uint8_t* info = *(uint8_t**)(node + 0x1C);
+        if (!Readable(info, 8)) continue;
+        int type = *(int*)(info + 4);
+        uint32_t fl = *(uint32_t*)(node + 0x18);
+        if (type < 3 || type > 18 || (fl & 2)) continue;
+        if (!((bool(__thiscall*)(void*))0x4CA6D0)(node)) continue;
+        float pos[2] = {NAN, NAN}, dir[2] = {0, 0};
+        ((void(__thiscall*)(void*, float*, float*))0x4AC2B0)(node, pos, dir);
+        if (!(pos[0] == pos[0]) || !(pos[1] == pos[1])) continue;   // (its car is gone)
+        uied::MapBlip b;
+        b.x = pos[0]; b.y = pos[1]; b.dirX = dir[0]; b.dirY = dir[1];
+        b.hideOff = (fl & 1) != 0; b.player = type == 4;
+        uint8_t* obj = *(uint8_t**)info;   // its FE object: texture, uv, size, colour as the game set them
+        uint8_t* d = Readable(obj, 0x30) ? *(uint8_t**)(obj + 0x2C) : nullptr;
+        if (Readable(d, 0x54)) {
+            const float* f = (const float*)d; const int* c = (const int*)d;
+            b.u0 = f[0x44 / 4]; b.v0 = f[0x48 / 4]; b.u1 = f[0x4C / 4]; b.v1 = f[0x50 / 4];
+            b.w = fabsf(f[0x38 / 4]); b.h = fabsf(f[0x3C / 4]);
+            b.col[0] = c[2] / 255.f; b.col[1] = c[1] / 255.f; b.col[2] = c[0] / 255.f; b.col[3] = c[3] / 255.f;
+            if (uint8_t* ii = TexInfo(*(uint32_t*)(obj + 0x24))) {
+                b.tex = TexOfInfo(ii);
+                int iw = *(int16_t*)(ii + 0x44), ih = *(int16_t*)(ii + 0x46);
+                if (b.tex && SUCCEEDED(b.tex->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && iw > 0 && ih > 0) {
+                    float su = (float)iw / dd.Width, sv = (float)ih / dd.Height; b.u0 *= su; b.u1 *= su; b.v0 *= sv; b.v1 *= sv;
+                }
+            }
+        }
+        if (!b.tex) continue;
+        if (b.w < 1 || b.w > 128) b.w = 14.5f;
+        if (b.h < 1 || b.h > 128) b.h = 14.5f;
+        v.blips.push_back(b);
+    }
+    // other mods' markers (the multiplayer mod's players)
+    for (auto& p : g_mapMarkers) {
+        REUI_MapMarker m[64];
+        memset(m, 0, sizeof m);
+        int n = p.first(m, 64, p.second);
+        for (int i = 0; i < n && i < 64; ++i) {
+            uied::MapBlip b;
+            b.x = m[i].x; b.y = m[i].y;
+            if (!(m[i].flags & 2)) { b.dirX = m[i].dirX; b.dirY = m[i].dirY; }
+            float sz = m[i].size > 0 ? m[i].size : 1;
+            if (m[i].icon && *m[i].icon) { b.texName = m[i].icon; b.w = b.h = 16 * sz; }
+            else { b.w = 12.5f * sz; b.h = 16 * sz; }
+            unsigned cl = m[i].color;
+            b.col[0] = ((cl >> 16) & 255) / 255.f; b.col[1] = ((cl >> 8) & 255) / 255.f; b.col[2] = (cl & 255) / 255.f; b.col[3] = (cl >> 24) / 255.f;
+            b.hideOff = (m[i].flags & 1) != 0; b.farOk = true;
+            v.blips.push_back(b);
+        }
+    }
+    have = true; out = cache;
+    return true;
+}
+
 static bool Token(const std::string& k, std::string& out) {
     char b[64];
     if (k == "fps") { snprintf(b, sizeof b, "%.0f", g_fps); out = b; return true; }
@@ -577,6 +678,15 @@ static bool Token(const std::string& k, std::string& out) {
         for (size_t i = 0; i < d.size(); ++i) { if (i && (d.size() - i) % 3 == 0) g += ','; g += d[i]; }
         out = std::string(c < 0 ? "-" : "") + "$" + g; return true;
     }
+    if (k == "map_on" || k == "map_north" || k == "map_heading") {   // the minimap's (MapViewNow)
+        uied::MapView mv;
+        if (!MapViewNow(mv)) { out = k == "map_on" ? "" : "0"; return true; }
+        float psi = mv.rotate ? -mv.bearing : 0;
+        float deg = k == "map_north" ? psi : mv.bearing + psi;
+        deg = fmodf(deg + 540, 360) - 180;
+        if (k == "map_on") out = "1"; else { snprintf(b, sizeof b, "%.2f", deg); out = b; }
+        return true;
+    }
     if (k == "rvm") { out = RvmTexture() ? "@rvm" : ""; return true; }   // texture: the live mirror
     if (k == "rvm_on") { out = RvmTexture() ? "1" : ""; return true; }
     if (CarToken(k, out)) return true;   // {rpm} {gear} {nos}... (game/car.cpp)
@@ -597,6 +707,7 @@ void HostInit() {
     g_uniPad = GetModuleHandleA("NFSU2UniPad.asi") != nullptr;
     uied::tokens = Token;
     uied::gameObject = GameObjectNow;
+    uied::mapView = MapViewNow;
     // REUI's own element flags (other mods add theirs through REUI_AddFlag)
     uied::AddFlag("hide_until_green", "hide until green light", "In a race: hidden through the fly-by and the countdown, shown from the green light\n(race status [0x890118]: 2 fly-by, 3 countdown, 4 racing).", 0, false, [] {
         if (*(int*)0x89E7B0 == 0) return false;   // free roam
@@ -700,6 +811,9 @@ void HostPanel() {
             { "nos_on", "1 while nitrous is firing." },
             { "rvm", "Texture: the live rear-view mirror (the game's mirror camera, already mirror-shaped). While an element\nshows it, the game's own mirror is hidden. Only while the mirror is on (game options)." },
             { "rvm_on", "1 while the game's rear-view mirror is on." },
+            { "map_on", "1 while the game shows a minimap (in the world, not in drag races / menus): a minimap's frame shows while it's set." },
+            { "map_north", "The minimap's north, degrees clockwise (0 north-up; turns with you heading-up): bind a north arrow's rotation\nto it (range -360..360 -> -360..360) with its pivot on the minimap's centre." },
+            { "map_heading", "Your heading on the minimap, degrees clockwise (0 heading-up): for your own player arrow." },
             { "boost", "Turbo boost needle, 0-100 (rests about 55; blank without a turbo)." },
             { "tach_angle", "The stock tach needle's turn, 0-235 degrees (RPM over the dial's full scale)." },
             { "tach_max", "The dial's full scale (7500 / 8500 / 9500 / 10500)." },

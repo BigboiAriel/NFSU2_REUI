@@ -42,6 +42,15 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   New element types: needles / rotation by value, fill bars bound to a value, conditional visibility, a minimap
   widget.
 
+- **Minimap (standalone, built 2026-10-27, untested in game).** An image with "minimap" on draws the track map
+  around the car from live values (TRACKMAP<track>, the car's position and heading), stock behaviour: the game's
+  zoom, round, heading-up or north-up as the game's radar option says. The game's own icons (AI racers, shops,
+  events, your car) from the stock component's icon list, with its rules (dropped past 1 minimap width / 10 in free
+  roam, held on the rim at 0.55). Frame (MINIMAP_BORDER x4) and north arrow ({map_north}) are plain images: the
+  "Minimap" prefab has all of it, flagged replace:minimap. Free roam and races. The multiplayer mod's players come
+  in through REUI_AddMapMarkers, and it stops drawing its own arrows while REUI_MinimapShown.
+  *Future:* zoom out with speed; a north-up setting on the element whatever the game's option (its arrow turns
+  instead). Not yet: the start-line / checkpoint ring (types 1-2 and TrackMapTargetRing are drawn elsewhere).
 - **P5 distribution (later, once REUI is ready).** Light builds of REUI ship with the other mods: a renderer
   without the editor or HUD replacement, which carries the pages built in REUI (decided 2026-10-26).
   - **UniPad:** renders and drives the UniPad pause-menu pages. Option to look at: bake the pages into
