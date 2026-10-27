@@ -496,31 +496,71 @@ static void ApplyHudReplace() {
 // hidden), +0x1C info {+0 its FE object, +4 type: 3 AI racer (car by id 0x5F0E30), 4 player (Player[id]), 5..18 shops
 // / events, 0..2 never shown}. 0x4AC2B0 thiscall(node, float pos[2], float dir[2]) ret 8 gives position and heading;
 // 0x4CA6D0 thiscall(node) -> al: whether it's shown now. Dropped past 1 minimap width (10 in free roam).
+static const char* g_mapWhy = "";   // (diagnostics: why there's no minimap, the icon list's counts)
+static int g_mapStat[8];
+static bool MapViewNow2(uied::MapView& out);
 static bool MapViewNow(uied::MapView& out) {
     static int frame = -1; static bool have = false; static uied::MapView cache;
     int fr = ImGui::GetCurrentContext() ? ImGui::GetFrameCount() : 0;
     if (fr == frame) { if (have) out = cache; return have; }
-    frame = fr; have = false; cache = uied::MapView();
-    if (*(int*)0x8654A4 != 6) return false;
+    frame = fr;
+    g_mapWhy = ""; memset(g_mapStat, 0, sizeof g_mapStat);
+    have = MapViewNow2(cache);
+    static DWORD lastLog = 0;
+    if (GetTickCount() - lastLog > 3000) {
+        lastLog = GetTickCount();
+        uint8_t* p1 = *(uint8_t**)0x8900AC;
+        uint8_t* hud = Readable(p1, 0x9A8) ? *(uint8_t**)(p1 + 0x9A4) : nullptr;
+        uint8_t* comp = Readable(hud, 0x60) ? *(uint8_t**)(hud + 0x5C) : nullptr;
+        Log("minimap: %s%s | comp %p [0x8364D4] %p mask %08X list %p | track %d", have ? "ok" : "none: ", g_mapWhy, comp, *(void**)0x8364D4,
+            Readable(comp, 0x20) ? *(uint32_t*)(comp + 0x18) : 0, Readable(comp, 4) ? *(void**)comp : nullptr, *(int*)0x89E7A0);
+        if (have) {
+            const uied::MapView& v = cache;
+            D3DSURFACE_DESC dd = {}; v.tex->GetLevelDesc(0, &dd);
+            float pu = (v.px - v.x0) / v.size, pv = (v.y0 - v.py) / v.size;
+            Log("minimap: map %p fmt %08X %ux%u pool %d levels %u su %.3f sv %.3f | x0 %.1f y0 %.1f size %.1f span %.4f | car %.1f %.1f uv %.3f %.3f bearing %.1f rotate %d",
+                v.tex, (unsigned)dd.Format, dd.Width, dd.Height, (int)dd.Pool, v.tex->GetLevelCount(), v.su, v.sv, v.x0, v.y0, v.size, v.span, v.px, v.py, pu, pv, v.bearing, v.rotate ? 1 : 0);
+            // the texture's alpha (A8R8G8B8 only): how much of it is see-through
+            if (dd.Format == D3DFMT_A8R8G8B8 && dd.Pool == D3DPOOL_MANAGED) {
+                D3DLOCKED_RECT lr;
+                if (SUCCEEDED(v.tex->LockRect(0, &lr, nullptr, D3DLOCK_READONLY))) {
+                    unsigned zero = 0, n = 0, sum = 0;
+                    for (unsigned y = 0; y < dd.Height; y += 4) for (unsigned x = 0; x < dd.Width; x += 4) {
+                        unsigned a = ((uint8_t*)lr.pBits)[y * lr.Pitch + x * 4 + 3]; ++n; sum += a; if (!a) ++zero;
+                    }
+                    v.tex->UnlockRect(0);
+                    Log("minimap: map alpha: %u of %u samples 0, average %u", zero, n, n ? sum / n : 0);
+                }
+            }
+            Log("minimap: icons: nodes %d, type skipped %d, flag hidden %d, not shown %d, no position %d, no texture %d, kept %d (player %d), markers %d",
+                g_mapStat[0], g_mapStat[1], g_mapStat[2], g_mapStat[3], g_mapStat[4], g_mapStat[5], g_mapStat[6], g_mapStat[7], (int)v.blips.size() - g_mapStat[6]);
+        }
+    }
+    if (have) out = cache;
+    return have;
+}
+static bool MapViewNow2(uied::MapView& out) {
+    out = uied::MapView();
+    if (*(int*)0x8654A4 != 6) { g_mapWhy = "not in the world"; return false; }
     uint8_t* p1 = *(uint8_t**)0x8900AC;
-    if (!Readable(p1, 0x9A8)) return false;
+    if (!Readable(p1, 0x9A8)) { g_mapWhy = "no player"; return false; }
     uint8_t* car = *(uint8_t**)(p1 + 4);
     uint8_t* hud = *(uint8_t**)(p1 + 0x9A4);
-    if (!Readable(car, 0x410) || !Readable(hud, 0x60)) return false;
+    if (!Readable(car, 0x410) || !Readable(hud, 0x60)) { g_mapWhy = "no car / HUD"; return false; }
     uint8_t* comp = *(uint8_t**)(hud + 0x5C);
-    if (!Readable(comp, 0x20) || !(*(uint32_t*)(comp + 0x18) & 1)) return false;   // the game isn't showing a minimap now
+    if (!Readable(comp, 0x20) || !(*(uint32_t*)(comp + 0x18) & 1)) { g_mapWhy = "game shows no minimap"; return false; }   // the game isn't showing a minimap now
     int track = *(int*)0x89E7A0;
     uint8_t* ti = ((uint8_t*(__cdecl*)(int))0x5D3E40)(track);
-    if (!Readable(ti, 0xC4)) return false;
-    uied::MapView& v = cache;
+    if (!Readable(ti, 0xC4)) { g_mapWhy = "no track info"; return false; }
+    uied::MapView& v = out;
     v.x0 = *(float*)(ti + 0xAC); v.y0 = *(float*)(ti + 0xB0); v.size = *(float*)(ti + 0xB4);
     float zoom = *(float*)(ti + 0xC0), zg = *(float*)0x78E098;
     v.span = zg > 1 ? 0.3f / zg : zoom > 1e-4f ? 0.3f / zoom : 0;
-    if (!(v.size > 1 && v.size < 1e6f) || !(v.span > 1e-4f && v.span < 10)) return false;
+    if (!(v.size > 1 && v.size < 1e6f) || !(v.span > 1e-4f && v.span < 10)) { g_mapWhy = "odd map size / zoom"; return false; }
     char tn[32]; snprintf(tn, sizeof tn, "TRACKMAP%d", track);
     uint8_t* tinfo = TexInfo(BHash(tn));
     v.tex = TexOfInfo(tinfo);
-    if (!v.tex) return false;
+    if (!v.tex) { g_mapWhy = tinfo ? "map texture not loaded" : "no map texture info"; return false; }
     D3DSURFACE_DESC dd; int tw = *(int16_t*)(tinfo + 0x44), th = *(int16_t*)(tinfo + 0x46);
     if (SUCCEEDED(v.tex->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && tw > 0 && th > 0) { v.su = (float)tw / dd.Width; v.sv = (float)th / dd.Height; }
     bool freeRoam = *(int*)0x89E7B0 == 0;
@@ -532,16 +572,18 @@ static bool MapViewNow(uied::MapView& out) {
     // the game's icons
     uint8_t* node = *(uint8_t**)comp;
     for (int guard = 0; node && node != comp && guard < 512; ++guard, node = *(uint8_t**)node) {
+        ++g_mapStat[0];
         if (!Readable(node, 0x20)) break;
         uint8_t* info = *(uint8_t**)(node + 0x1C);
         if (!Readable(info, 8)) continue;
         int type = *(int*)(info + 4);
         uint32_t fl = *(uint32_t*)(node + 0x18);
-        if (type < 3 || type > 18 || (fl & 2)) continue;
-        if (!((bool(__thiscall*)(void*))0x4CA6D0)(node)) continue;
+        if (type < 3 || type > 18) { ++g_mapStat[1]; continue; }
+        if (fl & 2) { ++g_mapStat[2]; continue; }
+        if (!((bool(__thiscall*)(void*))0x4CA6D0)(node)) { ++g_mapStat[3]; continue; }
         float pos[2] = {NAN, NAN}, dir[2] = {0, 0};
         ((void(__thiscall*)(void*, float*, float*))0x4AC2B0)(node, pos, dir);
-        if (!(pos[0] == pos[0]) || !(pos[1] == pos[1])) continue;   // (its car is gone)
+        if (!(pos[0] == pos[0]) || !(pos[1] == pos[1])) { ++g_mapStat[4]; continue; }   // (its car is gone)
         uied::MapBlip b;
         b.x = pos[0]; b.y = pos[1]; b.dirX = dir[0]; b.dirY = dir[1];
         b.hideOff = (fl & 1) != 0; b.player = type == 4;
@@ -560,7 +602,8 @@ static bool MapViewNow(uied::MapView& out) {
                 }
             }
         }
-        if (!b.tex) continue;
+        if (!b.tex) { ++g_mapStat[5]; continue; }
+        ++g_mapStat[6]; if (b.player) ++g_mapStat[7];
         if (b.w < 1 || b.w > 128) b.w = 14.5f;
         if (b.h < 1 || b.h > 128) b.h = 14.5f;
         v.blips.push_back(b);
@@ -583,7 +626,6 @@ static bool MapViewNow(uied::MapView& out) {
             v.blips.push_back(b);
         }
     }
-    have = true; out = cache;
     return true;
 }
 

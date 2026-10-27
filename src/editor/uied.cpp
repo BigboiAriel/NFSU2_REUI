@@ -726,6 +726,9 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
         return;
     }
     g_mapDrawnAt = ImGui::GetTime();   // (other mods put their markers here instead of drawing their own)
+    static DWORD lastLog = 0;   // (diagnostics)
+    bool logNow = GetTickCount() - lastLog > 3000;
+    if (logNow) { lastLog = GetTickCount(); Log("minimap: drawn at %.0f %.0f radius %.0f, colour %08X, zoom x%.2f, %d icons", c.x, c.y, R, (unsigned)col, e.mapZoom, (int)mv.blips.size()); }
     const float kPi = 3.14159265f;
     float span = mv.span / e.mapZoom;
     float psi = mv.rotate ? -mv.bearing : 0;   // the world's turn on screen (degrees clockwise)
@@ -763,6 +766,7 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
             float su = 1, sv = 1;
             IDirect3DTexture9* tx = bl.tex;
             if (!tx && !bl.texName.empty()) tx = NamedTex(bl.texName, (int)ceilf(std::max(bl.w, bl.h) * k), su, sv);
+            if (logNow && bl.player) Log("minimap: your icon at %.0f %.0f size %.1f x %.1f px, turn %.0f, tex %p uv %.3f %.3f %.3f %.3f colour %08X", p.x, p.y, bl.w * k, bl.h * k, deg, (void*)tx, bl.u0, bl.v0, bl.u1, bl.v1, (unsigned)bcol);
             if (tx) TurnedQuad(dl, tx, p, bl.w * k, bl.h * k, deg, ImVec2(bl.u0 * su, bl.v0 * sv), ImVec2(bl.u1 * su, bl.v1 * sv), bcol);
             else if (bl.texName.empty()) Arrow(dl, p, bl.w * k, bl.h * k, deg, bcol);
         }
