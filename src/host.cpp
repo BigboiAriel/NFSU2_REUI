@@ -549,7 +549,7 @@ static bool MapViewNow(uied::MapView& out) {
             float pu = (v.px - v.x0) / v.size, pv = (v.y0 - v.py) / v.size;
             Log("minimap: map %p fmt %08X %ux%u pool %d levels %u su %.3f sv %.3f | x0 %.1f y0 %.1f size %.1f span %.4f | car %.1f %.1f uv %.3f %.3f bearing %.1f rotate %d",
                 v.tex, (unsigned)dd.Format, dd.Width, dd.Height, (int)dd.Pool, v.tex->GetLevelCount(), v.su, v.sv, v.x0, v.y0, v.size, v.span, v.px, v.py, pu, pv, v.bearing, v.rotate ? 1 : 0);
-            Log("minimap: map alpha %s", v.alphaOk ? "used" : "empty: drawn with the element's alpha instead");
+            Log("minimap: map alpha %s", v.alphaOk ? "used" : "empty: added onto the screen like the game does");
             Log("minimap: icons: nodes %d, type skipped %d, flag hidden %d, not shown %d, no position %d, no texture %d, kept %d (player %d), markers %d",
                 g_mapStat[0], g_mapStat[1], g_mapStat[2], g_mapStat[3], g_mapStat[4], g_mapStat[5], g_mapStat[6], g_mapStat[7], (int)v.blips.size() - g_mapStat[6]);
         }

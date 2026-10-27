@@ -674,8 +674,9 @@ static IDirect3DTexture9* NamedTex(const std::string& name, int px, float& su, f
 }
 // the map outside the texture is empty, not its edge pixels repeated: border addressing while the map is drawn
 // and the game's own mip settings (its last ones are still set) don't apply: level 0 down, linear between levels.
-// cb->UserCallbackData != null: the map's alpha is empty, so it's drawn with the element's (vertex) alpha only.
-static DWORD g_mapSamp[6], g_mapAlphaOp;
+// cb->UserCallbackData != null: the map's alpha is empty - the game adds it onto the screen (over its dark mask disc),
+// so it's drawn the same way: added, scaled by the element's alpha.
+static DWORD g_mapSamp[6], g_mapAlphaOp, g_mapBlend[2];
 static const D3DSAMPLERSTATETYPE kMapSamp[6] = {D3DSAMP_ADDRESSU, D3DSAMP_ADDRESSV, D3DSAMP_BORDERCOLOR, D3DSAMP_MIPFILTER, D3DSAMP_MAXMIPLEVEL, D3DSAMP_MIPMAPLODBIAS};
 static void MapAddrOn(const ImDrawList*, const ImDrawCmd* cb) {
     if (!g_dev) return;
@@ -684,12 +685,17 @@ static void MapAddrOn(const ImDrawList*, const ImDrawCmd* cb) {
     float bias = 0;
     const DWORD set[6] = {D3DTADDRESS_BORDER, D3DTADDRESS_BORDER, 0, D3DTEXF_LINEAR, 0, *(DWORD*)&bias};
     for (int i = 0; i < 6; ++i) g_dev->SetSamplerState(0, kMapSamp[i], set[i]);
-    if (cb && cb->UserCallbackData) g_dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);   // (ALPHAARG2 = diffuse)
+    g_dev->GetRenderState(D3DRS_SRCBLEND, &g_mapBlend[0]); g_dev->GetRenderState(D3DRS_DESTBLEND, &g_mapBlend[1]);
+    if (cb && cb->UserCallbackData) {
+        g_dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);   // (ALPHAARG2 = diffuse)
+        g_dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA); g_dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
+    }
 }
 static void MapAddrOff(const ImDrawList*, const ImDrawCmd*) {
     if (!g_dev) return;
     for (int i = 0; i < 6; ++i) g_dev->SetSamplerState(0, kMapSamp[i], g_mapSamp[i]);
     g_dev->SetTextureStageState(0, D3DTSS_ALPHAOP, g_mapAlphaOp);
+    g_dev->SetRenderState(D3DRS_SRCBLEND, g_mapBlend[0]); g_dev->SetRenderState(D3DRS_DESTBLEND, g_mapBlend[1]);
 }
 static ImU32 Mul(ImU32 a, const float c[4]) {
     ImVec4 v = ImGui::ColorConvertU32ToFloat4(a);
