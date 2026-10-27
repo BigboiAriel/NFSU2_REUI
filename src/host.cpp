@@ -496,6 +496,35 @@ static void ApplyHudReplace() {
 // hidden), +0x1C info {+0 its FE object, +4 type: 3 AI racer (car by id 0x5F0E30), 4 player (Player[id]), 5..18 shops
 // / events, 0..2 never shown}. 0x4AC2B0 thiscall(node, float pos[2], float dir[2]) ret 8 gives position and heading;
 // 0x4CA6D0 thiscall(node) -> al: whether it's shown now. Dropped past 1 minimap width (10 in free roam).
+// Whether a map texture's alpha says anything (checked once per texture): some track maps are drawn by the game
+// through its mask, with their own alpha empty - drawn as they are they'd be invisible.
+static bool MapAlphaOk(IDirect3DTexture9* t) {
+    static IDirect3DTexture9* last = nullptr; static bool ok = true;
+    if (t == last) return ok;
+    last = t; ok = true;
+    D3DSURFACE_DESC dd;
+    if (FAILED(t->GetLevelDesc(0, &dd)) || dd.Pool != D3DPOOL_MANAGED) return ok;
+    D3DLOCKED_RECT lr;
+    if (FAILED(t->LockRect(0, &lr, nullptr, D3DLOCK_READONLY))) return ok;
+    unsigned n = 0, sum = 0, mx = 0;   // alpha 0..255
+    const uint8_t* px = (const uint8_t*)lr.pBits;
+    if (dd.Format == D3DFMT_A8R8G8B8) {
+        for (unsigned y = 0; y < dd.Height; y += 2) for (unsigned x = 0; x < dd.Width; x += 2) { unsigned a = px[y * lr.Pitch + x * 4 + 3]; ++n; sum += a; mx = std::max(mx, a); }
+    } else if (dd.Format == D3DFMT_DXT3) {   // 16-byte blocks: 8 bytes of 4-bit alphas first
+        for (unsigned by = 0; by < dd.Height / 4; ++by) for (unsigned bx = 0; bx < dd.Width / 4; ++bx) {
+            const uint8_t* b = px + by * lr.Pitch + bx * 16;
+            for (int i = 0; i < 8; ++i) { unsigned lo = (b[i] & 15) * 17, hi = (b[i] >> 4) * 17; n += 2; sum += lo + hi; mx = std::max(mx, std::max(lo, hi)); }
+        }
+    } else if (dd.Format == D3DFMT_DXT5) {   // two end alphas per block: enough to see if any is set
+        for (unsigned by = 0; by < dd.Height / 4; ++by) for (unsigned bx = 0; bx < dd.Width / 4; ++bx) {
+            const uint8_t* b = px + by * lr.Pitch + bx * 16; n += 2; sum += b[0] + b[1]; mx = std::max(mx, (unsigned)std::max(b[0], b[1]));
+        }
+    } else { t->UnlockRect(0); Log("minimap: map format %08X: alpha not checked", (unsigned)dd.Format); return ok; }
+    t->UnlockRect(0);
+    ok = mx >= 16;
+    Log("minimap: map %ux%u alpha: average %u, highest %u -> %s", dd.Width, dd.Height, n ? sum / n : 0, mx, ok ? "used" : "empty, ignored");
+    return ok;
+}
 static const char* g_mapWhy = "";   // (diagnostics: why there's no minimap, the icon list's counts)
 static int g_mapStat[8];
 static bool MapViewNow2(uied::MapView& out);
@@ -520,18 +549,7 @@ static bool MapViewNow(uied::MapView& out) {
             float pu = (v.px - v.x0) / v.size, pv = (v.y0 - v.py) / v.size;
             Log("minimap: map %p fmt %08X %ux%u pool %d levels %u su %.3f sv %.3f | x0 %.1f y0 %.1f size %.1f span %.4f | car %.1f %.1f uv %.3f %.3f bearing %.1f rotate %d",
                 v.tex, (unsigned)dd.Format, dd.Width, dd.Height, (int)dd.Pool, v.tex->GetLevelCount(), v.su, v.sv, v.x0, v.y0, v.size, v.span, v.px, v.py, pu, pv, v.bearing, v.rotate ? 1 : 0);
-            // the texture's alpha (A8R8G8B8 only): how much of it is see-through
-            if (dd.Format == D3DFMT_A8R8G8B8 && dd.Pool == D3DPOOL_MANAGED) {
-                D3DLOCKED_RECT lr;
-                if (SUCCEEDED(v.tex->LockRect(0, &lr, nullptr, D3DLOCK_READONLY))) {
-                    unsigned zero = 0, n = 0, sum = 0;
-                    for (unsigned y = 0; y < dd.Height; y += 4) for (unsigned x = 0; x < dd.Width; x += 4) {
-                        unsigned a = ((uint8_t*)lr.pBits)[y * lr.Pitch + x * 4 + 3]; ++n; sum += a; if (!a) ++zero;
-                    }
-                    v.tex->UnlockRect(0);
-                    Log("minimap: map alpha: %u of %u samples 0, average %u", zero, n, n ? sum / n : 0);
-                }
-            }
+            Log("minimap: map alpha %s", v.alphaOk ? "used" : "empty: drawn with the element's alpha instead");
             Log("minimap: icons: nodes %d, type skipped %d, flag hidden %d, not shown %d, no position %d, no texture %d, kept %d (player %d), markers %d",
                 g_mapStat[0], g_mapStat[1], g_mapStat[2], g_mapStat[3], g_mapStat[4], g_mapStat[5], g_mapStat[6], g_mapStat[7], (int)v.blips.size() - g_mapStat[6]);
         }
@@ -563,15 +581,17 @@ static bool MapViewNow2(uied::MapView& out) {
     if (!v.tex) { g_mapWhy = tinfo ? "map texture not loaded" : "no map texture info"; return false; }
     D3DSURFACE_DESC dd; int tw = *(int16_t*)(tinfo + 0x44), th = *(int16_t*)(tinfo + 0x46);
     if (SUCCEEDED(v.tex->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && tw > 0 && th > 0) { v.su = (float)tw / dd.Width; v.sv = (float)th / dd.Height; }
+    v.alphaOk = MapAlphaOk(v.tex);
     bool freeRoam = *(int*)0x89E7B0 == 0;
     v.rotate = *(uint8_t*)(freeRoam ? 0x83AA1C : 0x83AA1B) == 2;
     v.limit = freeRoam ? 10.f : 1.f;
     v.px = *(float*)(car + 0x50); v.py = *(float*)(car + 0x54);
     float hr = *(uint16_t*)(car + 0x40C) * 6.2831853f / 65536;
     v.bearing = atan2f(cosf(hr), sinf(hr)) * 180 / 3.14159265f;   // dir (cos, sin): degrees clockwise from north
-    // the game's icons
-    uint8_t* node = *(uint8_t**)comp;
-    for (int guard = 0; node && node != comp && guard < 512; ++guard, node = *(uint8_t**)node) {
+    // the game's icons: on the minimap object [0x8364D4] (0x4ECC80 makes it; 0x4CA840 runs on it), not the HUD slot
+    uint8_t* mm = *(uint8_t**)0x8364D4;
+    uint8_t* node = Readable(mm, 0x1C) ? *(uint8_t**)mm : nullptr;
+    for (int guard = 0; node && node != mm && guard < 512; ++guard, node = *(uint8_t**)node) {
         ++g_mapStat[0];
         if (!Readable(node, 0x20)) break;
         uint8_t* info = *(uint8_t**)(node + 0x1C);

@@ -63,6 +63,7 @@ namespace uied {
         float px = 0, py = 0, bearing = 0;  // the player: position, heading (degrees clockwise from north)
         float span = 0.2f;                  // uv across the minimap at the game's zoom
         bool rotate = false;                // heading-up (the game's radar option), else north-up
+        bool alphaOk = true;                // false: the texture's alpha is empty (drawn with the element's alpha)
         float limit = 1;                    // game icons further than this (in minimap widths) are dropped
         std::vector<MapBlip> blips;
     };

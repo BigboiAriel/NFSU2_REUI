@@ -673,18 +673,23 @@ static IDirect3DTexture9* NamedTex(const std::string& name, int px, float& su, f
     return liveTexture ? liveTexture(name, &su, &sv) : nullptr;
 }
 // the map outside the texture is empty, not its edge pixels repeated: border addressing while the map is drawn
-static DWORD g_mapAddr[3];
-static void MapAddrOn(const ImDrawList*, const ImDrawCmd*) {
+// and the game's own mip settings (its last ones are still set) don't apply: level 0 down, linear between levels.
+// cb->UserCallbackData != null: the map's alpha is empty, so it's drawn with the element's (vertex) alpha only.
+static DWORD g_mapSamp[6], g_mapAlphaOp;
+static const D3DSAMPLERSTATETYPE kMapSamp[6] = {D3DSAMP_ADDRESSU, D3DSAMP_ADDRESSV, D3DSAMP_BORDERCOLOR, D3DSAMP_MIPFILTER, D3DSAMP_MAXMIPLEVEL, D3DSAMP_MIPMAPLODBIAS};
+static void MapAddrOn(const ImDrawList*, const ImDrawCmd* cb) {
     if (!g_dev) return;
-    g_dev->GetSamplerState(0, D3DSAMP_ADDRESSU, &g_mapAddr[0]); g_dev->GetSamplerState(0, D3DSAMP_ADDRESSV, &g_mapAddr[1]);
-    g_dev->GetSamplerState(0, D3DSAMP_BORDERCOLOR, &g_mapAddr[2]);
-    g_dev->SetSamplerState(0, D3DSAMP_ADDRESSU, D3DTADDRESS_BORDER); g_dev->SetSamplerState(0, D3DSAMP_ADDRESSV, D3DTADDRESS_BORDER);
-    g_dev->SetSamplerState(0, D3DSAMP_BORDERCOLOR, 0);
+    for (int i = 0; i < 6; ++i) g_dev->GetSamplerState(0, kMapSamp[i], &g_mapSamp[i]);
+    g_dev->GetTextureStageState(0, D3DTSS_ALPHAOP, &g_mapAlphaOp);
+    float bias = 0;
+    const DWORD set[6] = {D3DTADDRESS_BORDER, D3DTADDRESS_BORDER, 0, D3DTEXF_LINEAR, 0, *(DWORD*)&bias};
+    for (int i = 0; i < 6; ++i) g_dev->SetSamplerState(0, kMapSamp[i], set[i]);
+    if (cb && cb->UserCallbackData) g_dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);   // (ALPHAARG2 = diffuse)
 }
 static void MapAddrOff(const ImDrawList*, const ImDrawCmd*) {
     if (!g_dev) return;
-    g_dev->SetSamplerState(0, D3DSAMP_ADDRESSU, g_mapAddr[0]); g_dev->SetSamplerState(0, D3DSAMP_ADDRESSV, g_mapAddr[1]);
-    g_dev->SetSamplerState(0, D3DSAMP_BORDERCOLOR, g_mapAddr[2]);
+    for (int i = 0; i < 6; ++i) g_dev->SetSamplerState(0, kMapSamp[i], g_mapSamp[i]);
+    g_dev->SetTextureStageState(0, D3DTSS_ALPHAOP, g_mapAlphaOp);
 }
 static ImU32 Mul(ImU32 a, const float c[4]) {
     ImVec4 v = ImGui::ColorConvertU32ToFloat4(a);
@@ -736,7 +741,7 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
     float pu = (mv.px - mv.x0) / mv.size, pv = (mv.y0 - mv.py) / mv.size;
     // the map: a fan over the circle, each rim point's uv turned back by the world's turn
     const int N = 64;
-    dl->AddCallback(MapAddrOn, nullptr);
+    dl->AddCallback(MapAddrOn, mv.alphaOk ? nullptr : (void*)1);
     dl->PushTextureID((ImTextureID)mv.tex);
     dl->PrimReserve(N * 3, N + 1);
     ImDrawIdx base = (ImDrawIdx)dl->_VtxCurrentIdx;
