@@ -46,6 +46,11 @@ namespace uied {
     // the mod is loaded; hide() says whether flagged elements are hidden now. Flags in a layout whose mod isn't loaded
     // keep what they said when it was (hiddenWhenMissing, saved with the layout). group > 0: one flag of a group per element.
     void AddFlag(const std::string& key, const std::string& label, const std::string& tooltip, int group, bool hiddenWhenMissing, std::function<bool()> hide);
+    // "Replace stock HUD [x]": a stock HUD piece an element can stand in for. Elements store the flag "replace:<id>";
+    // while one is drawn (shown in game: its showif / flags pass), ReplaceWanted(id) is true and the host hides
+    // that piece of the game's HUD.
+    void AddReplaceTarget(const std::string& id, const std::string& label, const std::string& tooltip);
+    bool ReplaceWanted(const std::string& id, double withinSeconds = 0.3);
     // UniPad: controller button icons, as image textures named "icon:<family>:<key>" ("icon:auto:South" = the
     // active controller's family, so it switches between Xbox / PlayStation / ... art). Families and keys by index.
     extern std::vector<std::string> iconFamilies, iconKeys;

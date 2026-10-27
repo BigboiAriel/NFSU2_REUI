@@ -422,6 +422,70 @@ static void RvmStockPatch(bool hide) {
     Log("mirror: the game's own mirror %s", hide ? "hidden (an element shows {rvm})" : "shown");
 }
 
+// ---- "replace stock HUD [x]"
+// The HUD ([Player+0x9A4], built by 0x4F8BF0) keeps its components at fixed slots; each component has the HUD
+// feature bits it shows for at +0x10 / +0x14 (set by its constructor) and the last feature mask at +0x18 / +0x1C.
+// 0x4C6690 (thiscall comp, lo, hi; ret 8) shows the component's FE objects when (bits & features) != 0, else hides
+// them. To hide one piece: its bits to 0 and 0x4C6690 again; to bring it back: the constructor's bits and again.
+// (The global mask 0x600090 can't do this per piece: the minimap and the region popup share bit 0, the three tach
+// variants bits 5 / 6 / 28.)
+struct HudPiece { const char* id; const char* label; const char* tip; int slot; uint32_t lo, hi; };
+static const HudPiece kHudPieces[] = {
+    {"tachometer", "tachometer", "The stock tach, speedometer and gear (all three tach variants: HUD+0x18 / 0x1C / 0x34).", 0x18, 0x10000060, 0},
+    {"tachometer", nullptr, nullptr, 0x1C, 0x10000060, 0},
+    {"tachometer", nullptr, nullptr, 0x34, 0x10000060, 0},
+    {"nitrous", "nitrous gauge", "The stock nitrous bar (HUD+0x28, feature bit 50).", 0x28, 0, 0x40000},
+    {"engage", "Cingular / Engage panel", "The phone / messages / event icons at top left (HUD+0x58, bit 33).", 0x58, 0, 0x2},
+    {"bank", "bank", "The bank at top right (HUD+0x80, bit 51).", 0x80, 0, 0x80000},
+    {"cash_reward", "cash reward", "The Cash Reward popup (HUD+0x78, bit 39).", 0x78, 0, 0x80},
+    {"region", "region popup", "The area name when you drive into a new region (HUD+0x74).", 0x74, 1, 0},
+    {"style_points", "style points", "The style points above the tach (HUD+0x4C, bit 17).", 0x4C, 0x20000, 0},
+    {"minimap", "minimap", "The stock minimap / track map (HUD+0x5C).", 0x5C, 1, 0},
+    {"race_position", "race position", "Position / racers at top right in a race (HUD+0x20, bit 9).", 0x20, 0x200, 0},
+    {"laps", "laps and lap times", "Lap number, current and best lap (HUD+0x3C, bits 3 / 8 / 10).", 0x3C, 0x508, 0},
+    {"split_time", "split time", "The split time (HUD+0x48, bit 7).", 0x48, 0x80, 0},
+    {"wrong_way", "wrong way", "The wrong-way sign (HUD+0x44, bit 14).", 0x44, 0x4000, 0},
+    {"outrun_meter", "outrun meter", "The outrun distance bar (HUD+0x6C, bit 38).", 0x6C, 0, 0x40},
+};
+static void HudPieceSet(uint8_t* c, bool hide, const HudPiece& p) {
+    *(uint32_t*)(c + 0x10) = hide ? 0 : p.lo;
+    *(uint32_t*)(c + 0x14) = hide ? 0 : p.hi;
+    ((void(__thiscall*)(void*, uint32_t, uint32_t))0x4C6690)(c, *(uint32_t*)(c + 0x18), *(uint32_t*)(c + 0x1C));
+}
+static void ApplyHudReplace() {
+    static uint8_t* lastHud = nullptr;
+    static bool hidden[sizeof kHudPieces / sizeof kHudPieces[0]] = {};
+    static DWORD lastAssert = 0;
+    uint8_t* p1 = *(uint8_t**)0x8900AC;
+    uint8_t* hud = *(int*)0x8654A4 == 6 && Readable(p1, 0x9A8) ? *(uint8_t**)(p1 + 0x9A4) : nullptr;
+    if (!Readable(hud, 0x84)) hud = nullptr;
+    if (hud != lastHud) { lastHud = hud; for (bool& h : hidden) h = false; }   // a new HUD: its pieces are as built
+    if (!hud) return;
+    DWORD now = GetTickCount();
+    bool reassert = now - lastAssert > 500;   // a piece the game turned back on is hidden again
+    if (reassert) lastAssert = now;
+    for (size_t i = 0; i < sizeof kHudPieces / sizeof kHudPieces[0]; ++i) {
+        const HudPiece& p = kHudPieces[i];
+        uint8_t* c = *(uint8_t**)(hud + p.slot);
+        if (!Readable(c, 0x20)) continue;
+        bool want = uied::ReplaceWanted(p.id);
+        uint32_t lo = *(uint32_t*)(c + 0x10), hi = *(uint32_t*)(c + 0x14);
+        if (want && !hidden[i]) {
+            if (lo != p.lo || hi != p.hi) {   // not the piece the table expects: leave it alone
+                static bool told[64]; if (!told[i]) { told[i] = true; Log("replace: HUD+0x%X has bits %08X:%08X, expected %08X:%08X; not touched", p.slot, hi, lo, p.hi, p.lo); }
+                continue;
+            }
+            HudPieceSet(c, true, p); hidden[i] = true;
+            Log("replace: stock %s hidden (HUD+0x%X)", p.id, p.slot);
+        } else if (!want && hidden[i]) {
+            HudPieceSet(c, false, p); hidden[i] = false;
+            Log("replace: stock %s shown again (HUD+0x%X)", p.id, p.slot);
+        } else if (want && hidden[i] && reassert) {
+            HudPieceSet(c, true, p);
+        }
+    }
+}
+
 static bool Token(const std::string& k, std::string& out) {
     char b[64];
     if (k == "fps") { snprintf(b, sizeof b, "%.0f", g_fps); out = b; return true; }
@@ -539,6 +603,8 @@ void HostInit() {
         int* rs = *(int**)0x890118;
         return !Readable(rs, 4) || *rs < 4;
     });
+    for (const HudPiece& p : kHudPieces) if (p.label) uied::AddReplaceTarget(p.id, p.label, p.tip);
+    uied::AddReplaceTarget("rvm", "rear-view mirror", "The game's own rear-view mirror (also hidden by itself while an element shows {rvm}).");
     uied::AddFlag("hide_wreck", "hide in a wreck", "Hidden while the game shows a wreck: its crash camera, which slows the world to x0.33\n(World [0x890080] +0x108; the jump camera uses x0.4).", 0, false, [] { return InWreck(); });
     uied::liveTexture = [](const std::string& name, float* su, float* sv) -> IDirect3DTexture9* {
         if (name == "@rvm") {   // the live rear-view mirror ({rvm})
@@ -598,7 +664,8 @@ void HostBeginFrame(IDirect3DDevice9* dev) {
 }
 void HostDraw() {
     if (!g_ready) return;
-    RvmStockPatch(g_rvmDrawnAt && GetTickCount() - g_rvmDrawnAt < 300);
+    RvmStockPatch((g_rvmDrawnAt && GetTickCount() - g_rvmDrawnAt < 300) || uied::ReplaceWanted("rvm"));
+    ApplyHudReplace();
     { std::string t; Token("bank_reward_on", t); }   // watched every frame (a rise during a race / menus isn't a reward)
     WatchCameras();
     { std::string t; Token("region_new", t); Token("trick_on", t); }   // (watched every frame, so a change is caught when it happens)

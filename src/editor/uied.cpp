@@ -439,6 +439,22 @@ void AddFlag(const std::string& key, const std::string& label, const std::string
     FlagDef* f = FlagOf(key); if (!f) { g_flagDefs.push_back(FlagDef()); f = &g_flagDefs.back(); }
     f->key = key; f->label = label; f->tip = tooltip; f->group = group; f->hideMissing = hiddenWhenMissing; f->live = true; f->hide = hide;
 }
+// "replace:<id>" flags: the stock HUD piece an element stands in for (the host hides it while the element shows)
+struct ReplaceTarget { std::string id, label, tip; double seen = -1; };
+static std::vector<ReplaceTarget> g_replace;
+static ReplaceTarget* ReplaceOf(const std::string& id) { for (auto& r : g_replace) if (r.id == id) return &r; return nullptr; }
+void AddReplaceTarget(const std::string& id, const std::string& label, const std::string& tooltip) {
+    ReplaceTarget* r = ReplaceOf(id); if (!r) { g_replace.push_back(ReplaceTarget()); r = &g_replace.back(); }
+    r->id = id; r->label = label; r->tip = tooltip;
+}
+bool ReplaceWanted(const std::string& id, double within) {
+    ReplaceTarget* r = ReplaceOf(id);
+    return r && r->seen >= 0 && ImGui::GetCurrentContext() && ImGui::GetTime() - r->seen <= within;
+}
+static void ReplaceSeen(const Elem& e) {   // drawn for real this frame: its replace flags count
+    for (auto& k : e.flags)
+        if (k.compare(0, 8, "replace:") == 0) if (ReplaceTarget* r = ReplaceOf(k.substr(8))) r->seen = ImGui::GetTime();
+}
 static bool HasFlag(const Elem& e, const std::string& k) { return std::find(e.flags.begin(), e.flags.end(), k) != e.flags.end(); }
 static void SetFlag(Elem& e, const FlagDef& f, bool on) {
     e.flags.erase(std::remove(e.flags.begin(), e.flags.end(), f.key), e.flags.end());
@@ -497,7 +513,12 @@ static void FlagBoxes(std::vector<Elem*> els, const char* idSuffix) {
         bool all = true, any = false; for (Elem* e : els) { bool h = HasFlag(*e, f.key); all &= h; any |= h; }
         if (any) { if (!sum.empty()) sum += ", "; sum += f.label + (all ? "" : " (some)"); }
     }
-    if (!live) return;
+    for (auto& r : g_replace) {
+        std::string k = "replace:" + r.id;
+        bool all = true, any = false; for (Elem* e : els) { bool h = HasFlag(*e, k); all &= h; any |= h; }
+        if (any) { if (!sum.empty()) sum += ", "; sum += "replaces " + r.label + (all ? "" : " (some)"); }
+    }
+    if (!live && g_replace.empty()) return;
     ImGui::SameLine();
     std::string pop = std::string("flags") + idSuffix;
     if (ImGui::Button(("Flags: " + (sum.empty() ? std::string("none") : sum) + "###flb" + idSuffix).c_str())) ImGui::OpenPopup(pop.c_str());
@@ -508,6 +529,19 @@ static void FlagBoxes(std::vector<Elem*> els, const char* idSuffix) {
             bool all = true; for (Elem* e : els) all &= HasFlag(*e, f.key);
             if (ImGui::Checkbox(f.label.c_str(), &all)) { for (Elem* e : els) SetFlag(*e, f, all); g_dirty = true; }
             if (!f.tip.empty() && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", f.tip.c_str());
+        }
+        if (!g_replace.empty()) {
+            ImGui::SeparatorText("Replace stock HUD");
+            ImGui::TextDisabled("While this shows, the game's own piece is hidden.");
+            for (auto& r : g_replace) {
+                std::string k = "replace:" + r.id;
+                bool all = true; for (Elem* e : els) all &= HasFlag(*e, k);
+                if (ImGui::Checkbox(("replace " + r.label + "##rp" + r.id).c_str(), &all)) {
+                    for (Elem* e : els) { e->flags.erase(std::remove(e->flags.begin(), e->flags.end(), k), e->flags.end()); if (all) e->flags.push_back(k); }
+                    g_dirty = true;
+                }
+                if (!r.tip.empty() && ImGui::IsItemHovered()) ImGui::SetTooltip("%s", r.tip.c_str());
+            }
         }
         ImGui::EndPopup();
     }
@@ -623,6 +657,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (e.row > boardRows) return;               // past the rows shown (also while editing)
     bool mine = false;
     if (!RowShown(e, mine) && !editing) return;   // (while editing, rows nobody fills are drawn so they can be placed)
+    if (!e.flags.empty() && ShowIfOk(e) && !FlagsHide(e)) ReplaceSeen(e);
     ImVec2 a, b; ElemRect(e, a, b);
     ImU32 col = Col(mine && e.hiMine ? e.hiCol : e.col);
     if (!e.tint.empty()) {   // colour times a value's "R G B"

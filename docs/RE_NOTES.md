@@ -55,3 +55,34 @@ Live textures: a TextureInfo's +0 points at its platform part; the IDirect3DText
 - Views are `0x832DE0 + id * 0x70` (0x48B1E0): +8 active, +0x40 camera, +0x58 render target struct (+8 surface, +0xC depth, +0x14 / +0x18 size).
 - The mirror is view 3: camera 0x8718C0, render target 0x86E7BC. The render loop (0x5CAAD0, 0x5CAE3D .. 0x5CAFAF) draws the world into it. Then it draws the "RVM" art over it (TextureInfo at 0x8707E8) and RVM_MASK into its alpha (0x8707EC). Both are looked up in 0x5B98B0.
 - The mirror texture itself is `[0x8708A4]`. 0x5CBF40 draws it on screen at x 200..440, y 15..95 (640x480) when view 3 is active. The `je` at 0x5CC0E6 (`0F 84 0A 01 00 00`) skips that draw; REUI turns it into `90 E9 ...` while an element shows `{rvm}`.
+
+## HUD components and feature bits
+- The HUD (`[Player+0x9A4]`, built by 0x4F8BF0) keeps its components at fixed slots. Each component has the feature bits it shows for at +0x10 / +0x14 (set by its constructor) and the last feature mask at +0x18 / +0x1C.
+- The feature mask comes from 0x600090 (bit names: table at 0x7F6728, `HUD_FEATURE_*`). 0x600590 applies it only when it changes, through 0x4CA090. That function calls 0x4C6690 (thiscall comp, lo, hi; ret 8) for each affected component, which shows or hides the component's FE objects by `(bits & features) != 0`.
+- Slots, with constructor and bits:
+
+  | Slot | Constructor | Bits | Piece |
+  |---|---|---|---|
+  | 0x18 | 0x4F5100 | 0x10000060 (5, 6, 28) | tach |
+  | 0x1C | 0x4F5A70 | 0x10000060 (5, 6, 28) | tach |
+  | 0x34 | 0x4F6500 | 0x10000060 (5, 6, 28) | tach |
+  | 0x20 | 0x4F4AC0 | 0x200 (bit 9) | race position |
+  | 0x24 | 0x4F69E0 | bit 29 | |
+  | 0x28 | 0x4F6A90 | bit 50 | NOS |
+  | 0x2C | 0x4F6C00 | bit 31 | messages |
+  | 0x30 | 0x4F7170 | 4 (bit 2) | race over |
+  | 0x3C | 0x4F5C40 | 0x508 (bits 3, 8, 10) | laps |
+  | 0x44 | 0x4F6420 | bit 14 | wrong way |
+  | 0x48 | 0x4F6030 | bit 7 | split time |
+  | 0x4C | 0x4F7AD0 | bit 17 | style points |
+  | 0x50 | 0x4F80E0 | bit 14 | online |
+  | 0x54 | 0x4F7340 | bit 49 | ? |
+  | 0x58 | 0x4F83D0 | bit 33 | engage |
+  | 0x5C | 0x4F73E0 | bit 0 | minimap |
+  | 0x64 | 0x4F86D0 | bit 34 | showcase |
+  | 0x6C | 0x4F87E0 | bit 38 | outrun meter |
+  | 0x70 | 0x4F89D0 | bit 11 | dyno |
+  | 0x74 | 0x4F4E70 | bit 0 | region popup |
+  | 0x78 | 0x4F5060 | bit 39 | cash reward |
+  | 0x80 | 0x4F4F10 | bit 51 | bank |
+- "Replace stock HUD [x]": REUI zeroes a component's bits, calls 0x4C6690 again, and repeats that every 0.5 s while the replacing element shows. It restores the constructor's bits afterwards.
