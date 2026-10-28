@@ -1913,6 +1913,7 @@ static void DeletePrefab(const std::string& name) {
     Log("ui editor: prefab %s (logged in _deleted.log)", g_prefabMsg.c_str());
 }
 static std::string IntoMenu(const std::string& g);   // (uied_menu.inc)
+static std::string RelGroup(const std::string& g);
 static void AddPrefab(const std::string& name) {
     std::string root; std::vector<Elem> els;
     if (!LoadPrefab(name, root, els)) { g_prefabMsg = "couldn't read " + name; return; }
@@ -2245,7 +2246,7 @@ void DrawOverlay(int mode) {
                 ClearMulti();
                 // a member of the picked group: that group moves; Alt + click on any grouped element: its outermost group
                 if (InGroup(grp, g_selGroup)) { g_sel = -1; g_dragMode = 2; }
-                else if (!grp.empty() && io.KeyAlt) { g_selGroup = grp.substr(0, grp.find('/')); g_sel = -1; g_dragMode = 2; }
+                else if (!RelGroup(grp).empty() && io.KeyAlt) { std::string r = RelGroup(grp); g_selGroup = IntoMenu(r.substr(0, r.find('/'))); g_sel = -1; g_dragMode = 2; }
                 else { g_sel = i; g_selGroup.clear(); }
                 break;
             }
@@ -2374,10 +2375,12 @@ static void GroupPanel() {
     std::string g = g_selGroup;
     std::vector<int> mem; for (int i = 0; i < (int)Elems().size(); ++i) if (InGroup(Elems()[i].group, g)) mem.push_back(i);
     if (mem.empty()) { g_selGroup.clear(); return; }
+    if (MenuEdOff("") && g == g_menuEd) { g_selGroup.clear(); return; }   // (a custom menu is the page, not a group)
     std::string parent = GroupParent(g);
+    bool menuTop = MenuEdOff("") && parent == g_menuEd;   // (at the top of the custom menu being edited)
     int subs = 0; for (auto& n : GroupNames()) if (n != g && InGroup(n, g) && GroupParent(n) == g) ++subs;
     ImGui::Text("Group: %s  (%d elements%s)", GroupLeaf(g).c_str(), (int)mem.size(), subs ? (", " + std::to_string(subs) + " groups inside").c_str() : "");
-    if (!parent.empty()) { ImGui::SameLine(); ImGui::TextDisabled("inside %s", parent.c_str()); ImGui::SameLine(); if (ImGui::SmallButton("select that")) { g_selGroup = parent; return; } }
+    if (!parent.empty() && !menuTop) { ImGui::SameLine(); ImGui::TextDisabled("inside %s", RelGroup(parent).c_str()); ImGui::SameLine(); if (ImGui::SmallButton("select that")) { g_selGroup = parent; return; } }
     ImGui::TextDisabled("Drag any of its elements on screen to move the group (Alt + drag: a grouped element's outermost group).");
     static char nb[64]; static std::string nbFor;
     if (nbFor != g) { snprintf(nb, sizeof nb, "%s", GroupLeaf(g).c_str()); nbFor = g; }
@@ -2390,10 +2393,10 @@ static void GroupPanel() {
     {
         ImGui::SetNextItemWidth(200);
         if (ImGui::BeginCombo("##grpparent", "put inside...")) {
-            if (!parent.empty() && ImGui::Selectable("(top level)")) { RebaseGroup(g, GroupLeaf(g)); ImGui::EndCombo(); return; }
+            if (!parent.empty() && !menuTop && ImGui::Selectable("(top level)")) { RebaseGroup(g, IntoMenu(GroupLeaf(g))); ImGui::EndCombo(); return; }
             for (auto& n : GroupNames()) {
-                if (InGroup(n, g) || n == parent) continue;
-                if (ImGui::Selectable(n.c_str())) { RebaseGroup(g, n + "/" + GroupLeaf(g)); ImGui::EndCombo(); return; }
+                if (InGroup(n, g) || n == parent || MenuEdOff(n) || RelGroup(n).empty()) continue;
+                if (ImGui::Selectable((RelGroup(n) + "##" + n).c_str())) { RebaseGroup(g, n + "/" + GroupLeaf(g)); ImGui::EndCombo(); return; }
             }
             ImGui::EndCombo();
         }
@@ -2469,7 +2472,7 @@ static void GroupPanel() {
 }
 static void GroupField(Elem& e) {
     static char gb[64]; static const Elem* gbFor = nullptr; static std::string gbWas;
-    if (gbFor != &e || gbWas != e.group) { snprintf(gb, sizeof gb, "%s", e.group.c_str()); gbFor = &e; gbWas = e.group; }
+    if (gbFor != &e || gbWas != e.group) { snprintf(gb, sizeof gb, "%s", RelGroup(e.group).c_str()); gbFor = &e; gbWas = e.group; }
     ImGui::SetNextItemWidth(160);
     if (ImGui::InputTextWithHint("group", "(none) - type a name", gb, sizeof gb, ImGuiInputTextFlags_EnterReturnsTrue)) { e.group = IntoMenu(CleanGroup(gb)); gbWas = e.group; g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Enter to set. A group inside a larger one: Larger/Smaller (e.g. Race HUD/Leaderboard).");
@@ -2477,12 +2480,12 @@ static void GroupField(Elem& e) {
     if (!names.empty()) {
         ImGui::SameLine(); ImGui::SetNextItemWidth(130);
         if (ImGui::BeginCombo("##grppick", "add to...")) {
-            if (ImGui::Selectable(MenuEdOff("") ? "(the menu itself)" : "(no group)")) { e.group = IntoMenu(""); g_dirty = true; }
-            for (auto& n : names) if (!MenuEdOff(n) && ImGui::Selectable(n.c_str(), n == e.group)) { e.group = n; g_dirty = true; }
+            if (ImGui::Selectable("(no group)")) { e.group = IntoMenu(""); g_dirty = true; }
+            for (auto& n : names) if (!MenuEdOff(n) && !RelGroup(n).empty() && ImGui::Selectable((RelGroup(n) + "##" + n).c_str(), n == e.group)) { e.group = n; g_dirty = true; }
             ImGui::EndCombo();
         }
     }
-    if (!e.group.empty()) { ImGui::SameLine(); if (ImGui::SmallButton("select group")) { g_selGroup = e.group; g_sel = -1; } }
+    if (!RelGroup(e.group).empty()) { ImGui::SameLine(); if (ImGui::SmallButton("select group")) { g_selGroup = e.group; g_sel = -1; } }
 }
 // "Row 1 name" and "Row 12 name" share the scheme "Row # name": every run of digits becomes #
 static std::string NameScheme(const std::string& n) {
@@ -2970,7 +2973,7 @@ void Panel() {
         ImGui::PushID(i);
         std::string label = std::string(Elems()[i].type == E_TEXT ? "[T] " : Elems()[i].type == E_SHAPE ? (Elems()[i].cut ? "[C] " : "[S] ") : "[I] ") + Elems()[i].name + (Elems()[i].visible ? "" : " (hidden)") +
                             (Elems()[i].layer ? "  L" + std::to_string(Elems()[i].layer) : "");
-        if (!q.empty() && !Elems()[i].group.empty()) label += "   in " + Elems()[i].group;
+        if (!q.empty() && !RelGroup(Elems()[i].group).empty()) label += "   in " + RelGroup(Elems()[i].group);
         if (ImGui::Selectable(label.c_str(), (g_sel == i && g_selGroup.empty()) || InMulti(i))) {
             ImGuiIO& io = ImGui::GetIO();
             if (io.KeyShift && g_sel >= 0) shiftTo = i;   // a range: done once the list is drawn
@@ -2995,7 +2998,7 @@ void Panel() {
         for (auto& g : GroupNames())
             if (has(GroupLeaf(g)) && !MenuEdOff(g)) {
                 ImGui::PushID(("sg_" + g).c_str());
-                if (ImGui::Selectable(("[G] " + g).c_str(), g_selGroup == g)) { g_selGroup = g; g_sel = -1; }
+                if (ImGui::Selectable(("[G] " + RelGroup(g) + "##" + g).c_str(), g_selGroup == g)) { g_selGroup = g; g_sel = -1; }
                 shownList.push_back({ -1, g }); scrollHere(g_selGroup == g);
                 ImGui::PopID();
             }
@@ -3066,11 +3069,11 @@ void Panel() {
                 if (open) { level(child); ImGui::TreePop(); }
             }
         };
-        level("");
+        level(MenuEdOff("") ? g_menuEd : std::string());   // (a custom menu: its contents are the top of the list - it's the page, not a group)
         // the strip under the list: out of every group
         ImGui::Dummy(ImVec2(-FLT_MIN, 4));
         ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-        ImGui::Selectable("(drop here: no group)", false, ImGuiSelectableFlags_Disabled);
+        ImGui::Selectable(MenuEdOff("") ? "(drop here: out of its groups)" : "(drop here: no group)", false, ImGuiSelectableFlags_Disabled);
         ImGui::PopStyleColor();
         if (ImGui::BeginDragDropTarget()) {
             if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("UIED_ELEM")) { drop.elem = *(const int*)pl->Data; drop.toTop = true; }

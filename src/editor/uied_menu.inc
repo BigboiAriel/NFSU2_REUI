@@ -390,14 +390,23 @@ static bool TileShows(const Elem& e, int bit) {
 // The editor's menu bar: the custom menu being edited ("" = none: everything shows). Only its pieces are shown / listed.
 static std::string g_menuEd;
 static bool MenuEdOff(const std::string& group) {
-    if (!MenuWs() || g_menuEd.empty()) return false;
+    if (!MenuWs()) return false;
+    if (g_menuEd.empty()) {   // none picked: the rest of the layout (custom menus show only when picked)
+        for (auto& p : g_pages) if (p.dedicated && InGroup(group, p.group)) return true;
+        return false;
+    }
     Page* p = PageOf(g_menuEd);
     if (!p || !p->dedicated) { g_menuEd.clear(); return false; }   // (gone: undo, reload)
     return !InGroup(group, g_menuEd);
 }
+// a group as the editor shows it while a custom menu is being edited: the menu is the page, not a group ("" = the menu)
+static std::string RelGroup(const std::string& g) {
+    if (!MenuWs() || g_menuEd.empty() || !InGroup(g, g_menuEd)) return g;
+    return g == g_menuEd ? std::string() : g.substr(g_menuEd.size() + 1);
+}
 // a group for something new / moved while a custom menu is being edited: inside that menu ("" -> the menu itself)
 static std::string IntoMenu(const std::string& g) {
-    if (!MenuEdOff(g)) return g;
+    if (g_menuEd.empty() || !MenuEdOff(g)) return g;
     return g.empty() ? g_menuEd : CleanGroup(g_menuEd + "/" + g);
 }
 // the editor: a grid's pieces are its first tile as the panel's picked tile would show it (the others are hidden); with a
@@ -1578,7 +1587,7 @@ static void MenuBar() {
         if (on) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
         if (ImGui::Button((mine[i] + "##menu" + std::to_string(i)).c_str())) { g_menuEd = on ? std::string() : mine[i]; g_sel = -1; g_selGroup.clear(); ClearMulti(); }
         if (on) ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip(on ? "Editing this menu alone. Click again to show everything." : "Edit this menu (alone on screen and in the list).");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip(on ? "Editing this menu alone. Click again to go back to the rest of the layout." : "Edit this menu (alone on screen and in the list; custom menus show only while picked).");
     }
     ImGui::SameLine(); if (ImGui::Button("+")) newMenu();
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Add another custom menu.");

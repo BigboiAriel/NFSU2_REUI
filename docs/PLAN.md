@@ -116,7 +116,10 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   ticked "menu page") are left as they are, deprecated, and aren't in the bar.
   Everything that adds pieces goes into the menu being edited (IntoMenu): Add image / text / shape, prefabs (as a group
   inside it), controller icons, vector art, FNG captures, "Copy its elements into this layout"; the list's "no group"
-  drop, the group field and its "add to..." list (only the menu's groups; "(the menu itself)") keep things inside it.
+  drop, the group field and its "add to..." list keep things inside it. The menu is the page, not a group: while it's
+  picked its contents are the top of the element list, group names show without it (RelGroup), Alt + click picks the
+  outermost group inside it, and the menu's own group can't be picked. With no menu picked, custom menus are hidden
+  (screen, list, clicks): the rest of the layout shows.
 - **Deprecated (2026-10-27): the row tools.** Build rows, Restack rows, row spacing / first row y, Start a new column,
   column distance, first column x, add to column, Add row (widget kit), row up / down, a row's column, Save as
   template and the Widget kit panel are gone from the editor; grids (menu buttons in rows x columns) replace them.
