@@ -107,6 +107,13 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   shown on the other kinds, made pickers / bindings look done). Binding tiles: the label on the tile's left, the icon
   just after its text (`afterlabel=1`: moves with each tile's label length, keeps its shape). A binding shown in the
   grid's own icon piece is square.
+- **Custom menus (2026-10-28).** A bar under Add image ... Undo (Menus workspace): "Add Menu +" when there are none,
+  then a button per custom menu and "+". Each is a dedicated page (`[page]` with `dedicated=1`; its group is its name,
+  "Menu N" to start). Picking one edits it alone: everything outside it is hidden on screen, in the list and from clicks,
+  and Add image / text / shape put new pieces in it (picking it again shows everything). Under the buttons: its name
+  (renames the group), Delete menu (confirm), and its page settings (rows shown, menu key opens this, selected colour,
+  Add grid, Try it). Its group's properties say it's a custom menu instead of the "menu page" tick. Older pages (groups
+  ticked "menu page") are left as they are, deprecated, and aren't in the bar.
 - **Deprecated (2026-10-27): the row tools.** Build rows, Restack rows, row spacing / first row y, Start a new column,
   column distance, first column x, add to column, Add row (widget kit), row up / down, a row's column, Save as
   template and the Widget kit panel are gone from the editor; grids (menu buttons in rows x columns) replace them.

@@ -2148,7 +2148,7 @@ void DrawOverlay(int mode) {
         g_drawList = &lay;
         for (int i : DrawOrder(lay)) if (!(MenuWs() && GridPieceOff(lay[i]))) DrawElem(dl, lay[i], editing);
         if ((editing || panel) && MenuWs())   // grids: the other cells faded, with sample items (the pieces are the first cell)
-            for (auto& w : g_widgets) if (w.type == W_GRID) {
+            for (auto& w : g_widgets) if (w.type == W_GRID && !MenuEdOff(w.group)) {
                 bool shown = false; for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.visible) { shown = true; break; }
                 if (shown) DrawGrid(dl, PageOf(TopGroup(w.group)), w, false, 0, true);
             }
@@ -2161,7 +2161,7 @@ void DrawOverlay(int mode) {
             fg->AddRect(ImVec2(a.x - pad, a.y - pad), ImVec2(b.x + pad, b.y + pad), c, 0.f, 0, th);
         };
         for (auto& w : g_widgets) {
-            if (w.type != W_GRID) continue;
+            if (w.type != W_GRID || MenuEdOff(w.group)) continue;
             bool whole = !g_selGroup.empty() && InGroup(w.group, g_selGroup);   // the grid (or a group around it) picked
             if (whole) {
                 int cell = 0, pick = GridHasTiles(w) && g_tileSel.count(w.group) ? g_tileSel[w.group] : -1;   // (the tile set up in its panel: brighter)
@@ -2252,7 +2252,7 @@ void DrawOverlay(int mode) {
         if (g_dragging < 0 && MenuWs() && !(io.KeyCtrl || io.KeyShift))   // nothing under the mouse: a grid's faded cells
             for (auto& w : g_widgets) {
                 ImVec2 a, b;
-                if (w.type != W_GRID || !GridBox(w, a, b) || m.x < a.x || m.x > b.x || m.y < a.y || m.y > b.y) continue;
+                if (w.type != W_GRID || MenuEdOff(w.group) || !GridBox(w, a, b) || m.x < a.x || m.x > b.x || m.y < a.y || m.y > b.y) continue;
                 int first = -1; for (int i = 0; i < (int)Elems().size(); ++i) if (InGroup(Elems()[i].group, w.group)) { first = i; break; }
                 if (first < 0) continue;
                 ClearMulti(); g_selGroup = w.group; g_sel = -1; g_dragging = first; g_dragMode = 2;
@@ -2905,6 +2905,7 @@ void Panel() {
     if (ImGui::Button("Add image")) {
         Elem e; e.type = E_IMAGE; e.name = "image " + std::to_string(Elems().size() + 1);
         if (g_texSel >= 0) { e.tex = g_tex[g_texSel].name; e.pack = g_tex[g_texSel].pack; e.texIdx = g_texSel; e.w = g_tex[g_texSel].w; e.h = g_tex[g_texSel].h; e.name = e.tex; }
+        if (MenuEdOff(e.group)) e.group = g_menuEd;   // (into the custom menu being edited)
         Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_dirty = true;
     }
     ImGui::SameLine();
@@ -2912,6 +2913,7 @@ void Panel() {
         Elem e; e.type = E_TEXT; e.name = "text " + std::to_string(Elems().size() + 1); e.w = 0; e.col[0] = e.col[1] = e.col[2] = 0.753f;
         int fi = g_fontSel >= 0 ? g_fontSel : FindFont("conduitmditc_tt14i"); if (fi < 0 && !g_fonts.empty()) fi = 0;
         if (fi >= 0) { e.font = g_fonts[fi].name; e.fontIdx = fi; }
+        if (MenuEdOff(e.group)) e.group = g_menuEd;
         Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_dirty = true;
     }
     ImGui::SameLine();
@@ -2920,6 +2922,7 @@ void Panel() {
         e.col[0] = e.col[1] = e.col[2] = 0.8824f; e.col[3] = 1; e.colTok = "hud.line"; e.colTokA = 1;
         e.fillCol[3] = 1; e.fillTok = "hud.shade"; e.fillTokA = 1;
         if (g_sel >= 0 && g_sel < (int)Elems().size()) e.group = Elems()[g_sel].group;
+        if (MenuEdOff(e.group)) e.group = g_menuEd;
         Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_dirty = true; ResolveTokens();
     }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("A rounded rectangle: a stroke and a fill (menu backings, panels, frames). Tick \"cut\" on one\nto make it cut into another shape (a notch, a window, a tab) - the stroke follows the cut.");
@@ -2934,6 +2937,7 @@ void Panel() {
     ImGui::EndDisabled();
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Ctrl + Y");
     ImGui::SameLine(); ImGui::TextDisabled("(%s)", g_layoutPath.c_str());
+    MenuBar();   // (Menus: the custom menus)
     // element list + properties
     // element list + properties: one height for both, set with the bar under them; the list's width by its right edge
     ImGui::BeginChild("##elems", ImVec2(220, g_listH), ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX);
@@ -2988,7 +2992,7 @@ void Panel() {
     };
     if (!q.empty()) {   // search: the matching elements and groups, flat
         for (auto& g : GroupNames())
-            if (has(GroupLeaf(g))) {
+            if (has(GroupLeaf(g)) && !MenuEdOff(g)) {
                 ImGui::PushID(("sg_" + g).c_str());
                 if (ImGui::Selectable(("[G] " + g).c_str(), g_selGroup == g)) { g_selGroup = g; g_sel = -1; }
                 shownList.push_back({ -1, g }); scrollHere(g_selGroup == g);
@@ -2997,6 +3001,7 @@ void Panel() {
         int n = 0;
         for (int i = 0; i < (int)Elems().size(); ++i) {
             const Elem& e = Elems()[i];
+            if (MenuEdOff(e.group)) continue;
             if (has(e.name) || (e.type == E_TEXT && has(e.text)) || (e.type == E_IMAGE && has(e.tex)) || (!e.role.empty() && has(e.role))) { item(i); ++n; }
         }
         if (!n) ImGui::TextDisabled("nothing matches");
@@ -3006,6 +3011,7 @@ void Panel() {
             std::vector<std::string> shown;
             for (int i = 0; i < (int)Elems().size(); ++i) {
                 const std::string& eg = Elems()[i].group;
+                if (MenuEdOff(eg)) continue;   // (a custom menu picked in the menu bar: only its own)
                 if (eg == path) { item(i); continue; }
                 if (!path.empty() && !InGroup(eg, path)) continue;
                 std::string rest = path.empty() ? eg : eg.substr(path.size() + 1);

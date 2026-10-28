@@ -84,6 +84,7 @@ struct Page {
     int visRows = 0;                     // > 0: rows shown at once (the rest scroll)
     bool start = false;                  // opened by the menu key
     bool useSel = true; float selCol[4] = { 202 / 255.f, 244 / 255.f, 138 / 255.f, 1.f };   // selected row's label / value
+    bool dedicated = false;              // made with the editor's menu bar (a custom menu); false: a group ticked "menu page" (deprecated)
 };
 struct KitT { std::string name; Widget w; };        // a template: widget settings (group = "")
 static std::vector<Widget> g_widgets;
@@ -386,8 +387,18 @@ static bool TileShows(const Elem& e, int bit) {
     if (e.role == "bindicon" && bit != 8) return false;
     return true;
 }
-// the editor: a grid's pieces are its first tile as the panel's picked tile would show it (the others are hidden)
+// The editor's menu bar: the custom menu being edited ("" = none: everything shows). Only its pieces are shown / listed.
+static std::string g_menuEd;
+static bool MenuEdOff(const std::string& group) {
+    if (!MenuWs() || g_menuEd.empty()) return false;
+    Page* p = PageOf(g_menuEd);
+    if (!p || !p->dedicated) { g_menuEd.clear(); return false; }   // (gone: undo, reload)
+    return !InGroup(group, g_menuEd);
+}
+// the editor: a grid's pieces are its first tile as the panel's picked tile would show it (the others are hidden); with a
+// custom menu picked in the menu bar, everything outside it is hidden
 static bool GridPieceOff(const Elem& e) {
+    if (MenuEdOff(e.group)) return true;
     if (!MenuWs() || e.group.empty()) return false;
     Widget* w = WidgetFor(e.group);
     if (!w || w->type != W_GRID || !GridHasTiles(*w) || !GridPiece(e)) return false;
@@ -1528,16 +1539,78 @@ static void PagePanel(Page& p) {
     int grids = 0; for (auto& r : rows) grids += r.w->type == W_GRID;
     ImGui::TextDisabled("%d row(s), %d grid(s)%s", (int)rows.size() - grids, grids, PageHighlight(p) ? ", highlight" : "");
     if (ImGui::Button("Add grid")) AddGrid(p);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A 4 x 3 grid of cells (a backing, the item's text, a selected-cell frame, its own scroller),\nwith sample items to start from. Its pieces are the first cell: change them and every cell follows.\nA grid of buttons, one column wide, is a list of menu buttons.");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A grid of tiles, 1 column x 8 rows (a backing, the tile's text, a selected-tile frame, its own scroller),\nnamed Button 1, 2, 3... Its pieces are the first tile: change them and every tile follows.");
     ImGui::SameLine();
     if (ImGui::Button(g_menu.open ? "Close the menu" : "Try it")) { if (g_menu.open) MenuClose(); else MenuOpen(p.group); }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Opens this page as the real menu: pad / arrow keys, Enter, Esc.");
+}
+// The menu bar (Menus workspace, under Add image ... Undo): a button per custom menu and "+" to make another ("Add Menu +"
+// when there are none). Picking one edits it alone (picking it again shows everything); under the buttons: its name,
+// its page settings and Delete. Older pages - groups ticked "menu page" - aren't in it (deprecated, left as they are).
+static void MenuBar() {
+    if (!MenuWs()) return;
+    auto newMenu = [] {
+        std::string g;
+        for (int i = 1; ; ++i) {
+            g = "Menu " + std::to_string(i);
+            bool used = PageOf(g) != nullptr; for (auto& e : MenuElems()) if (InGroup(e.group, g)) used = true;
+            if (!used) break;
+        }
+        Page np; np.group = g; np.dedicated = true; np.start = g_pages.empty(); g_pages.push_back(np);
+        g_menuEd = g; g_sel = -1; g_selGroup.clear(); g_dirty = true;
+        Log("ui editor: custom menu %s made", g.c_str());
+    };
+    MenuEdOff("");   // (forgets a menu that went away)
+    std::vector<std::string> mine; for (auto& p : g_pages) if (p.dedicated) mine.push_back(p.group);
+    if (mine.empty()) {
+        if (ImGui::Button("Add Menu +")) newMenu();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("A new custom menu: its own page, edited on its own. Add images / text / shapes / grids to it.");
+        return;
+    }
+    for (size_t i = 0; i < mine.size(); ++i) {
+        if (i) ImGui::SameLine();
+        bool on = mine[i] == g_menuEd;
+        if (on) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+        if (ImGui::Button((mine[i] + "##menu" + std::to_string(i)).c_str())) { g_menuEd = on ? std::string() : mine[i]; g_sel = -1; g_selGroup.clear(); ClearMulti(); }
+        if (on) ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip(on ? "Editing this menu alone. Click again to show everything." : "Edit this menu (alone on screen and in the list).");
+    }
+    ImGui::SameLine(); if (ImGui::Button("+")) newMenu();
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Add another custom menu.");
+    Page* p = g_menuEd.empty() ? nullptr : PageOf(g_menuEd);
+    if (!p) return;
+    static char nb[64]; static std::string nbFor;
+    if (nbFor != p->group) { snprintf(nb, sizeof nb, "%s", p->group.c_str()); nbFor = p->group; }
+    ImGui::SetNextItemWidth(160);
+    ImGui::InputText("name##menuname", nb, sizeof nb);
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+        std::string to = CleanGroup(RowName(nb));
+        bool used = to.empty() || PageOf(to) != nullptr; for (auto& e : MenuElems()) if (InGroup(e.group, to)) used = true;
+        if (!used) { std::string from = p->group; RebaseGroup(from, to); g_menuEd = to; nbFor = to; g_dirty = true; }
+        else { snprintf(nb, sizeof nb, "%s", p->group.c_str()); Log("ui editor: a menu or group is already called that"); }
+        p = PageOf(g_menuEd); if (!p) return;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Delete menu")) ImGui::OpenPopup("##delmenu");
+    if (ImGui::BeginPopup("##delmenu")) {
+        ImGui::Text("Delete \"%s\" and everything in it?", p->group.c_str());
+        if (ImGui::Button("Delete")) {
+            std::string g = p->group;
+            MenuElems().erase(std::remove_if(MenuElems().begin(), MenuElems().end(), [&](const Elem& e) { return InGroup(e.group, g); }), MenuElems().end());
+            MenuForget(g); g_menuEd.clear(); g_sel = -1; g_selGroup.clear(); ClearMulti(); g_dirty = true;
+            ImGui::CloseCurrentPopup(); ImGui::EndPopup(); return;
+        }
+        ImGui::SameLine(); if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+    PagePanel(*p);
 }
 static void GroupMenuProps(const std::string& g) {
     if (!MenuWs()) return;
     ImGui::SeparatorText("Menu");
     if (GroupParent(g).empty()) {
         Page* p = PageOf(g);
+        if (p && p->dedicated) { ImGui::TextDisabled("A custom menu (the menu bar under Add image / Undo)."); PagePanel(*p); return; }
         bool is = p != nullptr;
         if (ImGui::Checkbox("menu page", &is)) {
             if (is) { Page np; np.group = g; np.start = g_pages.empty(); g_pages.push_back(np); }
@@ -1611,8 +1684,11 @@ static void SaveWidgetProps(FILE* f, const Widget& w) {
 }
 static void SaveMenus(FILE* f) {
     for (auto& p : g_pages)
+    {
         fprintf(f, "\n[page]\ngroup=%s\nspacing=%g\nfirsty=%g\ncoldist=%g\ncolx=%g\naddcol=%d\nrows=%d\nstart=%d\nselcolor=%d %g %g %g %g\n", Esc(p.group).c_str(), p.spacing, p.firstY, p.colDist, p.colX, p.addCol, p.visRows, p.start ? 1 : 0,
                 p.useSel ? 1 : 0, p.selCol[0], p.selCol[1], p.selCol[2], p.selCol[3]);
+        if (p.dedicated) fprintf(f, "dedicated=1\n");
+    }
     for (auto& w : g_widgets) { fprintf(f, "\n[widget]\ngroup=%s\n", Esc(w.group).c_str()); SaveWidgetProps(f, w); }
     for (auto& k : g_kitT) { fprintf(f, "\n[template]\nname=%s\n", Esc(k.name).c_str()); SaveWidgetProps(f, k.w); }
 }
@@ -1658,6 +1734,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "addcol") p.addCol = std::max(0, atoi(v.c_str()));
         else if (k == "rows") p.visRows = atoi(v.c_str());
         else if (k == "start") p.start = atoi(v.c_str()) != 0;
+        else if (k == "dedicated") p.dedicated = atoi(v.c_str()) != 0;
         else if (k == "selcolor") { int u = 1; sscanf(v.c_str(), "%d %f %f %f %f", &u, &p.selCol[0], &p.selCol[1], &p.selCol[2], &p.selCol[3]); p.useSel = u != 0; }
         return true;
     }
