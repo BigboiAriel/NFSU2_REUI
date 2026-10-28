@@ -42,12 +42,19 @@ struct Widget {
     int startAt = 0;                     // where it sits on its origin: left (0) = its left edge on it, centre (1) = its middle,
                                          // right (2) = its right edge; always centred on it up and down. Short rows line up the same way.
     float ox = 0, oy = 0; bool hasOrigin = false;   // the origin (units); old layouts: worked out from where the grid is
+    float spX = 0, spY = 0;              // spacing between tiles across / down (units): tiles shrink to keep the grid's size
+    int totalRows = 0;                   // rows of tiles there are (items past them aren't shown); 0 = as many as the items need
 };
 // how many cells a short row is moved across (a grid row starting from the centre / right)
 static float GridShift(const Widget& w, int row, int count) {
     int cols = std::max(1, w.cols), inRow = std::min(cols, count - row * cols);
     return inRow <= 0 ? 0.f : (cols - inRow) * 0.5f * std::max(0, std::min(2, w.startAt));
 }
+// a tile's size (the grid's width / height less the spacing, shared out) and the step from one tile to the next
+static float GCellW(const Widget& w) { int c = std::max(1, w.cols); return std::max(1.f, (w.gw - (c - 1) * w.spX) / c); }
+static float GCellH(const Widget& w) { int r = std::max(1, w.rows); return std::max(1.f, (w.gh - (r - 1) * w.spY) / r); }
+static float GPitchX(const Widget& w) { return GCellW(w) + w.spX; }
+static float GPitchY(const Widget& w) { return GCellH(w) + w.spY; }
 // The origin: left / centre / right puts the grid's left edge / middle / right edge on it, and its middle is always on it
 // up and down. GridPlace moves the grid (and its pieces) there.
 static void GridOrigin(Widget& w) {   // (a grid without one yet: where it is now)
@@ -228,7 +235,13 @@ static struct MenuState {
 
 // ---------------------------------------------------------------- grids
 struct GItem { std::string label, icon, action; };
-static std::vector<GItem> GridItems(const Widget& w) {
+static std::vector<GItem> GridItemsAll(const Widget& w);
+static std::vector<GItem> GridItems(const Widget& w) {   // the items the grid has room for (total rows)
+    auto v = GridItemsAll(w);
+    if (w.totalRows > 0) { size_t cap = (size_t)w.totalRows * std::max(1, w.cols); if (v.size() > cap) v.resize(cap); }
+    return v;
+}
+static std::vector<GItem> GridItemsAll(const Widget& w) {
     std::vector<GItem> v;
     if (w.bind.compare(0, 5, "list:") == 0) {   // another mod's / REUI's values
         std::string key = w.bind.substr(5), s;
@@ -317,8 +330,8 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
     if (!n) return;
     MenuState::GridSt dummy; dummy.sel = 0;
     MenuState::GridSt& st = preview ? dummy : GridState(w, n);
-    float px = w.gw / cols, py = w.gh / rows;
-    float sx = w.scalePieces && w.refW > 0.5f ? px / w.refW : 1.f, sy = w.scalePieces && w.refH > 0.5f ? py / w.refH : 1.f;
+    float px = GPitchX(w), py = GPitchY(w);   // (tile to tile: a tile plus the spacing)
+    float sx = w.scalePieces && w.refW > 0.5f ? GCellW(w) / w.refW : 1.f, sy = w.scalePieces && w.refH > 0.5f ? GCellH(w) / w.refH : 1.f;
     auto& els = MenuElems();
     std::vector<int> order; for (int i : DrawOrder(els)) if (InGroup(els[i].group, w.group) && els[i].visible && GridPiece(els[i])) order.push_back(i);
     if (order.empty()) return;
@@ -367,8 +380,8 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
 static void GridEachCell(Widget& w, const Elem* piece, const std::function<void(ImVec2, ImVec2)>& fn) {
     int cols = std::max(1, w.cols), rows = std::max(1, w.rows);
     int n = (int)GridItems(w).size(); if (!n) n = cols * rows;
-    float px = w.gw / cols, py = w.gh / rows;
-    float sx = w.scalePieces && w.refW > 0.5f ? px / w.refW : 1.f, sy = w.scalePieces && w.refH > 0.5f ? py / w.refH : 1.f;
+    float px = GPitchX(w), py = GPitchY(w), cw = GCellW(w), ch = GCellH(w);
+    float sx = w.scalePieces && w.refW > 0.5f ? cw / w.refW : 1.f, sy = w.scalePieces && w.refH > 0.5f ? ch / w.refH : 1.f;
     int anchor = 4;
     for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && GridPiece(e)) { anchor = e.anchor; break; }
     float ax = (anchor % 3) * 0.5f, ay = (anchor / 3) * 0.5f;
@@ -384,8 +397,8 @@ static void GridEachCell(Widget& w, const Elem* piece, const std::function<void(
                 if (e.type != E_TEXT) { e.w *= sx; e.h *= sy; } else { e.scale *= std::min(sx, sy); if (e.w > 0) e.w *= sx; }
                 ElemRect(e, a, b);
             } else {
-                Elem box; box.type = E_IMAGE; box.anchor = anchor; box.w = px; box.h = py;
-                box.x = w.gx + ox + ax * px; box.y = w.gy + oy + ay * py;
+                Elem box; box.type = E_IMAGE; box.anchor = anchor; box.w = cw; box.h = ch;
+                box.x = w.gx + ox + ax * cw; box.y = w.gy + oy + ay * ch;
                 ElemRect(box, a, b);
             }
             fn(a, b);
@@ -444,7 +457,7 @@ static void GridFromPieces(Widget& w) {
     }
     if (lo[0] > hi[0]) return;
     w.gx = lo[0]; w.gy = lo[1]; w.refW = std::max(1.f, hi[0] - lo[0]); w.refH = std::max(1.f, hi[1] - lo[1]);
-    w.gw = w.refW * std::max(1, w.cols); w.gh = w.refH * std::max(1, w.rows);
+    w.gw = w.refW * std::max(1, w.cols) + (std::max(1, w.cols) - 1) * w.spX; w.gh = w.refH * std::max(1, w.rows) + (std::max(1, w.rows) - 1) * w.spY;
     w.hasOrigin = false; GridOrigin(w);
     g_dirty = true;
 }
@@ -953,10 +966,12 @@ static void SettingCombo(Widget& w) {
 // The grid resized (width / height / columns / rows): with "stretch pieces" on, the first cell's pieces are resized to
 // the new cell about the grid's top-left (so in the editor they stay the cell as it'll be drawn); its scroller keeps
 // its place beside the grid and its height along it.
-static void GridResize(Widget& w, float ngw, float ngh, int ncols, int nrows) {
+static void GridResize(Widget& w, float ngw, float ngh, int ncols, int nrows, float nspX, float nspY) {
     ncols = std::max(1, std::min(32, ncols)); nrows = std::max(1, std::min(32, nrows));
     ngw = std::max(4.f, ngw); ngh = std::max(4.f, ngh);
-    float opx = w.gw / std::max(1, w.cols), opy = w.gh / std::max(1, w.rows), npx = ngw / ncols, npy = ngh / nrows;
+    nspX = std::max(0.f, nspX); nspY = std::max(0.f, nspY);
+    float opx = GCellW(w), opy = GCellH(w);   // (tile sizes, before and after)
+    float npx = std::max(1.f, (ngw - (ncols - 1) * nspX) / ncols), npy = std::max(1.f, (ngh - (nrows - 1) * nspY) / nrows);
     // (a grid whose pieces were made for another cell size, drawn stretched: they're made the cell's size first)
     float bx = w.scalePieces && w.refW > 0.5f ? opx / w.refW : 1.f, by = w.scalePieces && w.refH > 0.5f ? opy / w.refH : 1.f;
     float kx = w.scalePieces && opx > 0.01f ? npx / opx * bx : 1.f, ky = w.scalePieces && opy > 0.01f ? npy / opy * by : 1.f;
@@ -979,26 +994,31 @@ static void GridResize(Widget& w, float ngw, float ngh, int ncols, int nrows) {
         }
     }
     if (w.scalePieces) { w.refW = npx; w.refH = npy; }
-    w.gx = ngx; w.gw = ngw; w.gh = ngh; w.cols = ncols; w.rows = nrows;
+    w.gx = ngx; w.gw = ngw; w.gh = ngh; w.cols = ncols; w.rows = nrows; w.spX = nspX; w.spY = nspY;
     GridPlace(w);
     g_dirty = true;
 }
 static void GridPanel(Widget& w) {
-    int cols = w.cols, rows = w.rows;
-    ImGui::SetNextItemWidth(90); if (ImGui::InputInt("columns", &cols)) GridResize(w, w.gw, w.gh, cols, rows);
-    ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::InputInt("rows shown", &rows)) GridResize(w, w.gw, w.gh, w.cols, rows);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rows on screen at once; more items scroll up and down.");
+    int cols = w.cols, rows = w.rows, total = w.totalRows;
+    ImGui::SetNextItemWidth(90); if (ImGui::InputInt("columns", &cols)) GridResize(w, w.gw, w.gh, cols, rows, w.spX, w.spY);
+    ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::InputInt("total rows", &total)) { w.totalRows = std::max(0, std::min(1000, total)); g_dirty = true; }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rows of tiles the grid has (items past them aren't shown). 0 = as many as its items need.\nMore than the visible rows: it scrolls up and down.");
+    ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::InputInt("visible rows", &rows)) GridResize(w, w.gw, w.gh, w.cols, rows, w.spX, w.spY);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rows on screen at once (the grid's height is these); the rest scroll up and down.");
     float wh[2] = {w.gw, w.gh};
-    ImGui::SetNextItemWidth(220); if (ImGui::SliderFloat2("width / height", wh, 20.f, 1280.f, "%.0f")) GridResize(w, wh[0], wh[1], w.cols, w.rows);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The whole grid (units; Ctrl + click to type): each cell is width / columns by height / rows shown.\nWith \"stretch pieces\" on, the cell's pieces are resized with it.");
+    ImGui::SetNextItemWidth(220); if (ImGui::SliderFloat2("width / height", wh, 20.f, 1280.f, "%.0f")) GridResize(w, wh[0], wh[1], w.cols, w.rows, w.spX, w.spY);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The grid on screen - its visible rows (units; Ctrl + click to type). Tiles share it out, less the spacing.\nWith \"stretch pieces\" on, the tile's pieces are resized with it.");
+    float sp[2] = {w.spX, w.spY};
+    ImGui::SetNextItemWidth(220); if (ImGui::SliderFloat2("spacing across / down", sp, 0.f, 100.f, "%.1f")) GridResize(w, w.gw, w.gh, w.cols, w.rows, sp[0], sp[1]);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Gaps between columns / between rows (units; Ctrl + click to type). The grid keeps its size: the tiles shrink.");
     static const char* aligns[] = {"left", "centre", "right"};
     GridOrigin(w);
     ImGui::SetNextItemWidth(90);
     int al = std::max(0, std::min(2, w.startAt));
     if (ImGui::Combo("align", &al, aligns, 3) && al != w.startAt) { w.startAt = al; GridPlace(w); }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The grid's origin is its centre as placed (move the grid to move it). Left: the grid's left edge on\nthe origin. Centre: its middle on it. Right: its right edge on it. Always centred on it up and down;\nresizing keeps it so, and rows with fewer items line up the same way.");
-    ImGui::Text("cell %.0f x %.0f", w.gw / std::max(1, w.cols), w.gh / std::max(1, w.rows));
-    ImGui::SameLine(); if (ImGui::Checkbox("stretch pieces to the cell", &w.scalePieces)) { if (w.scalePieces) { w.refW = w.gw / std::max(1, w.cols); w.refH = w.gh / std::max(1, w.rows); } g_dirty = true; }
+    ImGui::Text("tile %.0f x %.0f", GCellW(w), GCellH(w));
+    ImGui::SameLine(); if (ImGui::Checkbox("stretch pieces to the cell", &w.scalePieces)) { if (w.scalePieces) { w.refW = GCellW(w); w.refH = GCellH(w); } g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("On: resizing the grid resizes the cell's pieces with it. Off: the pieces keep their size in bigger / smaller cells.");
     ImGui::SameLine(); if (ImGui::SmallButton("from the pieces")) GridFromPieces(w);
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The pieces as they are become one cell: the grid starts at their top-left and is columns x rows of them.");
@@ -1020,7 +1040,11 @@ static void GridPanel(Widget& w) {
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("One item per line: label;icon;action\nicon: a texture name (or icon:auto:South, vec:...); action: page:<page>, back or close.\nItems without an action keep the picked one as the grid's own value.");
         }
     }
-    ImGui::TextDisabled("%d item(s)", (int)GridItems(w).size());
+    {
+        int all = (int)GridItemsAll(w).size(), shown = (int)GridItems(w).size(), c = std::max(1, w.cols);
+        if (shown < all) ImGui::TextDisabled("%d item(s), %d in its %d total rows", all, shown, w.totalRows);
+        else ImGui::TextDisabled("%d item(s): %d row(s)", all, (all + c - 1) / c);
+    }
 }
 static void WidgetPanel(Widget& w, Page* page) {
     int t = w.type;
@@ -1181,7 +1205,7 @@ static void SaveWidgetProps(FILE* f, const Widget& w) {
     if (w.col) fprintf(f, "col=%d\n", w.col);
     if (w.type == W_GRID) {
         Widget c = w; GridOrigin(c);
-        fprintf(f, "grid=%d %d %g %g %g %g %g %g %d %d %g %g\n", w.cols, w.rows, w.gw, w.gh, w.gx, w.gy, w.refW, w.refH, w.scalePieces ? 1 : 0, w.startAt, c.ox, c.oy);
+        fprintf(f, "grid=%d %d %g %g %g %g %g %g %d %d %g %g %g %g %d\n", w.cols, w.rows, w.gw, w.gh, w.gx, w.gy, w.refW, w.refH, w.scalePieces ? 1 : 0, w.startAt, c.ox, c.oy, w.spX, w.spY, w.totalRows);
     }
     fprintf(f, "num=%g %g %g %g\n", w.min, w.max, w.step, w.value);
 }
@@ -1201,7 +1225,7 @@ static bool LoadWidgetKey(Widget& w, const std::string& k, const std::string& v)
     else if (k == "choices") { w.choices.clear(); std::string s = Unesc(v), cur; for (size_t i = 0; i <= s.size(); ++i) { if (i == s.size() || s[i] == '|') { if (!cur.empty()) w.choices.push_back(cur); cur.clear(); } else cur += s[i]; } }
     else if (k == "range") sscanf(v.c_str(), "%f %f", &w.x0, &w.x1);
     else if (k == "col") w.col = std::max(0, atoi(v.c_str()));
-    else if (k == "grid") { int sp = 1; int got = sscanf(v.c_str(), "%d %d %f %f %f %f %f %f %d %d %f %f", &w.cols, &w.rows, &w.gw, &w.gh, &w.gx, &w.gy, &w.refW, &w.refH, &sp, &w.startAt, &w.ox, &w.oy); w.scalePieces = sp != 0; w.hasOrigin = got >= 12; w.startAt = std::max(0, std::min(2, w.startAt)); w.cols = std::max(1, w.cols); w.rows = std::max(1, w.rows); }
+    else if (k == "grid") { int sp = 1; int got = sscanf(v.c_str(), "%d %d %f %f %f %f %f %f %d %d %f %f %f %f %d", &w.cols, &w.rows, &w.gw, &w.gh, &w.gx, &w.gy, &w.refW, &w.refH, &sp, &w.startAt, &w.ox, &w.oy, &w.spX, &w.spY, &w.totalRows); w.scalePieces = sp != 0; w.hasOrigin = got >= 12; w.spX = std::max(0.f, w.spX); w.spY = std::max(0.f, w.spY); w.totalRows = std::max(0, w.totalRows); w.startAt = std::max(0, std::min(2, w.startAt)); w.cols = std::max(1, w.cols); w.rows = std::max(1, w.rows); }
     else if (k == "num") sscanf(v.c_str(), "%f %f %f %f", &w.min, &w.max, &w.step, &w.value);
     else return false;
     return true;
