@@ -535,25 +535,9 @@ static bool MapViewNow(uied::MapView& out) {
     frame = fr;
     g_mapWhy = ""; memset(g_mapStat, 0, sizeof g_mapStat);
     have = MapViewNow2(cache);
-    static DWORD lastLog = 0;
-    if (GetTickCount() - lastLog > 3000) {
-        lastLog = GetTickCount();
-        uint8_t* p1 = *(uint8_t**)0x8900AC;
-        uint8_t* hud = Readable(p1, 0x9A8) ? *(uint8_t**)(p1 + 0x9A4) : nullptr;
-        uint8_t* comp = Readable(hud, 0x60) ? *(uint8_t**)(hud + 0x5C) : nullptr;
-        Log("minimap: %s%s | comp %p [0x8364D4] %p mask %08X list %p | track %d", have ? "ok" : "none: ", g_mapWhy, comp, *(void**)0x8364D4,
-            Readable(comp, 0x20) ? *(uint32_t*)(comp + 0x18) : 0, Readable(comp, 4) ? *(void**)comp : nullptr, *(int*)0x89E7A0);
-        if (have) {
-            const uied::MapView& v = cache;
-            D3DSURFACE_DESC dd = {}; v.tex->GetLevelDesc(0, &dd);
-            float pu = (v.px - v.x0) / v.size, pv = (v.y0 - v.py) / v.size;
-            Log("minimap: map %p fmt %08X %ux%u pool %d levels %u su %.3f sv %.3f | x0 %.1f y0 %.1f size %.1f span %.4f | car %.1f %.1f uv %.3f %.3f bearing %.1f rotate %d",
-                v.tex, (unsigned)dd.Format, dd.Width, dd.Height, (int)dd.Pool, v.tex->GetLevelCount(), v.su, v.sv, v.x0, v.y0, v.size, v.span, v.px, v.py, pu, pv, v.bearing, v.rotate ? 1 : 0);
-            Log("minimap: map alpha %s | icons dropped past %.0f", v.alphaOk ? "used" : "empty: laid over at the mask's opacity like the game does", v.limit);
-            Log("minimap: icons: nodes %d, type skipped %d, flag hidden %d, not shown %d, no position %d, no texture %d, kept %d (player %d), markers %d",
-                g_mapStat[0], g_mapStat[1], g_mapStat[2], g_mapStat[3], g_mapStat[4], g_mapStat[5], g_mapStat[6], g_mapStat[7], (int)v.blips.size() - g_mapStat[6]);
-        }
-    }
+    // why there's no minimap, when that changes (not every frame)
+    static std::string lastWhy = "-";
+    if (lastWhy != g_mapWhy) { lastWhy = g_mapWhy; Log("minimap: %s", have ? "shown" : *g_mapWhy ? g_mapWhy : "none"); }
     if (have) out = cache;
     return have;
 }

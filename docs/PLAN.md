@@ -42,11 +42,12 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   New element types: needles / rotation by value, fill bars bound to a value, conditional visibility, a minimap
   widget.
 
-- **Minimap (standalone, built 2026-10-27, untested in game).** An image with "minimap" on draws the track map
+- **Minimap (standalone, done 2026-10-27, matched to stock in game).** An image with "minimap" on draws the track map
   around the car from live values (TRACKMAP<track>, the car's position and heading), stock behaviour: the game's
-  zoom, round, heading-up or north-up as the game's radar option says. The game's own icons (AI racers, shops,
-  events, your car) from the stock component's icon list, with its rules (dropped past 1 minimap width / 10 in free
-  roam, held on the rim at 0.55). Frame (MINIMAP_BORDER x4) and north arrow ({map_north}) are plain images: the
+  zoom, round, heading-up or north-up as the game's radar option says, laid over at the game's ~72% opacity (the
+  map texture has no alpha of its own). The game's own icons (AI racers, shops,
+  events, your car) from the stock component's icon list, with its rules (dropped past 1 minimap width, 10 in a few
+  free-roam states; held on the rim at 0.55). Frame (MINIMAP_BORDER x4) and north arrow ({map_north}) are plain images: the
   "Minimap" prefab has all of it, flagged replace:minimap. Free roam and races. The multiplayer mod's players come
   in through REUI_AddMapMarkers, and it stops drawing its own arrows while REUI_MinimapShown.
   *Future:* zoom out with speed; a north-up setting on the element whatever the game's option (its arrow turns
