@@ -76,6 +76,10 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   tab cut-outs). Drawn from a signed distance field at screen size (src/editor/shapes.cpp), stroke and fill as two
   alpha textures coloured when drawn; cached by geometry (moving or recolouring doesn't redraw). Layout:
   `type=shape`, `shape=tl tr br bl stroke`, `fill=r g b a`, `filltoken=`, `cut=gap;target`.
+  Gradients (2026-10-27, written, not built yet): stroke across (outer -> inner side, following the corners' curve)
+  or along (around the outline, start offset); fill linear (angle), radial, or from the edge inward over a depth
+  (following the curve); stroke inside / centred / outside the edge. Stops editor (drag / add / delete, colour,
+  opacity, location, reverse, "glow" preset). Layout: `strokealign=`, `strokegrad=` / `fillgrad=mode angle depth;t r g b a;...`.
   *Later:* smooth (rounded) joins where a cut meets the edge; ellipses / other shapes.
 - **P5 distribution (later, once REUI is ready).** Light builds of REUI ship with the other mods: a renderer
   without the editor or HUD replacement, which carries the pages built in REUI (decided 2026-10-26).

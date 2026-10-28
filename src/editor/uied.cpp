@@ -452,7 +452,10 @@ struct Elem {
     float fillCol[4] = {0, 0, 0, 1};
     std::string fillTok; float fillTokA = 1;
     bool cut = false; float cutGap = 0; std::string cutTarget;
+    int strokeAlign = 0;                  // 0 inside the edge, 1 centred on it, 2 outside
+    shapes::Gradient strokeGrad, fillGrad; // gradients (shapes.h): with one, its colours replace the colour (alpha still fades)
 };
+static float Clamp01f(float v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 static const char* TypeKey(int t) { return t == 1 ? "text" : t == 2 ? "shape" : "image"; }
 struct FlagDef { std::string key, label, tip; int group = 0; bool hideMissing = false, live = false; std::function<bool()> hide; };
 static std::vector<FlagDef> g_flagDefs;   // registered ones (live) and ones known from the layout file
@@ -834,12 +837,16 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
             cuts.push_back(x);
         }
     shapes::Result r;
-    if (!shapes::Get(g_dev, box, std::max(0.f, e.stroke) * k, cuts, r)) return;
+    shapes::Gradient sg = e.strokeGrad, fg = e.fillGrad;
+    if (fg.mode == 3) fg.depth *= k;   // (units -> pixels)
+    if (!shapes::Get(g_dev, box, std::max(0.f, e.stroke) * k, e.strokeAlign, sg, fg, cuts, r)) return;
     float m = r.margin;
     ImVec2 q0 = at(-pw / 2 - m, -ph / 2 - m), q1 = at(pw / 2 + m, -ph / 2 - m), q2 = at(pw / 2 + m, ph / 2 + m), q3 = at(-pw / 2 - m, ph / 2 + m);
     // the fill keeps its own colour, faded with the element (animations, blink) as the stroke colour is
     float fade = e.col[3] > 0.001f ? std::min(1.f, ImGui::ColorConvertU32ToFloat4(col).w / e.col[3]) : 1.f;
     float fc[4] = {e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3] * fade};
+    if (e.fillGrad.mode && !e.fillGrad.stops.empty()) fc[0] = fc[1] = fc[2] = 1;   // the gradient's colours, at the fill's opacity
+    if (e.strokeGrad.mode && !e.strokeGrad.stops.empty()) { ImVec4 v = ImGui::ColorConvertU32ToFloat4(col); col = ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, v.w)); }
     if (r.fill && fc[3] > 0.002f) dl->AddImageQuad((ImTextureID)r.fill, q0, q1, q2, q3, ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), Col(fc));
     if (r.stroke) dl->AddImageQuad((ImTextureID)r.stroke, q0, q1, q2, q3, ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), col);
 }
@@ -1253,6 +1260,99 @@ static void TokensPanel() {
         ImGui::TreePop();
     }
 }
+// A gradient's stops on a bar: click a stop to pick it, drag it along, click the bar to add one (its colour there),
+// the picked one's colour / opacity / location below. Presets for the common ones.
+static bool GradientEdit(const char* id, shapes::Gradient& g, const float baseCol[4]) {
+    bool ch = false;
+    ImGui::PushID(id);
+    static std::map<std::string, int> picked;   // the picked stop per bar
+    int& sel = picked[std::string(id) + "@" + std::to_string((uintptr_t)&g)];
+    if (g.stops.size() < 2) { g.stops = {{0, baseCol[0], baseCol[1], baseCol[2], baseCol[3]}, {1, baseCol[0], baseCol[1], baseCol[2], 0}}; ch = true; }
+    sel = std::max(0, std::min((int)g.stops.size() - 1, sel));
+    auto at = [&](float t, float c[4]) {   // the colour at t
+        const auto& s = g.stops;
+        if (t <= s.front()[0]) { for (int i = 0; i < 4; ++i) c[i] = s.front()[1 + i]; return; }
+        if (t >= s.back()[0]) { for (int i = 0; i < 4; ++i) c[i] = s.back()[1 + i]; return; }
+        for (size_t j = 0; j + 1 < s.size(); ++j) if (t >= s[j][0] && t <= s[j + 1][0]) {
+            float sp = s[j + 1][0] - s[j][0], f = sp > 1e-6f ? (t - s[j][0]) / sp : 0;
+            for (int i = 0; i < 4; ++i) c[i] = s[j][1 + i] + (s[j + 1][1 + i] - s[j][1 + i]) * f;
+            return;
+        }
+    };
+    float W = 300, H = 18, hs = 7;
+    ImVec2 p0 = ImGui::GetCursorScreenPos();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    for (int cx = 0; cx * 6 < W; ++cx) for (int cy = 0; cy * 6 < H; ++cy)   // checker under the colours
+        dl->AddRectFilled(ImVec2(p0.x + cx * 6, p0.y + cy * 6), ImVec2(std::min(p0.x + W, p0.x + cx * 6 + 6), std::min(p0.y + H, p0.y + cy * 6 + 6)), ((cx + cy) & 1) ? IM_COL32(200, 200, 200, 255) : IM_COL32(140, 140, 140, 255));
+    for (int i = 0; i < 60; ++i) {
+        float c0[4], c1[4]; at(i / 60.f, c0); at((i + 1) / 60.f, c1);
+        ImU32 a = ImGui::ColorConvertFloat4ToU32(ImVec4(c0[0], c0[1], c0[2], c0[3])), b = ImGui::ColorConvertFloat4ToU32(ImVec4(c1[0], c1[1], c1[2], c1[3]));
+        dl->AddRectFilledMultiColor(ImVec2(p0.x + W * i / 60, p0.y), ImVec2(p0.x + W * (i + 1) / 60, p0.y + H), a, b, b, a);
+    }
+    dl->AddRect(p0, ImVec2(p0.x + W, p0.y + H), IM_COL32(0, 0, 0, 160));
+    for (int i = 0; i < (int)g.stops.size(); ++i) {   // the stops: little houses under the bar
+        float x = p0.x + g.stops[i][0] * W, y = p0.y + H + 1;
+        ImU32 fillc = ImGui::ColorConvertFloat4ToU32(ImVec4(g.stops[i][1], g.stops[i][2], g.stops[i][3], 1));
+        ImVec2 pts[5] = {ImVec2(x, y), ImVec2(x + hs, y + hs), ImVec2(x + hs, y + 2 * hs), ImVec2(x - hs, y + 2 * hs), ImVec2(x - hs, y + hs)};
+        dl->AddConvexPolyFilled(pts, 5, fillc);
+        dl->AddPolyline(pts, 5, i == sel ? IM_COL32(255, 255, 255, 255) : IM_COL32(0, 0, 0, 200), ImDrawFlags_Closed, i == sel ? 2.f : 1.f);
+    }
+    ImGui::InvisibleButton("bar", ImVec2(W, H + 2 * hs + 2));
+    static int dragging = -1; static std::string dragFor;
+    std::string me = std::string(id) + "@" + std::to_string((uintptr_t)&g);
+    if (ImGui::IsItemActivated()) {
+        float mx = ImGui::GetIO().MousePos.x - p0.x, my = ImGui::GetIO().MousePos.y - p0.y;
+        int hit = -1; float bd = hs + 2;
+        for (int i = 0; i < (int)g.stops.size(); ++i) { float d = fabsf(g.stops[i][0] * W - mx); if (d < bd && my > H - 2) { bd = d; hit = i; } }
+        if (hit < 0 && my <= H) {   // a new stop with the colour there
+            float t = Clamp01f(mx / W), c[4]; at(t, c);
+            g.stops.push_back({t, c[0], c[1], c[2], c[3]});
+            std::sort(g.stops.begin(), g.stops.end(), [](const std::array<float, 5>& a, const std::array<float, 5>& b) { return a[0] < b[0]; });
+            for (int i = 0; i < (int)g.stops.size(); ++i) if (g.stops[i][0] == t) hit = i;
+            ch = true;
+        }
+        if (hit >= 0) { sel = hit; dragging = hit; dragFor = me; }
+    }
+    if (ImGui::IsItemActive() && dragging >= 0 && dragFor == me && dragging < (int)g.stops.size()) {
+        float t = Clamp01f((ImGui::GetIO().MousePos.x - p0.x) / W);
+        if (t != g.stops[dragging][0]) {
+            g.stops[dragging][0] = t;
+            auto keep = g.stops[dragging];   // (sorted again, the picked one followed)
+            std::sort(g.stops.begin(), g.stops.end(), [](const std::array<float, 5>& a, const std::array<float, 5>& b) { return a[0] < b[0]; });
+            for (int i = 0; i < (int)g.stops.size(); ++i) if (g.stops[i] == keep) { dragging = sel = i; break; }
+            ch = true;
+        }
+    }
+    if (ImGui::IsItemDeactivated() && dragFor == me) dragging = -1;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Click a stop to pick it, drag it along; click the bar to add a stop.");
+    auto& st = g.stops[sel];
+    float c[4] = {st[1], st[2], st[3], st[4]};
+    if (ImGui::ColorEdit4("##stopc", c, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) { for (int i = 0; i < 4; ++i) st[1 + i] = c[i]; ch = true; }
+    ImGui::SameLine(); ImGui::SetNextItemWidth(70);
+    float op = st[4] * 100;
+    if (ImGui::DragFloat("opacity", &op, 0.5f, 0.f, 100.f, "%.0f%%")) { st[4] = Clamp01f(op / 100); ch = true; }
+    ImGui::SameLine(); ImGui::SetNextItemWidth(70);
+    float loc = st[0] * 100;
+    if (ImGui::DragFloat("location", &loc, 0.2f, 0.f, 100.f, "%.1f%%")) {
+        st[0] = Clamp01f(loc / 100); auto keep = st;
+        std::sort(g.stops.begin(), g.stops.end(), [](const std::array<float, 5>& a, const std::array<float, 5>& b) { return a[0] < b[0]; });
+        for (int i = 0; i < (int)g.stops.size(); ++i) if (g.stops[i] == keep) sel = i;
+        ch = true;
+    }
+    ImGui::SameLine(); ImGui::BeginDisabled(g.stops.size() <= 2);
+    if (ImGui::SmallButton("delete stop")) { g.stops.erase(g.stops.begin() + sel); sel = std::max(0, sel - 1); ch = true; }
+    ImGui::EndDisabled();
+    ImGui::SameLine(); if (ImGui::SmallButton("reverse")) { for (auto& s2 : g.stops) s2[0] = 1 - s2[0]; std::reverse(g.stops.begin(), g.stops.end()); ch = true; }
+    ImGui::SameLine();
+    if (ImGui::SmallButton("glow")) {   // clear -> solid -> clear, like a soft line
+        float r = baseCol[0], gg = baseCol[1], b = baseCol[2];
+        g.stops = {{0, r, gg, b, 0}, {0.4f, r, gg, b, 1}, {0.51f, r, gg, b, 1}, {1, r, gg, b, 0}}; sel = 1; ch = true;
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Clear -> solid -> clear in the shape's colour (a soft glowing line across a wide stroke).");
+    ImGui::PopID();
+    if (ch) g_dirty = true;
+    return ch;
+}
 static void ShapeProps(Elem& e) {
     ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("size", &e.w, 0.5f, 1.f, 4000.f, "%.0f")) g_dirty = true;
     ImGui::SetNextItemWidth(220); if (ImGui::DragFloat("rotation", &e.rot, 0.5f, -360.f, 360.f, "%.1f deg")) g_dirty = true;
@@ -1265,8 +1365,26 @@ static void ShapeProps(Elem& e) {
     ImGui::SameLine(); if (ImGui::SmallButton("pill")) { for (float& r : e.rad) r = maxR; e.radLink = true; g_dirty = true; }
     if (!e.cut) {
         ImGui::SetNextItemWidth(150); if (ImGui::DragFloat("stroke width", &e.stroke, 0.05f, 0.f, 100.f, "%.2f")) { e.stroke = std::max(0.f, e.stroke); g_dirty = true; }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The outline, inside the edge (units; 0 = no outline). Its colour is the stroke colour below.");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The outline (units; 0 = no outline). Its colour is the stroke colour below (or its gradient).");
+        static const char* aligns[] = {"inside", "centred", "outside"};
+        ImGui::SameLine(); ImGui::SetNextItemWidth(100); if (ImGui::Combo("on the edge", &e.strokeAlign, aligns, 3)) g_dirty = true;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Where the stroke sits: inside the edge (the shape keeps its size), centred on it, or outside it.");
+        if (e.stroke > 0) {
+            static const char* sm[] = {"no gradient", "gradient across", "gradient along"};
+            ImGui::SetNextItemWidth(150); if (ImGui::Combo("stroke gradient", &e.strokeGrad.mode, sm, 3)) g_dirty = true;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Across: from the stroke's outer side to its inner side, following the curve of the corners.\nAlong: around the outline, clockwise from the top-left (start offset turns where it begins).");
+            if (e.strokeGrad.mode == 2) { ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("start", &e.strokeGrad.angle, 0.5f, -360.f, 360.f, "%.0f deg")) g_dirty = true; }
+            if (e.strokeGrad.mode) GradientEdit("sgrad", e.strokeGrad, e.col);
+        }
         TokenColourEdit("fill colour", e.fillCol, e.fillTok, e.fillTokA);
+        {
+            static const char* fm[] = {"no gradient", "linear", "radial", "from the edge"};
+            ImGui::SetNextItemWidth(150); if (ImGui::Combo("fill gradient", &e.fillGrad.mode, fm, 4)) { if (e.fillGrad.mode == 3 && e.fillGrad.depth <= 0) e.fillGrad.depth = 20; g_dirty = true; }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Linear: across the shape at an angle. Radial: centre to edge.\nFrom the edge: inward from the edge over a depth, following the curve (an inner glow / bevel).\nThe fill colour's opacity still applies.");
+            if (e.fillGrad.mode == 1) { ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("angle", &e.fillGrad.angle, 0.5f, -360.f, 360.f, "%.0f deg")) g_dirty = true; }
+            if (e.fillGrad.mode == 3) { ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("depth", &e.fillGrad.depth, 0.1f, 0.5f, 500.f, "%.1f")) g_dirty = true; }
+            if (e.fillGrad.mode) { float fc[4] = {e.fillCol[0], e.fillCol[1], e.fillCol[2], 1}; GradientEdit("fgrad", e.fillGrad, fc); }
+        }
         int cutters = 0;
         for (auto& o : Elems()) if (o.type == E_SHAPE && o.cut && (o.cutTarget.empty() ? o.group == e.group : o.cutTarget == e.name)) ++cutters;
         if (cutters) { ImGui::SameLine(); ImGui::TextDisabled("(%d cutter%s on it)", cutters, cutters == 1 ? "" : "s"); }
@@ -1300,6 +1418,14 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
         if (e.rot != 0) fprintf(f, "rot=%g\n", e.rot);
         if (!e.fillTok.empty()) fprintf(f, "filltoken=%s %g\n", e.fillTok.c_str(), e.fillTokA);
         if (e.cut) fprintf(f, "cut=%g;%s\n", e.cutGap, Esc(e.cutTarget).c_str());
+        if (e.strokeAlign) fprintf(f, "strokealign=%d\n", e.strokeAlign);
+        auto grad = [&](const char* key, const shapes::Gradient& g) {   // "mode angle depth;t r g b a;..."
+            if (!g.mode) return;
+            fprintf(f, "%s=%d %g %g", key, g.mode, g.angle, g.depth);
+            for (auto& st : g.stops) fprintf(f, ";%g %g %g %g %g", st[0], st[1], st[2], st[3], st[4]);
+            fprintf(f, "\n");
+        };
+        grad("strokegrad", e.strokeGrad); grad("fillgrad", e.fillGrad);
     } else fprintf(f, "font=%s\ntext=%s\nalign=%d\n", e.font.c_str(), Esc(e.text).c_str(), e.align);
     if (!e.role.empty()) fprintf(f, "role=%s\n", e.role.c_str());
     if (e.selOnly) fprintf(f, "selonly=1\n");
@@ -1351,6 +1477,18 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "shape") { int n = sscanf(v.c_str(), "%f %f %f %f %f", &e.rad[0], &e.rad[1], &e.rad[2], &e.rad[3], &e.stroke); (void)n; e.radLink = e.rad[0] == e.rad[1] && e.rad[1] == e.rad[2] && e.rad[2] == e.rad[3]; }
     else if (k == "fill") sscanf(v.c_str(), "%f %f %f %f", &e.fillCol[0], &e.fillCol[1], &e.fillCol[2], &e.fillCol[3]);
     else if (k == "filltoken") { char n[64] = {}; float a = 1; if (sscanf(v.c_str(), "%63s %f", n, &a) >= 1) { e.fillTok = n; e.fillTokA = a; } }
+    else if (k == "strokealign") e.strokeAlign = std::max(0, std::min(2, atoi(v.c_str())));
+    else if (k == "strokegrad" || k == "fillgrad") {
+        shapes::Gradient g; size_t p = v.find(';');
+        sscanf(v.c_str(), "%d %f %f", &g.mode, &g.angle, &g.depth);
+        while (p != std::string::npos) {
+            std::array<float, 5> st{}; size_t q = v.find(';', p + 1);
+            if (sscanf(v.c_str() + p + 1, "%f %f %f %f %f", &st[0], &st[1], &st[2], &st[3], &st[4]) == 5) g.stops.push_back(st);
+            p = q;
+        }
+        std::sort(g.stops.begin(), g.stops.end(), [](const std::array<float, 5>& a, const std::array<float, 5>& b) { return a[0] < b[0]; });
+        (k == "strokegrad" ? e.strokeGrad : e.fillGrad) = g;
+    }
     else if (k == "cut") { e.cut = true; size_t sc = v.find(';'); e.cutGap = (float)atof(v.c_str()); e.cutTarget = sc == std::string::npos ? "" : Unesc(v.substr(sc + 1)); }
     else if (k == "name") e.name = Unesc(v);
     else if (k == "anchor") e.anchor = std::max(0, std::min(8, atoi(v.c_str())));
@@ -2114,7 +2252,7 @@ static void CopyToSimilar(Elem& e) {
         for (int i : to) {
             Elem& o = Elems()[i];
             if (cSize) { o.scale = e.scale; if (e.type != E_TEXT) { o.w = e.w; o.h = e.h; } }
-            if (cLook && e.type == E_SHAPE) { memcpy(o.rad, e.rad, sizeof o.rad); o.radLink = e.radLink; o.stroke = e.stroke; memcpy(o.fillCol, e.fillCol, sizeof o.fillCol); o.fillTok = e.fillTok; o.fillTokA = e.fillTokA; }
+            if (cLook && e.type == E_SHAPE) { memcpy(o.rad, e.rad, sizeof o.rad); o.radLink = e.radLink; o.stroke = e.stroke; memcpy(o.fillCol, e.fillCol, sizeof o.fillCol); o.fillTok = e.fillTok; o.fillTokA = e.fillTokA; o.strokeAlign = e.strokeAlign; o.strokeGrad = e.strokeGrad; o.fillGrad = e.fillGrad; }
             if (cCol) { memcpy(o.col, e.col, sizeof o.col); o.colTok = e.colTok; o.colTokA = e.colTokA; }
             if (cLook) {
                 if (e.type == E_TEXT) { o.font = e.font; o.fontIdx = e.fontIdx; }
