@@ -76,7 +76,7 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   tab cut-outs). Drawn from a signed distance field at screen size (src/editor/shapes.cpp), stroke and fill as two
   alpha textures coloured when drawn; cached by geometry (moving or recolouring doesn't redraw). Layout:
   `type=shape`, `shape=tl tr br bl stroke`, `fill=r g b a`, `filltoken=`, `cut=gap;target`.
-  Gradients (2026-10-27, written, not built yet): stroke across (outer -> inner side, following the corners' curve)
+  Gradients (built 2026-10-27): stroke across (outer -> inner side, following the corners' curve)
   or along (around the outline, start offset); fill linear (angle), radial, or from the edge inward over a depth
   (following the curve); stroke inside / centred / outside the edge. Stops editor (drag / add / delete, colour,
   opacity, location, reverse, "glow" preset). Layout: `strokealign=`, `strokegrad=` / `fillgrad=mode angle depth;t r g b a;...`.
