@@ -114,6 +114,9 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   (renames the group), Delete menu (confirm), and its page settings (rows shown, menu key opens this, selected colour,
   Add grid, Try it). Its group's properties say it's a custom menu instead of the "menu page" tick. Older pages (groups
   ticked "menu page") are left as they are, deprecated, and aren't in the bar.
+  Everything that adds pieces goes into the menu being edited (IntoMenu): Add image / text / shape, prefabs (as a group
+  inside it), controller icons, vector art, FNG captures, "Copy its elements into this layout"; the list's "no group"
+  drop, the group field and its "add to..." list (only the menu's groups; "(the menu itself)") keep things inside it.
 - **Deprecated (2026-10-27): the row tools.** Build rows, Restack rows, row spacing / first row y, Start a new column,
   column distance, first column x, add to column, Add row (widget kit), row up / down, a row's column, Save as
   template and the Widget kit panel are gone from the editor; grids (menu buttons in rows x columns) replace them.

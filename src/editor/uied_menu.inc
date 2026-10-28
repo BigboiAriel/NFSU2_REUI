@@ -395,6 +395,11 @@ static bool MenuEdOff(const std::string& group) {
     if (!p || !p->dedicated) { g_menuEd.clear(); return false; }   // (gone: undo, reload)
     return !InGroup(group, g_menuEd);
 }
+// a group for something new / moved while a custom menu is being edited: inside that menu ("" -> the menu itself)
+static std::string IntoMenu(const std::string& g) {
+    if (!MenuEdOff(g)) return g;
+    return g.empty() ? g_menuEd : CleanGroup(g_menuEd + "/" + g);
+}
 // the editor: a grid's pieces are its first tile as the panel's picked tile would show it (the others are hidden); with a
 // custom menu picked in the menu bar, everything outside it is hidden
 static bool GridPieceOff(const Elem& e) {

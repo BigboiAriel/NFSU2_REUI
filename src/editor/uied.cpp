@@ -1912,13 +1912,14 @@ static void DeletePrefab(const std::string& name) {
     g_prefabMsg = "deleted \"" + name + "\"" + (builtIn ? " (built in: hidden now, removed from REUI at the next build)" : "");
     Log("ui editor: prefab %s (logged in _deleted.log)", g_prefabMsg.c_str());
 }
+static std::string IntoMenu(const std::string& g);   // (uied_menu.inc)
 static void AddPrefab(const std::string& name) {
     std::string root; std::vector<Elem> els;
     if (!LoadPrefab(name, root, els)) { g_prefabMsg = "couldn't read " + name; return; }
     if (els.empty()) { g_prefabMsg = "\"" + name + "\" is empty"; return; }
     for (auto& t : g_prefabTokens) if (!TokenOf(t.name)) TokenLoad(t);   // its tokens this layout doesn't have yet
     for (auto& t : g_prefabGrads) if (!GradTokenOf(t.name)) GradTokenLoad(t);
-    std::string base = name, top = base;   // a free top-level group name
+    std::string base = IntoMenu(name), top = base;   // a free top-level group name (inside the custom menu being edited)
     auto taken = [&](const std::string& g) { for (auto& e : Elems()) if (e.group == g || InGroup(e.group, g)) return true; return false; };
     for (int i = 2; taken(top); ++i) top = base + " " + std::to_string(i);
     for (auto& e : els) {
@@ -2470,14 +2471,14 @@ static void GroupField(Elem& e) {
     static char gb[64]; static const Elem* gbFor = nullptr; static std::string gbWas;
     if (gbFor != &e || gbWas != e.group) { snprintf(gb, sizeof gb, "%s", e.group.c_str()); gbFor = &e; gbWas = e.group; }
     ImGui::SetNextItemWidth(160);
-    if (ImGui::InputTextWithHint("group", "(none) - type a name", gb, sizeof gb, ImGuiInputTextFlags_EnterReturnsTrue)) { e.group = CleanGroup(gb); gbWas = e.group; g_dirty = true; }
+    if (ImGui::InputTextWithHint("group", "(none) - type a name", gb, sizeof gb, ImGuiInputTextFlags_EnterReturnsTrue)) { e.group = IntoMenu(CleanGroup(gb)); gbWas = e.group; g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Enter to set. A group inside a larger one: Larger/Smaller (e.g. Race HUD/Leaderboard).");
     auto names = GroupNames();
     if (!names.empty()) {
         ImGui::SameLine(); ImGui::SetNextItemWidth(130);
         if (ImGui::BeginCombo("##grppick", "add to...")) {
-            if (ImGui::Selectable("(no group)")) { e.group.clear(); g_dirty = true; }
-            for (auto& n : names) if (ImGui::Selectable(n.c_str(), n == e.group)) { e.group = n; g_dirty = true; }
+            if (ImGui::Selectable(MenuEdOff("") ? "(the menu itself)" : "(no group)")) { e.group = IntoMenu(""); g_dirty = true; }
+            for (auto& n : names) if (!MenuEdOff(n) && ImGui::Selectable(n.c_str(), n == e.group)) { e.group = n; g_dirty = true; }
             ImGui::EndCombo();
         }
     }
@@ -2780,7 +2781,7 @@ static void ResolvePending() {
     int added = 0, missing = 0;
     for (auto& p : g_pending) {
         for (auto& it : p.second) {
-            Elem e; e.anchor = 4; e.group = p.first; e.name = it.name;
+            Elem e; e.anchor = 4; e.group = IntoMenu(p.first); e.name = it.name;
             for (int k = 0; k < 4; ++k) e.col[k] = it.col[k];
             if (!it.text) {
                 auto f = tex.find(it.res);
@@ -2864,7 +2865,7 @@ void Panel() {
         static int copyFrom = 0;
         ImGui::SetNextItemWidth(130); ImGui::Combo("##copyfrom", &copyFrom, kModeName, NMODES); ImGui::SameLine();
         if (ImGui::Button("Copy its elements into this layout") && copyFrom != g_editMode) {
-            for (auto e : g_layout[copyFrom]) Elems().push_back(e);
+            for (auto e : g_layout[copyFrom]) { e.group = IntoMenu(e.group); Elems().push_back(e); }
             g_dirty = true;
         }
         if (g_nowMode >= 0 && g_nowMode < NMODES && g_nowMode != g_editMode) { ImGui::SameLine(); if (ImGui::SmallButton("edit the current mode's layout")) { g_editMode = g_nowMode; g_sel = -1; } }
@@ -2905,7 +2906,7 @@ void Panel() {
     if (ImGui::Button("Add image")) {
         Elem e; e.type = E_IMAGE; e.name = "image " + std::to_string(Elems().size() + 1);
         if (g_texSel >= 0) { e.tex = g_tex[g_texSel].name; e.pack = g_tex[g_texSel].pack; e.texIdx = g_texSel; e.w = g_tex[g_texSel].w; e.h = g_tex[g_texSel].h; e.name = e.tex; }
-        if (MenuEdOff(e.group)) e.group = g_menuEd;   // (into the custom menu being edited)
+        e.group = IntoMenu(e.group);   // (into the custom menu being edited)
         Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_dirty = true;
     }
     ImGui::SameLine();
@@ -2913,7 +2914,7 @@ void Panel() {
         Elem e; e.type = E_TEXT; e.name = "text " + std::to_string(Elems().size() + 1); e.w = 0; e.col[0] = e.col[1] = e.col[2] = 0.753f;
         int fi = g_fontSel >= 0 ? g_fontSel : FindFont("conduitmditc_tt14i"); if (fi < 0 && !g_fonts.empty()) fi = 0;
         if (fi >= 0) { e.font = g_fonts[fi].name; e.fontIdx = fi; }
-        if (MenuEdOff(e.group)) e.group = g_menuEd;
+        e.group = IntoMenu(e.group);
         Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_dirty = true;
     }
     ImGui::SameLine();
@@ -2922,7 +2923,7 @@ void Panel() {
         e.col[0] = e.col[1] = e.col[2] = 0.8824f; e.col[3] = 1; e.colTok = "hud.line"; e.colTokA = 1;
         e.fillCol[3] = 1; e.fillTok = "hud.shade"; e.fillTokA = 1;
         if (g_sel >= 0 && g_sel < (int)Elems().size()) e.group = Elems()[g_sel].group;
-        if (MenuEdOff(e.group)) e.group = g_menuEd;
+        e.group = IntoMenu(e.group);
         Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_dirty = true; ResolveTokens();
     }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("A rounded rectangle: a stroke and a fill (menu backings, panels, frames). Tick \"cut\" on one\nto make it cut into another shape (a notch, a window, a tab) - the stroke follows the cut.");
@@ -3120,7 +3121,7 @@ void Panel() {
     if (drop.elem >= 0 || !drop.group.empty()) ClearMulti();
     if (drop.elem >= 0 && drop.elem < (int)Elems().size()) {
         Elem e = Elems()[drop.elem];
-        e.group = drop.toTop ? "" : drop.into;
+        e.group = drop.toTop ? IntoMenu("") : drop.into;
         int at;
         if (drop.before >= 0) at = drop.before > drop.elem ? drop.before - 1 : drop.before;
         else {   // after the group's last element (or at the end)
@@ -3134,7 +3135,7 @@ void Panel() {
         g_sel = at; g_selGroup.clear(); g_dirty = true;
     } else if (!drop.group.empty()) {
         std::string g = drop.group;
-        if (drop.toTop) { if (!GroupParent(g).empty()) RebaseGroup(g, GroupLeaf(g)); }
+        if (drop.toTop) { std::string to = IntoMenu(GroupLeaf(g)); if (to != g && !InGroup(to, g)) RebaseGroup(g, to); }
         else if (!InGroup(drop.into, g) && GroupParent(g) != drop.into) RebaseGroup(g, drop.into + "/" + GroupLeaf(g));   // not into itself
     }
     ImGui::SameLine();
@@ -3263,6 +3264,7 @@ void Panel() {
                 else {
                     Elem e; e.type = E_IMAGE; e.anchor = 4; e.x = 0; e.y = 0; e.w = e.h = 32; e.tex = tex; e.name = IconName(f, id);
                     if (!g_selGroup.empty()) e.group = g_selGroup;
+                    e.group = IntoMenu(e.group);
                     e.layer = 0; for (auto& o : Elems()) e.layer = std::max(e.layer, o.layer);   // on top
                     Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_selGroup.clear();
                 }
@@ -3308,6 +3310,7 @@ void Panel() {
                     float big = std::max(e.w, e.h); if (big > 256) { e.w *= 256 / big; e.h *= 256 / big; }   // a huge canvas: fitted to 256
                     e.tex = vecart::Ref(art.name); e.name = art.name;
                     if (!g_selGroup.empty()) e.group = g_selGroup;
+                    e.group = IntoMenu(e.group);
                     e.layer = 0; for (auto& o : Elems()) e.layer = std::max(e.layer, o.layer);   // on top
                     Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_selGroup.clear();
                 }
