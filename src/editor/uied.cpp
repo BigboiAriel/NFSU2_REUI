@@ -23,6 +23,7 @@
 #include <vector>
 #include <deque>
 #include <map>
+#include <set>
 #include <unordered_map>
 #include <mutex>
 #include <thread>
@@ -1680,6 +1681,11 @@ void DrawOverlay(int mode) {
     {
         auto& lay = g_layout[editing || testMode ? g_editMode : mode];
         for (int i : DrawOrder(lay)) DrawElem(dl, lay[i], editing);
+        if ((editing || panel) && MenuWs())   // grids: the other cells faded, with sample items (the pieces are the first cell)
+            for (auto& w : g_widgets) if (w.type == W_GRID) {
+                bool shown = false; for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.visible) { shown = true; break; }
+                if (shown) DrawGrid(dl, PageOf(TopGroup(w.group)), w, false, 0, true);
+            }
     }
     if (!editing) {
         g_dragging = -1;

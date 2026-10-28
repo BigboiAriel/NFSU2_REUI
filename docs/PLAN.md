@@ -61,6 +61,14 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   reset / delete), and "Repeated colours" to turn repeated literal colours into tokens in one click. Mods:
   REUI_SetColorToken. Resolved once per frame before drawing (menus' selected-row colours still apply on top).
   The built-in prefabs use them. *Later:* theme files (a token set to switch: stock, high contrast, colour-blind).
+- **Grid menu widget (built 2026-10-27).** A menu row of cells, columns x rows shown, over a width x height (cell =
+  width / columns by height / rows); its pieces are the first cell, repeated (and stretched to the cell when "stretch
+  pieces" is on). More items than fit scroll up and down smoothly; optional own scroller (roles grid scroller tab /
+  track). Items: a choice setting (picking sets it), its own list ("label;icon;action": page:<page> / back / close),
+  or live values "list:<key>" (<key>.count, <key>.N, <key>.N.icon) for other mods' lists. Text {item} {i} {count};
+  role "item icon"; "selected row only" = the selected cell. Arrows move inside it and leave it at its edges. Editor:
+  "Add grid" on a page (4 x 3, 18 sample items) and faded ghost cells while laying it out. Layout: widget
+  `grid=cols rows w h x y cellW cellH stretch`.
 - **P5 distribution (later, once REUI is ready).** Light builds of REUI ship with the other mods: a renderer
   without the editor or HUD replacement, which carries the pages built in REUI (decided 2026-10-26).
   - **UniPad:** renders and drives the UniPad pause-menu pages. Option to look at: bake the pages into
