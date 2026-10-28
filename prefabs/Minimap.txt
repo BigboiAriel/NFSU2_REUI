@@ -26,25 +26,6 @@ flags=replace:minimap
 [element]
 mode=freeroam
 type=image
-name=Mask
-anchor=6
-x=33
-y=-34
-w=128
-h=128
-scale=1
-color=1 1 1 1
-visible=1
-group=Minimap
-layer=-1
-texture=MINIMAP_MASK
-pack=
-uv=0 0 1 1
-showif=map_on
-
-[element]
-mode=freeroam
-type=image
 name=Frame TL
 anchor=6
 x=17

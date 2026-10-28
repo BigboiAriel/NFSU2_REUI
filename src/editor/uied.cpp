@@ -674,8 +674,9 @@ static IDirect3DTexture9* NamedTex(const std::string& name, int px, float& su, f
 }
 // the map outside the texture is empty, not its edge pixels repeated: border addressing while the map is drawn
 // and the game's own mip settings (its last ones are still set) don't apply: level 0 down, linear between levels.
-// cb->UserCallbackData != null: the map's alpha is empty - the game adds it onto the screen (over its dark mask disc),
-// so it's drawn the same way: added, scaled by the element's alpha.
+// cb->UserCallbackData != null: the map's alpha is empty - the game lays it over the screen at the opacity of its
+// MINIMAP_MASK circle (about 72%, measured against stock over dark and light ground), ignoring the texture's alpha;
+// drawn the same way: the vertex (element) alpha only.
 static DWORD g_mapSamp[6], g_mapAlphaOp, g_mapBlend[2];
 static const D3DSAMPLERSTATETYPE kMapSamp[6] = {D3DSAMP_ADDRESSU, D3DSAMP_ADDRESSV, D3DSAMP_BORDERCOLOR, D3DSAMP_MIPFILTER, D3DSAMP_MAXMIPLEVEL, D3DSAMP_MIPMAPLODBIAS};
 static void MapAddrOn(const ImDrawList*, const ImDrawCmd* cb) {
@@ -686,10 +687,7 @@ static void MapAddrOn(const ImDrawList*, const ImDrawCmd* cb) {
     const DWORD set[6] = {D3DTADDRESS_BORDER, D3DTADDRESS_BORDER, 0, D3DTEXF_LINEAR, 0, *(DWORD*)&bias};
     for (int i = 0; i < 6; ++i) g_dev->SetSamplerState(0, kMapSamp[i], set[i]);
     g_dev->GetRenderState(D3DRS_SRCBLEND, &g_mapBlend[0]); g_dev->GetRenderState(D3DRS_DESTBLEND, &g_mapBlend[1]);
-    if (cb && cb->UserCallbackData) {
-        g_dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);   // (ALPHAARG2 = diffuse)
-        g_dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA); g_dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE);
-    }
+    if (cb && cb->UserCallbackData) g_dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);   // (ALPHAARG2 = diffuse)
 }
 static void MapAddrOff(const ImDrawList*, const ImDrawCmd*) {
     if (!g_dev) return;
@@ -748,8 +746,8 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
     // the map: a fan over the circle, each rim point's uv turned back by the world's turn
     const int N = 64;
     ImU32 mapCol = col;
-    if (!mv.alphaOk) {   // added like the game's: about 70% of the map's colour (measured against the stock minimap)
-        ImVec4 mc = ImGui::ColorConvertU32ToFloat4(col); mc.w *= 0.7f; mapCol = ImGui::ColorConvertFloat4ToU32(mc);
+    if (!mv.alphaOk) {   // over the screen at the game's mask opacity (about 72%)
+        ImVec4 mc = ImGui::ColorConvertU32ToFloat4(col); mc.w *= 0.72f; mapCol = ImGui::ColorConvertFloat4ToU32(mc);
     }
     dl->AddCallback(MapAddrOn, mv.alphaOk ? nullptr : (void*)1);
     dl->PushTextureID((ImTextureID)mv.tex);

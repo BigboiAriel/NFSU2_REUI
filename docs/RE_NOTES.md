@@ -109,3 +109,8 @@ Live textures: a TextureInfo's +0 points at its platform part; the IDirect3DText
 - Stock layout (640x480 units, 16:9 dump): mask / map 128 x 128 at (-223, 142) from the screen centre, border 4 x
   MINIMAP_BORDER 128 at +-16 turned 0 / 90 / 180 / -90 (alpha 100), north indicator 32 x 16 (207 128 48 200), icons
   12.5 x 16 (cars), 14.5 (shops / events), 20 (start line); player icon z 2 above the rest (z 8), map z 9, mask z 10.
+- The map's own alpha is empty (TRACKMAP4000: DXT3, every alpha 0). The game lays it over the screen at the
+  MINIMAP_MASK circle's opacity, about 72% (measured from screenshots against stock: roads ~180 over dark ground,
+  mid-grey blocks over light ground), not added and not with a dark disc under it.
+- Icons dropped past 1 minimap width; 10 only in free roam while 0x501100(0x838590) is 0..3, [0x862838] is 0 or
+  0x501690(0x85B940) is true. The icon list is on [0x8364D4] (made by 0x4ECC80), not on the HUD slot HUD+0x5C.
