@@ -101,6 +101,10 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   across the tile (row width over the tile less a 4% margin; bars stretch) and shown on that kind only; the grid's own
   label / icon stop showing on it. Pieces have "shows on: buttons / sliders / pickers / bindings" (element key
   `tilekinds=` bitmask 1 / 2 / 4 / 8). In the editor the first tile's pieces show as the panel's picked tile would.
+  A kind counts as having its pieces by its fill bar / arrows / binding icon (fixed 2026-10-28: the grid's own label,
+  shown on the other kinds, made pickers / bindings look done). Binding tiles: the label on the tile's left, the icon
+  just after its text (`afterlabel=1`: moves with each tile's label length, keeps its shape). A binding shown in the
+  grid's own icon piece is square.
 - **Deprecated (2026-10-27): the row tools.** Build rows, Restack rows, row spacing / first row y, Start a new column,
   column distance, first column x, add to column, Add row (widget kit), row up / down, a row's column, Save as
   template and the Widget kit panel are gone from the editor; grids (menu buttons in rows x columns) replace them.

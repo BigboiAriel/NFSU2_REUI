@@ -395,8 +395,11 @@ static bool GridPieceOff(const Elem& e) {
     int ts = it == g_tileSel.end() ? 0 : it->second;
     return !TileShows(e, TileBit(ts >= 0 && ts < (int)w->tiles.size() ? &w->tiles[ts] : nullptr));
 }
-static bool GridHasKind(const Widget& w, int bit) {   // pieces of its own for that kind of tile
-    for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.tileKinds && (e.tileKinds & bit) && e.tileKinds != 15) return true;
+static bool GridHasKind(const Widget& w, int bit) {   // the pieces that make that kind of tile (fill bar / arrows / binding icon)
+    const char* a = bit == 2 ? "fill" : bit == 4 ? "arrowL" : bit == 8 ? "bindicon" : nullptr;
+    const char* b = bit == 4 ? "arrowR" : a;
+    if (!a) return true;
+    for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && (e.role == a || e.role == b) && TileShows(e, bit)) return true;
     return false;
 }
 // The older menu rows a new kind of tile is made like: a slider (UniPad Options menu / Steering Deadzone), a picker
@@ -471,12 +474,26 @@ static void GridAddKind(Widget& w, int bit) {
     float cy = w.gy + ch / 2;
     const char* kn = bit == 2 ? "Slider: " : bit == 4 ? "Picker: " : "Binding: ";
     std::string first = w.tiles.empty() ? std::string("{item}") : w.tiles[0].label;
+    // bindings: the label on the tile's left, the rest just after its text as in the row (moving with each tile's text)
+    float refEnd = 0, newEnd = w.gx + m;
+    if (bit == 8)
+        for (auto& e : src) if (e.role == "label") {
+            Elem c = e; ImVec2 sz = ElemSize(c);
+            float ax = e.w <= 0 ? e.align * 0.5f : (e.anchor % 3) * 0.5f;
+            refEnd = e.x - ax * sz.x + sz.x;
+            c.text = first; c.align = 0; newEnd = w.gx + m + ElemSize(c).x;
+            break;
+        }
     for (auto& e : src) {
         Elem c = e;
         c.group = w.group; c.kit.clear(); c.tileKinds = bit; c.visible = true; c.name = kn + e.name;
         c.y = cy + (e.y - ly);
         float ax = (e.anchor % 3) * 0.5f;
-        if (e.role == "fill") { c.w = (x1 - x0) * k; c.x = mapX(x0) + ax * c.w; }
+        if (bit == 8) {
+            if (e.role == "label") { c.align = 0; c.x = w.gx + m; if (c.w > 0) { c.anchor = c.anchor / 3 * 3; } }
+            else { c.x = newEnd + (e.x - refEnd); c.afterLabel = true; }
+        }
+        else if (e.role == "fill") { c.w = (x1 - x0) * k; c.x = mapX(x0) + ax * c.w; }
         else if (e.role == "tab") c.x = mapX(x0);
         else {
             c.x = mapX(e.x);
@@ -562,14 +579,26 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
             Setting* bs = t && kind == W_BUTTON ? SettingOf(t->bind) : nullptr; if (bs && bs->kind != 3) bs = nullptr;   // a binding tile
             bool waiting = bs && !preview && g_menu.capturing == TileKey(w, it.tile);
             float ox = (c + GridShift(w, r, n)) * px, oy = (r - scroll) * py;
+            // pieces after the label's text: moved by how much longer / shorter this tile's label is than the piece's own
+            float afterDx = 0;
+            for (int i : order) {
+                const Elem& L = els[i];
+                if (L.role != "label" || L.type != E_TEXT || (kind >= 0 && !TileShows(L, TileBit(t)))) continue;
+                bool any = false; for (int j : order) if (els[j].afterLabel) any = true;
+                if (!any || L.text.find('{') != std::string::npos) break;
+                Elem raw = L, now = L; now.text = it.label;
+                float grow = ElemSize(now).x - ElemSize(raw).x;   // (units; its right edge moves by the part not centred / right of it)
+                afterDx = L.w > 0 ? 0.f : grow * (1.f - L.align * 0.5f);
+                break;
+            }
             for (int i : order) {
                 Elem& src = els[i];
                 if (src.selOnly && !cur) continue;
                 if (kind >= 0 && !TileShows(src, TileBit(t))) continue;
                 Elem e = src;
-                e.x = w.gx + (e.x - w.gx) * sx + ox;
+                e.x = w.gx + (e.x - w.gx) * sx + ox + (e.afterLabel ? afterDx : 0.f);
                 e.y = w.gy + (e.y - w.gy) * sy + oy + scrollDy;
-                if (e.type != E_TEXT) { e.w *= sx; e.h *= sy; }
+                if (e.type != E_TEXT) { if (e.afterLabel) { e.w *= std::min(sx, sy); e.h *= std::min(sx, sy); } else { e.w *= sx; e.h *= sy; } }   // (icons after the text keep their shape)
                 else { if (e.w > 0) e.w *= sx; }   // (text keeps its size)
                 if (kind == W_SLIDER && t && hasFill && (e.role == "fill" || e.role == "tab")) {
                     float f = WFrac(*t), ax = (e.anchor % 3) * 0.5f;
@@ -590,6 +619,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 }
                 // its picture: the tile's icon; a binding tile without one (and binding icon pieces): what it's bound to
                 bool ownTex = e.role == "icon" || e.role == "bindicon";
+                if (bs && e.role == "icon" && it.icon.empty()) e.w = e.h = std::min(e.w, e.h);   // (a controller icon: square)
                 if (bs && (e.role == "bindicon" || (e.role == "icon" && it.icon.empty()))) { if (!BindIcon(dl, e, bs, waiting, w.group)) continue; }
                 else if (e.role == "icon") { if (it.icon.empty()) continue; e.tex = it.icon; e.texIdx = -2; }
                 if (preview) e.col[3] *= 0.45f;
@@ -1182,6 +1212,8 @@ static void ElemMenuProps(Elem& e) {
             if (ImGui::Checkbox(kn[i], &on)) { mask = on ? mask | (1 << i) : mask & ~(1 << i); e.tileKinds = mask == 15 ? 0 : mask; g_dirty = true; }
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("The kinds of tile this piece is drawn on (by role too: value text on sliders / pickers,\nfill bar + tab on sliders, arrows on pickers, binding icon on bindings).");
+        if (ImGui::Checkbox("after the label's text", &e.afterLabel)) g_dirty = true;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Moves with the end of each tile's label: it keeps its distance from the text as laid out\nhere (a binding's icon just right of its name).");
     }
 }
 static void SettingCombo(Widget& w) {
@@ -1325,8 +1357,14 @@ static void GridPanel(Widget& w) {
         ImGui::SetNextItemWidth(160);
         if (ImGui::InputTextWithHint("##rename", "rename", rb, sizeof rb)) {
             t.label = rb; g_dirty = true;
-            if (ts == 0)   // (the pieces themselves are the first tile in the editor)
-                for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.type == E_TEXT && e.role == "label" && e.text.find('{') == std::string::npos) e.text = t.label;
+            if (ts == 0) {   // (the pieces themselves are the first tile in the editor; pieces after a label's text move with it)
+                float grow = 0;
+                for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.type == E_TEXT && e.role == "label" && e.text.find('{') == std::string::npos) {
+                    float before = ElemSize(e).x; e.text = t.label;
+                    if (e.w <= 0 && TileShows(e, 8)) grow = (ElemSize(e).x - before) * (1.f - e.align * 0.5f);
+                }
+                if (grow != 0) for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.afterLabel) e.x += grow;
+            }
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rename the tile.");
         ImGui::EndGroup();

@@ -420,6 +420,7 @@ struct Elem {
     int texIdx = -2, fontIdx = -2;        // resolved lazily (-2: not yet)
     std::string role;                     // menus: what it does in its row / page (uied_menu.inc)
     bool selOnly = false;                 // menus: shown on the selected row only
+    bool afterLabel = false;              // menus, a grid's piece: moves with the end of its tile's label text (a binding's icon)
     int tileKinds = 0;                    // menus, a grid's piece: the tiles it shows on (1 buttons, 2 sliders, 4 pickers, 8 bindings; 0 all)
     std::string kit;                      // menus: the widget-kit template it belongs to ("" = in the layout)
     // live-value rules: showIf = a value key ("!key": the opposite) - shown only while it's set (not blank / "0");
@@ -1631,6 +1632,7 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
     if (!e.role.empty()) fprintf(f, "role=%s\n", e.role.c_str());
     if (e.selOnly) fprintf(f, "selonly=1\n");
     if (e.tileKinds) fprintf(f, "tilekinds=%d\n", e.tileKinds);
+    if (e.afterLabel) fprintf(f, "afterlabel=1\n");
     if (!e.kit.empty()) fprintf(f, "kit=%s\n", Esc(e.kit).c_str());
     if (!e.showIf.empty()) fprintf(f, "showif=%s\n", e.showIf.c_str());
     if (e.bindKind) fprintf(f, "bind=%s\nbindkind=%d\nbindrange=%g %g\n", e.bind.c_str(), e.bindKind, e.bindMin, e.bindMax);
@@ -1716,6 +1718,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "role") e.role = v;
     else if (k == "selonly") e.selOnly = atoi(v.c_str()) != 0;
     else if (k == "tilekinds") e.tileKinds = atoi(v.c_str()) & 15;
+    else if (k == "afterlabel") e.afterLabel = atoi(v.c_str()) != 0;
     else if (k == "kit") e.kit = Unesc(v);
     else if (k == "showif") e.showIf = v;
     else if (k == "bind") e.bind = v;
