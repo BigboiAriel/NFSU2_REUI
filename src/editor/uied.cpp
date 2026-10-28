@@ -17,6 +17,7 @@
 #include "uied.h"
 #include "vecart.h"
 #include "deferfree.h"
+#include "shapes.h"
 #include <windows.h>
 #include <shellapi.h>
 #include "imgui.h"
@@ -316,6 +317,7 @@ static int FindFont(const std::string& name) { for (size_t i = 0; i < g_fonts.si
 void Release() {
     for (auto& t : g_tex) if (t.tex) { t.tex->Release(); t.tex = nullptr; }
     vecart::Release();
+    shapes::Release();
     deferfree::Flush();
 }
 static void Trim() {   // keep at most ~400 textures made; drop the least recently used
@@ -397,7 +399,7 @@ static std::string Expand(const std::string& s, int row = 0) {
 }
 
 // ---------------------------------------------------------------- overlay
-enum { E_IMAGE = 0, E_TEXT = 1 };
+enum { E_IMAGE = 0, E_TEXT = 1, E_SHAPE = 2 };
 struct Elem {
     int type = E_IMAGE; std::string name = "element", tex, pack, font, text = "Text";
     int anchor = 0;                       // 0..8: top-left, top, top-right, left, centre, right, bottom-left, bottom, bottom-right
@@ -442,7 +444,16 @@ struct Elem {
     // col / hiCol then hold the resolved colour (saved too, so a build without tokens still shows it)
     std::string colTok, hiTok;
     float colTokA = 1, hiTokA = 1;
+    // shapes (E_SHAPE): a rounded rectangle - corner radii (units: top-left, top-right, bottom-right, bottom-left),
+    // a stroke (inside its edge, units; 0 = none) in col, a fill in fillCol (its own token). cut: draws nothing itself
+    // and is subtracted from cutTarget (an element name; "" = every shape in its group), grown by cutGap
+    float rad[4] = {12, 12, 12, 12}; bool radLink = true;
+    float stroke = 2;
+    float fillCol[4] = {0, 0, 0, 0.6f};
+    std::string fillTok; float fillTokA = 1;
+    bool cut = false; float cutGap = 0; std::string cutTarget;
 };
+static const char* TypeKey(int t) { return t == 1 ? "text" : t == 2 ? "shape" : "image"; }
 struct FlagDef { std::string key, label, tip; int group = 0; bool hideMissing = false, live = false; std::function<bool()> hide; };
 static std::vector<FlagDef> g_flagDefs;   // registered ones (live) and ones known from the layout file
 static FlagDef* FlagOf(const std::string& k) { for (auto& f : g_flagDefs) if (f.key == k) return &f; return nullptr; }
@@ -785,6 +796,53 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
             else if (bl.texName.empty()) Arrow(dl, p, bl.w * k, bl.h * k, deg, bcol);
         }
 }
+// ---- shapes
+static std::vector<Elem>* g_drawList = nullptr;   // the elements being drawn now (where a shape's cutters are)
+// a shape: its stroke and fill textures (shapes.cpp) on its box, turned; cutters found among the elements drawn now
+static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bool editing) {
+    float pw = b.x - a.x, ph = b.y - a.y;
+    if (pw < 1 || ph < 1) return;
+    float rot = e.rot * 3.14159265f / 180, cs = cosf(rot), sn = sinf(rot);
+    ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2);
+    auto at = [&](float x, float y) { return ImVec2(c.x + x * cs - y * sn, c.y + x * sn + y * cs); };
+    if (e.cut) {   // a cutter draws nothing; in the editor, where it is
+        if (editing) {
+            ImVec2 q[4] = {at(-pw / 2, -ph / 2), at(pw / 2, -ph / 2), at(pw / 2, ph / 2), at(-pw / 2, ph / 2)};
+            dl->AddPolyline(q, 4, IM_COL32(255, 80, 200, 200), ImDrawFlags_Closed, 1.5f);
+            dl->AddLine(q[0], q[2], IM_COL32(255, 80, 200, 90)); dl->AddLine(q[1], q[3], IM_COL32(255, 80, 200, 90));
+        }
+        return;
+    }
+    float k = e.w > 0 ? pw / e.w : 1;   // units -> pixels (scale and animation included)
+    shapes::Box box; box.w = pw; box.h = ph;
+    for (int i = 0; i < 4; ++i) box.r[i] = std::max(0.f, e.rad[i]) * k;
+    std::vector<shapes::Box> cuts;
+    if (g_drawList)
+        for (auto& o : *g_drawList) {
+            if (o.type != E_SHAPE || !o.cut || !o.visible || !ShowIfOk(o)) continue;
+            if (o.cutTarget.empty() ? o.group != e.group : o.cutTarget != e.name) continue;
+            ImVec2 oa, ob; ElemRect(o, oa, ob);
+            float ow = ob.x - oa.x, oh = ob.y - oa.y, ok = o.w > 0 ? ow / o.w : 1;
+            ImVec2 oc((oa.x + ob.x) / 2, (oa.y + ob.y) / 2);
+            float dx = oc.x - c.x, dy = oc.y - c.y, gap = std::max(0.f, o.cutGap) * ok;
+            // (out of reach: left out, so moving it elsewhere doesn't redraw the shape)
+            if (sqrtf(dx * dx + dy * dy) > (sqrtf(pw * pw + ph * ph) + sqrtf(ow * ow + oh * oh)) / 2 + gap + 2) continue;
+            shapes::Box x;
+            x.cx = dx * cs + dy * sn; x.cy = -dx * sn + dy * cs;   // into the shape's frame
+            x.w = ow; x.h = oh; x.rot = (o.rot - e.rot) * 3.14159265f / 180; x.gap = gap;
+            for (int i = 0; i < 4; ++i) x.r[i] = std::max(0.f, o.rad[i]) * ok;
+            cuts.push_back(x);
+        }
+    shapes::Result r;
+    if (!shapes::Get(g_dev, box, std::max(0.f, e.stroke) * k, cuts, r)) return;
+    float m = r.margin;
+    ImVec2 q0 = at(-pw / 2 - m, -ph / 2 - m), q1 = at(pw / 2 + m, -ph / 2 - m), q2 = at(pw / 2 + m, ph / 2 + m), q3 = at(-pw / 2 - m, ph / 2 + m);
+    // the fill keeps its own colour, faded with the element (animations, blink) as the stroke colour is
+    float fade = e.col[3] > 0.001f ? std::min(1.f, ImGui::ColorConvertU32ToFloat4(col).w / e.col[3]) : 1.f;
+    float fc[4] = {e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3] * fade};
+    if (r.fill && fc[3] > 0.002f) dl->AddImageQuad((ImTextureID)r.fill, q0, q1, q2, q3, ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), Col(fc));
+    if (r.stroke) dl->AddImageQuad((ImTextureID)r.stroke, q0, q1, q2, q3, ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), col);
+}
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
     if (!editing && !e.flags.empty() && FlagsHide(e)) return;
@@ -859,6 +917,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             col = Col(c);
         }
     }
+    if (e.type == E_SHAPE) { DrawShape(dl, e, a, b, col, editing); return; }
     if (e.type == E_IMAGE && e.minimap) { DrawMinimap(dl, e, a, b, col, editing); return; }
     if (e.type == E_IMAGE) {
         int ifam, iid;
@@ -1025,8 +1084,8 @@ static void TokensReset() {   // before a layout is read: built-in / mod tokens 
 }
 static int TokenUses(const std::string& n) {
     int u = 0;
-    for (auto& l : g_layout) for (auto& e : l) u += (e.colTok == n) + (e.hiTok == n);
-    for (auto& e : g_kit) u += (e.colTok == n) + (e.hiTok == n);
+    for (auto& l : g_layout) for (auto& e : l) u += (e.colTok == n) + (e.hiTok == n) + (e.fillTok == n);
+    for (auto& e : g_kit) u += (e.colTok == n) + (e.hiTok == n) + (e.fillTok == n);
     return u;
 }
 // every frame, before anything is drawn (menus copy elements after this): tokens' live values, then their users
@@ -1043,7 +1102,7 @@ static void ResolveTokens() {
         if (!t) return;   // (an unknown token: its saved colour stays)
         out[0] = t->now[0]; out[1] = t->now[1]; out[2] = t->now[2]; out[3] = std::min(1.f, t->now[3] * a);
     };
-    auto each = [&](Elem& e) { apply(e.colTok, e.colTokA, e.col); apply(e.hiTok, e.hiTokA, e.hiCol); };
+    auto each = [&](Elem& e) { apply(e.colTok, e.colTokA, e.col); apply(e.hiTok, e.hiTokA, e.hiCol); apply(e.fillTok, e.fillTokA, e.fillCol); };
     for (auto& l : g_layout) for (auto& e : l) each(e);
     for (auto& e : g_kit) each(e);
 }
@@ -1122,8 +1181,8 @@ static void TokensPanel() {
         ImGui::EndTable();
     }
     if (!drop.empty()) {   // its users keep their resolved colour, as their own
-        for (auto& l : g_layout) for (auto& e : l) { if (e.colTok == drop) e.colTok.clear(); if (e.hiTok == drop) e.hiTok.clear(); }
-        for (auto& e : g_kit) { if (e.colTok == drop) e.colTok.clear(); if (e.hiTok == drop) e.hiTok.clear(); }
+        for (auto& l : g_layout) for (auto& e : l) { if (e.colTok == drop) e.colTok.clear(); if (e.hiTok == drop) e.hiTok.clear(); if (e.fillTok == drop) e.fillTok.clear(); }
+        for (auto& e : g_kit) { if (e.colTok == drop) e.colTok.clear(); if (e.hiTok == drop) e.hiTok.clear(); if (e.fillTok == drop) e.fillTok.clear(); }
         g_tokens.erase(std::remove_if(g_tokens.begin(), g_tokens.end(), [&](const ColorToken& t) { return t.name == drop; }), g_tokens.end());
         g_dirty = true;
     }
@@ -1194,9 +1253,41 @@ static void TokensPanel() {
         ImGui::TreePop();
     }
 }
+static void ShapeProps(Elem& e) {
+    ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("size", &e.w, 0.5f, 1.f, 4000.f, "%.0f")) g_dirty = true;
+    ImGui::SetNextItemWidth(220); if (ImGui::DragFloat("rotation", &e.rot, 0.5f, -360.f, 360.f, "%.1f deg")) g_dirty = true;
+    float maxR = std::min(e.w, e.h) / 2;
+    if (ImGui::Checkbox("same corners", &e.radLink)) { if (e.radLink) e.rad[1] = e.rad[2] = e.rad[3] = e.rad[0]; g_dirty = true; }
+    ImGui::SameLine();
+    if (e.radLink) { ImGui::SetNextItemWidth(150); if (ImGui::DragFloat("corner radius", &e.rad[0], 0.25f, 0.f, maxR, "%.1f")) { e.rad[1] = e.rad[2] = e.rad[3] = e.rad[0]; g_dirty = true; } }
+    else { ImGui::SetNextItemWidth(260); if (ImGui::DragFloat4("corners (TL TR BR BL)", e.rad, 0.25f, 0.f, maxR, "%.1f")) g_dirty = true; }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rounding of each corner (units; half the short side makes a pill / circle).");
+    ImGui::SameLine(); if (ImGui::SmallButton("pill")) { for (float& r : e.rad) r = maxR; e.radLink = true; g_dirty = true; }
+    if (!e.cut) {
+        ImGui::SetNextItemWidth(150); if (ImGui::DragFloat("stroke width", &e.stroke, 0.05f, 0.f, 100.f, "%.2f")) { e.stroke = std::max(0.f, e.stroke); g_dirty = true; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The outline, inside the edge (units; 0 = no outline). Its colour is the stroke colour below.");
+        TokenColourEdit("fill colour", e.fillCol, e.fillTok, e.fillTokA);
+        int cutters = 0;
+        for (auto& o : Elems()) if (o.type == E_SHAPE && o.cut && (o.cutTarget.empty() ? o.group == e.group : o.cutTarget == e.name)) ++cutters;
+        if (cutters) { ImGui::SameLine(); ImGui::TextDisabled("(%d cutter%s on it)", cutters, cutters == 1 ? "" : "s"); }
+    }
+    if (ImGui::Checkbox("cut", &e.cut)) g_dirty = true;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A boolean: this shape draws nothing and is cut out of another shape - its fill and stroke\nfollow the cut's edge (a notch, a window, a tab cut-out). Cutters show as a pink outline while editing.");
+    if (e.cut) {
+        ImGui::SameLine(); ImGui::SetNextItemWidth(220);
+        if (ImGui::BeginCombo("cuts into", e.cutTarget.empty() ? "every shape in its group" : e.cutTarget.c_str())) {
+            if (ImGui::Selectable("every shape in its group", e.cutTarget.empty())) { e.cutTarget.clear(); g_dirty = true; }
+            for (auto& o : Elems()) if (o.type == E_SHAPE && !o.cut && ImGui::Selectable(o.name.c_str(), e.cutTarget == o.name)) { e.cutTarget = o.name; g_dirty = true; }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine(); ImGui::SetNextItemWidth(110);
+        if (ImGui::DragFloat("gap", &e.cutGap, 0.05f, 0.f, 200.f, "%.1f")) { e.cutGap = std::max(0.f, e.cutGap); g_dirty = true; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Cuts this much wider than the cutter itself (units): room around what sits in the cut-out.");
+    }
+}
 static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the layout / prefab files keep it
     fprintf(f, "\n[element]\nmode=%s\ntype=%s\nname=%s\nanchor=%d\nx=%g\ny=%g\nw=%g\nh=%g\nscale=%g\ncolor=%g %g %g %g\nvisible=%d\n",
-            kModeKey[m], e.type == E_TEXT ? "text" : "image", Esc(e.name).c_str(), e.anchor, e.x, e.y, e.w, e.h, e.scale, e.col[0], e.col[1], e.col[2], e.col[3], e.visible ? 1 : 0);
+            kModeKey[m], TypeKey(e.type), Esc(e.name).c_str(), e.anchor, e.x, e.y, e.w, e.h, e.scale, e.col[0], e.col[1], e.col[2], e.col[3], e.visible ? 1 : 0);
     if (e.row > 0) fprintf(f, "row=%d\n", e.row);
     if (!e.group.empty()) fprintf(f, "group=%s\n", Esc(e.group).c_str());
     if (e.hiMine) fprintf(f, "highlight=%g %g %g %g\n", e.hiCol[0], e.hiCol[1], e.hiCol[2], e.hiCol[3]);
@@ -1204,6 +1295,11 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
     if (e.type == E_IMAGE) {
         fprintf(f, "texture=%s\npack=%s\nuv=%g %g %g %g\n", e.tex.c_str(), e.pack.c_str(), e.u0, e.v0, e.u1, e.v1);
         if (e.rot != 0) fprintf(f, "rot=%g\n", e.rot);
+    } else if (e.type == E_SHAPE) {
+        fprintf(f, "shape=%g %g %g %g %g\nfill=%g %g %g %g\n", e.rad[0], e.rad[1], e.rad[2], e.rad[3], e.stroke, e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3]);
+        if (e.rot != 0) fprintf(f, "rot=%g\n", e.rot);
+        if (!e.fillTok.empty()) fprintf(f, "filltoken=%s %g\n", e.fillTok.c_str(), e.fillTokA);
+        if (e.cut) fprintf(f, "cut=%g;%s\n", e.cutGap, Esc(e.cutTarget).c_str());
     } else fprintf(f, "font=%s\ntext=%s\nalign=%d\n", e.font.c_str(), Esc(e.text).c_str(), e.align);
     if (!e.role.empty()) fprintf(f, "role=%s\n", e.role.c_str());
     if (e.selOnly) fprintf(f, "selonly=1\n");
@@ -1251,7 +1347,11 @@ static void Save() {
 }
 static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // one "key=value" of an [element]
     if (k == "mode") { for (int m = 0; m < NMODES; ++m) if (v == kModeKey[m]) e.mode = m; }
-    else if (k == "type") e.type = v == "text" ? E_TEXT : E_IMAGE;
+    else if (k == "type") e.type = v == "text" ? E_TEXT : v == "shape" ? E_SHAPE : E_IMAGE;
+    else if (k == "shape") { int n = sscanf(v.c_str(), "%f %f %f %f %f", &e.rad[0], &e.rad[1], &e.rad[2], &e.rad[3], &e.stroke); (void)n; e.radLink = e.rad[0] == e.rad[1] && e.rad[1] == e.rad[2] && e.rad[2] == e.rad[3]; }
+    else if (k == "fill") sscanf(v.c_str(), "%f %f %f %f", &e.fillCol[0], &e.fillCol[1], &e.fillCol[2], &e.fillCol[3]);
+    else if (k == "filltoken") { char n[64] = {}; float a = 1; if (sscanf(v.c_str(), "%63s %f", n, &a) >= 1) { e.fillTok = n; e.fillTokA = a; } }
+    else if (k == "cut") { e.cut = true; size_t sc = v.find(';'); e.cutGap = (float)atof(v.c_str()); e.cutTarget = sc == std::string::npos ? "" : Unesc(v.substr(sc + 1)); }
     else if (k == "name") e.name = Unesc(v);
     else if (k == "anchor") e.anchor = std::max(0, std::min(8, atoi(v.c_str())));
     else if (k == "x") e.x = (float)atof(v.c_str()); else if (k == "y") e.y = (float)atof(v.c_str());
@@ -1380,7 +1480,7 @@ static bool SavePrefab(const std::string& group, std::string name) {
     {   // the tokens its elements use that aren't built in (added where they're missing when the prefab is added)
         std::vector<std::string> used;
         for (auto& e : Elems()) if (e.group == group || InGroup(e.group, group))
-            for (const std::string* n : {&e.colTok, &e.hiTok}) if (!n->empty() && std::find(used.begin(), used.end(), *n) == used.end()) used.push_back(*n);
+            for (const std::string* n : {&e.colTok, &e.hiTok, &e.fillTok}) if (!n->empty() && std::find(used.begin(), used.end(), *n) == used.end()) used.push_back(*n);
         for (auto& n : used) if (ColorToken* t = TokenOf(n)) if (!t->builtIn) fprintf(f, "token=%s\n", TokenLine(*t).c_str());
     }
     int n = 0;
@@ -1493,6 +1593,7 @@ void SetDevice(IDirect3DDevice9* dev) {   // the start of a frame: last frame's 
     g_dev = dev; g_loadsThisFrame = 0;
     deferfree::Flush();
     ResolveTokens();
+    shapes::Trim();
 }
 IDirect3DDevice9* Device() { return g_dev; }
 static bool MenuOpenNow();
@@ -1680,6 +1781,7 @@ void DrawOverlay(int mode) {
     // while editing or testing: the layout being edited; otherwise the one for what we're doing now
     {
         auto& lay = g_layout[editing || testMode ? g_editMode : mode];
+        g_drawList = &lay;
         for (int i : DrawOrder(lay)) DrawElem(dl, lay[i], editing);
         if ((editing || panel) && MenuWs())   // grids: the other cells faded, with sample items (the pieces are the first cell)
             for (auto& w : g_widgets) if (w.type == W_GRID) {
@@ -1768,7 +1870,7 @@ void DrawOverlay(int mode) {
             for (size_t k2 = 0; k2 < Elems().size() && k2 < g_groupOrig.size(); ++k2)
                 if (g_dragMode == 2 ? InGroup(Elems()[k2].group, g_selGroup) : PickedOf((int)k2)) { Elems()[k2].x = roundf(g_groupOrig[k2].x + d.x); Elems()[k2].y = roundf(g_groupOrig[k2].y + d.y); }
         }
-        else if (e.type == E_IMAGE) {
+        else if (e.type != E_TEXT) {
             float ax = (e.anchor % 3) * 0.5f, ay = (e.anchor / 3) * 0.5f;
             float nw = std::max(2.f, roundf(g_dragOrigWH.x + d.x)), nh = std::max(2.f, roundf(g_dragOrigWH.y + d.y));
             if (io.KeyShift && g_dragOrigWH.y > 0) nh = roundf(nw * g_dragOrigWH.y / g_dragOrigWH.x);   // keep the shape
@@ -1997,7 +2099,7 @@ static void CopyToSimilar(Elem& e) {
         if (&o != &e && o.type == e.type && NameScheme(o.name) == sch) to.push_back(i);
     }
     if (!ImGui::CollapsingHeader(("Copy to similar names (" + std::to_string(to.size()) + ")###cpsim").c_str())) return;
-    ImGui::TextDisabled("Name scheme: \"%s\" (numbers count as #), same kind (%s)", sch.c_str(), e.type == E_TEXT ? "text" : "image");
+    ImGui::TextDisabled("Name scheme: \"%s\" (numbers count as #), same kind (%s)", sch.c_str(), TypeKey(e.type));
     if (to.empty()) { ImGui::TextDisabled("No other element follows this name scheme."); return; }
     ImGui::Checkbox("size / scale", &cSize); ImGui::SameLine();
     ImGui::Checkbox("colour", &cCol); ImGui::SameLine();
@@ -2011,7 +2113,8 @@ static void CopyToSimilar(Elem& e) {
     if (ImGui::Button(("Copy to " + std::to_string(to.size()) + " similar").c_str())) {
         for (int i : to) {
             Elem& o = Elems()[i];
-            if (cSize) { o.scale = e.scale; if (e.type == E_IMAGE) { o.w = e.w; o.h = e.h; } }
+            if (cSize) { o.scale = e.scale; if (e.type != E_TEXT) { o.w = e.w; o.h = e.h; } }
+            if (cLook && e.type == E_SHAPE) { memcpy(o.rad, e.rad, sizeof o.rad); o.radLink = e.radLink; o.stroke = e.stroke; memcpy(o.fillCol, e.fillCol, sizeof o.fillCol); o.fillTok = e.fillTok; o.fillTokA = e.fillTokA; }
             if (cCol) { memcpy(o.col, e.col, sizeof o.col); o.colTok = e.colTok; o.colTokA = e.colTokA; }
             if (cLook) {
                 if (e.type == E_TEXT) { o.font = e.font; o.fontIdx = e.fontIdx; }
@@ -2101,6 +2204,8 @@ static void Selected(Elem& e) {
         } else
         ImGui::Text("texture: %s (%s)", e.tex.empty() ? "(none - pick one below)" : e.tex.c_str(), e.pack.c_str());
         if (g_texSel >= 0) { ImGui::SameLine(); if (ImGui::SmallButton("use the selected texture")) { e.tex = g_tex[g_texSel].name; e.pack = g_tex[g_texSel].pack; e.texIdx = g_texSel; g_dirty = true; } }
+    } else if (e.type == E_SHAPE) {
+        ShapeProps(e);
     } else {
         static char tb[512];
         snprintf(tb, sizeof tb, "%s", e.text.c_str());
@@ -2116,7 +2221,7 @@ static void Selected(Elem& e) {
         ImGui::SetNextItemWidth(220);
         if (ImGui::Combo("font", &cur, fn.data(), (int)fn.size())) { e.font = g_fonts[cur].name; e.fontIdx = cur; g_dirty = true; }
     }
-    TokenColourEdit("colour / tint", e.col, e.colTok, e.colTokA);
+    TokenColourEdit(e.type == E_SHAPE ? "stroke colour" : "colour / tint", e.col, e.colTok, e.colTokA);
     ImGui::SetNextItemWidth(110);
     if (ImGui::InputInt("leaderboard row", &e.row)) { e.row = std::max(0, std::min(22, e.row)); g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = not a leaderboard row.\nN = shown only while there's an Nth racer on the board; in its text {name} {pos} {gap} ... are that racer's.");
@@ -2406,6 +2511,15 @@ void Panel() {
         if (fi >= 0) { e.font = g_fonts[fi].name; e.fontIdx = fi; }
         Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_dirty = true;
     }
+    ImGui::SameLine();
+    if (ImGui::Button("Add shape")) {
+        Elem e; e.type = E_SHAPE; e.name = "shape " + std::to_string(Elems().size() + 1); e.anchor = 4; e.x = 0; e.y = 0; e.w = 240; e.h = 120;
+        e.col[0] = e.col[1] = e.col[2] = 0.8824f; e.col[3] = 0.6f; e.colTok = "hud.line"; e.colTokA = 0.6f;
+        e.fillTok = "hud.shade"; e.fillTokA = 0.6f;
+        if (g_sel >= 0 && g_sel < (int)Elems().size()) e.group = Elems()[g_sel].group;
+        Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_dirty = true; ResolveTokens();
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A rounded rectangle: a stroke and a fill (menu backings, panels, frames). Tick \"cut\" on one\nto make it cut into another shape (a notch, a window, a tab) - the stroke follows the cut.");
     ImGui::SameLine(); if (ImGui::Button(g_dirty ? "Save *" : "Save")) Save();
     ImGui::SameLine(); if (ImGui::Button("Reload from file")) { Load(); UndoReset(); }
     ImGui::SameLine(); ImGui::BeginDisabled(g_undo.empty());
@@ -2446,7 +2560,7 @@ void Panel() {
     };
     auto item = [&](int i) {
         ImGui::PushID(i);
-        std::string label = std::string(Elems()[i].type == E_TEXT ? "[T] " : "[I] ") + Elems()[i].name + (Elems()[i].visible ? "" : " (hidden)") +
+        std::string label = std::string(Elems()[i].type == E_TEXT ? "[T] " : Elems()[i].type == E_SHAPE ? (Elems()[i].cut ? "[C] " : "[S] ") : "[I] ") + Elems()[i].name + (Elems()[i].visible ? "" : " (hidden)") +
                             (Elems()[i].layer ? "  L" + std::to_string(Elems()[i].layer) : "");
         if (!q.empty() && !Elems()[i].group.empty()) label += "   in " + Elems()[i].group;
         if (ImGui::Selectable(label.c_str(), (g_sel == i && g_selGroup.empty()) || InMulti(i))) {
@@ -2687,7 +2801,9 @@ void Panel() {
             if (hi.x > lo.x && hi.y > lo.y) {
                 dl->PushClipRect(p0, p1, true);
                 int v0 = dl->VtxBuffer.Size;
+                g_drawList = &cache;
                 for (int i : DrawOrder(cache)) DrawElem(dl, cache[i], true);
+                g_drawList = nullptr;
                 float sc = std::min((box.x - 16) / (hi.x - lo.x), (box.y - 16) / (hi.y - lo.y));
                 ImVec2 off(p0.x + (box.x - (hi.x - lo.x) * sc) / 2, p0.y + (box.y - (hi.y - lo.y) * sc) / 2);
                 for (int i = v0; i < dl->VtxBuffer.Size; ++i) { ImVec2& v = dl->VtxBuffer[i].pos; v = ImVec2(off.x + (v.x - lo.x) * sc, off.y + (v.y - lo.y) * sc); }

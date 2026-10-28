@@ -520,6 +520,7 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel, int top) {
     std::string desc = sel >= 0 && n ? rows[sel].w->desc : "";
     std::set<const Widget*> gridsDrawn;
     auto& els = MenuElems();
+    g_drawList = &els;   // (shapes find their cutters here)
     for (int i : DrawOrder(els)) {
         Elem& src = els[i];
         if (!InGroup(src.group, p.group) || !src.visible) continue;

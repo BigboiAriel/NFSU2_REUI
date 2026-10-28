@@ -69,6 +69,14 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   role "item icon"; "selected row only" = the selected cell. Arrows move inside it and leave it at its edges. Editor:
   "Add grid" on a page (4 x 3, 18 sample items) and faded ghost cells while laying it out. Layout: widget
   `grid=cols rows w h x y cellW cellH stretch`.
+- **Shapes and cutters (built 2026-10-27).** A "shape" element: a rounded rectangle (radius per corner, rotation), a
+  stroke inside its edge (stroke colour = the element colour) and a fill (its own colour / token) - menu backings,
+  panels, frames. A shape with "cut" on draws nothing and is subtracted from a target shape (by name, or every shape in
+  its group), grown by a gap: a true boolean on the distance field, so the stroke follows the cut (notches, windows,
+  tab cut-outs). Drawn from a signed distance field at screen size (src/editor/shapes.cpp), stroke and fill as two
+  alpha textures coloured when drawn; cached by geometry (moving or recolouring doesn't redraw). Layout:
+  `type=shape`, `shape=tl tr br bl stroke`, `fill=r g b a`, `filltoken=`, `cut=gap;target`.
+  *Later:* smooth (rounded) joins where a cut meets the edge; ellipses / other shapes.
 - **P5 distribution (later, once REUI is ready).** Light builds of REUI ship with the other mods: a renderer
   without the editor or HUD replacement, which carries the pages built in REUI (decided 2026-10-26).
   - **UniPad:** renders and drives the UniPad pause-menu pages. Option to look at: bake the pages into
