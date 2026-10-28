@@ -456,6 +456,7 @@ struct Elem {
     float fillCol[4] = {0, 0, 0, 1};
     std::string fillTok; float fillTokA = 1;
     bool cut = false; float cutGap = 0; std::string cutTarget;
+    bool cutShow = false;                 // a cutter that's also drawn itself (its fill and border), over the cut it makes
     int strokeAlign = 0;                  // 0 inside the edge, 1 centred on it, 2 outside
     UGrad strokeGrad, fillGrad;           // gradients (shapes.h modes): with one, its colours replace the colour (alpha still fades)
 };
@@ -813,7 +814,7 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
     float rot = e.rot * 3.14159265f / 180, cs = cosf(rot), sn = sinf(rot);
     ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2);
     auto at = [&](float x, float y) { return ImVec2(c.x + x * cs - y * sn, c.y + x * sn + y * cs); };
-    if (e.cut) {   // a cutter draws nothing; in the editor, where it is
+    if (e.cut && !e.cutShow) {   // a cutter draws nothing; in the editor, where it is
         if (editing) {
             ImVec2 q[4] = {at(-pw / 2, -ph / 2), at(pw / 2, -ph / 2), at(pw / 2, ph / 2), at(-pw / 2, ph / 2)};
             dl->AddPolyline(q, 4, IM_COL32(255, 80, 200, 200), ImDrawFlags_Closed, 1.5f);
@@ -825,7 +826,7 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
     shapes::Box box; box.w = pw; box.h = ph;
     for (int i = 0; i < 4; ++i) box.r[i] = std::max(0.f, e.rad[i]) * k;
     std::vector<shapes::Box> cuts;
-    if (g_drawList)
+    if (g_drawList && !e.cut)   // (a shown cutter is drawn as itself, not cut by others)
         for (auto& o : *g_drawList) {
             if (o.type != E_SHAPE || !o.cut || !o.visible || !ShowIfOk(o)) continue;
             if (o.cutTarget.empty() ? o.group != e.group : o.cutTarget != e.name) continue;
@@ -839,6 +840,10 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
             x.cx = dx * cs + dy * sn; x.cy = -dx * sn + dy * cs;   // into the shape's frame
             x.w = ow; x.h = oh; x.rot = (o.rot - e.rot) * 3.14159265f / 180; x.gap = gap;
             for (int i = 0; i < 4; ++i) x.r[i] = std::max(0.f, o.rad[i]) * ok;
+            // its own border along the cut (takes priority over this shape's there)
+            x.stroke = o.cutShow ? 0.f : std::max(0.f, o.stroke) * ok;   // (a shown cutter draws its border on itself)
+            x.align = o.strokeAlign; memcpy(x.col, o.col, sizeof x.col);
+            if (ResolveGrad(o.strokeGrad, 1, x.grad)) x.col[0] = x.col[1] = x.col[2] = 1;   // (a gradient's colours, at its opacity)
             cuts.push_back(x);
         }
     shapes::Result r;
@@ -854,6 +859,11 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
     if (sOn) { ImVec4 v = ImGui::ColorConvertU32ToFloat4(col); col = ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, v.w)); }
     if (r.fill && fc[3] > 0.002f) dl->AddImageQuad((ImTextureID)r.fill, q0, q1, q2, q3, ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), Col(fc));
     if (r.stroke) dl->AddImageQuad((ImTextureID)r.stroke, q0, q1, q2, q3, ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), col);
+    if (r.cutStroke) dl->AddImageQuad((ImTextureID)r.cutStroke, q0, q1, q2, q3, ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), IM_COL32(255, 255, 255, (int)lroundf(255 * fade)));
+    if (e.cut && editing) {   // a shown cutter: still marked as one while editing
+        ImVec2 q[4] = {at(-pw / 2, -ph / 2), at(pw / 2, -ph / 2), at(pw / 2, ph / 2), at(-pw / 2, ph / 2)};
+        dl->AddPolyline(q, 4, IM_COL32(255, 80, 200, 150), ImDrawFlags_Closed, 1.f);
+    }
 }
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
@@ -1562,7 +1572,7 @@ static void ShapeProps(Elem& e) {
     else { ImGui::SetNextItemWidth(260); if (ImGui::DragFloat4("corners (TL TR BR BL)", e.rad, 0.25f, 0.f, maxR, "%.1f")) g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rounding of each corner (units; half the short side makes a pill / circle).");
     ImGui::SameLine(); if (ImGui::SmallButton("pill")) { for (float& r : e.rad) r = maxR; e.radLink = true; g_dirty = true; }
-    if (!e.cut) {
+    {
         ImGui::SetNextItemWidth(220);
         if (ImGui::SliderFloat("border thickness", &e.stroke, 0.f, std::max(4.f, std::min(60.f, std::min(e.w, e.h) / 2)), "%.1f")) { e.stroke = std::max(0.f, e.stroke); g_dirty = true; }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("The outline's thickness (units; 0 = no border; Ctrl + click to type any value).\nIts colour is the stroke colour below (or its gradient).");
@@ -1578,8 +1588,10 @@ static void ShapeProps(Elem& e) {
             if (e.strokeGrad.mode == 2) { ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("start", &e.strokeGrad.angle, 0.5f, -360.f, 360.f, "%.0f deg")) g_dirty = true; }
             if (e.strokeGrad.mode) GradientEdit("sgrad", e.strokeGrad, e.col, e.colTok.empty() ? nullptr : e.colTok.c_str());
         }
-        TokenColourEdit("fill colour", e.fillCol, e.fillTok, e.fillTokA);
-        {
+        if (e.cut && !e.cutShow) ImGui::TextDisabled("A cutter's border runs along its cut instead of the shape's (inside = into what's left of the shape;\nthickness 0 = a clean cut). Its colour is the stroke colour below.");
+        bool drawn = !e.cut || e.cutShow;
+        if (drawn) TokenColourEdit("fill colour", e.fillCol, e.fillTok, e.fillTokA);
+        if (drawn) {
             static const char* fm[] = {"no gradient", "linear", "radial", "from the edge"};
             ImGui::SetNextItemWidth(150); if (ImGui::Combo("fill gradient", &e.fillGrad.mode, fm, 4)) { if (e.fillGrad.mode == 3 && e.fillGrad.depth <= 0) e.fillGrad.depth = 20; g_dirty = true; }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Linear: across the shape at an angle. Radial: centre to edge.\nFrom the edge: inward from the edge over a depth, following the curve (an inner glow / bevel).\nThe fill colour's opacity still applies.");
@@ -1588,7 +1600,7 @@ static void ShapeProps(Elem& e) {
             if (e.fillGrad.mode) { float fc[4] = {e.fillCol[0], e.fillCol[1], e.fillCol[2], 1}; GradientEdit("fgrad", e.fillGrad, fc, e.fillTok.empty() ? nullptr : e.fillTok.c_str()); }
         }
         int cutters = 0;
-        for (auto& o : Elems()) if (o.type == E_SHAPE && o.cut && (o.cutTarget.empty() ? o.group == e.group : o.cutTarget == e.name)) ++cutters;
+        if (!e.cut) for (auto& o : Elems()) if (o.type == E_SHAPE && o.cut && (o.cutTarget.empty() ? o.group == e.group : o.cutTarget == e.name)) ++cutters;
         if (cutters) { ImGui::SameLine(); ImGui::TextDisabled("(%d cutter%s on it)", cutters, cutters == 1 ? "" : "s"); }
     }
     if (ImGui::Checkbox("cut", &e.cut)) g_dirty = true;
@@ -1603,6 +1615,8 @@ static void ShapeProps(Elem& e) {
         ImGui::SameLine(); ImGui::SetNextItemWidth(110);
         if (ImGui::DragFloat("gap", &e.cutGap, 0.05f, 0.f, 200.f, "%.1f")) { e.cutGap = std::max(0.f, e.cutGap); g_dirty = true; }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Cuts this much wider than the cutter itself (units): room around what sits in the cut-out.");
+        ImGui::SameLine(); if (ImGui::Checkbox("show it too", &e.cutShow)) g_dirty = true;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The cutter is drawn as well, with its own fill and border, over the hole it makes - like a\nmenu's inner panel or its Back button sitting in the frame (the frame doesn't show through it;\nthe gap leaves an empty gutter around it).");
     }
 }
 static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the layout / prefab files keep it
@@ -1620,6 +1634,7 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
         if (e.rot != 0) fprintf(f, "rot=%g\n", e.rot);
         if (!e.fillTok.empty()) fprintf(f, "filltoken=%s %g\n", e.fillTok.c_str(), e.fillTokA);
         if (e.cut) fprintf(f, "cut=%g;%s\n", e.cutGap, Esc(e.cutTarget).c_str());
+        if (e.cut && e.cutShow) fprintf(f, "cutshow=1\n");
         if (e.strokeAlign) fprintf(f, "strokealign=%d\n", e.strokeAlign);
         auto grad = [&](const char* key, const UGrad& g) {   // "mode angle depth;t r g b a[@token];...", its gradient token on its own line
             if (!g.mode) return;
@@ -1681,6 +1696,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "shape") { int n = sscanf(v.c_str(), "%f %f %f %f %f", &e.rad[0], &e.rad[1], &e.rad[2], &e.rad[3], &e.stroke); (void)n; e.radLink = e.rad[0] == e.rad[1] && e.rad[1] == e.rad[2] && e.rad[2] == e.rad[3]; }
     else if (k == "fill") sscanf(v.c_str(), "%f %f %f %f", &e.fillCol[0], &e.fillCol[1], &e.fillCol[2], &e.fillCol[3]);
     else if (k == "filltoken") { char n[64] = {}; float a = 1; if (sscanf(v.c_str(), "%63s %f", n, &a) >= 1) { e.fillTok = n; e.fillTokA = a; } }
+    else if (k == "cutshow") e.cutShow = atoi(v.c_str()) != 0;
     else if (k == "strokealign") e.strokeAlign = std::max(0, std::min(2, atoi(v.c_str())));
     else if (k == "strokegrad" || k == "fillgrad") {
         UGrad& g = k == "strokegrad" ? e.strokeGrad : e.fillGrad;
@@ -2919,7 +2935,7 @@ void Panel() {
     };
     auto item = [&](int i) {
         ImGui::PushID(i);
-        std::string label = std::string(Elems()[i].type == E_TEXT ? "[T] " : Elems()[i].type == E_SHAPE ? (Elems()[i].cut ? "[C] " : "[S] ") : "[I] ") + Elems()[i].name + (Elems()[i].visible ? "" : " (hidden)") +
+        std::string label = std::string(Elems()[i].type == E_TEXT ? "[T] " : Elems()[i].type == E_SHAPE ? (Elems()[i].cut ? (Elems()[i].cutShow ? "[CS] " : "[C] ") : "[S] ") : "[I] ") + Elems()[i].name + (Elems()[i].visible ? "" : " (hidden)") +
                             (Elems()[i].layer ? "  L" + std::to_string(Elems()[i].layer) : "");
         if (!q.empty() && !Elems()[i].group.empty()) label += "   in " + Elems()[i].group;
         if (ImGui::Selectable(label.c_str(), (g_sel == i && g_selGroup.empty()) || InMulti(i))) {

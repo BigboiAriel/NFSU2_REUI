@@ -86,6 +86,10 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   Editor: per-stop token picker, "own stops" / token picker on each gradient (editing a token's stops changes every
   shape using it), "save as token", and a Gradient tokens list in Colour tokens (preview, uses, edit, reset / delete).
   Prefabs carry the gradient tokens they use and their colour tokens.
+  Cutters' borders take priority along their cut: the cut edge gets the cutter's own border (thickness, inside /
+  centred / outside = into the shape / onto the cut / into the cut-out, colour or token, gradient), 0 = a clean cut;
+  baked into a third texture. "Show it too" (`cutshow=1`): the cutter still cuts and is also drawn itself, fill and
+  border (not repeated on the cut) - a menu's inner panel or Back button sitting in its frame.
   *Later:* smooth (rounded) joins where a cut meets the edge; ellipses / other shapes.
 - **P5 distribution (later, once REUI is ready).** Light builds of REUI ship with the other mods: a renderer
   without the editor or HUD replacement, which carries the pages built in REUI (decided 2026-10-26).
