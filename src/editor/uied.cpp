@@ -2158,7 +2158,11 @@ void DrawOverlay(int mode) {
             if (w.type != W_GRID) continue;
             bool whole = !g_selGroup.empty() && InGroup(w.group, g_selGroup);   // the grid (or a group around it) picked
             if (whole) {
-                GridEachCell(w, nullptr, [&](ImVec2 a, ImVec2 b) { ring(a, b, -1, IM_COL32(60, 235, 90, 200), 1.5f); });
+                int cell = 0, pick = GridHasTiles(w) && g_tileSel.count(w.group) ? g_tileSel[w.group] : -1;   // (the tile set up in its panel: brighter)
+                GridEachCell(w, nullptr, [&](ImVec2 a, ImVec2 b) {
+                    if (cell++ == pick) ring(a, b, 1, IM_COL32(255, 220, 60, 255), 2.5f);
+                    else ring(a, b, -1, IM_COL32(60, 235, 90, 200), 1.5f);
+                });
                 ImVec2 a, b;
                 if (ga && gb && GridBox(w, a, b)) { ga->x = std::min(ga->x, a.x); ga->y = std::min(ga->y, a.y); gb->x = std::max(gb->x, b.x); gb->y = std::max(gb->y, b.y); }
                 continue;
