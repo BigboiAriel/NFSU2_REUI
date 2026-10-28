@@ -628,7 +628,14 @@ static bool MapViewNow2(uied::MapView& out) {
             b.x = m[i].x; b.y = m[i].y;
             if (!(m[i].flags & 2)) { b.dirX = m[i].dirX; b.dirY = m[i].dirY; }
             float sz = m[i].size > 0 ? m[i].size : 1;
-            if (m[i].icon && *m[i].icon) { b.texName = m[i].icon; b.w = b.h = 16 * sz; }
+            if (m[i].icon && *m[i].icon) {
+                b.texName = m[i].icon; b.w = b.h = 16 * sz;
+                // one of the game's own minimap icons (MINIMAP_ICON_CAR): its size there, as on the game's icon
+                if (IDirect3DTexture9* gt = TexOfInfo(TexInfo(BHash(m[i].icon))))
+                    for (size_t j = 0; j < v.blips.size(); ++j)
+                        if (v.blips[j].tex == gt) { b.tex = gt; b.texName.clear(); b.u0 = v.blips[j].u0; b.v0 = v.blips[j].v0; b.u1 = v.blips[j].u1; b.v1 = v.blips[j].v1;
+                                                    b.w = v.blips[j].w * sz; b.h = v.blips[j].h * sz; break; }
+            }
             else { b.w = 12.5f * sz; b.h = 16 * sz; }
             unsigned cl = m[i].color;
             b.col[0] = ((cl >> 16) & 255) / 255.f; b.col[1] = ((cl >> 8) & 255) / 255.f; b.col[2] = (cl & 255) / 255.f; b.col[3] = (cl >> 24) / 255.f;

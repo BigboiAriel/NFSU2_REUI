@@ -69,8 +69,9 @@ typedef struct REUI_MapMarker {
     unsigned color;       // 0xAARRGGBB
     float size;           // 1 = a stock car icon's size
     int flags;            // bit 0: hidden off the map (else held on the rim); bit 1: drawn upright (no heading)
-    const char* icon;     // a texture: a game texture name ("MINIMAP_ICON_CAR"), "vec:<name>" (REUI\vector),
-                          // or null / "" = REUI's arrow (outlined triangle)
+    const char* icon;     // a texture: a game texture name ("MINIMAP_ICON_CAR": one the minimap itself shows is drawn
+                          // at the game's size for it, size x 1), "vec:<name>" (REUI\vector), or null / "" = REUI's
+                          // arrow (outlined triangle). Tinted by color.
 } REUI_MapMarker;
 typedef int (*REUI_MapMarkerFn)(REUI_MapMarker* out, int max, void* ctx);
 typedef void (*PFN_REUI_AddMapMarkers)(REUI_MapMarkerFn fn, void* ctx);
