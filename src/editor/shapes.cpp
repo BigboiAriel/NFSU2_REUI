@@ -14,7 +14,7 @@ namespace shapes {
 
 namespace {
 
-struct Entry { IDirect3DTexture9* fill = nullptr; IDirect3DTexture9* stroke = nullptr; IDirect3DTexture9* cutStroke = nullptr; float margin = 0; int pw = 0, ph = 0; DWORD used = 0; };
+struct Entry { IDirect3DTexture9* fill = nullptr; IDirect3DTexture9* stroke = nullptr; float margin = 0; int pw = 0, ph = 0; DWORD used = 0; };
 std::unordered_map<std::string, Entry> g_cache;
 const float kPi = 3.14159265f;
 
@@ -102,12 +102,7 @@ std::string Key(const Box& s, float stroke, int align, const Gradient& sg, const
     };
     snprintf(b, sizeof b, "%.2f %d|", stroke, align); k += b;
     grad(sg); grad(fg);
-    put(s);
-    for (auto& c : cuts) {
-        put(c);
-        snprintf(b, sizeof b, "s%.2f %d %.3f %.3f %.3f %.3f|", c.stroke, c.align, c.col[0], c.col[1], c.col[2], c.col[3]); k += b;
-        grad(c.grad);
-    }
+    put(s); for (auto& c : cuts) put(c);
     return k;
 }
 
@@ -132,38 +127,26 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
     auto it = g_cache.find(key);
     if (it != g_cache.end()) {
         it->second.used = now;
-        out.fill = it->second.fill; out.stroke = it->second.stroke; out.cutStroke = it->second.cutStroke;
-        out.margin = it->second.margin; out.pw = it->second.pw; out.ph = it->second.ph;
-        return out.fill || out.stroke || out.cutStroke;
+        out.fill = it->second.fill; out.stroke = it->second.stroke; out.margin = it->second.margin; out.pw = it->second.pw; out.ph = it->second.ph;
+        return out.fill || out.stroke;
     }
     // the stroke band, in distance from the edge (negative inside): inside [-sw, 0], centre [-sw/2, sw/2], outside [0, sw];
     // the fill goes all the way to the path (the edge itself), under the stroke - as drawing programs do
     float lo = align == ALIGN_INSIDE ? -sw : align == ALIGN_CENTRE ? -sw / 2 : 0.f;
     float hi = lo + sw;
-    // the cutters' borders: their own bands along their cut
-    auto band = [](float w, int al, float& l, float& h) { w = std::max(0.f, w); l = al == ALIGN_INSIDE ? -w : al == ALIGN_CENTRE ? -w / 2 : 0.f; h = l + w; };
     float maxHi = std::max(0.f, hi);
-    for (auto& c : cuts) { float l, h; band(c.stroke, c.align, l, h); maxHi = std::max(maxHi, h); }
-    // the shape's box plus what sticks out (strokes past the edge) and a pixel for the soft edge; at most 2048 a side
+    // the shape's box plus what sticks out (the stroke past the edge) and a pixel for the soft edge; at most 2048 a side
     float margin = 1.5f + maxHi;
     int pw = (int)ceilf(s.w + 2 * margin), ph = (int)ceilf(s.h + 2 * margin);
     float k = 1.f;
     if (pw > 2048 || ph > 2048) { k = 2048.f / std::max(pw, ph); pw = std::min(2048, (int)ceilf(pw * k)); ph = std::min(2048, (int)ceilf(ph * k)); }
-    std::vector<uint32_t> fpx((size_t)pw * ph, 0x00FFFFFF), spx((size_t)pw * ph, 0x00FFFFFF), cpx;
-    bool anyCutStroke = false;
-    for (auto& c : cuts) if (c.stroke > 0) anyCutStroke = true;
-    if (anyCutStroke) cpx.assign((size_t)pw * ph, 0x00FFFFFF);
+    std::vector<uint32_t> fpx((size_t)pw * ph, 0x00FFFFFF), spx((size_t)pw * ph, 0x00FFFFFF);
     float bx = s.w / 2, by = s.h / 2;
-    struct C { float cx, cy, cs, sn, bx, by, gap; float r[4]; float sw, lo, hi; const Box* src; Outline* ol; };
+    struct C { float cx, cy, cs, sn, bx, by, gap; float r[4]; };
     std::vector<C> cs;
-    std::vector<Outline> cutOutlines;
-    cutOutlines.reserve(cuts.size());
     for (auto& c : cuts) {
         C x; x.cx = c.cx; x.cy = c.cy; x.cs = cosf(-c.rot); x.sn = sinf(-c.rot); x.bx = c.w / 2; x.by = c.h / 2; x.gap = c.gap;
         memcpy(x.r, c.r, sizeof x.r);
-        x.sw = std::max(0.f, c.stroke); band(c.stroke, c.align, x.lo, x.hi); x.src = &c;
-        float gr[4]; for (int i = 0; i < 4; ++i) gr[i] = c.r[i] + c.gap;   // (its outline as cut: grown by the gap)
-        cutOutlines.emplace_back(x.bx + c.gap, x.by + c.gap, gr); x.ol = &cutOutlines.back();
         cs.push_back(x);
     }
     Outline outline(bx, by, s.r);
@@ -177,13 +160,12 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
             float px = (x + 0.5f) / k - margin - bx, py = (y + 0.5f) / k - margin - by;   // from the centre, shape pixels
             float d = SdRoundBox(px, py, bx, by, s.r);
             if (d > maxHi + 1.f) continue;
-            int owner = -1; float orx = 0, ory = 0;   // whose edge is nearest here: the shape's (-1) or a cutter's
-            for (size_t ci = 0; ci < cs.size(); ++ci) {   // A minus B: max(dA, -dB), B grown by its gap
-                const C& c = cs[ci];
+            bool cutEdge = false;   // the nearest edge here is a cut's (no stroke of the shape's there)
+            for (auto& c : cs) {   // A minus B: max(dA, -dB), B grown by its gap
                 float lx = px - c.cx, ly = py - c.cy;
                 float rx = lx * c.cs - ly * c.sn, ry = lx * c.sn + ly * c.cs;
                 float dc = -(SdRoundBox(rx, ry, c.bx, c.by, c.r) - c.gap);
-                if (dc > d) { d = dc; owner = (int)ci; orx = rx; ory = ry; }
+                if (dc > d) { d = dc; cutEdge = true; }
             }
             float outer = Clamp01((aa - (d - hi)) * k);   // inside the band's outer side
             float inner = Clamp01((aa - (d - lo)) * k);   // inside its inner side
@@ -201,23 +183,7 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
                 }
                 fpx[i] = Argb(c, fillCov);
             }
-            if (owner >= 0) {   // along a cut: the cutter's own border (or none), not the shape's
-                const C& c = cs[owner];
-                float cb = c.sw > 0 ? std::max(0.f, Clamp01((aa - (d - c.hi)) * k) - Clamp01((aa - (d - c.lo)) * k)) : 0.f;
-                if (cb > 0) {
-                    float g[4] = {1, 1, 1, 1};
-                    const Gradient& cg = c.src->grad;
-                    if (cg.mode && !cg.stops.empty()) {
-                        float t;
-                        if (cg.mode == 1) t = (c.hi - d) / std::max(1e-3f, c.sw);
-                        else { t = c.ol->T(orx, ory) + cg.angle / 360.f; t -= floorf(t); }
-                        Sample(cg, Clamp01(t), g);
-                    }
-                    float col[4] = {c.src->col[0] * g[0], c.src->col[1] * g[1], c.src->col[2] * g[2], c.src->col[3] * g[3]};
-                    cpx[i] = Argb(col, cb);
-                }
-                continue;
-            }
+            if (cutEdge) continue;   // the cutter draws its own border there
             float band = sw > 0 ? std::max(0.f, outer - inner) : 0.f;
             if (band > 0) {
                 float c[4];
@@ -234,22 +200,21 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
     Entry e; e.margin = margin; e.pw = pw; e.ph = ph; e.used = now;
     e.fill = Upload(dev, fpx, pw, ph);
     if (sw > 0) e.stroke = Upload(dev, spx, pw, ph);
-    if (anyCutStroke) e.cutStroke = Upload(dev, cpx, pw, ph);
     g_cache[key] = e;
-    out.fill = e.fill; out.stroke = e.stroke; out.cutStroke = e.cutStroke; out.margin = margin; out.pw = pw; out.ph = ph;
-    return out.fill || out.stroke || out.cutStroke;
+    out.fill = e.fill; out.stroke = e.stroke; out.margin = margin; out.pw = pw; out.ph = ph;
+    return out.fill || out.stroke;
 }
 
 void Trim() {
     DWORD now = GetTickCount();
     for (auto it = g_cache.begin(); it != g_cache.end();) {
-        if (now - it->second.used > 3000) { deferfree::Later(it->second.fill); deferfree::Later(it->second.stroke); deferfree::Later(it->second.cutStroke); it = g_cache.erase(it); }
+        if (now - it->second.used > 3000) { deferfree::Later(it->second.fill); deferfree::Later(it->second.stroke); it = g_cache.erase(it); }
         else ++it;
     }
 }
 
 void Release() {
-    for (auto& kv : g_cache) { if (kv.second.fill) kv.second.fill->Release(); if (kv.second.stroke) kv.second.stroke->Release(); if (kv.second.cutStroke) kv.second.cutStroke->Release(); }
+    for (auto& kv : g_cache) { if (kv.second.fill) kv.second.fill->Release(); if (kv.second.stroke) kv.second.stroke->Release(); }
     g_cache.clear();
 }
 

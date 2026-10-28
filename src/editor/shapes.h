@@ -23,12 +23,10 @@ struct Box {                 // in the shape's own pixels: centre (from the shap
     float cx = 0, cy = 0, w = 0, h = 0, rot = 0;   // rot: radians, clockwise (screen, y down)
     float r[4] = {0, 0, 0, 0};                     // corner radii: top-left, top-right, bottom-right, bottom-left
     float gap = 0;                                 // cutters: cut this much wider than themselves
-    // cutters: the border along their cut (it takes priority over the shape's own there): width (pixels, 0 = none),
-    // where it sits (inside = into what's left of the shape, outside = into the cut-out), colour, gradient
-    float stroke = 0; int align = ALIGN_INSIDE; float col[4] = {1, 1, 1, 1}; Gradient grad;
 };
-// fill / stroke: white with alpha (or the gradient's colours); cutStroke: the cutters' borders, their colours in it
-struct Result { IDirect3DTexture9* fill = nullptr; IDirect3DTexture9* stroke = nullptr; IDirect3DTexture9* cutStroke = nullptr; float margin = 0; int pw = 0, ph = 0; };
+// fill / stroke: white with alpha (or the gradient's colours). A cut's edge has no stroke of the shape's: cutters are
+// drawn as shapes themselves (their own border outlines the cut).
+struct Result { IDirect3DTexture9* fill = nullptr; IDirect3DTexture9* stroke = nullptr; float margin = 0; int pw = 0, ph = 0; };
 
 // The shape (w x h pixels, corner radii) minus the cutters, its stroke `stroke` pixels wide on the edge (align), with
 // optional gradients. Its textures cover the shape's box plus `margin` pixels on every side.
