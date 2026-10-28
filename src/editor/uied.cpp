@@ -747,15 +747,19 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
     float pu = (mv.px - mv.x0) / mv.size, pv = (mv.y0 - mv.py) / mv.size;
     // the map: a fan over the circle, each rim point's uv turned back by the world's turn
     const int N = 64;
+    ImU32 mapCol = col;
+    if (!mv.alphaOk) {   // added like the game's: about 70% of the map's colour (measured against the stock minimap)
+        ImVec4 mc = ImGui::ColorConvertU32ToFloat4(col); mc.w *= 0.7f; mapCol = ImGui::ColorConvertFloat4ToU32(mc);
+    }
     dl->AddCallback(MapAddrOn, mv.alphaOk ? nullptr : (void*)1);
     dl->PushTextureID((ImTextureID)mv.tex);
     dl->PrimReserve(N * 3, N + 1);
     ImDrawIdx base = (ImDrawIdx)dl->_VtxCurrentIdx;
-    dl->PrimWriteVtx(c, ImVec2(pu * mv.su, pv * mv.sv), col);
+    dl->PrimWriteVtx(c, ImVec2(pu * mv.su, pv * mv.sv), mapCol);
     for (int i = 0; i < N; ++i) {
         float t = i * 2 * kPi / N, sx = cosf(t), sy = sinf(t);   // on screen, unit circle
         float du = (sx * pc + sy * ps) * span / 2, dv = (-sx * ps + sy * pc) * span / 2;
-        dl->PrimWriteVtx(ImVec2(c.x + sx * R, c.y + sy * R), ImVec2((pu + du) * mv.su, (pv + dv) * mv.sv), col);
+        dl->PrimWriteVtx(ImVec2(c.x + sx * R, c.y + sy * R), ImVec2((pu + du) * mv.su, (pv + dv) * mv.sv), mapCol);
     }
     for (int i = 0; i < N; ++i) { dl->PrimWriteIdx(base); dl->PrimWriteIdx((ImDrawIdx)(base + 1 + i)); dl->PrimWriteIdx((ImDrawIdx)(base + 1 + (i + 1) % N)); }
     dl->PopTextureID();

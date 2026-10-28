@@ -549,7 +549,7 @@ static bool MapViewNow(uied::MapView& out) {
             float pu = (v.px - v.x0) / v.size, pv = (v.y0 - v.py) / v.size;
             Log("minimap: map %p fmt %08X %ux%u pool %d levels %u su %.3f sv %.3f | x0 %.1f y0 %.1f size %.1f span %.4f | car %.1f %.1f uv %.3f %.3f bearing %.1f rotate %d",
                 v.tex, (unsigned)dd.Format, dd.Width, dd.Height, (int)dd.Pool, v.tex->GetLevelCount(), v.su, v.sv, v.x0, v.y0, v.size, v.span, v.px, v.py, pu, pv, v.bearing, v.rotate ? 1 : 0);
-            Log("minimap: map alpha %s", v.alphaOk ? "used" : "empty: added onto the screen like the game does");
+            Log("minimap: map alpha %s | icons dropped past %.0f", v.alphaOk ? "used" : "empty: added onto the screen like the game does", v.limit);
             Log("minimap: icons: nodes %d, type skipped %d, flag hidden %d, not shown %d, no position %d, no texture %d, kept %d (player %d), markers %d",
                 g_mapStat[0], g_mapStat[1], g_mapStat[2], g_mapStat[3], g_mapStat[4], g_mapStat[5], g_mapStat[6], g_mapStat[7], (int)v.blips.size() - g_mapStat[6]);
         }
@@ -584,7 +584,13 @@ static bool MapViewNow2(uied::MapView& out) {
     v.alphaOk = MapAlphaOk(v.tex);
     bool freeRoam = *(int*)0x89E7B0 == 0;
     v.rotate = *(uint8_t*)(freeRoam ? 0x83AA1C : 0x83AA1B) == 2;
-    v.limit = freeRoam ? 10.f : 1.f;
+    // icons past 1 minimap width are dropped; in free roam 10 in some states (0x4CA840 at 0x4CACA5): the game state
+    // ([0x838590], 0x501100) 0..3, no [0x862838], or 0x501690 on 0x85B940
+    v.limit = 1.f;
+    if (freeRoam) {
+        int st = ((int(__thiscall*)(void*))0x501100)((void*)0x838590);
+        if ((st >= 0 && st <= 3) || !*(int*)0x862838 || ((bool(__thiscall*)(void*))0x501690)((void*)0x85B940)) v.limit = 10.f;
+    }
     v.px = *(float*)(car + 0x50); v.py = *(float*)(car + 0x54);
     float hr = *(uint16_t*)(car + 0x40C) * 6.2831853f / 65536;
     v.bearing = atan2f(cosf(hr), sinf(hr)) * 180 / 3.14159265f;   // dir (cos, sin): degrees clockwise from north
