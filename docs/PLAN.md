@@ -75,8 +75,8 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   as drawn. Editor: a picked grid outlines every cell (a picked piece: its copy in each cell); clicking a faded cell
   picks the grid; the grid follows its pieces when they all move together. Layout: widget
   `grid=cols visibleRows w h x y cellW cellH stretch align originX originY spacingX spacingY totalRows`.
-- **Grid tiles (2026-10-28).** Spacing across / down between tiles (the grid keeps its size, tiles shrink; pieces
-  resized with "stretch pieces"); total rows (rows of tiles there are, items past them hidden; 0 = as many as the
+- **Grid tiles (2026-10-28).** Spacing across / down between tiles (tiles keep their size and move apart: the grid
+  grows by the gaps, around its origin); total rows (rows of tiles there are, items past them hidden; 0 = as many as the
   items need) and visible rows (on screen, the grid's height) - more total than visible scrolls up and down.
 - **Deprecated (2026-10-27): the row tools.** Build rows, Restack rows, row spacing / first row y, Start a new column,
   column distance, first column x, add to column, Add row (widget kit), row up / down, a row's column, Save as

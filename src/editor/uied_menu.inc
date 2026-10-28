@@ -1009,8 +1009,13 @@ static void GridPanel(Widget& w) {
     ImGui::SetNextItemWidth(220); if (ImGui::SliderFloat2("width / height", wh, 20.f, 1280.f, "%.0f")) GridResize(w, wh[0], wh[1], w.cols, w.rows, w.spX, w.spY);
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The grid on screen - its visible rows (units; Ctrl + click to type). Tiles share it out, less the spacing.\nWith \"stretch pieces\" on, the tile's pieces are resized with it.");
     float sp[2] = {w.spX, w.spY};
-    ImGui::SetNextItemWidth(220); if (ImGui::SliderFloat2("spacing across / down", sp, 0.f, 100.f, "%.1f")) GridResize(w, w.gw, w.gh, w.cols, w.rows, sp[0], sp[1]);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Gaps between columns / between rows (units; Ctrl + click to type). The grid keeps its size: the tiles shrink.");
+    ImGui::SetNextItemWidth(220);
+    if (ImGui::SliderFloat2("spacing across / down", sp, 0.f, 100.f, "%.1f")) {   // tiles keep their size: the grid grows by the gaps
+        int c = std::max(1, w.cols), r = std::max(1, w.rows);
+        float cw = GCellW(w), ch = GCellH(w);
+        GridResize(w, cw * c + (c - 1) * std::max(0.f, sp[0]), ch * r + (r - 1) * std::max(0.f, sp[1]), w.cols, w.rows, sp[0], sp[1]);
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Gaps between columns / between rows (units; Ctrl + click to type). The tiles keep their size and move\napart: the grid grows by the gaps (around its origin).");
     static const char* aligns[] = {"left", "centre", "right"};
     GridOrigin(w);
     ImGui::SetNextItemWidth(90);
