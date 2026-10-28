@@ -68,8 +68,8 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   or live values "list:<key>" (<key>.count, <key>.N, <key>.N.icon) for other mods' lists. Text {item} {i} {count};
   role "item icon"; "selected row only" = the selected cell. Arrows move inside it and leave it at its edges. Editor:
   "Add grid" on a page (4 x 3, 18 sample items) and faded ghost cells while laying it out. Rows with fewer items than
-  Placed on an origin point: left puts the grid's left edge on it, centre its middle, right its right edge, and it's
-  always centred on it up and down; resizing / columns / rows / switching alignment re-place it there, dragging the
+  Placed on an origin point - the grid's centre as placed, not adjustable by hand (new grids start centred): left puts
+  the grid's left edge on it, centre its middle, right its right edge, and it's always centred on it up and down; resizing / columns / rows / switching alignment re-place it there, dragging the
   grid moves the origin with it, and rows with fewer items line up the same way (up / down keep the column on screen). Resizing (width / height
   sliders, columns, rows) resizes the cell's pieces with it when "stretch pieces" is on, so the editor shows the cell
   as drawn. Editor: a picked grid outlines every cell (a picked piece: its copy in each cell); clicking a faded cell

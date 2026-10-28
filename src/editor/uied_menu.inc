@@ -993,13 +993,10 @@ static void GridPanel(Widget& w) {
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The whole grid (units; Ctrl + click to type): each cell is width / columns by height / rows shown.\nWith \"stretch pieces\" on, the cell's pieces are resized with it.");
     static const char* aligns[] = {"left", "centre", "right"};
     GridOrigin(w);
-    float org[2] = {w.ox, w.oy};
-    ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("origin", org, 0.5f, -2000.f, 2000.f, "%.0f")) { w.ox = org[0]; w.oy = org[1]; GridPlace(w); }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The point the grid is placed on (units): its %s on it across, its middle on it up and down.\nDragging the grid on screen moves the origin with it.", w.startAt == 0 ? "left edge" : w.startAt == 1 ? "middle" : "right edge");
-    ImGui::SameLine(); ImGui::SetNextItemWidth(90);
+    ImGui::SetNextItemWidth(90);
     int al = std::max(0, std::min(2, w.startAt));
     if (ImGui::Combo("align", &al, aligns, 3) && al != w.startAt) { w.startAt = al; GridPlace(w); }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Left: the grid's left edge on the origin. Centre: its middle on the origin. Right: its right edge on\nthe origin. (Always centred on it up and down.) Resizing keeps it so; rows with fewer items line up the same way.");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The grid's origin is its centre as placed (move the grid to move it). Left: the grid's left edge on\nthe origin. Centre: its middle on it. Right: its right edge on it. Always centred on it up and down;\nresizing keeps it so, and rows with fewer items line up the same way.");
     ImGui::Text("cell %.0f x %.0f", w.gw / std::max(1, w.cols), w.gh / std::max(1, w.rows));
     ImGui::SameLine(); if (ImGui::Checkbox("stretch pieces to the cell", &w.scalePieces)) { if (w.scalePieces) { w.refW = w.gw / std::max(1, w.cols); w.refH = w.gh / std::max(1, w.rows); } g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("On: resizing the grid resizes the cell's pieces with it. Off: the pieces keep their size in bigger / smaller cells.");
@@ -1084,7 +1081,7 @@ static void AddGrid(Page& p) {
     Widget w; w.group = g; w.type = W_GRID; w.cols = 4; w.rows = 3; w.gw = 400; w.gh = 240; w.gx = -200; w.gy = -120; w.refW = 100; w.refH = 80;
     w.col = p.addCol;
     for (int i = 1; i <= 18; ++i) w.choices.push_back("Item " + std::to_string(i));
-    GridOrigin(w);
+    w.startAt = 1; GridOrigin(w);   // (its origin: its centre)
     float cx = w.gx + w.refW / 2, cy = w.gy + w.refH / 2;
     auto img = [&](const char* name, float x, float y, float ww, float hh, const char* tok, float a) {
         Elem e; e.type = E_IMAGE; e.name = name; e.group = g; e.anchor = 4; e.x = x; e.y = y; e.w = ww; e.h = hh; e.tex = "WHITE16X16"; e.texIdx = -2;
