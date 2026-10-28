@@ -68,13 +68,13 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   or live values "list:<key>" (<key>.count, <key>.N, <key>.N.icon) for other mods' lists. Text {item} {i} {count};
   role "item icon"; "selected row only" = the selected cell. Arrows move inside it and leave it at its edges. Editor:
   "Add grid" on a page (4 x 3, 18 sample items) and faded ghost cells while laying it out. Rows with fewer items than
-  Aligned like text (left / centre / right): its position's x is its alignment point (left edge / centre / right
-  edge), it grows from there when resized, switching alignment moves it about that point, and rows with fewer items
-  line up the same way (up / down keep the column on screen). Resizing (width / height
+  Placed on an origin point: left puts the grid's left edge on it, centre its middle, right its right edge, and it's
+  always centred on it up and down; resizing / columns / rows / switching alignment re-place it there, dragging the
+  grid moves the origin with it, and rows with fewer items line up the same way (up / down keep the column on screen). Resizing (width / height
   sliders, columns, rows) resizes the cell's pieces with it when "stretch pieces" is on, so the editor shows the cell
   as drawn. Editor: a picked grid outlines every cell (a picked piece: its copy in each cell); clicking a faded cell
   picks the grid; the grid follows its pieces when they all move together. Layout: widget
-  `grid=cols rows w h x y cellW cellH stretch start`.
+  `grid=cols rows w h x y cellW cellH stretch align originX originY`.
 - **Deprecated (2026-10-27): the row tools.** Build rows, Restack rows, row spacing / first row y, Start a new column,
   column distance, first column x, add to column, Add row (widget kit), row up / down, a row's column, Save as
   template and the Widget kit panel are gone from the editor; grids (menu buttons in rows x columns) replace them.

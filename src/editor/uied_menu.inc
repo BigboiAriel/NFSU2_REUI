@@ -39,13 +39,28 @@ struct Widget {
     int cols = 4, rows = 3;
     float gw = 400, gh = 240, gx = -200, gy = -120, refW = 100, refH = 80;
     bool scalePieces = true;
-    int startAt = 0;                     // aligned like text: left (0), centre (1), right (2) - its alignment point is its left edge /
-                                         // centre / right edge (resizing keeps it there) and short rows line up the same way
+    int startAt = 0;                     // where it sits on its origin: left (0) = its left edge on it, centre (1) = its middle,
+                                         // right (2) = its right edge; always centred on it up and down. Short rows line up the same way.
+    float ox = 0, oy = 0; bool hasOrigin = false;   // the origin (units); old layouts: worked out from where the grid is
 };
 // how many cells a short row is moved across (a grid row starting from the centre / right)
 static float GridShift(const Widget& w, int row, int count) {
     int cols = std::max(1, w.cols), inRow = std::min(cols, count - row * cols);
     return inRow <= 0 ? 0.f : (cols - inRow) * 0.5f * std::max(0, std::min(2, w.startAt));
+}
+// The origin: left / centre / right puts the grid's left edge / middle / right edge on it, and its middle is always on it
+// up and down. GridPlace moves the grid (and its pieces) there.
+static void GridOrigin(Widget& w) {   // (a grid without one yet: where it is now)
+    if (w.hasOrigin) return;
+    w.ox = w.gx + std::max(0, std::min(2, w.startAt)) * 0.5f * w.gw; w.oy = w.gy + w.gh / 2; w.hasOrigin = true;
+}
+static void GridPlace(Widget& w) {
+    GridOrigin(w);
+    float tx = w.ox - std::max(0, std::min(2, w.startAt)) * 0.5f * w.gw, ty = w.oy - w.gh / 2;
+    float dx = tx - w.gx, dy = ty - w.gy;
+    if (dx == 0 && dy == 0) return;
+    for (auto& e : MenuElems()) if (InGroup(e.group, w.group)) { e.x += dx; e.y += dy; }
+    w.gx = tx; w.gy = ty; g_dirty = true;
 }
 struct Page {
     std::string group;
@@ -397,7 +412,7 @@ static void GridFollow() {
                 bool together = true;
                 for (size_t i = 0; i < now.at.size() && together; ++i)
                     if (fabsf(now.at[i].x - it->second.at[i].x - dx) > 0.01f || fabsf(now.at[i].y - it->second.at[i].y - dy) > 0.01f) together = false;
-                if (together) { w.gx += dx; w.gy += dy; now.gx = w.gx; now.gy = w.gy; }
+                if (together) { GridOrigin(w); w.gx += dx; w.gy += dy; w.ox += dx; w.oy += dy; now.gx = w.gx; now.gy = w.gy; }
             }
         }
         last[w.group] = now;
@@ -430,6 +445,7 @@ static void GridFromPieces(Widget& w) {
     if (lo[0] > hi[0]) return;
     w.gx = lo[0]; w.gy = lo[1]; w.refW = std::max(1.f, hi[0] - lo[0]); w.refH = std::max(1.f, hi[1] - lo[1]);
     w.gw = w.refW * std::max(1, w.cols); w.gh = w.refH * std::max(1, w.rows);
+    w.hasOrigin = false; GridOrigin(w);
     g_dirty = true;
 }
 
@@ -944,9 +960,8 @@ static void GridResize(Widget& w, float ngw, float ngh, int ncols, int nrows) {
     // (a grid whose pieces were made for another cell size, drawn stretched: they're made the cell's size first)
     float bx = w.scalePieces && w.refW > 0.5f ? opx / w.refW : 1.f, by = w.scalePieces && w.refH > 0.5f ? opy / w.refH : 1.f;
     float kx = w.scalePieces && opx > 0.01f ? npx / opx * bx : 1.f, ky = w.scalePieces && opy > 0.01f ? npy / opy * by : 1.f;
-    // like text, it grows from its alignment point: the left edge stays (left), the centre (centre), the right edge (right)
-    float f = std::max(0, std::min(2, w.startAt)) * 0.5f;
-    float ngx = w.gx + f * (w.gw - ngw);
+    float ngx = w.gx;   // (resized from its top-left here; then placed on its origin)
+    GridOrigin(w);
     float kh = w.gh > 0.01f ? ngh / w.gh : 1.f;
     for (auto& e : MenuElems()) {
         if (!InGroup(e.group, w.group)) continue;
@@ -965,14 +980,9 @@ static void GridResize(Widget& w, float ngw, float ngh, int ncols, int nrows) {
     }
     if (w.scalePieces) { w.refW = npx; w.refH = npy; }
     w.gx = ngx; w.gw = ngw; w.gh = ngh; w.cols = ncols; w.rows = nrows;
+    GridPlace(w);
     g_dirty = true;
 }
-static void GridMoveBy(Widget& w, float dx, float dy) {   // the grid and every piece of it (its scroller too)
-    if (dx == 0 && dy == 0) return;
-    for (auto& e : MenuElems()) if (InGroup(e.group, w.group)) { e.x += dx; e.y += dy; }
-    w.gx += dx; w.gy += dy; g_dirty = true;
-}
-static float GridAlignX(const Widget& w) { return w.gx + std::max(0, std::min(2, w.startAt)) * 0.5f * w.gw; }   // its alignment point
 static void GridPanel(Widget& w) {
     int cols = w.cols, rows = w.rows;
     ImGui::SetNextItemWidth(90); if (ImGui::InputInt("columns", &cols)) GridResize(w, w.gw, w.gh, cols, rows);
@@ -982,17 +992,14 @@ static void GridPanel(Widget& w) {
     ImGui::SetNextItemWidth(220); if (ImGui::SliderFloat2("width / height", wh, 20.f, 1280.f, "%.0f")) GridResize(w, wh[0], wh[1], w.cols, w.rows);
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The whole grid (units; Ctrl + click to type): each cell is width / columns by height / rows shown.\nWith \"stretch pieces\" on, the cell's pieces are resized with it.");
     static const char* aligns[] = {"left", "centre", "right"};
-    float pos[2] = {GridAlignX(w), w.gy};
-    ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("position", pos, 0.5f, -2000.f, 2000.f, "%.0f")) GridMoveBy(w, pos[0] - GridAlignX(w), pos[1] - w.gy);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("x: its alignment point (its %s edge%s), y: its top. Moves the pieces with it.", w.startAt == 1 ? "centre" : aligns[w.startAt], w.startAt == 1 ? " - the middle" : "");
+    GridOrigin(w);
+    float org[2] = {w.ox, w.oy};
+    ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("origin", org, 0.5f, -2000.f, 2000.f, "%.0f")) { w.ox = org[0]; w.oy = org[1]; GridPlace(w); }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The point the grid is placed on (units): its %s on it across, its middle on it up and down.\nDragging the grid on screen moves the origin with it.", w.startAt == 0 ? "left edge" : w.startAt == 1 ? "middle" : "right edge");
     ImGui::SameLine(); ImGui::SetNextItemWidth(90);
     int al = std::max(0, std::min(2, w.startAt));
-    if (ImGui::Combo("align", &al, aligns, 3) && al != w.startAt) {   // like text: the point stays, the grid moves about it
-        float p = GridAlignX(w);
-        w.startAt = al;
-        GridMoveBy(w, p - GridAlignX(w), 0);
-    }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Like text: the grid sits left of, centred on or right of its position, grows from it when it's\nresized (wider, more columns), and rows with fewer items line up the same way.");
+    if (ImGui::Combo("align", &al, aligns, 3) && al != w.startAt) { w.startAt = al; GridPlace(w); }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Left: the grid's left edge on the origin. Centre: its middle on the origin. Right: its right edge on\nthe origin. (Always centred on it up and down.) Resizing keeps it so; rows with fewer items line up the same way.");
     ImGui::Text("cell %.0f x %.0f", w.gw / std::max(1, w.cols), w.gh / std::max(1, w.rows));
     ImGui::SameLine(); if (ImGui::Checkbox("stretch pieces to the cell", &w.scalePieces)) { if (w.scalePieces) { w.refW = w.gw / std::max(1, w.cols); w.refH = w.gh / std::max(1, w.rows); } g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("On: resizing the grid resizes the cell's pieces with it. Off: the pieces keep their size in bigger / smaller cells.");
@@ -1077,6 +1084,7 @@ static void AddGrid(Page& p) {
     Widget w; w.group = g; w.type = W_GRID; w.cols = 4; w.rows = 3; w.gw = 400; w.gh = 240; w.gx = -200; w.gy = -120; w.refW = 100; w.refH = 80;
     w.col = p.addCol;
     for (int i = 1; i <= 18; ++i) w.choices.push_back("Item " + std::to_string(i));
+    GridOrigin(w);
     float cx = w.gx + w.refW / 2, cy = w.gy + w.refH / 2;
     auto img = [&](const char* name, float x, float y, float ww, float hh, const char* tok, float a) {
         Elem e; e.type = E_IMAGE; e.name = name; e.group = g; e.anchor = 4; e.x = x; e.y = y; e.w = ww; e.h = hh; e.tex = "WHITE16X16"; e.texIdx = -2;
@@ -1174,7 +1182,10 @@ static void SaveWidgetProps(FILE* f, const Widget& w) {
     if (!w.choices.empty()) { std::string j; for (size_t i = 0; i < w.choices.size(); ++i) j += (i ? "|" : "") + w.choices[i]; fprintf(f, "choices=%s\n", Esc(j).c_str()); }
     if (w.type == W_SLIDER) fprintf(f, "range=%g %g\n", w.x0, w.x1);
     if (w.col) fprintf(f, "col=%d\n", w.col);
-    if (w.type == W_GRID) fprintf(f, "grid=%d %d %g %g %g %g %g %g %d %d\n", w.cols, w.rows, w.gw, w.gh, w.gx, w.gy, w.refW, w.refH, w.scalePieces ? 1 : 0, w.startAt);
+    if (w.type == W_GRID) {
+        Widget c = w; GridOrigin(c);
+        fprintf(f, "grid=%d %d %g %g %g %g %g %g %d %d %g %g\n", w.cols, w.rows, w.gw, w.gh, w.gx, w.gy, w.refW, w.refH, w.scalePieces ? 1 : 0, w.startAt, c.ox, c.oy);
+    }
     fprintf(f, "num=%g %g %g %g\n", w.min, w.max, w.step, w.value);
 }
 static void SaveMenus(FILE* f) {
@@ -1193,7 +1204,7 @@ static bool LoadWidgetKey(Widget& w, const std::string& k, const std::string& v)
     else if (k == "choices") { w.choices.clear(); std::string s = Unesc(v), cur; for (size_t i = 0; i <= s.size(); ++i) { if (i == s.size() || s[i] == '|') { if (!cur.empty()) w.choices.push_back(cur); cur.clear(); } else cur += s[i]; } }
     else if (k == "range") sscanf(v.c_str(), "%f %f", &w.x0, &w.x1);
     else if (k == "col") w.col = std::max(0, atoi(v.c_str()));
-    else if (k == "grid") { int sp = 1; sscanf(v.c_str(), "%d %d %f %f %f %f %f %f %d %d", &w.cols, &w.rows, &w.gw, &w.gh, &w.gx, &w.gy, &w.refW, &w.refH, &sp, &w.startAt); w.scalePieces = sp != 0; w.startAt = std::max(0, std::min(2, w.startAt)); w.cols = std::max(1, w.cols); w.rows = std::max(1, w.rows); }
+    else if (k == "grid") { int sp = 1; int got = sscanf(v.c_str(), "%d %d %f %f %f %f %f %f %d %d %f %f", &w.cols, &w.rows, &w.gw, &w.gh, &w.gx, &w.gy, &w.refW, &w.refH, &sp, &w.startAt, &w.ox, &w.oy); w.scalePieces = sp != 0; w.hasOrigin = got >= 12; w.startAt = std::max(0, std::min(2, w.startAt)); w.cols = std::max(1, w.cols); w.rows = std::max(1, w.rows); }
     else if (k == "num") sscanf(v.c_str(), "%f %f %f %f", &w.min, &w.max, &w.step, &w.value);
     else return false;
     return true;
