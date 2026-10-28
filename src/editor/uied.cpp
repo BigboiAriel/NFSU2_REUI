@@ -1364,8 +1364,11 @@ static void ShapeProps(Elem& e) {
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rounding of each corner (units; half the short side makes a pill / circle).");
     ImGui::SameLine(); if (ImGui::SmallButton("pill")) { for (float& r : e.rad) r = maxR; e.radLink = true; g_dirty = true; }
     if (!e.cut) {
-        ImGui::SetNextItemWidth(150); if (ImGui::DragFloat("stroke width", &e.stroke, 0.05f, 0.f, 100.f, "%.2f")) { e.stroke = std::max(0.f, e.stroke); g_dirty = true; }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The outline (units; 0 = no outline). Its colour is the stroke colour below (or its gradient).");
+        ImGui::SetNextItemWidth(220);
+        if (ImGui::SliderFloat("border thickness", &e.stroke, 0.f, std::max(4.f, std::min(60.f, std::min(e.w, e.h) / 2)), "%.1f")) { e.stroke = std::max(0.f, e.stroke); g_dirty = true; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The outline's thickness (units; 0 = no border; Ctrl + click to type any value).\nIts colour is the stroke colour below (or its gradient).");
+        ImGui::SameLine(); if (ImGui::SmallButton("-")) { e.stroke = std::max(0.f, roundf(e.stroke * 2 - 1) / 2); g_dirty = true; }
+        ImGui::SameLine(); if (ImGui::SmallButton("+")) { e.stroke = roundf(e.stroke * 2 + 1) / 2; g_dirty = true; }
         static const char* aligns[] = {"inside", "centred", "outside"};
         ImGui::SameLine(); ImGui::SetNextItemWidth(100); if (ImGui::Combo("on the edge", &e.strokeAlign, aligns, 3)) g_dirty = true;
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Where the stroke sits: inside the edge (the shape keeps its size), centred on it, or outside it.");
