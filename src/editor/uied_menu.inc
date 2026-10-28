@@ -593,7 +593,8 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
             }
             for (int i : order) {
                 Elem& src = els[i];
-                if (src.selOnly && !cur) continue;
+                bool arrow = src.role == "arrowL" || src.role == "arrowR";
+                if (src.selOnly && !cur && !(kind == W_PICKER && arrow)) continue;   // (a picker tile's arrows: on every picker, brighter on the selected one)
                 if (kind >= 0 && !TileShows(src, TileBit(t))) continue;
                 Elem e = src;
                 e.x = w.gx + (e.x - w.gx) * sx + ox + (e.afterLabel ? afterDx : 0.f);
@@ -605,9 +606,10 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                     if (e.role == "fill") { e.w = f * fillW; e.x = fillL + ox + ax * e.w; if (e.w < 0.5f) continue; }
                     else e.x = fillL + ox + f * fillW + (ax - 0.5f) * e.w;
                 }
-                if (kind == W_PICKER && cur && st.locked && (e.role == "arrowL" || e.role == "arrowR")) {
+                if (kind == W_PICKER && arrow) {
+                    if (cur) e.col[3] = std::min(1.f, e.col[3] * 1.4f);   // the selected picker's
                     double ft = e.role == "arrowL" ? g_menu.flashL : g_menu.flashR;
-                    if (g_menu.t - ft < 0.15) e.col[3] = 1.f;   // lights up when pressed
+                    if (cur && st.locked && g_menu.t - ft < 0.15) e.col[3] = 1.f;   // lights up when pressed
                 }
                 if (e.type == E_TEXT) {
                     auto put = [&](const char* tok, const std::string& v) { for (size_t k; (k = e.text.find(tok)) != std::string::npos;) e.text.replace(k, strlen(tok), v); };
