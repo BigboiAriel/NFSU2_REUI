@@ -79,6 +79,18 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   grows by the gaps, around its origin); text in tiles keeps its size when the grid is resized
   (only its place and box width follow); total rows (rows of tiles there are, items past them hidden; 0 = as many as the
   items need) and visible rows (on screen, the grid's height) - more total than visible scrolls up and down.
+- **Per-tile grids (2026-10-28).** Each tile (cols x total rows, top-left to bottom-right, named Button 1, 2, 3...)
+  has its own name, kind (Button / Slider / Picker (Left / Right)), what it changes (buttons: nothing / go back / close /
+  open a page / an action setting; sliders: a number setting or own min / max / step; pickers: a choice setting or own
+  choices) and description (the page's description text shows the selected tile's). Sliders / pickers: A takes hold,
+  left / right change it, B lets go (B doesn't go back a page while held). Pieces by role per tile: value text on
+  sliders / pickers only, fill bar + tab on sliders (the fill piece's full width is the range), arrows on pickers;
+  `{value}` in any text. Panel: columns | visible rows | total rows; width | height | align; spacing across | down; tile
+  (rename under it) | widget | changes; description; live list (values) instead of tiles. Stretch pieces always on;
+  "from the pieces", items box, item count and grid-level changes / description / detect roles removed. The picked tile
+  is outlined yellow in the editor. Older grids: their items become tiles ("Item N" -> "Button N"). Layout: after the
+  `grid=` line, `tile=<label>` then `ttype / tbind / taction / ticon / tdesc / tchoices / tnum` for that tile.
+  Binding (kind 3) settings aren't offered on tiles.
 - **Deprecated (2026-10-27): the row tools.** Build rows, Restack rows, row spacing / first row y, Start a new column,
   column distance, first column x, add to column, Add row (widget kit), row up / down, a row's column, Save as
   template and the Widget kit panel are gone from the editor; grids (menu buttons in rows x columns) replace them.
