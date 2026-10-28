@@ -131,7 +131,7 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
         return out.fill || out.stroke;
     }
     // the stroke band, in distance from the edge (negative inside): inside [-sw, 0], centre [-sw/2, sw/2], outside [0, sw];
-    // the fill reaches the band's inner side
+    // the fill goes all the way to the path (the edge itself), under the stroke - as drawing programs do
     float lo = align == ALIGN_INSIDE ? -sw : align == ALIGN_CENTRE ? -sw / 2 : 0.f;
     float hi = lo + sw;
     // the shape's box plus what sticks out (the stroke past the edge) and a pixel for the soft edge; at most 2048 a side
@@ -165,19 +165,20 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
                 d = std::max(d, -(SdRoundBox(rx, ry, c.bx, c.by, c.r) - c.gap));
             }
             float outer = Clamp01((aa - (d - hi)) * k);   // inside the band's outer side
-            float inner = Clamp01((aa - (d - lo)) * k);   // inside its inner side (= the fill)
+            float inner = Clamp01((aa - (d - lo)) * k);   // inside its inner side
+            float fillCov = Clamp01((aa - d) * k);        // inside the path
             size_t i = (size_t)y * pw + x;
-            if (inner > 0) {
+            if (fillCov > 0) {
                 float c[4];
                 if (!fGrad) memcpy(c, white, sizeof c);
                 else {
                     float t = 0;
                     if (fg.mode == 1) t = ((px * ldx + py * ldy) / lext + 1) / 2;
                     else if (fg.mode == 2) { float u = px / std::max(1e-3f, bx), v = py / std::max(1e-3f, by); t = sqrtf(u * u + v * v); }
-                    else t = fg.depth > 0 ? -(d - lo) / fg.depth : 1;   // from the edge inward
+                    else t = fg.depth > 0 ? -d / fg.depth : 1;   // from the path inward
                     Sample(fg, Clamp01(t), c);
                 }
-                fpx[i] = Argb(c, inner);
+                fpx[i] = Argb(c, fillCov);
             }
             float band = sw > 0 ? std::max(0.f, outer - inner) : 0.f;
             if (band > 0) {

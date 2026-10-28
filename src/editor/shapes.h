@@ -17,8 +17,8 @@ struct Box {                 // in the shape's own pixels: centre (from the shap
 // A gradient: stops (position 0..1, r g b a), straight lines between them.
 // Stroke modes: 1 across the stroke (outer edge -> inner edge, following the curve), 2 along it (around the outline
 // clockwise from the top-left, `angle` = start offset in degrees of a turn).
-// Fill modes: 1 linear (`angle` degrees, 0 = left to right), 2 radial (centre -> edge), 3 from the edge inward over
-// `depth` pixels (following the curve).
+// Fill modes: 1 linear (`angle` degrees, 0 = left to right), 2 radial (centre -> edge), 3 from the edge (the path) inward
+// over `depth` pixels (following the curve). The fill reaches the path; the stroke is drawn over it.
 struct Gradient {
     int mode = 0; float angle = 0, depth = 0;
     std::vector<std::array<float, 5>> stops;
