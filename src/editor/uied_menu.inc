@@ -325,7 +325,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
     auto items = GridItems(w);
     int cols = std::max(1, w.cols), rows = std::max(1, w.rows);
     if (preview && items.empty())   // (an empty grid: sample items to see it by)
-        for (int i = 0; i < cols * rows; ++i) items.push_back({"Item " + std::to_string(i + 1), "", ""});
+        for (int i = 0; i < cols * rows; ++i) items.push_back({"Button " + std::to_string(i + 1), "", ""});
     int n = (int)items.size();
     if (!n) return;
     MenuState::GridSt dummy; dummy.sel = 0;
@@ -1109,7 +1109,7 @@ static void AddGrid(Page& p) {
     std::string g; for (int i = 1; ; ++i) { g = p.group + "/Grid" + (i > 1 ? " " + std::to_string(i) : ""); if (!WidgetOf(g)) { bool used = false; for (auto& e : MenuElems()) if (InGroup(e.group, g)) used = true; if (!used) break; } }
     Widget w; w.group = g; w.type = W_GRID; w.cols = 4; w.rows = 3; w.gw = 400; w.gh = 240; w.gx = -200; w.gy = -120; w.refW = 100; w.refH = 80;
     w.col = p.addCol;
-    for (int i = 1; i <= 18; ++i) w.choices.push_back("Item " + std::to_string(i));
+    for (int i = 1; i <= 18; ++i) w.choices.push_back("Button " + std::to_string(i));
     w.startAt = 1; GridOrigin(w);   // (its origin: its centre)
     float cx = w.gx + w.refW / 2, cy = w.gy + w.refH / 2;
     auto img = [&](const char* name, float x, float y, float ww, float hh, const char* tok, float a) {
