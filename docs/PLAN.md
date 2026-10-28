@@ -90,7 +90,9 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   "from the pieces", items box, item count and grid-level changes / description / detect roles removed. The picked tile
   is outlined yellow in the editor. Older grids: their items become tiles ("Item N" -> "Button N"). Layout: after the
   `grid=` line, `tile=<label>` then `ttype / tbind / taction / ticon / tdesc / tchoices / tnum` for that tile.
-  Binding (kind 3) settings aren't offered on tiles.
+  Each tile also has an icon (texture name / icon:auto:<button> / vec:<file>) for the grid's item icon piece, and a
+  button tile can be a binding ("bind: ..." in changes): A waits for an input ("???" pulsing), {binding} / {input} in
+  its texts, its binding icon pieces (or its item icon piece, when it has no icon of its own) show what it's bound to.
 - **Deprecated (2026-10-27): the row tools.** Build rows, Restack rows, row spacing / first row y, Start a new column,
   column distance, first column x, add to column, Add row (widget kit), row up / down, a row's column, Save as
   template and the Widget kit panel are gone from the editor; grids (menu buttons in rows x columns) replace them.

@@ -253,6 +253,7 @@ static Widget* GridTile(Widget& w, int i) {
     if (!GridHasTiles(w) || i < 0 || i >= GridTileCount(w)) return nullptr;
     GridFitTiles(w); return &w.tiles[i];
 }
+static std::string TileKey(const Widget& g, int tile) { return g.group + "\x01" + std::to_string(tile); }
 static std::vector<GItem> GridItemsAll(const Widget& w);
 static std::vector<GItem> GridItems(const Widget& w) {   // the items the grid has room for (total rows)
     auto v = GridItemsAll(w);
@@ -354,7 +355,10 @@ static void GridAccept(Widget& w) {
             if (t->type == W_PICKER && WChoices(*t).empty()) { Snd(SND_ERROR); return; }
             st.locked = true; Snd(SND_ACCEPT); return;
         }
-        if (Setting* s = SettingOf(t->bind)) { if (s->run) { Snd(SND_ACCEPT); s->run(); return; } }
+        if (Setting* s = SettingOf(t->bind)) {
+            if (s->kind == 3 && s->beginCapture && s->capture) { Snd(SND_ACCEPT); s->beginCapture(); g_menu.capturing = TileKey(w, it.tile); return; }
+            if (s->run) { Snd(SND_ACCEPT); s->run(); return; }
+        }
     }
     if (Setting* s = SettingOf(w.bind)) { if (s->set) { s->set((float)st.sel); if (menuChanged) menuChanged(); Snd(SND_ACCEPT); return; } }
     if (it.action.compare(0, 5, "page:") == 0 && PageOf(it.action.substr(5))) { Snd(SND_ACCEPT); MenuGo(it.action.substr(5)); return; }
@@ -364,6 +368,36 @@ static void GridAccept(Widget& w) {
     Snd(SND_ERROR);
 }
 static bool GridPiece(const Elem& e) { return e.role != "gtab" && e.role != "gtrack"; }
+// the binding waiting for an input: a row (its group) or a grid's tile ("<grid>\x01<tile>")
+static Widget* CaptureWidget() {
+    size_t k = g_menu.capturing.find('\x01');
+    if (k == std::string::npos) return WidgetOf(g_menu.capturing);
+    Widget* g = WidgetOf(g_menu.capturing.substr(0, k));
+    return g ? GridTile(*g, atoi(g_menu.capturing.c_str() + k + 1)) : nullptr;
+}
+// a binding's icon piece: the icon of what it's bound to, or "???" pulsing while it waits (in the font of the group's
+// text). false: nothing more to draw
+static bool BindIcon(ImDrawList* dl, Elem& e, Setting* bs, bool waiting, const std::string& group) {
+    if (waiting) {
+        int fi = -1;
+        for (auto& o : MenuElems()) if (o.type == E_TEXT && InGroup(o.group, group)) { if (o.fontIdx == -2) o.fontIdx = FindFont(o.font); fi = o.fontIdx; if (o.role == "label") break; }
+        if (fi < 0) fi = FindFont("conduitmditc_tt21i");
+        if (fi >= 0) {
+            ImVec2 a, b; ElemRect(e, a, b);
+            const Font& f = g_fonts[fi];
+            float k = (b.y - a.y) / std::max(1, f.line);
+            float tw = TextWidth(f, "???") * k;
+            bool blink = fmod(g_menu.t, 0.8) < 0.55;
+            float c[4] = { e.col[0], e.col[1], e.col[2], e.col[3] * (blink ? 1.f : 0.45f) };
+            DrawText(dl, f, ImVec2((a.x + b.x - tw) / 2, a.y), k, Col(c), "???", 0, 0);
+        }
+        return false;
+    }
+    int id = bs->icon ? bs->icon() : -1;
+    if (id < 0 || id >= (int)iconKeys.size()) return false;
+    e.tex = "icon:auto:" + iconKeys[id]; e.texIdx = -3;
+    return true;
+}
 // The grid's cells: its pieces copied per item, moved by the cell pitch (and stretched to the cell). on: the grid is the
 // page's selected row (its cursor shows). preview: the editor's ghost cells (sample items, the first cell left out, faded).
 static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float scrollDy, bool preview) {
@@ -403,6 +437,8 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
             const Widget* t = it.tile >= 0 && it.tile < (int)w.tiles.size() ? &w.tiles[it.tile] : nullptr;
             int kind = it.tile < 0 ? -1 : t ? t->type : W_BUTTON;
             std::string val = t && kind != W_BUTTON ? WText(*t) : std::string();
+            Setting* bs = t && kind == W_BUTTON ? SettingOf(t->bind) : nullptr; if (bs && bs->kind != 3) bs = nullptr;   // a binding tile
+            bool waiting = bs && !preview && g_menu.capturing == TileKey(w, it.tile);
             float ox = (c + GridShift(w, r, n)) * px, oy = (r - scroll) * py;
             for (int i : order) {
                 Elem& src = els[i];
@@ -411,6 +447,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                     if (src.role == "value" && kind == W_BUTTON) continue;
                     if ((src.role == "fill" || src.role == "tab") && kind != W_SLIDER) continue;
                     if ((src.role == "arrowL" || src.role == "arrowR") && kind != W_PICKER) continue;
+                    if (src.role == "bindicon" && !bs) continue;
                 }
                 Elem e = src;
                 e.x = w.gx + (e.x - w.gx) * sx + ox;
@@ -431,14 +468,18 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                     if (e.role == "label" && e.text.find('{') == std::string::npos) e.text = it.label;
                     if (e.role == "value" && kind >= 0 && e.text.find('{') == std::string::npos) e.text = val;
                     put("{item}", it.label); put("{value}", val); put("{i}", std::to_string(idx + 1)); put("{count}", std::to_string(n));
+                    if (bs) { put("{binding}", bs->label); put("{input}", waiting ? std::string("???") : bs->current ? bs->current() : std::string()); }
                     if (cur && p && p->useSel && (e.role == "label" || e.role == "value")) memcpy(e.col, p->selCol, sizeof e.col);
                 }
-                if (e.role == "icon") { if (it.icon.empty()) continue; e.tex = it.icon; e.texIdx = -2; }
+                // its picture: the tile's icon; a binding tile without one (and binding icon pieces): what it's bound to
+                bool ownTex = e.role == "icon" || e.role == "bindicon";
+                if (bs && (e.role == "bindicon" || (e.role == "icon" && it.icon.empty()))) { if (!BindIcon(dl, e, bs, waiting, w.group)) continue; }
+                else if (e.role == "icon") { if (it.icon.empty()) continue; e.tex = it.icon; e.texIdx = -2; }
                 if (preview) e.col[3] *= 0.45f;
-                if (e.role != "icon") e.texIdx = src.texIdx;
+                if (!ownTex) e.texIdx = src.texIdx;
                 e.fontIdx = src.fontIdx;
                 DrawElem(dl, e, false);
-                if (e.role != "icon") src.texIdx = e.texIdx;
+                if (!ownTex) src.texIdx = e.texIdx;
                 src.fontIdx = e.fontIdx;
             }
         }
@@ -603,7 +644,7 @@ void MenuFrame(const MenuInput& in, double dt) {
     int n = (int)rows.size();
     if (n) g_menu.sel = std::max(0, std::min(n - 1, g_menu.sel));
     if (!g_menu.capturing.empty()) {   // a binding row is waiting for an input: nothing else moves
-        Widget* cw = WidgetOf(g_menu.capturing);
+        Widget* cw = CaptureWidget();
         Setting* s = cw ? SettingOf(cw->bind) : nullptr;
         int r = s && s->capture ? s->capture(dt) : -1;   // (the row went away meanwhile: cancelled)
         if (r != 0) {
@@ -735,26 +776,7 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel, int top) {
                     put("{binding}", bs->label);
                     put("{input}", g_menu.capturing == w->group ? std::string("???") : bs->current ? bs->current() : std::string());
                 }
-                if (e.role == "bindicon") {
-                    if (g_menu.capturing == w->group) {   // waiting: "???" where the icon is, in the row's font
-                        int fi = -1;
-                        for (auto& o : MenuElems()) if (o.type == E_TEXT && InGroup(o.group, w->group)) { if (o.fontIdx == -2) o.fontIdx = FindFont(o.font); fi = o.fontIdx; if (o.role == "label") break; }
-                        if (fi < 0) fi = FindFont("conduitmditc_tt21i");
-                        if (fi >= 0) {
-                            ImVec2 a, b; ElemRect(e, a, b);
-                            const Font& f = g_fonts[fi];
-                            float k = (b.y - a.y) / std::max(1, f.line);
-                            float tw = TextWidth(f, "???") * k;
-                            bool blink = fmod(g_menu.t, 0.8) < 0.55;   // pulses while it waits
-                            float c[4] = { e.col[0], e.col[1], e.col[2], e.col[3] * (blink ? 1.f : 0.45f) };
-                            DrawText(dl, f, ImVec2((a.x + b.x - tw) / 2, a.y), k, Col(c), "???", 0, 0);
-                        }
-                        continue;
-                    }
-                    int id = bs->icon ? bs->icon() : -1;
-                    if (id < 0 || id >= (int)iconKeys.size()) continue;
-                    e.tex = "icon:auto:" + iconKeys[id]; e.texIdx = -3;
-                }
+                if (e.role == "bindicon" && !BindIcon(dl, e, bs, g_menu.capturing == w->group, w->group)) continue;
             }
             if (w->type == W_SLIDER && (e.role == "fill" || e.role == "tab")) {
                 // x0 / x1 are in centre-anchored units (the fill's left edge, the tab's centre); a piece anchored
@@ -1092,7 +1114,7 @@ static void GridResize(Widget& w, float ngw, float ngh, int ncols, int nrows, fl
 // number setting or their own value; pickers - a choice setting or their own value
 static void TileChanges(Widget& t) {
     Setting* cur = SettingOf(t.bind);
-    std::string name = cur ? cur->label : t.type != W_BUTTON ? "(its own value)" : t.action.empty() ? "(nothing)" : t.action == "back" ? "go back"
+    std::string name = cur ? (cur->kind == 3 ? "bind: " + cur->label : cur->label) : t.type != W_BUTTON ? "(its own value)" : t.action.empty() ? "(nothing)" : t.action == "back" ? "go back"
                      : t.action == "close" ? "close the menu" : "open " + t.action.substr(5);
     int want = t.type == W_SLIDER ? 0 : t.type == W_PICKER ? 1 : 2;
     ImGui::SetNextItemWidth(200);
@@ -1104,8 +1126,11 @@ static void TileChanges(Widget& t) {
             for (auto& pg : g_pages) if (ImGui::Selectable(("open " + pg.group).c_str(), !cur && t.action == "page:" + pg.group)) { t.bind.clear(); t.action = "page:" + pg.group; g_dirty = true; }
             ImGui::Separator();
         } else if (ImGui::Selectable("(its own value)", !cur)) { t.bind.clear(); g_dirty = true; }
-        for (auto& st : settings)
-            if (st.kind == want && ImGui::Selectable(st.label.c_str(), cur == &st)) { t.bind = st.key; t.action.clear(); g_dirty = true; }
+        for (auto& st : settings) {
+            if (st.kind != want && !(want == 2 && st.kind == 3)) continue;
+            std::string lb = st.kind == 3 ? "bind: " + st.label : st.label;
+            if (ImGui::Selectable(lb.c_str(), cur == &st)) { t.bind = st.key; t.action.clear(); g_dirty = true; }
+        }
         ImGui::EndCombo();
     }
 }
@@ -1205,6 +1230,12 @@ static void GridPanel(Widget& w) {
                 g_dirty = true;
             }
         }
+        // icon
+        static char ib[160]; static std::string ibFor = "\x01";
+        if (ibFor != key) { snprintf(ib, sizeof ib, "%s", t.icon.c_str()); ibFor = key; }
+        ImGui::SetNextItemWidth(320);
+        if (ImGui::InputTextWithHint("icon", "texture name, icon:auto:South, vec:...", ib, sizeof ib)) { t.icon = ib; g_dirty = true; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The picture shown by the tile's \"grid: item icon\" piece: a texture name, icon:auto:<button>\n(the controller's icon for it) or vec:<file>. Empty: no picture (a binding tile: what it's bound to).");
         // description
         static char db[256]; static std::string dbFor = "\x01";
         if (dbFor != key) { snprintf(db, sizeof db, "%s", t.desc.c_str()); dbFor = key; }
