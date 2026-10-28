@@ -68,7 +68,9 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   or live values "list:<key>" (<key>.count, <key>.N, <key>.N.icon) for other mods' lists. Text {item} {i} {count};
   role "item icon"; "selected row only" = the selected cell. Arrows move inside it and leave it at its edges. Editor:
   "Add grid" on a page (4 x 3, 18 sample items) and faded ghost cells while laying it out. Rows with fewer items than
-  columns start from the left, centre or right (up / down keep the column on screen). Resizing (width / height
+  Aligned like text (left / centre / right): its position's x is its alignment point (left edge / centre / right
+  edge), it grows from there when resized, switching alignment moves it about that point, and rows with fewer items
+  line up the same way (up / down keep the column on screen). Resizing (width / height
   sliders, columns, rows) resizes the cell's pieces with it when "stretch pieces" is on, so the editor shows the cell
   as drawn. Editor: a picked grid outlines every cell (a picked piece: its copy in each cell); clicking a faded cell
   picks the grid; the grid follows its pieces when they all move together. Layout: widget

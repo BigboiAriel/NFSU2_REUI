@@ -39,7 +39,8 @@ struct Widget {
     int cols = 4, rows = 3;
     float gw = 400, gh = 240, gx = -200, gy = -120, refW = 100, refH = 80;
     bool scalePieces = true;
-    int startAt = 0;                     // rows with fewer items than columns start from the left (0), centre (1) or right (2)
+    int startAt = 0;                     // aligned like text: left (0), centre (1), right (2) - its alignment point is its left edge /
+                                         // centre / right edge (resizing keeps it there) and short rows line up the same way
 };
 // how many cells a short row is moved across (a grid row starting from the centre / right)
 static float GridShift(const Widget& w, int row, int count) {
@@ -943,16 +944,19 @@ static void GridResize(Widget& w, float ngw, float ngh, int ncols, int nrows) {
     // (a grid whose pieces were made for another cell size, drawn stretched: they're made the cell's size first)
     float bx = w.scalePieces && w.refW > 0.5f ? opx / w.refW : 1.f, by = w.scalePieces && w.refH > 0.5f ? opy / w.refH : 1.f;
     float kx = w.scalePieces && opx > 0.01f ? npx / opx * bx : 1.f, ky = w.scalePieces && opy > 0.01f ? npy / opy * by : 1.f;
-    float dw = ngw - w.gw, kh = w.gh > 0.01f ? ngh / w.gh : 1.f;
+    // like text, it grows from its alignment point: the left edge stays (left), the centre (centre), the right edge (right)
+    float f = std::max(0, std::min(2, w.startAt)) * 0.5f;
+    float ngx = w.gx + f * (w.gw - ngw);
+    float kh = w.gh > 0.01f ? ngh / w.gh : 1.f;
     for (auto& e : MenuElems()) {
         if (!InGroup(e.group, w.group)) continue;
         if (!GridPiece(e)) {   // its scroller: beside the grid's right side, along its height
-            e.x += dw; e.y = w.gy + (e.y - w.gy) * kh;
+            e.x += (ngx + ngw) - (w.gx + w.gw); e.y = w.gy + (e.y - w.gy) * kh;
             if (e.role == "gtrack") e.h *= kh;
             continue;
         }
+        e.x = ngx + (e.x - w.gx) * kx; e.y = w.gy + (e.y - w.gy) * ky;
         if (kx == 1.f && ky == 1.f) continue;
-        e.x = w.gx + (e.x - w.gx) * kx; e.y = w.gy + (e.y - w.gy) * ky;
         if (e.type == E_TEXT) { e.scale *= std::min(kx, ky); if (e.w > 0) e.w *= kx; }
         else {
             e.w *= kx; e.h *= ky;
@@ -960,9 +964,15 @@ static void GridResize(Widget& w, float ngw, float ngh, int ncols, int nrows) {
         }
     }
     if (w.scalePieces) { w.refW = npx; w.refH = npy; }
-    w.gw = ngw; w.gh = ngh; w.cols = ncols; w.rows = nrows;
+    w.gx = ngx; w.gw = ngw; w.gh = ngh; w.cols = ncols; w.rows = nrows;
     g_dirty = true;
 }
+static void GridMoveBy(Widget& w, float dx, float dy) {   // the grid and every piece of it (its scroller too)
+    if (dx == 0 && dy == 0) return;
+    for (auto& e : MenuElems()) if (InGroup(e.group, w.group)) { e.x += dx; e.y += dy; }
+    w.gx += dx; w.gy += dy; g_dirty = true;
+}
+static float GridAlignX(const Widget& w) { return w.gx + std::max(0, std::min(2, w.startAt)) * 0.5f * w.gw; }   // its alignment point
 static void GridPanel(Widget& w) {
     int cols = w.cols, rows = w.rows;
     ImGui::SetNextItemWidth(90); if (ImGui::InputInt("columns", &cols)) GridResize(w, w.gw, w.gh, cols, rows);
@@ -971,16 +981,24 @@ static void GridPanel(Widget& w) {
     float wh[2] = {w.gw, w.gh};
     ImGui::SetNextItemWidth(220); if (ImGui::SliderFloat2("width / height", wh, 20.f, 1280.f, "%.0f")) GridResize(w, wh[0], wh[1], w.cols, w.rows);
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The whole grid (units; Ctrl + click to type): each cell is width / columns by height / rows shown.\nWith \"stretch pieces\" on, the cell's pieces are resized with it.");
-    ImGui::SameLine(); ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("top-left", &w.gx, 0.5f, -2000.f, 2000.f, "%.0f")) g_dirty = true;
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Where the first cell's corner is. (Moving the grid's group moves this too.)");
+    static const char* aligns[] = {"left", "centre", "right"};
+    float pos[2] = {GridAlignX(w), w.gy};
+    ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("position", pos, 0.5f, -2000.f, 2000.f, "%.0f")) GridMoveBy(w, pos[0] - GridAlignX(w), pos[1] - w.gy);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("x: its alignment point (its %s edge%s), y: its top. Moves the pieces with it.", w.startAt == 1 ? "centre" : aligns[w.startAt], w.startAt == 1 ? " - the middle" : "");
+    ImGui::SameLine(); ImGui::SetNextItemWidth(90);
+    int al = std::max(0, std::min(2, w.startAt));
+    if (ImGui::Combo("align", &al, aligns, 3) && al != w.startAt) {   // like text: the point stays, the grid moves about it
+        float p = GridAlignX(w);
+        w.startAt = al;
+        GridMoveBy(w, p - GridAlignX(w), 0);
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Like text: the grid sits left of, centred on or right of its position, grows from it when it's\nresized (wider, more columns), and rows with fewer items line up the same way.");
     ImGui::Text("cell %.0f x %.0f", w.gw / std::max(1, w.cols), w.gh / std::max(1, w.rows));
     ImGui::SameLine(); if (ImGui::Checkbox("stretch pieces to the cell", &w.scalePieces)) { if (w.scalePieces) { w.refW = w.gw / std::max(1, w.cols); w.refH = w.gh / std::max(1, w.rows); } g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("On: resizing the grid resizes the cell's pieces with it. Off: the pieces keep their size in bigger / smaller cells.");
     ImGui::SameLine(); if (ImGui::SmallButton("from the pieces")) GridFromPieces(w);
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The pieces as they are become one cell: the grid starts at their top-left and is columns x rows of them.");
-    static const char* starts[] = {"left", "centre", "right"};
-    ImGui::SetNextItemWidth(100); if (ImGui::Combo("rows start from", &w.startAt, starts, 3)) g_dirty = true;
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Where a row with fewer items than columns sits: from the left, centred, or from the right\n(the last row, or a grid of a few buttons). Full rows fill the width either way.");
+
     if (!SettingOf(w.bind)) {
         static char lb[64]; static std::string lbFor = "\x01";
         if (lbFor != w.group) { snprintf(lb, sizeof lb, "%s", w.bind.compare(0, 5, "list:") == 0 ? w.bind.c_str() + 5 : ""); lbFor = w.group; }
