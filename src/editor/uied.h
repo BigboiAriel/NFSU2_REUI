@@ -14,6 +14,7 @@ namespace uied {
     IDirect3DDevice9* Device();
     bool WantsFrames();                      // UniPad: something to draw even with the panel closed
     void Panel();                            // the "UI editor" tab
+    bool Unsaved();                          // editor changes not saved yet
     // game modes, each with its own overlay layout
     // MENUS: the menu pages' workspace (menu pages, rows, templates); never drawn as a HUD
     enum Mode { FREEROAM = 0, RACE, DRAG, DRIFT, OUTRUN, MENUS, NMODES };

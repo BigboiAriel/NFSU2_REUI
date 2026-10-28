@@ -499,25 +499,15 @@ static void GridAddKind(Widget& w, int bit) {
     float cy = w.gy + ch / 2;
     const char* kn = bit == 2 ? "Slider: " : bit == 4 ? "Picker: " : "Binding: ";
     std::string first = w.tiles.empty() ? std::string("{item}") : w.tiles[0].label;
-    // bindings: the label on the tile's left, the rest just after its text as in the row (moving with each tile's text)
-    float refEnd = 0, newEnd = w.gx + m;
-    if (bit == 8)
-        for (auto& e : src) if (e.role == "label") {
-            Elem c = e; ImVec2 sz = ElemSize(c);
-            float ax = e.w <= 0 ? e.align * 0.5f : (e.anchor % 3) * 0.5f;
-            refEnd = e.x - ax * sz.x + sz.x;
-            c.text = first; c.align = 0; newEnd = w.gx + m + ElemSize(c).x;
-            break;
-        }
+    // bindings: as the Gamepad Bindings rows - the label (centred, as there) and the icon at their own distance apart,
+    // the pair centred in the tile, everything at fixed places (so the icons line up down the column)
+    float bindDx = w.gx + cw / 2 - (bl + br) / 2;
     for (auto& e : src) {
         Elem c = e;
         c.group = w.group; c.kit.clear(); c.tileKinds = bit; c.visible = true; c.name = kn + e.name;
         c.y = cy + (e.y - ly);
         float ax = (e.anchor % 3) * 0.5f;
-        if (bit == 8) {
-            if (e.role == "label") { c.align = 0; c.x = w.gx + m; if (c.w > 0) { c.anchor = c.anchor / 3 * 3; } }
-            else { c.x = newEnd + (e.x - refEnd); c.afterLabel = true; }
-        }
+        if (bit == 8) c.x = e.x + bindDx;
         else if (e.role == "fill") { c.w = (x1 - x0) * k; c.x = mapX(x0) + ax * c.w; }
         else if (e.role == "tab") c.x = mapX(x0);
         else {

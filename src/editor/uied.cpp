@@ -2824,6 +2824,7 @@ static void ResolvePending() {
     else { g_dirty = true; Log("ui editor: capture added; not saved on its own because there are other unsaved changes (Save)"); }
 }
 
+bool Unsaved() { return g_dirty; }
 void Panel() {
     g_panelOpen = true;
     if (g_state == 0) { g_state = 1; std::thread(Scan).detach(); }

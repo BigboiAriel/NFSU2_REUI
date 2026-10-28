@@ -4,6 +4,7 @@
 #include "config.h"
 #include "host.h"
 #include "log.h"
+#include "editor/uied.h"
 
 #include "imgui.h"
 #include "imgui_impl_dx9.h"
@@ -64,6 +65,7 @@ static void PollQuitFile() {
     std::string q = g_scriptsDir + "NFSU2_REUI.quit";
     if (GetFileAttributesA(q.c_str()) == INVALID_FILE_ATTRIBUTES) return;
     DeleteFileA(q.c_str());
+    if (uied::Unsaved()) { Log("NFSU2_REUI.quit found: not closing - the UI editor has unsaved changes"); return; }
     Log("NFSU2_REUI.quit found: closing the game");
     if (g_hwnd) PostMessageA(g_hwnd, WM_CLOSE, 0, 0);
 }

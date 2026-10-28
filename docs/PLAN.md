@@ -106,7 +106,10 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   A kind counts as having its pieces by its fill bar / arrows / binding icon (fixed 2026-10-28: the grid's own label,
   shown on the other kinds, made pickers / bindings look done). Binding tiles: the label on the tile's left, the icon
   just after its text (`afterlabel=1`: moves with each tile's label length, keeps its shape). A binding shown in the
-  grid's own icon piece is square.
+  grid's own icon piece is square. (Changed 2026-10-28: binding tiles are now laid out as the Gamepad Bindings rows - centred label and
+  icon at their own fixed distance, the pair centred in the tile - so icons line up; "after the label's text" stays as
+  an option per piece.) The quit file (scripts\NFSU2_REUI.quit) doesn't close the game while the editor has unsaved
+  changes (logged).
 - **Custom menus (2026-10-28).** A bar under Add image ... Undo (Menus workspace): "Add Menu +" when there are none,
   then a button per custom menu and "+". Each is a dedicated page (`[page]` with `dedicated=1`; its group is its name,
   "Menu N" to start). Picking one edits it alone: everything outside it is hidden on screen, in the list and from clicks,
