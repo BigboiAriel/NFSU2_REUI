@@ -39,7 +39,13 @@ struct Widget {
     int cols = 4, rows = 3;
     float gw = 400, gh = 240, gx = -200, gy = -120, refW = 100, refH = 80;
     bool scalePieces = true;
+    int startAt = 0;                     // rows with fewer items than columns start from the left (0), centre (1) or right (2)
 };
+// how many cells a short row is moved across (a grid row starting from the centre / right)
+static float GridShift(const Widget& w, int row, int count) {
+    int cols = std::max(1, w.cols), inRow = std::min(cols, count - row * cols);
+    return inRow <= 0 ? 0.f : (cols - inRow) * 0.5f * std::max(0, std::min(2, w.startAt));
+}
 struct Page {
     std::string group;
     float spacing = 36;                  // row spacing (Restack, Add row)
@@ -257,7 +263,12 @@ static bool GridMove(Widget& w, int dx, int dy) {
     if (dx) { int nc = c + dx; if (nc < 0 || nc >= cols || r * cols + nc >= n) return false; ns = r * cols + nc; }
     if (dy) {
         int nr = r + dy; if (nr < 0 || nr > last) return false;
-        ns = std::min(n - 1, nr * cols + c);   // (the last row may be short: its last item)
+        // the same column on screen (rows can be shifted: short rows starting from the centre / right)
+        float vis = c + GridShift(w, r, n);
+        int inRow = std::min(cols, n - nr * cols);
+        int nc = (int)lroundf(vis - GridShift(w, nr, n));
+        nc = std::max(0, std::min(inRow - 1, nc));
+        ns = nr * cols + nc;
     }
     st.sel = ns; GridKeepVisible(w, st, n);
     Snd(dy < 0 ? SND_UP : dy > 0 ? SND_DOWN : dx < 0 ? SND_LEFT : SND_RIGHT);
@@ -309,7 +320,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
             if (preview && idx == 0) continue;   // (the pieces themselves are the first cell)
             bool cur = on && !preview && idx == st.sel;
             const GItem& it = items[idx];
-            float ox = c * px, oy = (r - scroll) * py;
+            float ox = (c + GridShift(w, r, n)) * px, oy = (r - scroll) * py;
             for (int i : order) {
                 Elem& src = els[i];
                 if (src.selOnly && !cur) continue;
@@ -584,6 +595,16 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel, int top) {
         } else if (hl && InGroup(e.group, hl->group)) {
             if (!hlShow) continue;
             e.y += hlDy;
+        } else if (e.role == "hl") {   // a page piece that follows the selected row (from the row it's laid out on)
+            if (sel < 0 || n == 0) continue;
+            if (OwnHighlight(*rows[sel].w)) continue;   // (that row brings its own: a grid's selected cell)
+            int ref = 0; float best = 1e9f;
+            for (int ri = 0; ri < n; ++ri) {   // the row it sits on: nearest in height, then across
+                float dd = fabsf(rows[ri].y - src.y) + 0.01f * fabsf(rows[ri].x - src.x);
+                if (dd < best) { best = dd; ref = ri; }
+            }
+            e.y += rows[sel].y - rows[ref].y + scrollDy;
+            e.x += (rows[sel].w->col - rows[ref].w->col) * p.colDist;
         } else if (e.role == "desc") {
             if (sel >= 0) e.text = desc;
         } else if (e.role == "stab" && track && sel >= 0 && n > 1) {
@@ -604,10 +625,10 @@ static bool DrawMenu(ImDrawList* dl) {
 }
 
 // ---------------------------------------------------------------- authoring
-static const char* kRoleKey[] = { "", "label", "value", "fill", "tab", "arrowL", "arrowR", "desc", "stab", "strack", "bindicon", "icon", "gtab", "gtrack" };
+static const char* kRoleKey[] = { "", "label", "value", "fill", "tab", "arrowL", "arrowR", "desc", "stab", "strack", "bindicon", "icon", "gtab", "gtrack", "hl" };
 static const char* kRoleName[] = { "(none)", "label", "value text", "slider fill bar", "slider tab", "left arrow", "right arrow",
                                    "page: description text", "page: scroller tab", "page: scroller track", "binding icon (??? while waiting)",
-                                   "grid: item icon", "grid: scroller tab", "grid: scroller track" };
+                                   "grid: item icon", "grid: scroller tab", "grid: scroller track", "page: highlight (follows the selected row)" };
 static std::string Upper(std::string s) { for (auto& c : s) c = (char)toupper((unsigned char)c); return s; }
 
 // roles from what the pieces are: textures, place, kind
@@ -831,7 +852,9 @@ static void ElemMenuProps(Elem& e) {
         "label / value text: the value text shows the setting; both take the page's selected colour.\n"
         "slider fill bar / tab: sized / moved by the value. Arrows: light up when pressed.\n"
         "Grids: the label shows the item ({item} / {i} / {count} in any text), the item icon is its picture;\n"
-        "\"selected row only\" pieces show on the selected cell only.");
+        "\"selected row only\" pieces show on the selected cell only.\n"
+        "page: highlight - a piece on the page itself (not in a row) that moves to the selected row, from the row\n"
+        "it's laid out on (and across to its column): a shape behind the selected row, say.");
     ImGui::SameLine(); if (ImGui::Checkbox("selected row only", &e.selOnly)) g_dirty = true;
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Hidden on rows that aren't selected (the game's picker arrows).");
 }
@@ -865,6 +888,9 @@ static void GridPanel(Widget& w) {
     ImGui::SameLine(); if (ImGui::Checkbox("stretch pieces to the cell", &w.scalePieces)) g_dirty = true;
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The pieces were made for a %.0f x %.0f cell; on: they're stretched to the cell's size.", w.refW, w.refH);
     ImGui::SameLine(); if (ImGui::SmallButton("from the pieces")) GridFromPieces(w);
+    static const char* starts[] = {"left", "centre", "right"};
+    ImGui::SetNextItemWidth(100); if (ImGui::Combo("rows start from", &w.startAt, starts, 3)) g_dirty = true;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Where a row with fewer items than columns sits: from the left, centred, or from the right\n(the last row, or a grid of a few buttons). Full rows fill the width either way.");
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The pieces as they are become one cell: the grid starts at their top-left and is columns x rows of them.");
     if (!SettingOf(w.bind)) {
         static char lb[64]; static std::string lbFor = "\x01";
@@ -1110,7 +1136,7 @@ static void SaveWidgetProps(FILE* f, const Widget& w) {
     if (!w.choices.empty()) { std::string j; for (size_t i = 0; i < w.choices.size(); ++i) j += (i ? "|" : "") + w.choices[i]; fprintf(f, "choices=%s\n", Esc(j).c_str()); }
     if (w.type == W_SLIDER) fprintf(f, "range=%g %g\n", w.x0, w.x1);
     if (w.col) fprintf(f, "col=%d\n", w.col);
-    if (w.type == W_GRID) fprintf(f, "grid=%d %d %g %g %g %g %g %g %d\n", w.cols, w.rows, w.gw, w.gh, w.gx, w.gy, w.refW, w.refH, w.scalePieces ? 1 : 0);
+    if (w.type == W_GRID) fprintf(f, "grid=%d %d %g %g %g %g %g %g %d %d\n", w.cols, w.rows, w.gw, w.gh, w.gx, w.gy, w.refW, w.refH, w.scalePieces ? 1 : 0, w.startAt);
     fprintf(f, "num=%g %g %g %g\n", w.min, w.max, w.step, w.value);
 }
 static void SaveMenus(FILE* f) {
@@ -1129,7 +1155,7 @@ static bool LoadWidgetKey(Widget& w, const std::string& k, const std::string& v)
     else if (k == "choices") { w.choices.clear(); std::string s = Unesc(v), cur; for (size_t i = 0; i <= s.size(); ++i) { if (i == s.size() || s[i] == '|') { if (!cur.empty()) w.choices.push_back(cur); cur.clear(); } else cur += s[i]; } }
     else if (k == "range") sscanf(v.c_str(), "%f %f", &w.x0, &w.x1);
     else if (k == "col") w.col = std::max(0, atoi(v.c_str()));
-    else if (k == "grid") { int sp = 1; sscanf(v.c_str(), "%d %d %f %f %f %f %f %f %d", &w.cols, &w.rows, &w.gw, &w.gh, &w.gx, &w.gy, &w.refW, &w.refH, &sp); w.scalePieces = sp != 0; w.cols = std::max(1, w.cols); w.rows = std::max(1, w.rows); }
+    else if (k == "grid") { int sp = 1; sscanf(v.c_str(), "%d %d %f %f %f %f %f %f %d %d", &w.cols, &w.rows, &w.gw, &w.gh, &w.gx, &w.gy, &w.refW, &w.refH, &sp, &w.startAt); w.scalePieces = sp != 0; w.startAt = std::max(0, std::min(2, w.startAt)); w.cols = std::max(1, w.cols); w.rows = std::max(1, w.rows); }
     else if (k == "num") sscanf(v.c_str(), "%f %f %f %f", &w.min, &w.max, &w.step, &w.value);
     else return false;
     return true;

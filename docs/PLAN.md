@@ -67,8 +67,12 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   track). Items: a choice setting (picking sets it), its own list ("label;icon;action": page:<page> / back / close),
   or live values "list:<key>" (<key>.count, <key>.N, <key>.N.icon) for other mods' lists. Text {item} {i} {count};
   role "item icon"; "selected row only" = the selected cell. Arrows move inside it and leave it at its edges. Editor:
-  "Add grid" on a page (4 x 3, 18 sample items) and faded ghost cells while laying it out. Layout: widget
-  `grid=cols rows w h x y cellW cellH stretch`.
+  "Add grid" on a page (4 x 3, 18 sample items) and faded ghost cells while laying it out. Rows with fewer items than
+  columns start from the left, centre or right (up / down keep the column on screen). Layout: widget
+  `grid=cols rows w h x y cellW cellH stretch start`.
+- **Page highlight role (2026-10-27).** Any element on a page itself (a shape, say) can have the role "page: highlight":
+  it moves to the selected row from the row it's laid out on (and across to its column), hidden when that row has
+  its own highlight (a grid).
 - **Shapes and cutters (built 2026-10-27).** A "shape" element: a rounded rectangle (radius per corner, rotation), a
   stroke inside its edge (stroke colour = the element colour) and a fill (its own colour / token) - menu backings,
   panels, frames. A shape with "cut" on draws nothing and is subtracted from a target shape (by name, or every shape in
