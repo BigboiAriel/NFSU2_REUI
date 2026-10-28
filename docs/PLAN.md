@@ -80,6 +80,12 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   or along (around the outline, start offset); fill linear (angle), radial, or from the edge inward over a depth
   (following the curve); stroke inside / centred / outside the edge. Stops editor (drag / add / delete, colour,
   opacity, location, reverse, "glow" preset). Layout: `strokealign=`, `strokegrad=` / `fillgrad=mode angle depth;t r g b a;...`.
+  Gradient tokens: each stop can use a colour token (its colour now, times the stop's opacity; `t r g b a@token`), and
+  a whole gradient can be a named gradient token (`gradtoken=name;label;stops|...`, element `strokegradtoken=` /
+  `fillgradtoken=`); built in hud.glow (clear -> hud.accent -> clear), hud.fade (hud.shade -> clear), hud.edge_light.
+  Editor: per-stop token picker, "own stops" / token picker on each gradient (editing a token's stops changes every
+  shape using it), "save as token", and a Gradient tokens list in Colour tokens (preview, uses, edit, reset / delete).
+  Prefabs carry the gradient tokens they use and their colour tokens.
   *Later:* smooth (rounded) joins where a cut meets the edge; ellipses / other shapes.
 - **P5 distribution (later, once REUI is ready).** Light builds of REUI ship with the other mods: a renderer
   without the editor or HUD replacement, which carries the pages built in REUI (decided 2026-10-26).

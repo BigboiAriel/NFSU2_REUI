@@ -400,6 +400,10 @@ static std::string Expand(const std::string& s, int row = 0) {
 
 // ---------------------------------------------------------------- overlay
 enum { E_IMAGE = 0, E_TEXT = 1, E_SHAPE = 2 };
+// Gradients as the editor keeps them: stops with a colour, or a colour token (its colour now, times the stop's
+// opacity); a gradient can instead use a gradient token's stops (tok). Resolved to shapes::Gradient when drawn.
+struct UStop { float t = 0; float c[4] = {1, 1, 1, 1}; std::string tok; };
+struct UGrad { int mode = 0; float angle = 0, depth = 0; std::vector<UStop> stops; std::string tok; };
 struct Elem {
     int type = E_IMAGE; std::string name = "element", tex, pack, font, text = "Text";
     int anchor = 0;                       // 0..8: top-left, top, top-right, left, centre, right, bottom-left, bottom, bottom-right
@@ -453,7 +457,7 @@ struct Elem {
     std::string fillTok; float fillTokA = 1;
     bool cut = false; float cutGap = 0; std::string cutTarget;
     int strokeAlign = 0;                  // 0 inside the edge, 1 centred on it, 2 outside
-    shapes::Gradient strokeGrad, fillGrad; // gradients (shapes.h): with one, its colours replace the colour (alpha still fades)
+    UGrad strokeGrad, fillGrad;           // gradients (shapes.h modes): with one, its colours replace the colour (alpha still fades)
 };
 static float Clamp01f(float v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
 static const char* TypeKey(int t) { return t == 1 ? "text" : t == 2 ? "shape" : "image"; }
@@ -802,6 +806,7 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
 // ---- shapes
 static std::vector<Elem>* g_drawList = nullptr;   // the elements being drawn now (where a shape's cutters are)
 // a shape: its stroke and fill textures (shapes.cpp) on its box, turned; cutters found among the elements drawn now
+static bool ResolveGrad(const UGrad& g, float depthScale, shapes::Gradient& out);
 static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bool editing) {
     float pw = b.x - a.x, ph = b.y - a.y;
     if (pw < 1 || ph < 1) return;
@@ -837,16 +842,16 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
             cuts.push_back(x);
         }
     shapes::Result r;
-    shapes::Gradient sg = e.strokeGrad, fg = e.fillGrad;
-    if (fg.mode == 3) fg.depth *= k;   // (units -> pixels)
+    shapes::Gradient sg, fg;   // (tokens resolved now: a token's change redraws the shape)
+    bool sOn = ResolveGrad(e.strokeGrad, 1, sg), fOn = ResolveGrad(e.fillGrad, k, fg);
     if (!shapes::Get(g_dev, box, std::max(0.f, e.stroke) * k, e.strokeAlign, sg, fg, cuts, r)) return;
     float m = r.margin;
     ImVec2 q0 = at(-pw / 2 - m, -ph / 2 - m), q1 = at(pw / 2 + m, -ph / 2 - m), q2 = at(pw / 2 + m, ph / 2 + m), q3 = at(-pw / 2 - m, ph / 2 + m);
     // the fill keeps its own colour, faded with the element (animations, blink) as the stroke colour is
     float fade = e.col[3] > 0.001f ? std::min(1.f, ImGui::ColorConvertU32ToFloat4(col).w / e.col[3]) : 1.f;
     float fc[4] = {e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3] * fade};
-    if (e.fillGrad.mode && !e.fillGrad.stops.empty()) fc[0] = fc[1] = fc[2] = 1;   // the gradient's colours, at the fill's opacity
-    if (e.strokeGrad.mode && !e.strokeGrad.stops.empty()) { ImVec4 v = ImGui::ColorConvertU32ToFloat4(col); col = ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, v.w)); }
+    if (fOn) fc[0] = fc[1] = fc[2] = 1;   // the gradient's colours, at the fill's opacity
+    if (sOn) { ImVec4 v = ImGui::ColorConvertU32ToFloat4(col); col = ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, v.w)); }
     if (r.fill && fc[3] > 0.002f) dl->AddImageQuad((ImTextureID)r.fill, q0, q1, q2, q3, ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), Col(fc));
     if (r.stroke) dl->AddImageQuad((ImTextureID)r.stroke, q0, q1, q2, q3, ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), col);
 }
@@ -1083,16 +1088,24 @@ static void TokenLoad(const ColorToken& in) {   // a token= line from the layout
     if (!t) { g_tokens.push_back(in); t = &g_tokens.back(); memcpy(t->def, in.col, sizeof t->def); t->defLive = in.live; }
     else { memcpy(t->col, in.col, sizeof t->col); t->live = in.live; if (!t->builtIn && !t->fromMod && !in.label.empty()) t->label = in.label; }
 }
+static void GradTokensReset();
 static void TokensReset() {   // before a layout is read: built-in / mod tokens back to their defaults, the layout's own gone
     std::vector<ColorToken> keep;
     for (auto& t : g_tokens) if (t.builtIn || t.fromMod) { ColorToken k = t; memcpy(k.col, k.def, sizeof k.col); k.live = k.defLive; keep.push_back(k); }
     g_tokens = keep;
     TokenBuiltIns();
+    GradTokensReset();
 }
+struct GradToken { std::string name, label; std::vector<UStop> stops, def; bool builtIn = false; };   // (gradient tokens, below)
+static std::vector<GradToken> g_gradTokens;
 static int TokenUses(const std::string& n) {
     int u = 0;
     for (auto& l : g_layout) for (auto& e : l) u += (e.colTok == n) + (e.hiTok == n) + (e.fillTok == n);
     for (auto& e : g_kit) u += (e.colTok == n) + (e.hiTok == n) + (e.fillTok == n);
+    auto stops = [&](const std::vector<UStop>& v) { for (auto& st : v) u += st.tok == n; };   // gradient stops
+    for (auto& l : g_layout) for (auto& e : l) { stops(e.strokeGrad.stops); stops(e.fillGrad.stops); }
+    for (auto& e : g_kit) { stops(e.strokeGrad.stops); stops(e.fillGrad.stops); }
+    for (auto& t : g_gradTokens) stops(t.stops);
     return u;
 }
 // every frame, before anything is drawn (menus copy elements after this): tokens' live values, then their users
@@ -1121,6 +1134,88 @@ void AddColorToken(const std::string& name, const std::string& label, const floa
     TokenDefine(name, label, rgba[0], rgba[1], rgba[2], rgba[3], "", false, true);
 }
 // the colour edit of an element: its own colour, or a token (then its opacity, and the token's colour itself)
+// ---- gradient tokens: a named set of stops ("hud.glow"); shapes use it by name and follow it. Its stops can use colour
+// tokens. Saved as gradtoken=<name>;<label>;<stops> (stops "t r g b a[@colour token]" separated by |).
+static GradToken* GradTokenOf(const std::string& n) { for (auto& t : g_gradTokens) if (t.name == n) return &t; return nullptr; }
+static UStop MkStop(float t, const char* tok, float a, float r = 1, float g = 1, float b = 1) { UStop s; s.t = t; s.c[0] = r; s.c[1] = g; s.c[2] = b; s.c[3] = a; if (tok) s.tok = tok; return s; }
+static void GradBuiltIns() {
+    auto def = [](const char* n, const char* label, std::vector<UStop> st) {
+        if (GradTokenOf(n)) return;
+        GradToken t; t.name = n; t.label = label; t.stops = t.def = st; t.builtIn = true; g_gradTokens.push_back(t);
+    };
+    def("hud.glow", "clear -> HUD green -> clear (a soft line across a wide stroke)", {MkStop(0, "hud.accent", 0), MkStop(0.4f, "hud.accent", 1), MkStop(0.51f, "hud.accent", 1), MkStop(1, "hud.accent", 0)});
+    def("hud.fade", "dark panel fading out", {MkStop(0, "hud.shade", 1), MkStop(1, "hud.shade", 0)});
+    def("hud.edge_light", "a light edge fading inward (with \"from the edge\")", {MkStop(0, "hud.line", 0.8f), MkStop(1, "hud.line", 0)});
+}
+static bool SameStops(const std::vector<UStop>& a, const std::vector<UStop>& b) {
+    if (a.size() != b.size()) return false;
+    for (size_t i = 0; i < a.size(); ++i) if (a[i].t != b[i].t || a[i].tok != b[i].tok || memcmp(a[i].c, b[i].c, sizeof a[i].c) != 0) return false;
+    return true;
+}
+static std::string StopText(const UStop& st) {
+    char b[96]; snprintf(b, sizeof b, "%g %g %g %g %g", st.t, st.c[0], st.c[1], st.c[2], st.c[3]);
+    return st.tok.empty() ? std::string(b) : std::string(b) + "@" + st.tok;
+}
+static bool StopParse(const std::string& s, UStop& st) {
+    if (sscanf(s.c_str(), "%f %f %f %f %f", &st.t, &st.c[0], &st.c[1], &st.c[2], &st.c[3]) != 5) return false;
+    size_t at = s.find('@'); st.tok = at == std::string::npos ? "" : s.substr(at + 1);
+    while (!st.tok.empty() && (st.tok.back() == ' ' || st.tok.back() == '\r')) st.tok.pop_back();
+    return true;
+}
+static void SortStops(std::vector<UStop>& v) { std::stable_sort(v.begin(), v.end(), [](const UStop& a, const UStop& b) { return a.t < b.t; }); }
+static std::string GradTokenLine(const GradToken& t) {
+    std::string lab = t.label; for (char& c : lab) if (c == ';' || c == '|' || c == '\n') c = ',';
+    std::string l = t.name + ";" + lab + ";";
+    for (size_t i = 0; i < t.stops.size(); ++i) l += (i ? "|" : "") + StopText(t.stops[i]);
+    return l;
+}
+static bool GradTokenParse(const std::string& v, GradToken& t) {
+    size_t a = v.find(';'), b = a == std::string::npos ? a : v.find(';', a + 1);
+    if (a == std::string::npos || a == 0 || b == std::string::npos) return false;
+    t.name = v.substr(0, a); t.label = v.substr(a + 1, b - a - 1);
+    std::string s = v.substr(b + 1);
+    for (size_t p = 0; p <= s.size();) {
+        size_t q = s.find('|', p); if (q == std::string::npos) q = s.size();
+        UStop st; if (q > p && StopParse(s.substr(p, q - p), st)) t.stops.push_back(st);
+        p = q + 1;
+    }
+    SortStops(t.stops);
+    return t.stops.size() >= 1;
+}
+static void GradTokenLoad(const GradToken& in) {
+    GradToken* t = GradTokenOf(in.name);
+    if (!t) { GradToken n = in; n.def = in.stops; n.builtIn = false; g_gradTokens.push_back(n); }
+    else { t->stops = in.stops; if (!t->builtIn && !in.label.empty()) t->label = in.label; }
+}
+static void GradTokensReset() {
+    std::vector<GradToken> keep;
+    for (auto& t : g_gradTokens) if (t.builtIn) { GradToken k = t; k.stops = k.def; keep.push_back(k); }
+    g_gradTokens = keep;
+    GradBuiltIns();
+}
+static int GradTokenUses(const std::string& n) {
+    int u = 0;
+    for (auto& l : g_layout) for (auto& e : l) u += (e.strokeGrad.tok == n) + (e.fillGrad.tok == n);
+    for (auto& e : g_kit) u += (e.strokeGrad.tok == n) + (e.fillGrad.tok == n);
+    return u;
+}
+// the gradient to draw: its stops (or its token's), colour tokens' colours now; false: no gradient
+static void StopColour(const UStop& st, float out[4]) {
+    memcpy(out, st.c, sizeof st.c);
+    if (!st.tok.empty()) if (ColorToken* t = TokenOf(st.tok)) { out[0] = t->now[0]; out[1] = t->now[1]; out[2] = t->now[2]; out[3] = st.c[3] * t->now[3]; }
+}
+static bool ResolveGrad(const UGrad& g, float depthScale, shapes::Gradient& out) {
+    out = shapes::Gradient();
+    if (!g.mode) return false;
+    if (g_gradTokens.empty()) GradBuiltIns();
+    const std::vector<UStop>* st = &g.stops;
+    if (!g.tok.empty()) if (GradToken* t = GradTokenOf(g.tok)) st = &t->stops;
+    if (st->empty()) return false;
+    out.mode = g.mode; out.angle = g.angle; out.depth = g.depth * depthScale;
+    for (auto& s2 : *st) { float c[4]; StopColour(s2, c); out.stops.push_back({s2.t, c[0], c[1], c[2], c[3]}); }
+    std::stable_sort(out.stops.begin(), out.stops.end(), [](const std::array<float, 5>& a, const std::array<float, 5>& b) { return a[0] < b[0]; });
+    return true;
+}
 static void TokenSwatch(const ColorToken& t, float size = 0) {
     ImGui::ColorButton(("##sw" + t.name).c_str(), ImVec4(t.now[0], t.now[1], t.now[2], t.now[3]), ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_NoTooltip,
                        size > 0 ? ImVec2(size, size) : ImVec2(0, 0));
@@ -1158,6 +1253,7 @@ static bool TokenColourEdit(const char* label, float* col, std::string& tok, flo
     return changed;
 }
 // "Colour tokens": the table, adding one, and turning repeated colours in the layout into tokens
+static bool StopsEdit(const char* id, std::vector<UStop>& stops, const float baseCol[4], const char* baseTok);
 static void TokensPanel() {
     if (!ImGui::CollapsingHeader(("Colour tokens (" + std::to_string(g_tokens.size()) + ")###coltok").c_str())) return;
     ImGui::TextDisabled("A colour by its role: elements using a token follow it, so the look changes in one place. A token can\nfollow a live value giving \"R G B\" (0-255), like the car's HUD paints.");
@@ -1190,6 +1286,10 @@ static void TokensPanel() {
     if (!drop.empty()) {   // its users keep their resolved colour, as their own
         for (auto& l : g_layout) for (auto& e : l) { if (e.colTok == drop) e.colTok.clear(); if (e.hiTok == drop) e.hiTok.clear(); if (e.fillTok == drop) e.fillTok.clear(); }
         for (auto& e : g_kit) { if (e.colTok == drop) e.colTok.clear(); if (e.hiTok == drop) e.hiTok.clear(); if (e.fillTok == drop) e.fillTok.clear(); }
+        auto unstop = [&](std::vector<UStop>& v) { for (auto& st : v) if (st.tok == drop) { StopColour(st, st.c); st.tok.clear(); } };
+        for (auto& l : g_layout) for (auto& e : l) { unstop(e.strokeGrad.stops); unstop(e.fillGrad.stops); }
+        for (auto& e : g_kit) { unstop(e.strokeGrad.stops); unstop(e.fillGrad.stops); }
+        for (auto& t : g_gradTokens) unstop(t.stops);
         g_tokens.erase(std::remove_if(g_tokens.begin(), g_tokens.end(), [&](const ColorToken& t) { return t.name == drop; }), g_tokens.end());
         g_dirty = true;
     }
@@ -1201,6 +1301,53 @@ static void TokensPanel() {
         ImGui::BeginDisabled(n.empty() || TokenOf(n));
         if (ImGui::Button("Add token")) { TokenDefine(n, "", nc[0], nc[1], nc[2], nc[3], "", false, false); ColorToken* t = TokenOf(n); t->builtIn = t->fromMod = false; nb[0] = 0; g_dirty = true; }
         ImGui::EndDisabled();
+    }
+    // gradient tokens: named stops shapes use by name
+    if (g_gradTokens.empty()) GradBuiltIns();
+    if (ImGui::TreeNode(("Gradient tokens (" + std::to_string(g_gradTokens.size()) + ")###gradtok").c_str())) {
+        std::string gdrop;
+        for (auto& t : g_gradTokens) {
+            ImGui::PushID(t.name.c_str());
+            ImVec2 p0 = ImGui::GetCursorScreenPos(); ImDrawList* dl = ImGui::GetWindowDrawList();
+            shapes::Gradient rg; UGrad tmp; tmp.mode = 1; tmp.tok = t.name; ResolveGrad(tmp, 1, rg);   // a small preview bar
+            for (int i = 0; i < 24; ++i) {
+                auto col = [&](float x) { float c[4] = {1, 1, 1, 0};
+                    const auto& v = rg.stops;
+                    if (v.empty()) return IM_COL32(0, 0, 0, 0);
+                    if (x <= v.front()[0]) { for (int k = 0; k < 4; ++k) c[k] = v.front()[1 + k]; }
+                    else if (x >= v.back()[0]) { for (int k = 0; k < 4; ++k) c[k] = v.back()[1 + k]; }
+                    else for (size_t j = 0; j + 1 < v.size(); ++j) if (x >= v[j][0] && x <= v[j + 1][0]) { float sp = v[j + 1][0] - v[j][0], f = sp > 1e-6f ? (x - v[j][0]) / sp : 0; for (int k = 0; k < 4; ++k) c[k] = v[j][1 + k] + (v[j + 1][1 + k] - v[j][1 + k]) * f; break; }
+                    return ImGui::ColorConvertFloat4ToU32(ImVec4(c[0], c[1], c[2], c[3])); };
+                ImU32 ca = col(i / 24.f), cb = col((i + 1) / 24.f);
+                dl->AddRectFilled(ImVec2(p0.x + i * 4, p0.y + 2), ImVec2(p0.x + i * 4 + 4, p0.y + 14), ((i / 2) & 1) ? IM_COL32(200, 200, 200, 255) : IM_COL32(140, 140, 140, 255));
+                dl->AddRectFilledMultiColor(ImVec2(p0.x + i * 4, p0.y + 2), ImVec2(p0.x + i * 4 + 4, p0.y + 14), ca, cb, cb, ca);
+            }
+            ImGui::Dummy(ImVec2(96, 16)); ImGui::SameLine();
+            bool open = ImGui::TreeNode("##edit", "%s  (%d use%s)%s", t.name.c_str(), GradTokenUses(t.name), GradTokenUses(t.name) == 1 ? "" : "s", t.builtIn ? "  built in" : "");
+            if (ImGui::IsItemHovered() && !t.label.empty()) ImGui::SetTooltip("%s", t.label.c_str());
+            if (t.builtIn && !SameStops(t.stops, t.def)) { ImGui::SameLine(); if (ImGui::SmallButton("reset")) { t.stops = t.def; g_dirty = true; } }
+            if (!t.builtIn) { ImGui::SameLine(); if (ImGui::SmallButton("delete")) gdrop = t.name; if (ImGui::IsItemHovered()) ImGui::SetTooltip("Shapes using it keep its stops as their own."); }
+            if (open) { const float w4[4] = {1, 1, 1, 1}; StopsEdit("stops", t.stops, w4, nullptr); ImGui::TreePop(); }
+            ImGui::PopID();
+        }
+        if (!gdrop.empty()) {   // users keep the stops, as their own
+            GradToken* t = GradTokenOf(gdrop);
+            auto keep = [&](UGrad& g) { if (g.tok == gdrop) { if (t) g.stops = t->stops; g.tok.clear(); } };
+            for (auto& l : g_layout) for (auto& e : l) { keep(e.strokeGrad); keep(e.fillGrad); }
+            for (auto& e : g_kit) { keep(e.strokeGrad); keep(e.fillGrad); }
+            g_gradTokens.erase(std::remove_if(g_gradTokens.begin(), g_gradTokens.end(), [&](const GradToken& x) { return x.name == gdrop; }), g_gradTokens.end());
+            g_dirty = true;
+        }
+        static char gn[48] = "";
+        ImGui::SetNextItemWidth(160); ImGui::InputTextWithHint("##newg", "my.gradient", gn, sizeof gn); ImGui::SameLine();
+        std::string n = gn; n.erase(std::remove_if(n.begin(), n.end(), [](char c) { return c == ' ' || c == ';' || c == '|'; }), n.end());
+        ImGui::BeginDisabled(n.empty() || GradTokenOf(n));
+        if (ImGui::Button("Add gradient token")) {
+            GradToken t; t.name = n; t.stops = t.def = {MkStop(0, "hud.accent", 1), MkStop(1, "hud.accent", 0)};
+            g_gradTokens.push_back(t); gn[0] = 0; g_dirty = true;
+        }
+        ImGui::EndDisabled();
+        ImGui::TreePop();
     }
     // repeated colours -> tokens: elements (every layout, the menus, templates) with the same colour as their own,
     // white images left out (white = the texture as it is)
@@ -1260,24 +1407,33 @@ static void TokensPanel() {
         ImGui::TreePop();
     }
 }
-// A gradient's stops on a bar: click a stop to pick it, drag it along, click the bar to add one (its colour there),
-// the picked one's colour / opacity / location below. Presets for the common ones.
-static bool GradientEdit(const char* id, shapes::Gradient& g, const float baseCol[4]) {
+// A gradient's stops on a bar: click a stop to pick it, drag it along, click the bar to add one (its colour there);
+// the picked one's colour (or colour token) / opacity / location below.
+static bool StopsEdit(const char* id, std::vector<UStop>& stops, const float baseCol[4], const char* baseTok) {
     bool ch = false;
     ImGui::PushID(id);
     static std::map<std::string, int> picked;   // the picked stop per bar
-    int& sel = picked[std::string(id) + "@" + std::to_string((uintptr_t)&g)];
-    if (g.stops.size() < 2) { g.stops = {{0, baseCol[0], baseCol[1], baseCol[2], baseCol[3]}, {1, baseCol[0], baseCol[1], baseCol[2], 0}}; ch = true; }
-    sel = std::max(0, std::min((int)g.stops.size() - 1, sel));
-    auto at = [&](float t, float c[4]) {   // the colour at t
-        const auto& s = g.stops;
-        if (t <= s.front()[0]) { for (int i = 0; i < 4; ++i) c[i] = s.front()[1 + i]; return; }
-        if (t >= s.back()[0]) { for (int i = 0; i < 4; ++i) c[i] = s.back()[1 + i]; return; }
-        for (size_t j = 0; j + 1 < s.size(); ++j) if (t >= s[j][0] && t <= s[j + 1][0]) {
-            float sp = s[j + 1][0] - s[j][0], f = sp > 1e-6f ? (t - s[j][0]) / sp : 0;
-            for (int i = 0; i < 4; ++i) c[i] = s[j][1 + i] + (s[j + 1][1 + i] - s[j][1 + i]) * f;
+    std::string me = std::string(id) + "@" + std::to_string((uintptr_t)&stops);
+    int& sel = picked[me];
+    if (stops.size() < 2) { stops = {MkStop(0, baseTok, baseCol[3], baseCol[0], baseCol[1], baseCol[2]), MkStop(1, baseTok, 0, baseCol[0], baseCol[1], baseCol[2])}; ch = true; }
+    sel = std::max(0, std::min((int)stops.size() - 1, sel));
+    auto colourAt = [&](float t, float c[4]) {   // as drawn (colour tokens now)
+        float a[4], b[4];
+        if (t <= stops.front().t) { StopColour(stops.front(), c); return; }
+        if (t >= stops.back().t) { StopColour(stops.back(), c); return; }
+        for (size_t j = 0; j + 1 < stops.size(); ++j) if (t >= stops[j].t && t <= stops[j + 1].t) {
+            StopColour(stops[j], a); StopColour(stops[j + 1], b);
+            float sp = stops[j + 1].t - stops[j].t, f = sp > 1e-6f ? (t - stops[j].t) / sp : 0;
+            for (int i = 0; i < 4; ++i) c[i] = a[i] + (b[i] - a[i]) * f;
             return;
         }
+        StopColour(stops.back(), c);
+    };
+    auto resort = [&](int& keepIdx) {   // sorted again, keepIdx following its stop
+        if (keepIdx < 0 || keepIdx >= (int)stops.size()) { SortStops(stops); return; }
+        UStop keep = stops[keepIdx];
+        SortStops(stops);
+        for (int i = 0; i < (int)stops.size(); ++i) if (stops[i].t == keep.t && stops[i].tok == keep.tok && !memcmp(stops[i].c, keep.c, sizeof keep.c)) { keepIdx = i; break; }
     };
     float W = 300, H = 18, hs = 7;
     ImVec2 p0 = ImGui::GetCursorScreenPos();
@@ -1285,70 +1441,113 @@ static bool GradientEdit(const char* id, shapes::Gradient& g, const float baseCo
     for (int cx = 0; cx * 6 < W; ++cx) for (int cy = 0; cy * 6 < H; ++cy)   // checker under the colours
         dl->AddRectFilled(ImVec2(p0.x + cx * 6, p0.y + cy * 6), ImVec2(std::min(p0.x + W, p0.x + cx * 6 + 6), std::min(p0.y + H, p0.y + cy * 6 + 6)), ((cx + cy) & 1) ? IM_COL32(200, 200, 200, 255) : IM_COL32(140, 140, 140, 255));
     for (int i = 0; i < 60; ++i) {
-        float c0[4], c1[4]; at(i / 60.f, c0); at((i + 1) / 60.f, c1);
-        ImU32 a = ImGui::ColorConvertFloat4ToU32(ImVec4(c0[0], c0[1], c0[2], c0[3])), b = ImGui::ColorConvertFloat4ToU32(ImVec4(c1[0], c1[1], c1[2], c1[3]));
-        dl->AddRectFilledMultiColor(ImVec2(p0.x + W * i / 60, p0.y), ImVec2(p0.x + W * (i + 1) / 60, p0.y + H), a, b, b, a);
+        float c0[4], c1[4]; colourAt(i / 60.f, c0); colourAt((i + 1) / 60.f, c1);
+        ImU32 ca = ImGui::ColorConvertFloat4ToU32(ImVec4(c0[0], c0[1], c0[2], c0[3])), cb = ImGui::ColorConvertFloat4ToU32(ImVec4(c1[0], c1[1], c1[2], c1[3]));
+        dl->AddRectFilledMultiColor(ImVec2(p0.x + W * i / 60, p0.y), ImVec2(p0.x + W * (i + 1) / 60, p0.y + H), ca, cb, cb, ca);
     }
     dl->AddRect(p0, ImVec2(p0.x + W, p0.y + H), IM_COL32(0, 0, 0, 160));
-    for (int i = 0; i < (int)g.stops.size(); ++i) {   // the stops: little houses under the bar
-        float x = p0.x + g.stops[i][0] * W, y = p0.y + H + 1;
-        ImU32 fillc = ImGui::ColorConvertFloat4ToU32(ImVec4(g.stops[i][1], g.stops[i][2], g.stops[i][3], 1));
+    for (int i = 0; i < (int)stops.size(); ++i) {   // the stops: little houses under the bar
+        float x = p0.x + stops[i].t * W, y = p0.y + H + 1, c[4]; StopColour(stops[i], c);
         ImVec2 pts[5] = {ImVec2(x, y), ImVec2(x + hs, y + hs), ImVec2(x + hs, y + 2 * hs), ImVec2(x - hs, y + 2 * hs), ImVec2(x - hs, y + hs)};
-        dl->AddConvexPolyFilled(pts, 5, fillc);
+        dl->AddConvexPolyFilled(pts, 5, ImGui::ColorConvertFloat4ToU32(ImVec4(c[0], c[1], c[2], 1)));
         dl->AddPolyline(pts, 5, i == sel ? IM_COL32(255, 255, 255, 255) : IM_COL32(0, 0, 0, 200), ImDrawFlags_Closed, i == sel ? 2.f : 1.f);
+        if (!stops[i].tok.empty()) dl->AddCircleFilled(ImVec2(x, y + 1.6f * hs), 2, IM_COL32(0, 0, 0, 220));   // (a dot: a colour token)
     }
     ImGui::InvisibleButton("bar", ImVec2(W, H + 2 * hs + 2));
     static int dragging = -1; static std::string dragFor;
-    std::string me = std::string(id) + "@" + std::to_string((uintptr_t)&g);
     if (ImGui::IsItemActivated()) {
         float mx = ImGui::GetIO().MousePos.x - p0.x, my = ImGui::GetIO().MousePos.y - p0.y;
         int hit = -1; float bd = hs + 2;
-        for (int i = 0; i < (int)g.stops.size(); ++i) { float d = fabsf(g.stops[i][0] * W - mx); if (d < bd && my > H - 2) { bd = d; hit = i; } }
-        if (hit < 0 && my <= H) {   // a new stop with the colour there
-            float t = Clamp01f(mx / W), c[4]; at(t, c);
-            g.stops.push_back({t, c[0], c[1], c[2], c[3]});
-            std::sort(g.stops.begin(), g.stops.end(), [](const std::array<float, 5>& a, const std::array<float, 5>& b) { return a[0] < b[0]; });
-            for (int i = 0; i < (int)g.stops.size(); ++i) if (g.stops[i][0] == t) hit = i;
-            ch = true;
+        for (int i = 0; i < (int)stops.size(); ++i) { float d = fabsf(stops[i].t * W - mx); if (d < bd && my > H - 2) { bd = d; hit = i; } }
+        if (hit < 0 && my <= H) {   // a new stop with the colour there (the token of its neighbour, if both sides share one)
+            float t = Clamp01f(mx / W), c[4]; colourAt(t, c);
+            UStop ns; ns.t = t; memcpy(ns.c, c, sizeof c);
+            for (size_t j = 0; j + 1 < stops.size(); ++j)
+                if (t >= stops[j].t && t <= stops[j + 1].t && !stops[j].tok.empty() && stops[j].tok == stops[j + 1].tok) {
+                    ns.tok = stops[j].tok;
+                    float sp = stops[j + 1].t - stops[j].t, f = sp > 1e-6f ? (t - stops[j].t) / sp : 0;
+                    ns.c[3] = stops[j].c[3] + (stops[j + 1].c[3] - stops[j].c[3]) * f;
+                }
+            stops.push_back(ns); hit = (int)stops.size() - 1; resort(hit); ch = true;
         }
         if (hit >= 0) { sel = hit; dragging = hit; dragFor = me; }
     }
-    if (ImGui::IsItemActive() && dragging >= 0 && dragFor == me && dragging < (int)g.stops.size()) {
+    if (ImGui::IsItemActive() && dragging >= 0 && dragFor == me && dragging < (int)stops.size()) {
         float t = Clamp01f((ImGui::GetIO().MousePos.x - p0.x) / W);
-        if (t != g.stops[dragging][0]) {
-            g.stops[dragging][0] = t;
-            auto keep = g.stops[dragging];   // (sorted again, the picked one followed)
-            std::sort(g.stops.begin(), g.stops.end(), [](const std::array<float, 5>& a, const std::array<float, 5>& b) { return a[0] < b[0]; });
-            for (int i = 0; i < (int)g.stops.size(); ++i) if (g.stops[i] == keep) { dragging = sel = i; break; }
-            ch = true;
-        }
+        if (t != stops[dragging].t) { stops[dragging].t = t; resort(dragging); sel = dragging; ch = true; }
     }
     if (ImGui::IsItemDeactivated() && dragFor == me) dragging = -1;
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Click a stop to pick it, drag it along; click the bar to add a stop.");
-    auto& st = g.stops[sel];
-    float c[4] = {st[1], st[2], st[3], st[4]};
-    if (ImGui::ColorEdit4("##stopc", c, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) { for (int i = 0; i < 4; ++i) st[1 + i] = c[i]; ch = true; }
-    ImGui::SameLine(); ImGui::SetNextItemWidth(70);
-    float op = st[4] * 100;
-    if (ImGui::DragFloat("opacity", &op, 0.5f, 0.f, 100.f, "%.0f%%")) { st[4] = Clamp01f(op / 100); ch = true; }
-    ImGui::SameLine(); ImGui::SetNextItemWidth(70);
-    float loc = st[0] * 100;
-    if (ImGui::DragFloat("location", &loc, 0.2f, 0.f, 100.f, "%.1f%%")) {
-        st[0] = Clamp01f(loc / 100); auto keep = st;
-        std::sort(g.stops.begin(), g.stops.end(), [](const std::array<float, 5>& a, const std::array<float, 5>& b) { return a[0] < b[0]; });
-        for (int i = 0; i < (int)g.stops.size(); ++i) if (g.stops[i] == keep) sel = i;
-        ch = true;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Click a stop to pick it, drag it along; click the bar to add a stop. A dot = the stop uses a colour token.");
+    UStop& st = stops[sel];
+    if (st.tok.empty()) {
+        if (ImGui::ColorEdit4("##stopc", st.c, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) ch = true;
+    } else if (ColorToken* t = TokenOf(st.tok)) TokenSwatch(*t);
+    ImGui::SameLine(); ImGui::SetNextItemWidth(120);
+    if (ImGui::BeginCombo("##stoptok", st.tok.empty() ? "own colour" : st.tok.c_str())) {
+        if (ImGui::Selectable("own colour", st.tok.empty()) && !st.tok.empty()) { StopColour(st, st.c); st.tok.clear(); ch = true; }   // (keeps what it shows)
+        for (auto& o : g_tokens) {
+            TokenSwatch(o, ImGui::GetTextLineHeight()); ImGui::SameLine();
+            if (ImGui::Selectable(o.name.c_str(), st.tok == o.name)) { st.tok = o.name; ch = true; }
+            if (ImGui::IsItemHovered() && !o.label.empty()) ImGui::SetTooltip("%s", o.label.c_str());
+        }
+        ImGui::EndCombo();
     }
-    ImGui::SameLine(); ImGui::BeginDisabled(g.stops.size() <= 2);
-    if (ImGui::SmallButton("delete stop")) { g.stops.erase(g.stops.begin() + sel); sel = std::max(0, sel - 1); ch = true; }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The stop's colour: its own, or a colour token's (it follows the token; the opacity is the stop's).");
+    ImGui::SameLine(); ImGui::SetNextItemWidth(70);
+    float op = st.c[3] * 100;
+    if (ImGui::DragFloat("opacity", &op, 0.5f, 0.f, 100.f, "%.0f%%")) { st.c[3] = Clamp01f(op / 100); ch = true; }
+    ImGui::SameLine(); ImGui::SetNextItemWidth(70);
+    float loc = st.t * 100;
+    if (ImGui::DragFloat("location", &loc, 0.2f, 0.f, 100.f, "%.1f%%")) { st.t = Clamp01f(loc / 100); resort(sel); ch = true; }
+    ImGui::SameLine(); ImGui::BeginDisabled(stops.size() <= 2);
+    if (ImGui::SmallButton("delete stop")) { stops.erase(stops.begin() + sel); sel = std::max(0, sel - 1); ch = true; }
     ImGui::EndDisabled();
-    ImGui::SameLine(); if (ImGui::SmallButton("reverse")) { for (auto& s2 : g.stops) s2[0] = 1 - s2[0]; std::reverse(g.stops.begin(), g.stops.end()); ch = true; }
-    ImGui::SameLine();
-    if (ImGui::SmallButton("glow")) {   // clear -> solid -> clear, like a soft line
-        float r = baseCol[0], gg = baseCol[1], b = baseCol[2];
-        g.stops = {{0, r, gg, b, 0}, {0.4f, r, gg, b, 1}, {0.51f, r, gg, b, 1}, {1, r, gg, b, 0}}; sel = 1; ch = true;
+    ImGui::SameLine(); if (ImGui::SmallButton("reverse")) { for (auto& s2 : stops) s2.t = 1 - s2.t; std::reverse(stops.begin(), stops.end()); ch = true; }
+    ImGui::PopID();
+    if (ch) g_dirty = true;
+    return ch;
+}
+// a shape's gradient: its own stops or a gradient token's (then the bar edits the token, for every shape using it)
+static bool GradientEdit(const char* id, UGrad& g, const float baseCol[4], const char* baseTok) {
+    bool ch = false;
+    ImGui::PushID(id);
+    if (g_gradTokens.empty()) GradBuiltIns();
+    GradToken* t = g.tok.empty() ? nullptr : GradTokenOf(g.tok);
+    ImGui::SetNextItemWidth(170);
+    if (ImGui::BeginCombo("##gtok", t ? t->name.c_str() : g.tok.empty() ? "own stops" : (g.tok + " (missing)").c_str())) {
+        if (ImGui::Selectable("own stops", g.tok.empty()) && !g.tok.empty()) { if (t) g.stops = t->stops; g.tok.clear(); ch = true; }   // (a copy to change)
+        for (auto& o : g_gradTokens) {
+            if (ImGui::Selectable(o.name.c_str(), g.tok == o.name)) { g.tok = o.name; ch = true; }
+            if (ImGui::IsItemHovered() && !o.label.empty()) ImGui::SetTooltip("%s", o.label.c_str());
+        }
+        ImGui::EndCombo();
     }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Clear -> solid -> clear in the shape's colour (a soft glowing line across a wide stroke).");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A gradient token: named stops shared by every shape that uses it (Colour tokens > Gradient tokens).");
+    t = g.tok.empty() ? nullptr : GradTokenOf(g.tok);
+    if (t) {
+        int u = GradTokenUses(t->name);
+        ImGui::SameLine(); ImGui::TextDisabled("editing %s: %d use%s", t->name.c_str(), u, u == 1 ? "" : "s");
+        if (StopsEdit("stops", t->stops, baseCol, baseTok)) ch = true;
+    } else {
+        static char nb[48] = "";
+        ImGui::SameLine(); ImGui::SetNextItemWidth(120); ImGui::InputTextWithHint("##gname", "my.gradient", nb, sizeof nb);
+        std::string n = nb; n.erase(std::remove_if(n.begin(), n.end(), [](char c) { return c == ' ' || c == ';' || c == '|'; }), n.end());
+        ImGui::SameLine(); ImGui::BeginDisabled(n.empty() || GradTokenOf(n) || g.stops.size() < 2);
+        if (ImGui::SmallButton("save as token")) {
+            GradToken nt; nt.name = n; nt.stops = nt.def = g.stops; g_gradTokens.push_back(nt);
+            g.tok = n; nb[0] = 0; ch = true;
+        }
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("These stops become a gradient token other shapes can use too.");
+        if (StopsEdit("stops", g.stops, baseCol, baseTok)) ch = true;
+        ImGui::SameLine();
+        if (ImGui::SmallButton("glow")) {   // clear -> solid -> clear in the shape's colour (its token, if it has one)
+            g.stops = {MkStop(0, baseTok, 0, baseCol[0], baseCol[1], baseCol[2]), MkStop(0.4f, baseTok, 1, baseCol[0], baseCol[1], baseCol[2]),
+                       MkStop(0.51f, baseTok, 1, baseCol[0], baseCol[1], baseCol[2]), MkStop(1, baseTok, 0, baseCol[0], baseCol[1], baseCol[2])};
+            ch = true;
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Clear -> solid -> clear in the shape's colour, following its colour token if it has one\n(a soft glowing line across a wide stroke). The hud.glow token is the same in HUD green.");
+    }
     ImGui::PopID();
     if (ch) g_dirty = true;
     return ch;
@@ -1377,7 +1576,7 @@ static void ShapeProps(Elem& e) {
             ImGui::SetNextItemWidth(150); if (ImGui::Combo("stroke gradient", &e.strokeGrad.mode, sm, 3)) g_dirty = true;
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Across: from the stroke's outer side to its inner side, following the curve of the corners.\nAlong: around the outline, clockwise from the top-left (start offset turns where it begins).");
             if (e.strokeGrad.mode == 2) { ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("start", &e.strokeGrad.angle, 0.5f, -360.f, 360.f, "%.0f deg")) g_dirty = true; }
-            if (e.strokeGrad.mode) GradientEdit("sgrad", e.strokeGrad, e.col);
+            if (e.strokeGrad.mode) GradientEdit("sgrad", e.strokeGrad, e.col, e.colTok.empty() ? nullptr : e.colTok.c_str());
         }
         TokenColourEdit("fill colour", e.fillCol, e.fillTok, e.fillTokA);
         {
@@ -1386,7 +1585,7 @@ static void ShapeProps(Elem& e) {
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Linear: across the shape at an angle. Radial: centre to edge.\nFrom the edge: inward from the edge over a depth, following the curve (an inner glow / bevel).\nThe fill colour's opacity still applies.");
             if (e.fillGrad.mode == 1) { ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("angle", &e.fillGrad.angle, 0.5f, -360.f, 360.f, "%.0f deg")) g_dirty = true; }
             if (e.fillGrad.mode == 3) { ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("depth", &e.fillGrad.depth, 0.1f, 0.5f, 500.f, "%.1f")) g_dirty = true; }
-            if (e.fillGrad.mode) { float fc[4] = {e.fillCol[0], e.fillCol[1], e.fillCol[2], 1}; GradientEdit("fgrad", e.fillGrad, fc); }
+            if (e.fillGrad.mode) { float fc[4] = {e.fillCol[0], e.fillCol[1], e.fillCol[2], 1}; GradientEdit("fgrad", e.fillGrad, fc, e.fillTok.empty() ? nullptr : e.fillTok.c_str()); }
         }
         int cutters = 0;
         for (auto& o : Elems()) if (o.type == E_SHAPE && o.cut && (o.cutTarget.empty() ? o.group == e.group : o.cutTarget == e.name)) ++cutters;
@@ -1422,11 +1621,12 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
         if (!e.fillTok.empty()) fprintf(f, "filltoken=%s %g\n", e.fillTok.c_str(), e.fillTokA);
         if (e.cut) fprintf(f, "cut=%g;%s\n", e.cutGap, Esc(e.cutTarget).c_str());
         if (e.strokeAlign) fprintf(f, "strokealign=%d\n", e.strokeAlign);
-        auto grad = [&](const char* key, const shapes::Gradient& g) {   // "mode angle depth;t r g b a;..."
+        auto grad = [&](const char* key, const UGrad& g) {   // "mode angle depth;t r g b a[@token];...", its gradient token on its own line
             if (!g.mode) return;
             fprintf(f, "%s=%d %g %g", key, g.mode, g.angle, g.depth);
-            for (auto& st : g.stops) fprintf(f, ";%g %g %g %g %g", st[0], st[1], st[2], st[3], st[4]);
+            for (auto& st : g.stops) fprintf(f, ";%s", StopText(st).c_str());
             fprintf(f, "\n");
+            if (!g.tok.empty()) fprintf(f, "%stoken=%s\n", key, g.tok.c_str());
         };
         grad("strokegrad", e.strokeGrad); grad("fillgrad", e.fillGrad);
     } else fprintf(f, "font=%s\ntext=%s\nalign=%d\n", e.font.c_str(), Esc(e.text).c_str(), e.align);
@@ -1465,6 +1665,7 @@ static void Save() {
     fprintf(f, "# NFSU2 overlay (UI editor): one layout per game mode\nshow=%d\nboardrows=%d\nboardfollow=%d\nlistheight=%d\nhighlightsel=%d\n", g_show ? 1 : 0, boardRows, boardFollow ? 1 : 0, (int)g_listH, g_hiSel ? 1 : 0);
     for (auto& fd : g_flagDefs) fprintf(f, "flagdef=%s %d\n", fd.key.c_str(), fd.hideMissing ? 1 : 0);
     for (auto& t : g_tokens) if (!t.builtIn || TokenModified(t)) fprintf(f, "token=%s\n", TokenLine(t).c_str());
+    for (auto& t : g_gradTokens) if (!t.builtIn || !SameStops(t.stops, t.def)) fprintf(f, "gradtoken=%s\n", GradTokenLine(t).c_str());
     int total = 0;
     auto put = [&](int m, const Elem& e) { ++total; PutElem(f, m, e); };
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
@@ -1482,16 +1683,19 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "filltoken") { char n[64] = {}; float a = 1; if (sscanf(v.c_str(), "%63s %f", n, &a) >= 1) { e.fillTok = n; e.fillTokA = a; } }
     else if (k == "strokealign") e.strokeAlign = std::max(0, std::min(2, atoi(v.c_str())));
     else if (k == "strokegrad" || k == "fillgrad") {
-        shapes::Gradient g; size_t p = v.find(';');
+        UGrad& g = k == "strokegrad" ? e.strokeGrad : e.fillGrad;
+        std::string tok = g.tok; g = UGrad(); g.tok = tok;   // (its token line may come first or after)
+        size_t p = v.find(';');
         sscanf(v.c_str(), "%d %f %f", &g.mode, &g.angle, &g.depth);
         while (p != std::string::npos) {
-            std::array<float, 5> st{}; size_t q = v.find(';', p + 1);
-            if (sscanf(v.c_str() + p + 1, "%f %f %f %f %f", &st[0], &st[1], &st[2], &st[3], &st[4]) == 5) g.stops.push_back(st);
+            size_t q = v.find(';', p + 1);
+            UStop st; if (StopParse(v.substr(p + 1, q == std::string::npos ? std::string::npos : q - p - 1), st)) g.stops.push_back(st);
             p = q;
         }
-        std::sort(g.stops.begin(), g.stops.end(), [](const std::array<float, 5>& a, const std::array<float, 5>& b) { return a[0] < b[0]; });
-        (k == "strokegrad" ? e.strokeGrad : e.fillGrad) = g;
+        SortStops(g.stops);
     }
+    else if (k == "strokegradtoken") e.strokeGrad.tok = v;
+    else if (k == "fillgradtoken") e.fillGrad.tok = v;
     else if (k == "cut") { e.cut = true; size_t sc = v.find(';'); e.cutGap = (float)atof(v.c_str()); e.cutTarget = sc == std::string::npos ? "" : Unesc(v.substr(sc + 1)); }
     else if (k == "name") e.name = Unesc(v);
     else if (k == "anchor") e.anchor = std::max(0, std::min(8, atoi(v.c_str())));
@@ -1552,6 +1756,7 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
         if (msect) { LoadMenuKey(msect, k, v); continue; }
         if (!cur) {
             if (k == "token") { ColorToken t; if (TokenParse(v, t) && (!merge || !TokenOf(t.name))) TokenLoad(t); continue; }   // (an import adds its missing ones)
+            if (k == "gradtoken") { GradToken t; if (GradTokenParse(v, t) && (!merge || !GradTokenOf(t.name))) GradTokenLoad(t); continue; }
             if (merge) continue;
             if (k == "show") g_show = atoi(v.c_str()) != 0;
             else if (k == "highlightsel") g_hiSel = atoi(v.c_str()) != 0;
@@ -1620,9 +1825,15 @@ static bool SavePrefab(const std::string& group, std::string name) {
     fprintf(f, "# NFSU2_REUI prefab\nroot=%s\n", Esc(group).c_str());
     {   // the tokens its elements use that aren't built in (added where they're missing when the prefab is added)
         std::vector<std::string> used;
-        for (auto& e : Elems()) if (e.group == group || InGroup(e.group, group))
-            for (const std::string* n : {&e.colTok, &e.hiTok, &e.fillTok}) if (!n->empty() && std::find(used.begin(), used.end(), *n) == used.end()) used.push_back(*n);
+        std::vector<std::string> grads;
+        auto use = [&](std::vector<std::string>& v, const std::string& n) { if (!n.empty() && std::find(v.begin(), v.end(), n) == v.end()) v.push_back(n); };
+        for (auto& e : Elems()) if (e.group == group || InGroup(e.group, group)) {
+            for (const std::string* n : {&e.colTok, &e.hiTok, &e.fillTok}) use(used, *n);
+            for (const UGrad* g : {&e.strokeGrad, &e.fillGrad}) { use(grads, g->tok); for (auto& st : g->stops) use(used, st.tok); }
+        }
+        for (auto& n : grads) if (GradToken* t = GradTokenOf(n)) for (auto& st : t->stops) use(used, st.tok);
         for (auto& n : used) if (ColorToken* t = TokenOf(n)) if (!t->builtIn) fprintf(f, "token=%s\n", TokenLine(*t).c_str());
+        for (auto& n : grads) if (GradToken* t = GradTokenOf(n)) if (!t->builtIn) fprintf(f, "gradtoken=%s\n", GradTokenLine(*t).c_str());
     }
     int n = 0;
     for (auto& e : Elems()) if (e.group == group || InGroup(e.group, group)) { PutElem(f, g_editMode, e); ++n; }
@@ -1655,8 +1866,9 @@ static std::vector<std::string> PrefabList() {   // built-in ones and the files 
     return out;
 }
 static std::vector<ColorToken> g_prefabTokens;   // the last parsed prefab's own tokens
+static std::vector<GradToken> g_prefabGrads;
 static void ParsePrefab(const std::string& text, std::string& root, std::vector<Elem>& els) {
-    g_prefabTokens.clear();
+    g_prefabTokens.clear(); g_prefabGrads.clear();
     Elem* cur = nullptr;
     size_t at = 0;
     while (at < text.size()) {
@@ -1667,7 +1879,12 @@ static void ParsePrefab(const std::string& text, std::string& root, std::vector<
         if (s == "[element]") { els.push_back(Elem()); cur = &els.back(); continue; }
         size_t eq = s.find('='); if (eq == std::string::npos) continue;
         std::string k = s.substr(0, eq), v = s.substr(eq + 1);
-        if (!cur) { if (k == "root") root = Unesc(v); else if (k == "token") { ColorToken t; if (TokenParse(v, t)) g_prefabTokens.push_back(t); } continue; }
+        if (!cur) {
+            if (k == "root") root = Unesc(v);
+            else if (k == "token") { ColorToken t; if (TokenParse(v, t)) g_prefabTokens.push_back(t); }
+            else if (k == "gradtoken") { GradToken t; if (GradTokenParse(v, t)) g_prefabGrads.push_back(t); }
+            continue;
+        }
         ElemKey(*cur, k, v);
     }
 }
@@ -1696,6 +1913,7 @@ static void AddPrefab(const std::string& name) {
     if (!LoadPrefab(name, root, els)) { g_prefabMsg = "couldn't read " + name; return; }
     if (els.empty()) { g_prefabMsg = "\"" + name + "\" is empty"; return; }
     for (auto& t : g_prefabTokens) if (!TokenOf(t.name)) TokenLoad(t);   // its tokens this layout doesn't have yet
+    for (auto& t : g_prefabGrads) if (!GradTokenOf(t.name)) GradTokenLoad(t);
     std::string base = name, top = base;   // a free top-level group name
     auto taken = [&](const std::string& g) { for (auto& e : Elems()) if (e.group == g || InGroup(e.group, g)) return true; return false; };
     for (int i = 2; taken(top); ++i) top = base + " " + std::to_string(i);
