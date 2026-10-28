@@ -357,7 +357,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 e.x = w.gx + (e.x - w.gx) * sx + ox;
                 e.y = w.gy + (e.y - w.gy) * sy + oy + scrollDy;
                 if (e.type == E_IMAGE) { e.w *= sx; e.h *= sy; }
-                else { e.scale *= std::min(sx, sy); if (e.w > 0) e.w *= sx; }
+                else { if (e.w > 0) e.w *= sx; }   // (text keeps its size)
                 if (e.type == E_TEXT) {
                     auto put = [&](const char* tok, const std::string& v) { for (size_t k; (k = e.text.find(tok)) != std::string::npos;) e.text.replace(k, strlen(tok), v); };
                     if (e.role == "label" && e.text.find('{') == std::string::npos) e.text = it.label;
@@ -394,7 +394,7 @@ static void GridEachCell(Widget& w, const Elem* piece, const std::function<void(
             if (piece) {
                 Elem e = *piece;
                 e.x = w.gx + (e.x - w.gx) * sx + ox; e.y = w.gy + (e.y - w.gy) * sy + oy;
-                if (e.type != E_TEXT) { e.w *= sx; e.h *= sy; } else { e.scale *= std::min(sx, sy); if (e.w > 0) e.w *= sx; }
+                if (e.type != E_TEXT) { e.w *= sx; e.h *= sy; } else { if (e.w > 0) e.w *= sx; }   // (text keeps its size)
                 ElemRect(e, a, b);
             } else {
                 Elem box; box.type = E_IMAGE; box.anchor = anchor; box.w = cw; box.h = ch;
@@ -987,7 +987,7 @@ static void GridResize(Widget& w, float ngw, float ngh, int ncols, int nrows, fl
         }
         e.x = ngx + (e.x - w.gx) * kx; e.y = w.gy + (e.y - w.gy) * ky;
         if (kx == 1.f && ky == 1.f) continue;
-        if (e.type == E_TEXT) { e.scale *= std::min(kx, ky); if (e.w > 0) e.w *= kx; }
+        if (e.type == E_TEXT) { if (e.w > 0) e.w *= kx; }   // (text keeps its size: only its place and box width follow the tile)
         else {
             e.w *= kx; e.h *= ky;
             if (e.type == E_SHAPE) { float kr = std::min(kx, ky); for (float& r : e.rad) r *= kr; }
