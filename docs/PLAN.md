@@ -52,6 +52,15 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   in through REUI_AddMapMarkers, and it stops drawing its own arrows while REUI_MinimapShown.
   *Future:* zoom out with speed; a north-up setting on the element whatever the game's option (its arrow turns
   instead). Not yet: the start-line / checkpoint ring (types 1-2 and TrackMapTargetRing are drawn elsewhere).
+- **Colour tokens (built 2026-10-27).** Elements can take their colour (and my-row colour) from a named token
+  instead of a literal: `colortoken=<name> <opacity>` (the resolved `color=` is still saved for older builds).
+  Built in: the game's HUD palette (hud.text, hud.accent, hud.accent_soft, hud.line, hud.shade, hud.orange,
+  hud.red, hud.bright_green) and live ones (car.paint1-3 = tach_paint_N). A token can follow any live value giving
+  "R G B". Layout header `token=<name>;<r g b a>;<live>;<label>` (built-ins only when changed); prefabs carry the
+  tokens they use. Editor: token picker on every element's colour, a Colour tokens table (edit, live value, uses,
+  reset / delete), and "Repeated colours" to turn repeated literal colours into tokens in one click. Mods:
+  REUI_SetColorToken. Resolved once per frame before drawing (menus' selected-row colours still apply on top).
+  The built-in prefabs use them. *Later:* theme files (a token set to switch: stock, high contrast, colour-blind).
 - **P5 distribution (later, once REUI is ready).** Light builds of REUI ship with the other mods: a renderer
   without the editor or HUD replacement, which carries the pages built in REUI (decided 2026-10-26).
   - **UniPad:** renders and drives the UniPad pause-menu pages. Option to look at: bake the pages into

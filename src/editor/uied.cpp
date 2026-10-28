@@ -437,6 +437,10 @@ struct Elem {
     // mods' markers on it; mapZoom multiplies the game's zoom, mapBlip the icons' size; mapPlayer: the player's icon
     bool minimap = false, mapPlayer = true;
     float mapZoom = 1, mapBlip = 1;
+    // colour tokens: the colour (and my-row colour) taken from a named token every frame, times an opacity of its own;
+    // col / hiCol then hold the resolved colour (saved too, so a build without tokens still shows it)
+    std::string colTok, hiTok;
+    float colTokA = 1, hiTokA = 1;
 };
 struct FlagDef { std::string key, label, tip; int group = 0; bool hideMissing = false, live = false; std::function<bool()> hide; };
 static std::vector<FlagDef> g_flagDefs;   // registered ones (live) and ones known from the layout file
@@ -957,6 +961,238 @@ static int LoadMenuSection(const std::string& s);
 static bool LoadMenuKey(int sect, const std::string& k, const std::string& v);
 static void LoadMenuEnd();
 static std::vector<Elem> g_kit;                     // widget-kit template elements (kit = template name, y relative to the row)
+// ---------------------------------------------------------------- colour tokens
+// A token is a colour by its role ("hud.accent"): elements that use it follow it, so a look is changed in one place.
+// Built-in ones are the game's own HUD palette; a token can also follow a live value giving "R G B" (0-255, as
+// tint keys do: the car's HUD paints). Other mods register theirs (REUI_SetColorToken). Saved in the layout as
+// token=<name>;<r g b a>;<live key>;<label> (built-in ones only when changed).
+struct ColorToken {
+    std::string name, label, live;
+    float col[4] = {1, 1, 1, 1}, def[4] = {1, 1, 1, 1};
+    std::string defLive;
+    bool builtIn = false, fromMod = false;
+    float now[4] = {1, 1, 1, 1};   // this frame's colour (live value applied)
+};
+static std::vector<ColorToken> g_tokens;
+static ColorToken* TokenOf(const std::string& n) { for (auto& t : g_tokens) if (t.name == n) return &t; return nullptr; }
+static void TokenDefine(const std::string& n, const std::string& label, float r, float g, float b, float a, const std::string& live, bool builtIn, bool fromMod) {
+    ColorToken* t = TokenOf(n);
+    bool fresh = !t;
+    if (fresh) { g_tokens.push_back(ColorToken()); t = &g_tokens.back(); t->name = n; }
+    t->label = label; t->def[0] = r; t->def[1] = g; t->def[2] = b; t->def[3] = a; t->defLive = live;
+    t->builtIn |= builtIn; t->fromMod |= fromMod;
+    if (fresh) { memcpy(t->col, t->def, sizeof t->col); t->live = live; memcpy(t->now, t->col, sizeof t->now); }
+}
+static void TokenBuiltIns() {
+    TokenDefine("hud.text", "HUD text grey (192 192 192)", 0.7529f, 0.7529f, 0.7529f, 1, "", true, false);
+    TokenDefine("hud.accent", "HUD green: the game's player colour (202 244 138)", 0.7922f, 0.9569f, 0.5412f, 1, "", true, false);
+    TokenDefine("hud.accent_soft", "HUD pale green (197 218 165)", 0.7725f, 0.8549f, 0.6471f, 1, "", true, false);
+    TokenDefine("hud.line", "lines and dividers (225 225 225)", 0.8824f, 0.8824f, 0.8824f, 1, "", true, false);
+    TokenDefine("hud.shade", "dark panels (black; elements give the opacity)", 0, 0, 0, 1, "", true, false);
+    TokenDefine("hud.orange", "HUD orange: minimap markers, north (207 128 48)", 0.8118f, 0.502f, 0.1882f, 1, "", true, false);
+    TokenDefine("hud.red", "tach redline red (117 11 11)", 0.4588f, 0.0431f, 0.0431f, 1, "", true, false);
+    TokenDefine("hud.bright_green", "bright green (99 178 34)", 0.3882f, 0.698f, 0.1333f, 1, "", true, false);
+    for (int i = 1; i <= 3; ++i)
+        TokenDefine("car.paint" + std::to_string(i), "the car's HUD paint " + std::to_string(i) + " (live: tach_paint_" + std::to_string(i) + ")", 1, 1, 1, 1, "tach_paint_" + std::to_string(i), true, false);
+}
+static bool TokenModified(const ColorToken& t) { return memcmp(t.col, t.def, sizeof t.col) != 0 || t.live != t.defLive; }
+static std::string TokenLine(const ColorToken& t) {
+    char b[96]; snprintf(b, sizeof b, "%g %g %g %g", t.col[0], t.col[1], t.col[2], t.col[3]);
+    std::string lab = t.label; for (char& c : lab) if (c == ';' || c == '\n' || c == '\r') c = ',';
+    return t.name + ";" + b + ";" + t.live + ";" + lab;
+}
+static bool TokenParse(const std::string& v, ColorToken& t) {   // "name;r g b a;live;label"
+    size_t a = v.find(';'); if (a == std::string::npos || a == 0) return false;
+    size_t b = v.find(';', a + 1), c = b == std::string::npos ? std::string::npos : v.find(';', b + 1);
+    t.name = v.substr(0, a);
+    std::string cs = v.substr(a + 1, b == std::string::npos ? std::string::npos : b - a - 1);
+    if (sscanf(cs.c_str(), "%f %f %f %f", &t.col[0], &t.col[1], &t.col[2], &t.col[3]) != 4) return false;
+    t.live = b == std::string::npos ? "" : v.substr(b + 1, c == std::string::npos ? std::string::npos : c - b - 1);
+    t.label = c == std::string::npos ? "" : v.substr(c + 1);
+    return true;
+}
+static void TokenLoad(const ColorToken& in) {   // a token= line from the layout / a prefab (layout: wins over defaults)
+    ColorToken* t = TokenOf(in.name);
+    if (!t) { g_tokens.push_back(in); t = &g_tokens.back(); memcpy(t->def, in.col, sizeof t->def); t->defLive = in.live; }
+    else { memcpy(t->col, in.col, sizeof t->col); t->live = in.live; if (!t->builtIn && !t->fromMod && !in.label.empty()) t->label = in.label; }
+}
+static void TokensReset() {   // before a layout is read: built-in / mod tokens back to their defaults, the layout's own gone
+    std::vector<ColorToken> keep;
+    for (auto& t : g_tokens) if (t.builtIn || t.fromMod) { ColorToken k = t; memcpy(k.col, k.def, sizeof k.col); k.live = k.defLive; keep.push_back(k); }
+    g_tokens = keep;
+    TokenBuiltIns();
+}
+static int TokenUses(const std::string& n) {
+    int u = 0;
+    for (auto& l : g_layout) for (auto& e : l) u += (e.colTok == n) + (e.hiTok == n);
+    for (auto& e : g_kit) u += (e.colTok == n) + (e.hiTok == n);
+    return u;
+}
+// every frame, before anything is drawn (menus copy elements after this): tokens' live values, then their users
+static void ResolveTokens() {
+    if (g_tokens.empty()) TokenBuiltIns();
+    for (auto& t : g_tokens) {
+        memcpy(t.now, t.col, sizeof t.now);
+        std::string v; int r, g, b;
+        if (!t.live.empty() && tokens && tokens(t.live, v) && sscanf(v.c_str(), "%d %d %d", &r, &g, &b) == 3) { t.now[0] = r / 255.f; t.now[1] = g / 255.f; t.now[2] = b / 255.f; }
+    }
+    auto apply = [](const std::string& n, float a, float* out) {
+        if (n.empty()) return;
+        ColorToken* t = TokenOf(n);
+        if (!t) return;   // (an unknown token: its saved colour stays)
+        out[0] = t->now[0]; out[1] = t->now[1]; out[2] = t->now[2]; out[3] = std::min(1.f, t->now[3] * a);
+    };
+    auto each = [&](Elem& e) { apply(e.colTok, e.colTokA, e.col); apply(e.hiTok, e.hiTokA, e.hiCol); };
+    for (auto& l : g_layout) for (auto& e : l) each(e);
+    for (auto& e : g_kit) each(e);
+}
+void AddColorToken(const std::string& name, const std::string& label, const float rgba[4]) {
+    if (name.empty()) return;
+    if (g_tokens.empty()) TokenBuiltIns();
+    ColorToken* t = TokenOf(name);
+    if (t && t->builtIn) return;   // (a mod can't redefine the game's palette)
+    TokenDefine(name, label, rgba[0], rgba[1], rgba[2], rgba[3], "", false, true);
+}
+// the colour edit of an element: its own colour, or a token (then its opacity, and the token's colour itself)
+static void TokenSwatch(const ColorToken& t, float size = 0) {
+    ImGui::ColorButton(("##sw" + t.name).c_str(), ImVec4(t.now[0], t.now[1], t.now[2], t.now[3]), ImGuiColorEditFlags_AlphaPreviewHalf | ImGuiColorEditFlags_NoTooltip,
+                       size > 0 ? ImVec2(size, size) : ImVec2(0, 0));
+}
+static bool TokenColourEdit(const char* label, float* col, std::string& tok, float& tokA) {
+    bool changed = false;
+    ImGui::PushID(label);
+    ColorToken* t = tok.empty() ? nullptr : TokenOf(tok);
+    if (!t) {
+        if (ImGui::ColorEdit4(label, col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) changed = true;
+        if (!tok.empty()) { ImGui::SameLine(); ImGui::TextDisabled("(token %s isn't defined: its saved colour)", tok.c_str()); }
+    } else {
+        if (ImGui::ColorEdit4("##tokcol", t->col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) changed = true;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The token's colour: changes every element that uses %s.", t->name.c_str());
+        ImGui::SameLine(); ImGui::SetNextItemWidth(90);
+        if (ImGui::DragFloat("##toka", &tokA, 0.005f, 0.f, 4.f, "x%.2f")) { tokA = std::max(0.f, tokA); changed = true; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("This element's opacity, times the token's.");
+        ImGui::SameLine(); ImGui::Text("%s", label);
+    }
+    ImGui::SameLine(); ImGui::SetNextItemWidth(150);
+    if (ImGui::BeginCombo("##tok", tok.empty() ? "own colour" : tok.c_str())) {
+        if (ImGui::Selectable("own colour", tok.empty()) && !tok.empty()) { tok.clear(); changed = true; }   // (keeps what it shows now)
+        for (auto& o : g_tokens) {
+            TokenSwatch(o, ImGui::GetTextLineHeight()); ImGui::SameLine();
+            if (ImGui::Selectable(o.name.c_str(), tok == o.name)) {
+                tok = o.name; tokA = o.col[3] > 0.001f ? std::min(4.f, col[3] / o.col[3]) : 1.f; changed = true;
+            }
+            if (ImGui::IsItemHovered() && !o.label.empty()) ImGui::SetTooltip("%s", o.label.c_str());
+        }
+        ImGui::EndCombo();
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A colour token: the colour by its role, shared with every element using it (Colour tokens below).");
+    ImGui::PopID();
+    if (changed) { g_dirty = true; ResolveTokens(); }
+    return changed;
+}
+// "Colour tokens": the table, adding one, and turning repeated colours in the layout into tokens
+static void TokensPanel() {
+    if (!ImGui::CollapsingHeader(("Colour tokens (" + std::to_string(g_tokens.size()) + ")###coltok").c_str())) return;
+    ImGui::TextDisabled("A colour by its role: elements using a token follow it, so the look changes in one place. A token can\nfollow a live value giving \"R G B\" (0-255), like the car's HUD paints.");
+    std::string drop;
+    if (ImGui::BeginTable("tok", 5, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg)) {
+        ImGui::TableSetupColumn("colour"); ImGui::TableSetupColumn("token"); ImGui::TableSetupColumn("used");
+        ImGui::TableSetupColumn("live value"); ImGui::TableSetupColumn("");
+        ImGui::TableHeadersRow();
+        for (auto& t : g_tokens) {
+            ImGui::PushID(t.name.c_str());
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            if (ImGui::ColorEdit4("##c", t.col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) { g_dirty = true; ResolveTokens(); }
+            if (!t.live.empty() && memcmp(t.now, t.col, 3 * sizeof(float)) != 0) { ImGui::SameLine(); TokenSwatch(t); if (ImGui::IsItemHovered()) ImGui::SetTooltip("Now (from %s)", t.live.c_str()); }
+            ImGui::TableNextColumn(); ImGui::TextUnformatted(t.name.c_str());
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s%s%s", t.label.c_str(), t.builtIn ? "\n(built in)" : t.fromMod ? "\n(from another mod)" : "", "");
+            ImGui::TableNextColumn(); ImGui::Text("%d", TokenUses(t.name));
+            ImGui::TableNextColumn();
+            char lb[64]; snprintf(lb, sizeof lb, "%s", t.live.c_str());
+            ImGui::SetNextItemWidth(120);
+            if (ImGui::InputTextWithHint("##live", "(none)", lb, sizeof lb)) { t.live = lb; g_dirty = true; }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("A value key giving \"R G B\" (0-255): the colour follows it while it's set (tach_paint_1, sms_color, ...).");
+            ImGui::TableNextColumn();
+            if ((t.builtIn || t.fromMod) && TokenModified(t)) { if (ImGui::SmallButton("reset")) { memcpy(t.col, t.def, sizeof t.col); t.live = t.defLive; g_dirty = true; ResolveTokens(); } }
+            else if (!t.builtIn && !t.fromMod) { if (ImGui::SmallButton("delete")) drop = t.name; if (ImGui::IsItemHovered()) ImGui::SetTooltip("Elements using it keep the colour they show now."); }
+            ImGui::PopID();
+        }
+        ImGui::EndTable();
+    }
+    if (!drop.empty()) {   // its users keep their resolved colour, as their own
+        for (auto& l : g_layout) for (auto& e : l) { if (e.colTok == drop) e.colTok.clear(); if (e.hiTok == drop) e.hiTok.clear(); }
+        for (auto& e : g_kit) { if (e.colTok == drop) e.colTok.clear(); if (e.hiTok == drop) e.hiTok.clear(); }
+        g_tokens.erase(std::remove_if(g_tokens.begin(), g_tokens.end(), [&](const ColorToken& t) { return t.name == drop; }), g_tokens.end());
+        g_dirty = true;
+    }
+    {   // a new one
+        static char nb[48] = ""; static float nc[4] = {1, 1, 1, 1};
+        ImGui::ColorEdit4("##newc", nc, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs); ImGui::SameLine();
+        ImGui::SetNextItemWidth(160); ImGui::InputTextWithHint("##newn", "my.colour", nb, sizeof nb); ImGui::SameLine();
+        std::string n = nb; n.erase(std::remove_if(n.begin(), n.end(), [](char c) { return c == ' ' || c == ';'; }), n.end());
+        ImGui::BeginDisabled(n.empty() || TokenOf(n));
+        if (ImGui::Button("Add token")) { TokenDefine(n, "", nc[0], nc[1], nc[2], nc[3], "", false, false); ColorToken* t = TokenOf(n); t->builtIn = t->fromMod = false; nb[0] = 0; g_dirty = true; }
+        ImGui::EndDisabled();
+    }
+    // repeated colours -> tokens: elements (every layout, the menus, templates) with the same colour as their own,
+    // white images left out (white = the texture as it is)
+    if (ImGui::TreeNode("Repeated colours in this layout file")) {
+        struct Use { Elem* e; bool hi; };
+        struct Group { int r, g, b; std::vector<Use> uses; };
+        std::vector<Group> groups;
+        auto add = [&](Elem& e, bool hi) {
+            const float* c = hi ? e.hiCol : e.col;
+            int r = (int)lroundf(c[0] * 255), g = (int)lroundf(c[1] * 255), b = (int)lroundf(c[2] * 255);
+            if (!hi && e.type == E_IMAGE && r == 255 && g == 255 && b == 255) return;
+            for (auto& gr : groups) if (abs(gr.r - r) <= 1 && abs(gr.g - g) <= 1 && abs(gr.b - b) <= 1) { gr.uses.push_back({&e, hi}); return; }
+            groups.push_back({r, g, b, {{&e, hi}}});
+        };
+        auto scan = [&](Elem& e) { if (e.colTok.empty()) add(e, false); if (e.hiMine && e.hiTok.empty()) add(e, true); };
+        for (auto& l : g_layout) for (auto& e : l) scan(e);
+        for (auto& e : g_kit) scan(e);
+        std::sort(groups.begin(), groups.end(), [](const Group& a, const Group& b) { return a.uses.size() > b.uses.size(); });
+        int shown = 0;
+        for (auto& gr : groups) {
+            if (gr.uses.size() < 2) continue;
+            ++shown;
+            ImGui::PushID(shown);
+            ImGui::ColorButton("##g", ImVec4(gr.r / 255.f, gr.g / 255.f, gr.b / 255.f, 1)); ImGui::SameLine();
+            ImGui::Text("%3d %3d %3d  x%d", gr.r, gr.g, gr.b, (int)gr.uses.size()); ImGui::SameLine();
+            ColorToken* match = nullptr;   // a token with the same colour
+            for (auto& t : g_tokens) if (abs((int)lroundf(t.col[0] * 255) - gr.r) <= 2 && abs((int)lroundf(t.col[1] * 255) - gr.g) <= 2 && abs((int)lroundf(t.col[2] * 255) - gr.b) <= 2) { match = &t; break; }
+            static char nb[64][48];
+            char* buf = nb[shown % 64];
+            std::string use;
+            if (match) { if (ImGui::SmallButton(("use " + match->name).c_str())) use = match->name; }
+            else {
+                ImGui::SetNextItemWidth(130); ImGui::InputTextWithHint("##n", "new token name", buf, 48); ImGui::SameLine();
+                std::string n = buf; n.erase(std::remove_if(n.begin(), n.end(), [](char c) { return c == ' ' || c == ';'; }), n.end());
+                ImGui::BeginDisabled(n.empty() || TokenOf(n));
+                if (ImGui::SmallButton("make token")) { TokenDefine(n, "", gr.r / 255.f, gr.g / 255.f, gr.b / 255.f, 1, "", false, false); ColorToken* t = TokenOf(n); t->builtIn = t->fromMod = false; use = n; buf[0] = 0; }
+                ImGui::EndDisabled();
+            }
+            if (ImGui::IsItemHovered()) {
+                std::string names; int k = 0;
+                for (auto& u : gr.uses) { if (k++ == 12) { names += "\n..."; break; } names += "\n" + u.e->name + (u.hi ? " (my-row colour)" : ""); }
+                ImGui::SetTooltip("Every element with this colour follows the token (each keeps its own opacity):%s", names.c_str());
+            }
+            if (!use.empty()) {
+                ColorToken* t = TokenOf(use);
+                float ta = t && t->col[3] > 0.001f ? t->col[3] : 1.f;
+                for (auto& u : gr.uses) {
+                    if (u.hi) { u.e->hiTok = use; u.e->hiTokA = u.e->hiCol[3] / ta; }
+                    else { u.e->colTok = use; u.e->colTokA = u.e->col[3] / ta; }
+                }
+                g_dirty = true; ResolveTokens();
+                Log("ui editor: %d elements now use colour token %s", (int)gr.uses.size(), use.c_str());
+            }
+            ImGui::PopID();
+        }
+        if (!shown) ImGui::TextDisabled("No colour is repeated outside the tokens.");
+        ImGui::TreePop();
+    }
+}
 static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the layout / prefab files keep it
     fprintf(f, "\n[element]\nmode=%s\ntype=%s\nname=%s\nanchor=%d\nx=%g\ny=%g\nw=%g\nh=%g\nscale=%g\ncolor=%g %g %g %g\nvisible=%d\n",
             kModeKey[m], e.type == E_TEXT ? "text" : "image", Esc(e.name).c_str(), e.anchor, e.x, e.y, e.w, e.h, e.scale, e.col[0], e.col[1], e.col[2], e.col[3], e.visible ? 1 : 0);
@@ -984,6 +1220,8 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
     if (e.anim) fprintf(f, "anim=%d\n", e.anim);
     if (!e.keys.empty()) fprintf(f, "keys=%s\n", e.keys.c_str());
     if (!e.flags.empty()) { std::string l; for (auto& k : e.flags) { if (!l.empty()) l += ','; l += k; } fprintf(f, "flags=%s\n", l.c_str()); }
+    if (!e.colTok.empty()) fprintf(f, "colortoken=%s %g\n", e.colTok.c_str(), e.colTokA);
+    if (!e.hiTok.empty()) fprintf(f, "hitoken=%s %g\n", e.hiTok.c_str(), e.hiTokA);
 }
 // Written to <path>.tmp and swapped in only when the whole file was written: a crash or a full disk mid-save
 // never leaves a cut-off file. false: nothing was replaced.
@@ -1000,6 +1238,7 @@ static void Save() {
     FILE* f = BeginWrite(g_layoutPath); if (!f) { Log("ui editor: couldn't save %s", g_layoutPath.c_str()); return; }
     fprintf(f, "# NFSU2 overlay (UI editor): one layout per game mode\nshow=%d\nboardrows=%d\nboardfollow=%d\nlistheight=%d\nhighlightsel=%d\n", g_show ? 1 : 0, boardRows, boardFollow ? 1 : 0, (int)g_listH, g_hiSel ? 1 : 0);
     for (auto& fd : g_flagDefs) fprintf(f, "flagdef=%s %d\n", fd.key.c_str(), fd.hideMissing ? 1 : 0);
+    for (auto& t : g_tokens) if (!t.builtIn || TokenModified(t)) fprintf(f, "token=%s\n", TokenLine(t).c_str());
     int total = 0;
     auto put = [&](int m, const Elem& e) { ++total; PutElem(f, m, e); };
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
@@ -1044,6 +1283,10 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "mapzoom") e.mapZoom = std::max(0.1f, std::min(10.f, (float)atof(v.c_str())));
     else if (k == "mapblip") e.mapBlip = std::max(0.1f, std::min(10.f, (float)atof(v.c_str())));
     else if (k == "mapplayer") e.mapPlayer = atoi(v.c_str()) != 0;
+    else if (k == "colortoken" || k == "hitoken") {   // "name opacity"
+        char n[64] = {}; float a = 1;
+        if (sscanf(v.c_str(), "%63s %f", n, &a) >= 1) { if (k == "colortoken") { e.colTok = n; e.colTokA = a; } else { e.hiTok = n; e.hiTokA = a; } }
+    }
     else if (k == "additive") e.additive = atoi(v.c_str()) != 0;
     else if (k == "tint") e.tint = v;
     else if (k == "anim") e.anim = std::max(0, std::min(3, atoi(v.c_str())));
@@ -1053,7 +1296,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
 // intoMode >= 0: every element goes in that layout; merge: added to what's there (an import), not instead
 static bool LoadFile(const std::string& path, int intoMode, bool merge) {
     FILE* f = fopen(path.c_str(), "r"); if (!f) return false;
-    if (!merge) { for (auto& l : g_layout) l.clear(); LoadMenusReset(); g_kit.clear(); }
+    if (!merge) { for (auto& l : g_layout) l.clear(); LoadMenusReset(); g_kit.clear(); TokensReset(); }
     g_sel = -1; ClearMulti();
     std::vector<Elem> all;
     char line[2048]; Elem* cur = nullptr; int msect = 0;
@@ -1066,6 +1309,7 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
         std::string k = s.substr(0, eq), v = s.substr(eq + 1);
         if (msect) { LoadMenuKey(msect, k, v); continue; }
         if (!cur) {
+            if (k == "token") { ColorToken t; if (TokenParse(v, t) && (!merge || !TokenOf(t.name))) TokenLoad(t); continue; }   // (an import adds its missing ones)
             if (merge) continue;
             if (k == "show") g_show = atoi(v.c_str()) != 0;
             else if (k == "highlightsel") g_hiSel = atoi(v.c_str()) != 0;
@@ -1132,6 +1376,12 @@ static bool SavePrefab(const std::string& group, std::string name) {
     FILE* f = BeginWrite(path);
     if (!f) { g_prefabMsg = "couldn't write " + path; return false; }
     fprintf(f, "# NFSU2_REUI prefab\nroot=%s\n", Esc(group).c_str());
+    {   // the tokens its elements use that aren't built in (added where they're missing when the prefab is added)
+        std::vector<std::string> used;
+        for (auto& e : Elems()) if (e.group == group || InGroup(e.group, group))
+            for (const std::string* n : {&e.colTok, &e.hiTok}) if (!n->empty() && std::find(used.begin(), used.end(), *n) == used.end()) used.push_back(*n);
+        for (auto& n : used) if (ColorToken* t = TokenOf(n)) if (!t->builtIn) fprintf(f, "token=%s\n", TokenLine(*t).c_str());
+    }
     int n = 0;
     for (auto& e : Elems()) if (e.group == group || InGroup(e.group, group)) { PutElem(f, g_editMode, e); ++n; }
     if (!EndWrite(f, path)) { g_prefabMsg = "couldn't write " + path; return false; }
@@ -1162,7 +1412,9 @@ static std::vector<std::string> PrefabList() {   // built-in ones and the files 
     std::sort(out.begin(), out.end());
     return out;
 }
+static std::vector<ColorToken> g_prefabTokens;   // the last parsed prefab's own tokens
 static void ParsePrefab(const std::string& text, std::string& root, std::vector<Elem>& els) {
+    g_prefabTokens.clear();
     Elem* cur = nullptr;
     size_t at = 0;
     while (at < text.size()) {
@@ -1173,7 +1425,7 @@ static void ParsePrefab(const std::string& text, std::string& root, std::vector<
         if (s == "[element]") { els.push_back(Elem()); cur = &els.back(); continue; }
         size_t eq = s.find('='); if (eq == std::string::npos) continue;
         std::string k = s.substr(0, eq), v = s.substr(eq + 1);
-        if (!cur) { if (k == "root") root = Unesc(v); continue; }
+        if (!cur) { if (k == "root") root = Unesc(v); else if (k == "token") { ColorToken t; if (TokenParse(v, t)) g_prefabTokens.push_back(t); } continue; }
         ElemKey(*cur, k, v);
     }
 }
@@ -1201,6 +1453,7 @@ static void AddPrefab(const std::string& name) {
     std::string root; std::vector<Elem> els;
     if (!LoadPrefab(name, root, els)) { g_prefabMsg = "couldn't read " + name; return; }
     if (els.empty()) { g_prefabMsg = "\"" + name + "\" is empty"; return; }
+    for (auto& t : g_prefabTokens) if (!TokenOf(t.name)) TokenLoad(t);   // its tokens this layout doesn't have yet
     std::string base = name, top = base;   // a free top-level group name
     auto taken = [&](const std::string& g) { for (auto& e : Elems()) if (e.group == g || InGroup(e.group, g)) return true; return false; };
     for (int i = 2; taken(top); ++i) top = base + " " + std::to_string(i);
@@ -1238,6 +1491,7 @@ void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)
 void SetDevice(IDirect3DDevice9* dev) {   // the start of a frame: last frame's draw lists are rendered
     g_dev = dev; g_loadsThisFrame = 0;
     deferfree::Flush();
+    ResolveTokens();
 }
 IDirect3DDevice9* Device() { return g_dev; }
 static bool MenuOpenNow();
@@ -1752,14 +2006,14 @@ static void CopyToSimilar(Elem& e) {
         for (int i : to) {
             Elem& o = Elems()[i];
             if (cSize) { o.scale = e.scale; if (e.type == E_IMAGE) { o.w = e.w; o.h = e.h; } }
-            if (cCol) memcpy(o.col, e.col, sizeof o.col);
+            if (cCol) { memcpy(o.col, e.col, sizeof o.col); o.colTok = e.colTok; o.colTokA = e.colTokA; }
             if (cLook) {
                 if (e.type == E_TEXT) { o.font = e.font; o.fontIdx = e.fontIdx; }
                 else { o.tex = e.tex; o.pack = e.pack; o.texIdx = e.texIdx; o.u0 = e.u0; o.v0 = e.v0; o.u1 = e.u1; o.v1 = e.v1; o.rot = e.rot; }
             }
             if (e.type == E_TEXT && cAlign) { o.align = e.align; o.w = e.w; }
             if (e.type == E_TEXT && cText) o.text = e.text;
-            if (cHi) { o.hiMine = e.hiMine; memcpy(o.hiCol, e.hiCol, sizeof o.hiCol); }
+            if (cHi) { o.hiMine = e.hiMine; memcpy(o.hiCol, e.hiCol, sizeof o.hiCol); o.hiTok = e.hiTok; o.hiTokA = e.hiTokA; }
             if (cVis) o.visible = e.visible;
             if (cAnchor) o.anchor = e.anchor;
             if (cX) o.x = e.x;
@@ -1856,13 +2110,13 @@ static void Selected(Elem& e) {
         ImGui::SetNextItemWidth(220);
         if (ImGui::Combo("font", &cur, fn.data(), (int)fn.size())) { e.font = g_fonts[cur].name; e.fontIdx = cur; g_dirty = true; }
     }
-    if (ImGui::ColorEdit4("colour / tint", e.col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) g_dirty = true;
-    ImGui::SameLine(); ImGui::SetNextItemWidth(110);
+    TokenColourEdit("colour / tint", e.col, e.colTok, e.colTokA);
+    ImGui::SetNextItemWidth(110);
     if (ImGui::InputInt("leaderboard row", &e.row)) { e.row = std::max(0, std::min(22, e.row)); g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = not a leaderboard row.\nN = shown only while there's an Nth racer on the board; in its text {name} {pos} {gap} ... are that racer's.");
     if (e.row > 0) {
         ImGui::SameLine(); if (ImGui::Checkbox("other colour on my row", &e.hiMine)) g_dirty = true;
-        if (e.hiMine) { ImGui::SameLine(); if (ImGui::ColorEdit4("##hi", e.hiCol, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) g_dirty = true; }
+        if (e.hiMine) TokenColourEdit("my-row colour", e.hiCol, e.hiTok, e.hiTokA);
     }
     {   // live-value rules
         static char sb[64], bb[64];
@@ -2392,6 +2646,7 @@ void Panel() {
     }
     UndoCommit(false);
     KitPanel();
+    TokensPanel();
     // ---- prefabs: a list, a preview of the picked one, Add / Delete
     if (!menuMode && ImGui::CollapsingHeader("Prefabs")) {
         static std::string pick, cacheName; static std::vector<Elem> cache; static double cacheAt = -10;

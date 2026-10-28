@@ -92,3 +92,9 @@ EXPORT void REUI_AddMapMarkers(REUI_MapMarkerFn fn, void* ctx) {
     reui::Log("api: minimap markers from another mod");
 }
 EXPORT int REUI_MinimapShown() { return uied::MinimapShown() ? 1 : 0; }
+EXPORT void REUI_SetColorToken(const char* name, const char* label, unsigned argb) {
+    if (!name || !*name) return;
+    float c[4] = {((argb >> 16) & 255) / 255.f, ((argb >> 8) & 255) / 255.f, (argb & 255) / 255.f, (argb >> 24) / 255.f};
+    uied::AddColorToken(name, label ? label : "", c);
+    reui::Log("api: colour token \"%s\"", name);
+}

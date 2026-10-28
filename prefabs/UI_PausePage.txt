@@ -19,6 +19,7 @@ font=conduitmditc_tt21i
 text=Description
 align=0
 role=desc
+colortoken=hud.accent 1
 
 [element]
 mode=menus
@@ -37,6 +38,7 @@ layer=2
 font=conduitmditc_tt21i
 text=UniPad Options
 align=0
+colortoken=hud.accent 1
 
 [element]
 mode=menus
@@ -175,6 +177,7 @@ layer=1
 texture=U2_MENU_CORNER_WHITE
 pack=?
 uv=1 1 0 0
+colortoken=hud.line 0.392157
 
 [element]
 mode=menus
@@ -193,6 +196,7 @@ layer=1
 texture=U2_MENU_BOX_WHITE
 pack=?
 uv=0 0 1 1
+colortoken=hud.line 0.392157
 
 [element]
 mode=menus
@@ -211,6 +215,7 @@ layer=1
 texture=U2_MENU_CORNER_WHITE
 pack=?
 uv=1 0 0 1
+colortoken=hud.line 0.392157
 
 [element]
 mode=menus
@@ -229,6 +234,7 @@ layer=1
 texture=U2_MENU_BOX_WHITE
 pack=?
 uv=0 0 1 1
+colortoken=hud.line 0.392157
 
 [element]
 mode=menus
@@ -247,6 +253,7 @@ layer=1
 texture=U2_MENU_CORNER_WHITE
 pack=?
 uv=0 0 1 1
+colortoken=hud.line 0.392157
 
 [element]
 mode=menus
@@ -265,6 +272,7 @@ layer=1
 texture=U2_MENU_BOX_WHITE
 pack=?
 uv=0 0 1 1
+colortoken=hud.line 0.399846
 
 [element]
 mode=menus
@@ -283,6 +291,7 @@ layer=1
 texture=U2_MENU_CORNER_WHITE
 pack=?
 uv=0 1 1 0
+colortoken=hud.line 0.392157
 
 [element]
 mode=menus
@@ -339,6 +348,7 @@ layer=2
 font=conduitmditc_tt21i
 text=Controls
 align=2
+colortoken=hud.accent 1
 
 [element]
 mode=menus
@@ -358,6 +368,7 @@ texture=U2_HIGHLIGHT_BOX
 pack=?
 uv=0 0 1 1
 rot=-90
+colortoken=hud.accent_soft 1
 
 [element]
 mode=menus
@@ -376,6 +387,7 @@ layer=3
 texture=U2_HIGHLIGHT_CORNER
 pack=?
 uv=0 0 1 1
+colortoken=hud.accent_soft 1
 
 [element]
 mode=menus
@@ -395,6 +407,7 @@ texture=U2_HIGHLIGHT_CORNER
 pack=?
 uv=0 0 1 1
 rot=-90
+colortoken=hud.accent_soft 1
 
 [element]
 mode=menus
@@ -413,6 +426,7 @@ layer=3
 texture=U2_HIGHLIGHT_BOX
 pack=?
 uv=0 0 1 1
+colortoken=hud.accent_soft 1
 
 [element]
 mode=menus
@@ -432,6 +446,7 @@ texture=U2_HIGHLIGHT_BOX
 pack=?
 uv=0 0 1 1
 rot=-90
+colortoken=hud.accent_soft 1
 
 [element]
 mode=menus
@@ -450,6 +465,7 @@ layer=3
 texture=U2_HIGHLIGHT_CORNER
 pack=?
 uv=1 1 0 0
+colortoken=hud.accent_soft 1
 
 [element]
 mode=menus
@@ -468,6 +484,7 @@ layer=3
 texture=U2_HIGHLIGHT_BOX
 pack=?
 uv=0 0 1 1
+colortoken=hud.accent_soft 1
 
 [element]
 mode=menus
@@ -487,6 +504,7 @@ texture=U2_HIGHLIGHT_CORNER
 pack=?
 uv=0 0 1 1
 rot=90
+colortoken=hud.accent_soft 1
 
 [element]
 mode=menus

@@ -125,3 +125,4 @@ bindkind=3
 bindrange=-360 360
 bindrot=-360 360
 pivot=0 72
+colortoken=hud.orange 0.784

@@ -36,6 +36,7 @@ layer=1
 texture={tach_redline}
 pack=
 uv=0 0 1 1
+colortoken=hud.red 0.7843
 
 [element]
 mode=freeroam
@@ -166,6 +167,7 @@ texture=SHIFT_UP_ICON
 pack=
 uv=0 0 1 1
 showif=shift_light
+colortoken=hud.accent 1
 
 [element]
 mode=freeroam
@@ -184,6 +186,7 @@ layer=6
 font=font_conduitmditctt38bi
 text={speedo}
 align=2
+colortoken=hud.text 1
 
 [element]
 mode=freeroam
@@ -202,6 +205,7 @@ layer=6
 font=conduitmditc_tt14i
 text={speed_unit_hud}
 align=2
+colortoken=hud.text 1
 
 [element]
 mode=freeroam
@@ -278,6 +282,7 @@ texture=3RDPERSON_TURBORED_1
 pack=
 uv=0 0 1 1
 showif=turbo
+colortoken=hud.red 0.7843
 
 [element]
 mode=freeroam
@@ -298,6 +303,7 @@ pack=
 uv=0 0 1 1
 rot=171.5
 showif=turbo
+colortoken=hud.red 0.7843
 
 [element]
 mode=freeroam

@@ -77,6 +77,9 @@ namespace uied {
     // while one is drawn (shown in game: its showif / flags pass), ReplaceWanted(id) is true and the host hides
     // that piece of the game's HUD.
     void AddReplaceTarget(const std::string& id, const std::string& label, const std::string& tooltip);
+    // A colour token another mod brings (its own palette for its pages): a default the layout may change; the game's
+    // built-in tokens can't be redefined.
+    void AddColorToken(const std::string& name, const std::string& label, const float rgba[4]);
     bool ReplaceWanted(const std::string& id, double withinSeconds = 0.3);
     // UniPad: controller button icons, as image textures named "icon:<family>:<key>" ("icon:auto:South" = the
     // active controller's family, so it switches between Xbox / PlayStation / ... art). Families and keys by index.

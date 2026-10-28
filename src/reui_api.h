@@ -78,6 +78,11 @@ typedef void (*PFN_REUI_AddMapMarkers)(REUI_MapMarkerFn fn, void* ctx);
 // 1 while a REUI minimap is on screen (drawn in the last 0.3 s): put your markers on it instead of drawing your own
 typedef int (*PFN_REUI_MinimapShown)(void);
 
+// A colour token for your pages (REUI's "Colour tokens": elements take a colour by its role, so a look changes in one
+// place): name like "mp.player", a label for the editor, its default colour 0xAARRGGBB. The layout may change it;
+// REUI's built-in tokens (hud.*, car.*) can't be redefined. Call at your first frame.
+typedef void (*PFN_REUI_SetColorToken)(const char* name, const char* label, unsigned argb);
+
 #ifdef __cplusplus
 }
 #endif

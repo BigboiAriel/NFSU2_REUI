@@ -34,6 +34,7 @@ group=Race HUD Online/Position
 font=font_conduitmditctt38bi
 text={pos}
 align=2
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -51,6 +52,7 @@ group=Race HUD Online/Position
 font=font_conduitmditctt38bi
 text={pos_suffix}
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -68,6 +70,7 @@ group=Race HUD Online/Laps
 texture=3RDPERSON_BOXLAPS
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 1
 
 [element]
 mode=race
@@ -85,6 +88,7 @@ group=Race HUD Online/Laps
 font=font_conduitmditctt38bi
 text=Lap
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -102,6 +106,7 @@ group=Race HUD Online/Laps
 font=font_conduitmditctt38bi
 text={lap}
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -119,6 +124,7 @@ group=Race HUD Online/Laps
 font=font_conduitmditctt38bi
 text=/{laps}
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -137,6 +143,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -156,6 +163,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -174,6 +183,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -193,6 +203,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -211,6 +223,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -230,6 +243,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -248,6 +263,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -267,6 +283,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -285,6 +303,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -304,6 +323,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -322,6 +343,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -341,6 +363,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -359,6 +383,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -378,6 +403,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -396,6 +423,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -415,6 +443,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -433,6 +463,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -452,6 +483,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -470,6 +503,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -489,6 +523,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -507,6 +543,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -526,6 +563,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -544,6 +583,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -563,6 +603,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -581,6 +623,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -600,6 +643,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -618,6 +663,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -637,6 +683,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -655,6 +703,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -674,6 +723,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -692,6 +743,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -711,6 +763,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -729,6 +783,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -748,6 +803,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -766,6 +823,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -785,6 +843,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -803,6 +863,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -822,6 +883,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -840,6 +903,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -859,6 +923,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -877,6 +943,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -896,6 +963,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -914,6 +983,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -933,6 +1003,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -951,6 +1023,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -970,6 +1043,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -988,6 +1063,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -1007,6 +1083,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -1024,6 +1102,7 @@ group=Race HUD Online/Time
 texture=3RDPERSON_BOXTIME
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -1041,6 +1120,7 @@ group=Race HUD Online/Time
 font=conduitmditc_tt14i
 text=Time:
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -1058,6 +1138,7 @@ group=Race HUD Online/Time
 font=conduitmditc_tt14i
 text={race_time}
 align=2
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -1076,6 +1157,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -1095,6 +1177,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -1113,6 +1197,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -1132,6 +1217,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -1150,6 +1237,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -1169,6 +1257,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -1187,6 +1277,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -1206,6 +1297,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -1224,6 +1317,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -1243,6 +1337,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -1261,6 +1357,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -1280,6 +1377,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -1298,6 +1397,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -1317,6 +1417,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -1335,6 +1437,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -1354,6 +1457,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -1372,6 +1477,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -1391,6 +1497,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -1409,6 +1517,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -1428,6 +1537,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -1446,6 +1557,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -1465,6 +1577,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -1483,6 +1597,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -1502,6 +1617,8 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
 
 [element]
 mode=race
@@ -1520,6 +1637,7 @@ group=Race HUD Online/Leaderboard
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.745098
 
 [element]
 mode=race
@@ -1539,6 +1657,8 @@ highlight=0 0 0 0.627451
 texture=WHITE16X16_PURE_WHITE
 pack=
 uv=0 0 1 1
+colortoken=hud.shade 0.470588
+hitoken=hud.shade 0.627451
 
 [element]
 mode=race
@@ -1557,6 +1677,7 @@ group=Race HUD Online/Leaderboard
 font=font_conduitmditctt38bi
 text={pos} :
 align=0
+colortoken=hud.text 1
 
 [element]
 mode=race
@@ -1576,3 +1697,5 @@ highlight=0.792157 0.956863 0.541176 1
 font=conduitmditc_tt14i
 text={gap_name}
 align=2
+colortoken=hud.text 1
+hitoken=hud.accent 1
