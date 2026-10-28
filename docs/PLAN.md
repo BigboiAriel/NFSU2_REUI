@@ -104,7 +104,8 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   A kind counts as having its pieces by its fill bar / arrows / binding icon (fixed 2026-10-28: the grid's own label,
   shown on the other kinds, made pickers / bindings look done). Binding tiles: the label on the tile's left, the icon
   just after its text (`afterlabel=1`: moves with each tile's label length, keeps its shape). A binding shown in the
-  grid's own icon piece is square.
+  grid's own icon piece is square. Picker tiles show their arrows on every picker (dim; brighter on the selected one; full
+  when pressed while held) - "selected row only" on a grid picker's arrows only brightens them.
 - **Deprecated (2026-10-27): the row tools.** Build rows, Restack rows, row spacing / first row y, Start a new column,
   column distance, first column x, add to column, Add row (widget kit), row up / down, a row's column, Save as
   template and the Widget kit panel are gone from the editor; grids (menu buttons in rows x columns) replace them.
