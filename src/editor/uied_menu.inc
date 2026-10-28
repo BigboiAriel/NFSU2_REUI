@@ -50,11 +50,6 @@ struct Widget {
     std::vector<Widget> tiles;
     std::string label, icon;             // (a tile's)
 };
-// how many cells a short row is moved across (a grid row starting from the centre / right)
-static float GridShift(const Widget& w, int row, int count) {
-    int cols = std::max(1, w.cols), inRow = std::min(cols, count - row * cols);
-    return inRow <= 0 ? 0.f : (cols - inRow) * 0.5f * std::max(0, std::min(2, w.startAt));
-}
 // a tile's size (the grid's width / height less the spacing, shared out) and the step from one tile to the next
 static float GCellW(const Widget& w) { int c = std::max(1, w.cols); return std::max(1.f, (w.gw - (c - 1) * w.spX) / c); }
 static float GCellH(const Widget& w) { int r = std::max(1, w.rows); return std::max(1.f, (w.gh - (r - 1) * w.spY) / r); }
@@ -236,7 +231,7 @@ static struct MenuState {
     double flashL = 0, flashR = 0, t = 0;
     std::string capturing;   // the binding row (its group) waiting for an input; looked up each time, as the widget
                              // list can be replaced (undo, reload, duplicate...) while it waits
-    struct GridSt { int sel = -1, top = 0; float scroll = 0; bool locked = false; };   // each grid's cursor (item), top row,
+    struct GridSt { int sel = -1, top = 0; float scroll = 0; bool locked = false; int wantCol = -1; };   // each grid's cursor (item), top row,
                              // shown scroll; locked: left / right change its slider / picker tile (B lets go)
     std::map<std::string, GridSt> grids;
 } g_menu;
@@ -303,6 +298,29 @@ static void GridMigrate(Widget& w) {
     if (!w.group.empty())
         for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.type == E_TEXT && e.role == "label" && e.text.find('{') == std::string::npos) e.text = w.tiles[0].label;
 }
+// Where each item sits: tiles fill the rows left to right, but with more than one column a slider / picker tile takes a
+// whole row of its own (the row before it ends early; the next tile starts a new row).
+struct GSlot { int row = 0, col = 0, span = 1; };
+static bool GridWide(const Widget& w, int i) {
+    return w.cols > 1 && GridHasTiles(w) && i >= 0 && i < (int)w.tiles.size() && (w.tiles[i].type == W_SLIDER || w.tiles[i].type == W_PICKER);
+}
+static std::vector<GSlot> GridLayout(const Widget& w, int n) {
+    std::vector<GSlot> v; v.reserve(n);
+    int cols = std::max(1, w.cols), r = 0, c = 0;
+    for (int i = 0; i < n; ++i) {
+        if (GridWide(w, i)) { if (c > 0) { ++r; c = 0; } v.push_back({r, 0, cols}); ++r; continue; }
+        v.push_back({r, c, 1});
+        if (++c >= cols) { c = 0; ++r; }
+    }
+    return v;
+}
+static int GridRowsOf(const std::vector<GSlot>& L) { return L.empty() ? 0 : L.back().row + 1; }
+// how many cells a row's tiles are moved across (a short row, starting from the centre / right)
+static float GridRowShift(const Widget& w, const std::vector<GSlot>& L, int row) {
+    int cols = std::max(1, w.cols), in = 0;
+    for (auto& s : L) if (s.row == row) in += s.span;
+    return in <= 0 ? 0.f : (cols - std::min(cols, in)) * 0.5f * std::max(0, std::min(2, w.startAt));
+}
 static void GridKeepVisible(const Widget& w, MenuState::GridSt& st, int count);
 static MenuState::GridSt& GridState(const Widget& w, int count) {
     auto& st = g_menu.grids[w.group];
@@ -316,8 +334,9 @@ static MenuState::GridSt& GridState(const Widget& w, int count) {
     return st;
 }
 static void GridKeepVisible(const Widget& w, MenuState::GridSt& st, int count) {
-    int cols = std::max(1, w.cols), rows = std::max(1, w.rows);
-    int total = (count + cols - 1) / cols, r = st.sel / cols;
+    int rows = std::max(1, w.rows);
+    auto L = GridLayout(w, count);
+    int total = GridRowsOf(L), r = st.sel >= 0 && st.sel < count ? L[st.sel].row : 0;
     if (r < st.top) st.top = r;
     if (r >= st.top + rows) st.top = r - rows + 1;
     st.top = std::max(0, std::min(std::max(0, total - rows), st.top));
@@ -327,17 +346,26 @@ static bool GridMove(Widget& w, int dx, int dy) {
     auto items = GridItems(w); int n = (int)items.size();
     if (!n) return false;
     auto& st = GridState(w, n);
-    int cols = std::max(1, w.cols), c = st.sel % cols, r = st.sel / cols, last = (n - 1) / cols;
+    auto L = GridLayout(w, n);
+    const GSlot& cs = L[st.sel];
     int ns = st.sel;
-    if (dx) { int nc = c + dx; if (nc < 0 || nc >= cols || r * cols + nc >= n) return false; ns = r * cols + nc; }
+    if (dx) {   // the tile beside it on its row (a whole-row tile has none)
+        ns = -1;
+        for (int i = 0; i < n; ++i) if (L[i].row == cs.row && L[i].col == cs.col + dx) ns = i;
+        if (ns < 0) return false;
+        st.wantCol = -1;
+    }
     if (dy) {
-        int nr = r + dy; if (nr < 0 || nr > last) return false;
-        // the same column on screen (rows can be shifted: short rows starting from the centre / right)
-        float vis = c + GridShift(w, r, n);
-        int inRow = std::min(cols, n - nr * cols);
-        int nc = (int)lroundf(vis - GridShift(w, nr, n));
-        nc = std::max(0, std::min(inRow - 1, nc));
-        ns = nr * cols + nc;
+        int nr = cs.row + dy; if (nr < 0 || nr >= GridRowsOf(L)) return false;
+        // the same column on screen (short rows can be moved across; a whole-row tile keeps the column you came from)
+        float vis = cs.span > 1 ? (st.wantCol >= 0 ? (float)st.wantCol : 0.f) : cs.col + GridRowShift(w, L, cs.row);
+        if (cs.span == 1) st.wantCol = (int)lroundf(vis);
+        float best = 1e9f;
+        for (int i = 0; i < n; ++i) {
+            if (L[i].row != nr) continue;
+            float lo = L[i].col + GridRowShift(w, L, nr), d = vis < lo ? lo - vis : vis > lo + L[i].span - 1 ? vis - (lo + L[i].span - 1) : 0.f;
+            if (d < best) { best = d; ns = i; }
+        }
     }
     st.sel = ns; GridKeepVisible(w, st, n);
     Snd(dy < 0 ? SND_UP : dy > 0 ? SND_DOWN : dx < 0 ? SND_LEFT : SND_RIGHT);
@@ -568,23 +596,25 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
     auto& els = MenuElems();
     std::vector<int> order; for (int i : DrawOrder(els)) if (InGroup(els[i].group, w.group) && els[i].visible && GridPiece(els[i])) order.push_back(i);
     if (order.empty()) return;
-    // slider tiles: the fill piece (as drawn in the first tile) is the bar's full length; the tab moves along it
-    bool hasFill = false; float fillL = 0, fillW = 0;
-    for (int i : order) if (els[i].role == "fill" && els[i].w > 0.5f) {
-        const Elem& f = els[i]; fillW = f.w * sx; fillL = w.gx + (f.x - w.gx) * sx - (f.anchor % 3) * 0.5f * fillW; hasFill = true; break;
-    }
+    // slider tiles: the fill piece (as laid out in the first tile) is the bar's full length; the tab moves along it
+    const Elem* fillPc = nullptr;
+    for (int i : order) if (els[i].role == "fill" && els[i].w > 0.5f) { fillPc = &els[i]; break; }
+    auto L = GridLayout(w, n);
+    float cwid = GCellW(w);
     // rows partly scrolled in or out are cut at the grid's top / bottom
     ImVec2 ga, gb;
     { Elem box; box.type = E_IMAGE; box.anchor = els[order[0]].anchor; float ax = (box.anchor % 3) * 0.5f, ay = (box.anchor / 3) * 0.5f;
       box.w = w.gw; box.h = w.gh; box.x = w.gx + ax * w.gw; box.y = w.gy + ay * w.gh + scrollDy; ElemRect(box, ga, gb); }
     float scroll = preview ? 0.f : st.scroll;
     int r0 = (int)floorf(scroll), r1 = r0 + rows + (scroll != (float)r0 ? 1 : 0);
+    std::map<int, float> shift; for (int r = r0; r < r1; ++r) shift[r] = GridRowShift(w, L, r);
     dl->PushClipRect(ImVec2(-10000, ga.y - 2), ImVec2(10000, gb.y + 2), true);
-    for (int r = r0; r < r1; ++r)
-        for (int c = 0; c < cols; ++c) {
-            int idx = r * cols + c;
-            if (idx < 0 || idx >= n) continue;
-            if (preview && idx == 0 && GridShift(w, 0, n) == 0) continue;   // (the pieces themselves are the first cell, unless its row is moved)
+    for (int idx = 0; idx < n; ++idx) {
+            const GSlot& sl = L[idx]; int r = sl.row, c = sl.col;
+            if (r < r0 || r >= r1) continue;
+            if (preview && idx == 0 && shift[r] == 0 && sl.span == 1) continue;   // (the pieces themselves are the first cell, unless it's moved / widened)
+            // a whole-row tile: its pieces spread across the row (places, and bars / boxes stretched; the rest keep their size)
+            float sxp = sl.span > 1 && w.refW > 0.5f ? (sl.span * cwid + (sl.span - 1) * w.spX) / w.refW : sx;
             bool cur = on && !preview && idx == st.sel;
             const GItem& it = items[idx];
             // a tile: its kind decides which pieces it shows (value text: sliders / pickers; fill + tab: sliders; arrows: pickers)
@@ -593,7 +623,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
             std::string val = t && kind != W_BUTTON ? WText(*t) : std::string();
             Setting* bs = t && kind == W_BUTTON ? SettingOf(t->bind) : nullptr; if (bs && bs->kind != 3) bs = nullptr;   // a binding tile
             bool waiting = bs && !preview && g_menu.capturing == TileKey(w, it.tile);
-            float ox = (c + GridShift(w, r, n)) * px, oy = (r - scroll) * py;
+            float ox = (c + shift[r]) * px, oy = (r - scroll) * py;
             // pieces after the label's text: moved by how much longer / shorter this tile's label is than the piece's own
             float afterDx = 0;
             for (int i : order) {
@@ -611,11 +641,13 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 if (src.selOnly && !cur) continue;
                 if (kind >= 0 && !TileShows(src, TileBit(t))) continue;
                 Elem e = src;
-                e.x = w.gx + (e.x - w.gx) * sx + ox + (e.afterLabel ? afterDx : 0.f);
+                bool wideP = e.type != E_TEXT && e.w > 3 * e.h;   // (a bar / box: stretches across a whole-row tile)
+                e.x = w.gx + (e.x - w.gx) * sxp + ox + (e.afterLabel ? afterDx : 0.f);
                 e.y = w.gy + (e.y - w.gy) * sy + oy + scrollDy;
-                if (e.type != E_TEXT) { if (e.afterLabel) { e.w *= std::min(sx, sy); e.h *= std::min(sx, sy); } else { e.w *= sx; e.h *= sy; } }   // (icons after the text keep their shape)
-                else { if (e.w > 0) e.w *= sx; }   // (text keeps its size)
-                if (kind == W_SLIDER && t && hasFill && (e.role == "fill" || e.role == "tab")) {
+                if (e.type != E_TEXT) { if (e.afterLabel) { e.w *= std::min(sx, sy); e.h *= std::min(sx, sy); } else { e.w *= wideP ? sxp : sx; e.h *= sy; } }   // (icons after the text keep their shape)
+                else { if (e.w > 0) e.w *= sxp; }   // (text keeps its size)
+                if (kind == W_SLIDER && t && fillPc && (e.role == "fill" || e.role == "tab")) {
+                    float fillW = fillPc->w * sxp, fillL = w.gx + (fillPc->x - w.gx) * sxp - (fillPc->anchor % 3) * 0.5f * fillW;
                     float f = WFrac(*t), ax = (e.anchor % 3) * 0.5f;
                     if (e.role == "fill") { e.w = f * fillW; e.x = fillL + ox + ax * e.w; if (e.w < 0.5f) continue; }
                     else e.x = fillL + ox + f * fillW + (ax - 0.5f) * e.w;
@@ -644,7 +676,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 if (!ownTex) src.texIdx = e.texIdx;
                 src.fontIdx = e.fontIdx;
             }
-        }
+    }
     dl->PopClipRect();
 }
 // ---- the editor's view of a grid
@@ -657,24 +689,27 @@ static void GridEachCell(Widget& w, const Elem* piece, const std::function<void(
     int anchor = 4;
     for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && GridPiece(e)) { anchor = e.anchor; break; }
     float ax = (anchor % 3) * 0.5f, ay = (anchor / 3) * 0.5f;
-    for (int r = 0; r < rows; ++r)
-        for (int c = 0; c < cols; ++c) {
-            int idx = r * cols + c;
-            if (idx >= n) continue;
-            float ox = (c + GridShift(w, r, n)) * px, oy = r * py;
+    auto L = GridLayout(w, n);
+    (void)cols;
+    for (int idx = 0; idx < n; ++idx) {
+            const GSlot& sl = L[idx];
+            if (sl.row >= rows) break;
+            float ox = (sl.col + GridRowShift(w, L, sl.row)) * px, oy = sl.row * py;
+            float spanW = sl.span * cw + (sl.span - 1) * w.spX, sxp = sl.span > 1 && w.refW > 0.5f ? spanW / w.refW : sx;
             ImVec2 a, b;
             if (piece) {
                 Elem e = *piece;
-                e.x = w.gx + (e.x - w.gx) * sx + ox; e.y = w.gy + (e.y - w.gy) * sy + oy;
-                if (e.type != E_TEXT) { e.w *= sx; e.h *= sy; } else { if (e.w > 0) e.w *= sx; }   // (text keeps its size)
+                bool wideP = e.type != E_TEXT && e.w > 3 * e.h;
+                e.x = w.gx + (e.x - w.gx) * sxp + ox; e.y = w.gy + (e.y - w.gy) * sy + oy;
+                if (e.type != E_TEXT) { e.w *= wideP ? sxp : sx; e.h *= sy; } else { if (e.w > 0) e.w *= sxp; }   // (text keeps its size)
                 ElemRect(e, a, b);
             } else {
-                Elem box; box.type = E_IMAGE; box.anchor = anchor; box.w = cw; box.h = ch;
-                box.x = w.gx + ox + ax * cw; box.y = w.gy + oy + ay * ch;
+                Elem box; box.type = E_IMAGE; box.anchor = anchor; box.w = spanW; box.h = ch;
+                box.x = w.gx + ox + ax * spanW; box.y = w.gy + oy + ay * ch;
                 ElemRect(box, a, b);
             }
             fn(a, b);
-        }
+    }
 }
 static bool GridBox(Widget& w, ImVec2& a, ImVec2& b) {   // the whole grid on screen
     a = ImVec2(1e9f, 1e9f); b = ImVec2(-1e9f, -1e9f);
@@ -706,7 +741,7 @@ static void GridFollow() {
 // a grid's own scroller: the tab along the track by the scroll
 static bool GridScroller(Widget& w, Elem& e) {
     auto items = GridItems(w); int n = (int)items.size();
-    int cols = std::max(1, w.cols), rows = std::max(1, w.rows), total = (n + cols - 1) / cols;
+    int rows = std::max(1, w.rows), total = GridRowsOf(GridLayout(w, n));
     if (e.role == "gtrack") return total > rows;
     if (total <= rows) return false;
     float trTop = 0, trBot = 0; bool track = false;
