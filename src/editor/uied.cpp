@@ -449,7 +449,7 @@ struct Elem {
     // and is subtracted from cutTarget (an element name; "" = every shape in its group), grown by cutGap
     float rad[4] = {12, 12, 12, 12}; bool radLink = true;
     float stroke = 2;
-    float fillCol[4] = {0, 0, 0, 0.6f};
+    float fillCol[4] = {0, 0, 0, 1};
     std::string fillTok; float fillTokA = 1;
     bool cut = false; float cutGap = 0; std::string cutTarget;
 };
@@ -2514,8 +2514,8 @@ void Panel() {
     ImGui::SameLine();
     if (ImGui::Button("Add shape")) {
         Elem e; e.type = E_SHAPE; e.name = "shape " + std::to_string(Elems().size() + 1); e.anchor = 4; e.x = 0; e.y = 0; e.w = 240; e.h = 120;
-        e.col[0] = e.col[1] = e.col[2] = 0.8824f; e.col[3] = 0.6f; e.colTok = "hud.line"; e.colTokA = 0.6f;
-        e.fillTok = "hud.shade"; e.fillTokA = 0.6f;
+        e.col[0] = e.col[1] = e.col[2] = 0.8824f; e.col[3] = 1; e.colTok = "hud.line"; e.colTokA = 1;
+        e.fillCol[3] = 1; e.fillTok = "hud.shade"; e.fillTokA = 1;
         if (g_sel >= 0 && g_sel < (int)Elems().size()) e.group = Elems()[g_sel].group;
         Elems().push_back(e); g_sel = (int)Elems().size() - 1; g_dirty = true; ResolveTokens();
     }
