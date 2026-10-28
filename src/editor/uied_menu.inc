@@ -39,14 +39,10 @@ struct Widget {
     int cols = 4, rows = 3;
     float gw = 400, gh = 240, gx = -200, gy = -120, refW = 100, refH = 80;
     bool scalePieces = true;
-    int startAt = 0;                     // aligned like text: left (0), centre (1), right (2) - its alignment point is its left edge /
-                                         // centre / right edge (resizing keeps it there) and short rows line up the same way
+    int startAt = 0;                     // aligned like text in a box: each row's cells flush left (0), centred (1) or flush
+                                         // right (2) within the grid's own bounds (gx .. gx + gw)
 };
-// how many cells a short row is moved across (a grid row starting from the centre / right)
-static float GridShift(const Widget& w, int row, int count) {
-    int cols = std::max(1, w.cols), inRow = std::min(cols, count - row * cols);
-    return inRow <= 0 ? 0.f : (cols - inRow) * 0.5f * std::max(0, std::min(2, w.startAt));
-}
+static float GridRowX(const Widget& w, int row, int count);   // (below, with the grids)
 struct Page {
     std::string group;
     float spacing = 36;                  // row spacing (Restack, Add row)
@@ -265,9 +261,10 @@ static bool GridMove(Widget& w, int dx, int dy) {
     if (dy) {
         int nr = r + dy; if (nr < 0 || nr > last) return false;
         // the same column on screen (rows can be shifted: short rows starting from the centre / right)
-        float vis = c + GridShift(w, r, n);
+        float px = w.gw / cols;
+        float vis = c + GridRowX(w, r, n) / px;
         int inRow = std::min(cols, n - nr * cols);
-        int nc = (int)lroundf(vis - GridShift(w, nr, n));
+        int nc = (int)lroundf(vis - GridRowX(w, nr, n) / px);
         nc = std::max(0, std::min(inRow - 1, nc));
         ns = nr * cols + nc;
     }
@@ -291,6 +288,29 @@ static void GridAccept(Widget& w) {
     Snd(SND_ERROR);
 }
 static bool GridPiece(const Elem& e) { return e.role != "gtab" && e.role != "gtrack"; }
+static bool GridPieceOf(const Elem& e) { Widget* w = WidgetFor(e.group); return w && w->type == W_GRID && GridPiece(e); }
+// the cell pieces' extent across (units, from the grid's left side, as made)
+static bool GridSpan(const Widget& w, float& L, float& R) {
+    L = 1e9f; R = -1e9f;
+    for (auto& e : MenuElems()) {
+        if (!InGroup(e.group, w.group) || !GridPiece(e) || !e.visible) continue;
+        ImVec2 sz = ElemSize(e);
+        float ax = (e.type == E_TEXT && e.w <= 0) ? e.align * 0.5f : (e.anchor % 3) * 0.5f;
+        float l = e.x - ax * sz.x - w.gx;
+        L = std::min(L, l); R = std::max(R, l + sz.x);
+    }
+    return L <= R;
+}
+// How far a row's cells move across (units) so the row - from its first cell's pieces to its last cell's - sits flush left,
+// centred or flush right within the grid's bounds, like a line of text in its box.
+static float GridRowX(const Widget& w, int row, int count) {
+    int cols = std::max(1, w.cols), inRow = std::min(cols, count - row * cols);
+    float L, R;
+    if (inRow <= 0 || !GridSpan(w, L, R)) return 0.f;
+    float px = w.gw / cols, sx = w.scalePieces && w.refW > 0.5f ? px / w.refW : 1.f;
+    float rowW = (inRow - 1) * px + (R - L) * sx;
+    return std::max(0, std::min(2, w.startAt)) * 0.5f * (w.gw - rowW) - L * sx;
+}
 // The grid's cells: its pieces copied per item, moved by the cell pitch (and stretched to the cell). on: the grid is the
 // page's selected row (its cursor shows). preview: the editor's ghost cells (sample items, the first cell left out, faded).
 static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float scrollDy, bool preview) {
@@ -318,10 +338,9 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
         for (int c = 0; c < cols; ++c) {
             int idx = r * cols + c;
             if (idx < 0 || idx >= n) continue;
-            if (preview && idx == 0 && GridShift(w, 0, n) == 0) continue;   // (the pieces themselves are the first cell, unless its row is moved)
-            bool cur = on && !preview && idx == st.sel;
+            bool cur = preview ? idx == 0 : (on && idx == st.sel);   // (the editor: the first cell shows the selected look)
             const GItem& it = items[idx];
-            float ox = (c + GridShift(w, r, n)) * px, oy = (r - scroll) * py;
+            float ox = c * px + GridRowX(w, r, n), oy = (r - scroll) * py;
             for (int i : order) {
                 Elem& src = els[i];
                 if (src.selOnly && !cur) continue;
@@ -337,7 +356,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                     if (cur && p && p->useSel && (e.role == "label" || e.role == "value")) memcpy(e.col, p->selCol, sizeof e.col);
                 }
                 if (e.role == "icon") { if (it.icon.empty()) continue; e.tex = it.icon; e.texIdx = -2; }
-                if (preview) e.col[3] *= 0.45f;
+                if (preview && idx != 0) e.col[3] *= 0.45f;   // (the editor: the first cell as it is, the rest faded)
                 if (e.role != "icon") e.texIdx = src.texIdx;
                 e.fontIdx = src.fontIdx;
                 DrawElem(dl, e, false);
@@ -361,7 +380,7 @@ static void GridEachCell(Widget& w, const Elem* piece, const std::function<void(
         for (int c = 0; c < cols; ++c) {
             int idx = r * cols + c;
             if (idx >= n) continue;
-            float ox = (c + GridShift(w, r, n)) * px, oy = r * py;
+            float ox = c * px + (piece ? GridRowX(w, r, n) : 0.f), oy = r * py;
             ImVec2 a, b;
             if (piece) {
                 Elem e = *piece;
@@ -376,11 +395,13 @@ static void GridEachCell(Widget& w, const Elem* piece, const std::function<void(
             fn(a, b);
         }
 }
-static bool GridBox(Widget& w, ImVec2& a, ImVec2& b) {   // the whole grid on screen
+static bool GridBox(Widget& w, ImVec2& a, ImVec2& b) {   // the grid's bounds on screen
     a = ImVec2(1e9f, 1e9f); b = ImVec2(-1e9f, -1e9f);
     GridEachCell(w, nullptr, [&](ImVec2 ca, ImVec2 cb) { a.x = std::min(a.x, ca.x); a.y = std::min(a.y, ca.y); b.x = std::max(b.x, cb.x); b.y = std::max(b.y, cb.y); });
     return b.x > a.x;
 }
+// the editor: the grid's pieces are drawn as its cells (DrawGrid), not as themselves
+static bool EditorDrawsAsGrid(const Elem& e) { return MenuWs() && GridPieceOf(e); }
 // The grid follows its pieces when they all move together (a group drag / nudge / move), not when they're rearranged
 // inside the cell. A grid changed some other way (undo, reload) is just taken as it is.
 static void GridFollow() {
@@ -944,9 +965,7 @@ static void GridResize(Widget& w, float ngw, float ngh, int ncols, int nrows) {
     // (a grid whose pieces were made for another cell size, drawn stretched: they're made the cell's size first)
     float bx = w.scalePieces && w.refW > 0.5f ? opx / w.refW : 1.f, by = w.scalePieces && w.refH > 0.5f ? opy / w.refH : 1.f;
     float kx = w.scalePieces && opx > 0.01f ? npx / opx * bx : 1.f, ky = w.scalePieces && opy > 0.01f ? npy / opy * by : 1.f;
-    // like text, it grows from its alignment point: the left edge stays (left), the centre (centre), the right edge (right)
-    float f = std::max(0, std::min(2, w.startAt)) * 0.5f;
-    float ngx = w.gx + f * (w.gw - ngw);
+    float ngx = w.gx;   // (its bounds grow from the top-left; the rows align inside them)
     float kh = w.gh > 0.01f ? ngh / w.gh : 1.f;
     for (auto& e : MenuElems()) {
         if (!InGroup(e.group, w.group)) continue;
@@ -972,7 +991,6 @@ static void GridMoveBy(Widget& w, float dx, float dy) {   // the grid and every 
     for (auto& e : MenuElems()) if (InGroup(e.group, w.group)) { e.x += dx; e.y += dy; }
     w.gx += dx; w.gy += dy; g_dirty = true;
 }
-static float GridAlignX(const Widget& w) { return w.gx + std::max(0, std::min(2, w.startAt)) * 0.5f * w.gw; }   // its alignment point
 static void GridPanel(Widget& w) {
     int cols = w.cols, rows = w.rows;
     ImGui::SetNextItemWidth(90); if (ImGui::InputInt("columns", &cols)) GridResize(w, w.gw, w.gh, cols, rows);
@@ -981,18 +999,14 @@ static void GridPanel(Widget& w) {
     float wh[2] = {w.gw, w.gh};
     ImGui::SetNextItemWidth(220); if (ImGui::SliderFloat2("width / height", wh, 20.f, 1280.f, "%.0f")) GridResize(w, wh[0], wh[1], w.cols, w.rows);
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The whole grid (units; Ctrl + click to type): each cell is width / columns by height / rows shown.\nWith \"stretch pieces\" on, the cell's pieces are resized with it.");
+    float pos[2] = {w.gx, w.gy};
+    ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("top-left", pos, 0.5f, -2000.f, 2000.f, "%.0f")) GridMoveBy(w, pos[0] - w.gx, pos[1] - w.gy);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The grid's top-left corner (its bounds start here). Moves the pieces with it.");
     static const char* aligns[] = {"left", "centre", "right"};
-    float pos[2] = {GridAlignX(w), w.gy};
-    ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("position", pos, 0.5f, -2000.f, 2000.f, "%.0f")) GridMoveBy(w, pos[0] - GridAlignX(w), pos[1] - w.gy);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("x: its alignment point (its %s edge%s), y: its top. Moves the pieces with it.", w.startAt == 1 ? "centre" : aligns[w.startAt], w.startAt == 1 ? " - the middle" : "");
     ImGui::SameLine(); ImGui::SetNextItemWidth(90);
     int al = std::max(0, std::min(2, w.startAt));
-    if (ImGui::Combo("align", &al, aligns, 3) && al != w.startAt) {   // like text: the point stays, the grid moves about it
-        float p = GridAlignX(w);
-        w.startAt = al;
-        GridMoveBy(w, p - GridAlignX(w), 0);
-    }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Like text: the grid sits left of, centred on or right of its position, grows from it when it's\nresized (wider, more columns), and rows with fewer items line up the same way.");
+    if (ImGui::Combo("align", &al, aligns, 3)) { w.startAt = al; g_dirty = true; }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Like text in its box: each row's cells sit flush left, centred or flush right inside the grid's\nbounds (width / height). Shows when the cells are narrower than the grid (stretch pieces off,\nor a short row).");
     ImGui::Text("cell %.0f x %.0f", w.gw / std::max(1, w.cols), w.gh / std::max(1, w.rows));
     ImGui::SameLine(); if (ImGui::Checkbox("stretch pieces to the cell", &w.scalePieces)) { if (w.scalePieces) { w.refW = w.gw / std::max(1, w.cols); w.refH = w.gh / std::max(1, w.rows); } g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("On: resizing the grid resizes the cell's pieces with it. Off: the pieces keep their size in bigger / smaller cells.");

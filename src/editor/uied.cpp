@@ -2140,7 +2140,8 @@ void DrawOverlay(int mode) {
         auto& lay = g_layout[editing || testMode ? g_editMode : mode];
         if (MenuWs()) GridFollow();
         g_drawList = &lay;
-        for (int i : DrawOrder(lay)) DrawElem(dl, lay[i], editing);
+        bool gridsAsCells = (editing || panel) && MenuWs();   // (then grids are drawn as their cells below)
+        for (int i : DrawOrder(lay)) if (!(gridsAsCells && EditorDrawsAsGrid(lay[i]))) DrawElem(dl, lay[i], editing);
         if ((editing || panel) && MenuWs())   // grids: the other cells faded, with sample items (the pieces are the first cell)
             for (auto& w : g_widgets) if (w.type == W_GRID) {
                 bool shown = false; for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.visible) { shown = true; break; }
@@ -2179,6 +2180,7 @@ void DrawOverlay(int mode) {
             for (int i = 0; i < (int)Elems().size(); ++i) {
                 Elem& e = Elems()[i];
                 if (i != g_sel && !InGroup(e.group, g_selGroup)) continue;
+                if (EditorDrawsAsGrid(e)) continue;
                 bool mine; if (!e.visible || !RowShown(e, mine)) continue;
                 ImVec2 a, b; ElemRect(e, a, b);
                 fg->AddRect(ImVec2(a.x - 2, a.y - 2), ImVec2(b.x + 2, b.y + 2), IM_COL32(0, 0, 0, 200), 0.f, 0, 4.f);
@@ -2196,7 +2198,8 @@ void DrawOverlay(int mode) {
         bool sel = i == g_sel || inGroup || PickedOf(i);
         // the selected texture / text (or the selected group's members): a green outline on screen
         const ImU32 green = IM_COL32(60, 235, 90, 255);
-        if (sel && g_hiSel) {
+        bool asGrid = EditorDrawsAsGrid(Elems()[i]);   // (outlined as its copies in the cells: gridOutlines)
+        if (sel && g_hiSel && !asGrid) {
             fg->AddRect(ImVec2(a.x - 2, a.y - 2), ImVec2(b.x + 2, b.y + 2), IM_COL32(0, 0, 0, 200), 0.f, 0, 4.f);   // dark edge so it shows on any colour
             fg->AddRect(ImVec2(a.x - 2, a.y - 2), ImVec2(b.x + 2, b.y + 2), green, 0.f, 0, 2.5f);
         } else fg->AddRect(a, b, IM_COL32(120, 200, 255, 160), 0.f, 0, 1.f);
