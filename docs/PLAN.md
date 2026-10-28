@@ -115,6 +115,10 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   row (places scaled to the row's width; bars / boxes - wider than 3x their height - stretched; the rest keep their
   size). Rows can scroll past the total rows when this adds rows. Up / down go to the tile under the same column (a
   whole-row tile remembers the column you came from); left / right on one leave the grid (or change it while held).
+  Slider / picker pieces (tilekinds only 2 / 4: RowPiece) are laid out across the grid's whole row, not a tile: made
+  across the row, drawn as they are on whole-row tiles, and on resize their places follow the grid's width, bars (wider
+  than 2x their height) stretch, the rest keep their size - changing the columns no longer squeezes them. Grid line
+  field 16 = 1 marks this; older grids' slider / picker pieces are spread from the tile to the row on load.
 - **Custom menus (2026-10-28).** A bar under Add image ... Undo (Menus workspace): "Add Menu +" when there are none,
   then a button per custom menu and "+". Each is a dedicated page (`[page]` with `dedicated=1`; its group is its name,
   "Menu N" to start). Picking one edits it alone: everything outside it is hidden on screen, in the list and from clicks,
