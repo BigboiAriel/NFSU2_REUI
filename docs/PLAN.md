@@ -68,10 +68,11 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   or live values "list:<key>" (<key>.count, <key>.N, <key>.N.icon) for other mods' lists. Text {item} {i} {count};
   role "item icon"; "selected row only" = the selected cell. Arrows move inside it and leave it at its edges. Editor:
   "Add grid" on a page (4 x 3, 18 sample items) and faded ghost cells while laying it out. Rows with fewer items than
-  columns start from the left, centre or right (up / down keep the column on screen). "Highlight the whole grid first"
-  (default): moving onto it lights every cell and the arrows go on through the page; Enter goes in (one cell lit,
-  arrows pick, edges keep you in), Back comes out. Layout: widget
-  `grid=cols rows w h x y cellW cellH stretch start whole`.
+  columns start from the left, centre or right (up / down keep the column on screen). Resizing (width / height
+  sliders, columns, rows) resizes the cell's pieces with it when "stretch pieces" is on, so the editor shows the cell
+  as drawn. Editor: a picked grid outlines every cell (a picked piece: its copy in each cell); clicking a faded cell
+  picks the grid; the grid follows its pieces when they all move together. Layout: widget
+  `grid=cols rows w h x y cellW cellH stretch start`.
 - **Deprecated (2026-10-27): the row tools.** Build rows, Restack rows, row spacing / first row y, Start a new column,
   column distance, first column x, add to column, Add row (widget kit), row up / down, a row's column, Save as
   template and the Widget kit panel are gone from the editor; grids (menu buttons in rows x columns) replace them.
