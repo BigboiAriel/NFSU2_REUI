@@ -420,6 +420,7 @@ struct Elem {
     int texIdx = -2, fontIdx = -2;        // resolved lazily (-2: not yet)
     std::string role;                     // menus: what it does in its row / page (uied_menu.inc)
     bool selOnly = false;                 // menus: shown on the selected row only
+    int tileKinds = 0;                    // menus, a grid's piece: the tiles it shows on (1 buttons, 2 sliders, 4 pickers, 8 bindings; 0 all)
     std::string kit;                      // menus: the widget-kit template it belongs to ("" = in the layout)
     // live-value rules: showIf = a value key ("!key": the opposite) - shown only while it's set (not blank / "0");
     // bind = a value key driving the element: bindKind 1 fill left to right, 2 fill bottom to top (images: cut, not
@@ -1629,6 +1630,7 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
     } else fprintf(f, "font=%s\ntext=%s\nalign=%d\n", e.font.c_str(), Esc(e.text).c_str(), e.align);
     if (!e.role.empty()) fprintf(f, "role=%s\n", e.role.c_str());
     if (e.selOnly) fprintf(f, "selonly=1\n");
+    if (e.tileKinds) fprintf(f, "tilekinds=%d\n", e.tileKinds);
     if (!e.kit.empty()) fprintf(f, "kit=%s\n", Esc(e.kit).c_str());
     if (!e.showIf.empty()) fprintf(f, "showif=%s\n", e.showIf.c_str());
     if (e.bindKind) fprintf(f, "bind=%s\nbindkind=%d\nbindrange=%g %g\n", e.bind.c_str(), e.bindKind, e.bindMin, e.bindMax);
@@ -1713,6 +1715,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "highlight") { e.hiMine = true; sscanf(v.c_str(), "%f %f %f %f", &e.hiCol[0], &e.hiCol[1], &e.hiCol[2], &e.hiCol[3]); }
     else if (k == "role") e.role = v;
     else if (k == "selonly") e.selOnly = atoi(v.c_str()) != 0;
+    else if (k == "tilekinds") e.tileKinds = atoi(v.c_str()) & 15;
     else if (k == "kit") e.kit = Unesc(v);
     else if (k == "showif") e.showIf = v;
     else if (k == "bind") e.bind = v;
@@ -2140,7 +2143,7 @@ void DrawOverlay(int mode) {
         auto& lay = g_layout[editing || testMode ? g_editMode : mode];
         if (MenuWs()) GridFollow();
         g_drawList = &lay;
-        for (int i : DrawOrder(lay)) DrawElem(dl, lay[i], editing);
+        for (int i : DrawOrder(lay)) if (!(MenuWs() && GridPieceOff(lay[i]))) DrawElem(dl, lay[i], editing);
         if ((editing || panel) && MenuWs())   // grids: the other cells faded, with sample items (the pieces are the first cell)
             for (auto& w : g_widgets) if (w.type == W_GRID) {
                 bool shown = false; for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.visible) { shown = true; break; }
@@ -2198,6 +2201,7 @@ void DrawOverlay(int mode) {
         ImVec2 a, b; ElemRect(Elems()[i], a, b);
         bool inGroup = InGroup(Elems()[i].group, g_selGroup);
         bool sel = i == g_sel || inGroup || PickedOf(i);
+        if (!sel && GridPieceOff(Elems()[i])) continue;   // (a grid's piece for other kinds of tile)
         // the selected texture / text (or the selected group's members): a green outline on screen
         const ImU32 green = IM_COL32(60, 235, 90, 255);
         if (sel && g_hiSel) {
@@ -2220,7 +2224,7 @@ void DrawOverlay(int mode) {
         std::vector<int> order = DrawOrder(Elems());
         if (g_dragging < 0) for (int oi = (int)order.size() - 1; oi >= 0; --oi) {   // topmost first
             int i = order[oi];
-            if (!Elems()[i].visible) continue;
+            if (!Elems()[i].visible || GridPieceOff(Elems()[i])) continue;
             ImVec2 a, b; ElemRect(Elems()[i], a, b);
             if (m.x >= a.x && m.x <= b.x && m.y >= a.y && m.y <= b.y) {
                 g_dragging = i; g_dragMode = 0;

@@ -368,6 +368,128 @@ static void GridAccept(Widget& w) {
     Snd(SND_ERROR);
 }
 static bool GridPiece(const Elem& e) { return e.role != "gtab" && e.role != "gtrack"; }
+// ---- tile kinds: 1 button, 2 slider, 4 picker, 8 binding (a button changing a binding setting)
+static std::map<std::string, int> g_tileSel;   // the tile picked in each grid's panel (outlined; the editor's first tile shows its kind)
+static int TileBit(const Widget* t) {
+    if (!t) return 1;
+    if (t->type == W_SLIDER) return 2;
+    if (t->type == W_PICKER) return 4;
+    Setting* s = SettingOf(t->bind); return s && s->kind == 3 ? 8 : 1;
+}
+// a grid piece on a tile of that kind: its own "shows on" kinds, then by role (value text: sliders / pickers; fill bar +
+// tab: sliders; arrows: pickers; binding icon: bindings)
+static bool TileShows(const Elem& e, int bit) {
+    if (e.tileKinds && !(e.tileKinds & bit)) return false;
+    if (e.role == "value" && !(bit & 6)) return false;
+    if ((e.role == "fill" || e.role == "tab") && bit != 2) return false;
+    if ((e.role == "arrowL" || e.role == "arrowR") && bit != 4) return false;
+    if (e.role == "bindicon" && bit != 8) return false;
+    return true;
+}
+// the editor: a grid's pieces are its first tile as the panel's picked tile would show it (the others are hidden)
+static bool GridPieceOff(const Elem& e) {
+    if (!MenuWs() || e.group.empty()) return false;
+    Widget* w = WidgetFor(e.group);
+    if (!w || w->type != W_GRID || !GridHasTiles(*w) || !GridPiece(e)) return false;
+    auto it = g_tileSel.find(w->group);
+    int ts = it == g_tileSel.end() ? 0 : it->second;
+    return !TileShows(e, TileBit(ts >= 0 && ts < (int)w->tiles.size() ? &w->tiles[ts] : nullptr));
+}
+static bool GridHasKind(const Widget& w, int bit) {   // pieces of its own for that kind of tile
+    for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.tileKinds && (e.tileKinds & bit) && e.tileKinds != 15) return true;
+    return false;
+}
+// The older menu rows a new kind of tile is made like: a slider (UniPad Options menu / Steering Deadzone), a picker
+// (Active Gamepad), a binding (Gamepad Bindings menu / Steering Binding) - those first, else any row of that kind.
+static Widget* KindRef(int bit) {
+    const char* pref = bit == 2 ? "UniPad Options menu/Steering Deadzone" : bit == 4 ? "UniPad Options menu/Active Gamepad" : "Gamepad Bindings menu/Steering Binding";
+    auto fits = [&](Widget& r) {
+        if (!PageOf(GroupParent(r.group))) return false;
+        Setting* st = SettingOf(r.bind);
+        bool want = bit == 2 ? r.type == W_SLIDER : bit == 4 ? r.type == W_PICKER : (r.type == W_BUTTON && st && st->kind == 3);
+        if (!want) return false;
+        for (auto& e : MenuElems()) if (InGroup(e.group, r.group) && (bit == 2 ? e.role == "fill" : bit == 4 ? e.role == "arrowL" || e.role == "arrowR" : e.role == "bindicon")) return true;
+        return false;
+    };
+    if (Widget* r = WidgetOf(pref)) if (fits(*r)) return r;
+    for (auto& r : g_widgets) if (fits(r)) return &r;
+    return nullptr;
+}
+// (no such row in the layout: the same pieces as those rows, built in)
+static std::vector<Elem> KindDefault(int bit, float& x0, float& x1) {
+    std::vector<Elem> v;
+    auto text = [&](const char* name, float x, const char* t, const char* font, int align, const char* role, float c, int layer) {
+        Elem e; e.type = E_TEXT; e.name = name; e.anchor = 4; e.x = x; e.y = 0; e.w = 0; e.h = 64; e.text = t; e.font = font; e.align = align;
+        e.role = role; e.layer = layer; for (int i = 0; i < 3; ++i) e.col[i] = c; e.col[3] = 1; v.push_back(e);
+    };
+    auto img = [&](const char* name, float x, float y, float w, float h, const char* tex, const char* role, int layer) {
+        Elem e; e.type = E_IMAGE; e.name = name; e.anchor = 4; e.x = x; e.y = y; e.w = w; e.h = h; e.tex = tex; e.role = role; e.layer = layer;
+        v.push_back(e); return &v.back();
+    };
+    if (bit != 8) text("Label", -270, "Label", "conduitmditc_tt21i", 0, "label", 1, 2);
+    if (bit == 2) {
+        x0 = 53.2f; x1 = 198.8f;
+        img("bar outline", 126, 4, 234.9f, 32, "U2_TEMP_SLIDERBG", "", 2)->col[3] = 0.88f;
+        Elem* f = img("bar", 53.2f, 0, 0, 5.75f, "WHITE16X16_PURE_WHITE", "fill", 6); f->col[0] = 0.388f; f->col[1] = 0.698f; f->col[2] = 0.133f;
+        img("slider", 53.2f, 3, 16, 16, "U2_SLIDERBAR_TAB", "tab", 9);
+        text("value", 32, "0%", "conduitmditc_tt14i", 1, "value", 0.753f, 1);
+    } else if (bit == 4) {
+        Elem* l = img("Arrow", -2.93f, 0, 24, 24, "U2_MENU_ARROW", "arrowL", 2); l->u0 = l->v0 = 1; l->u1 = l->v1 = 0; l->col[3] = 0.588f; l->selOnly = true;
+        Elem* r = img("Arrow", 252, 0, 24, 24, "U2_MENU_ARROW", "arrowR", 2); r->col[3] = 0.588f; r->selOnly = true;
+        text("value", 124.66f, "Value", "conduitmditc_tt21i", 1, "value", 1, 2);
+    } else {
+        text("Label", -164, "Label", "conduitmditc_tt21i", 1, "label", 1, 2);
+        img("icon (follows the controller)", -72, 0, 32, 32, "icon:auto:LeftStick", "bindicon", 9);
+    }
+    return v;
+}
+// A grid gets pieces for a new kind of tile: the reference row's pieces, laid across the tile (their row's width spread
+// over the tile less a margin, bars stretched with it, the rest their own size; up / down from the row's label), shown on
+// that kind only. The grid's own label / icon pieces aren't shown on it then.
+static void GridAddKind(Widget& w, int bit) {
+    if (bit == 1 || w.group.empty()) return;
+    std::vector<Elem> src; float x0 = 0, x1 = 0;
+    if (Widget* r = KindRef(bit)) {
+        for (auto& e : MenuElems()) if (InGroup(e.group, r->group) && e.role != "desc" && e.role != "stab" && e.role != "strack" && e.role != "hl") src.push_back(e);
+        x0 = r->x0; x1 = r->x1 > r->x0 ? r->x1 : r->x0 + 1;
+        Log("ui editor: %s tiles of %s made like %s", bit == 2 ? "slider" : bit == 4 ? "picker" : "binding", w.group.c_str(), r->group.c_str());
+    } else src = KindDefault(bit, x0, x1);
+    if (src.empty()) return;
+    // the row: across, its pieces' extent; up / down, its label
+    float bl = 1e9f, br = -1e9f, ly = 0; bool hasLabel = false;
+    for (auto& e : src) {
+        if (e.role == "label" && !hasLabel) { ly = e.y; hasLabel = true; }
+        if (e.role == "fill") { bl = std::min(bl, x0); br = std::max(br, x1); continue; }
+        Elem c = e; ImVec2 sz = ElemSize(c);
+        float ax = (e.type == E_TEXT && e.w <= 0) ? e.align * 0.5f : (e.anchor % 3) * 0.5f;
+        bl = std::min(bl, e.x - ax * sz.x); br = std::max(br, e.x - ax * sz.x + sz.x);
+    }
+    if (!hasLabel) { float sum = 0; for (auto& e : src) sum += e.y; ly = sum / src.size(); }
+    float cw = w.refW > 0.5f ? w.refW : GCellW(w), ch = w.refH > 0.5f ? w.refH : GCellH(w);
+    float m = cw * 0.04f, k = (cw - 2 * m) / std::max(1.f, br - bl);
+    auto mapX = [&](float x) { return w.gx + m + (x - bl) * k; };
+    float cy = w.gy + ch / 2;
+    const char* kn = bit == 2 ? "Slider: " : bit == 4 ? "Picker: " : "Binding: ";
+    std::string first = w.tiles.empty() ? std::string("{item}") : w.tiles[0].label;
+    for (auto& e : src) {
+        Elem c = e;
+        c.group = w.group; c.kit.clear(); c.tileKinds = bit; c.visible = true; c.name = kn + e.name;
+        c.y = cy + (e.y - ly);
+        float ax = (e.anchor % 3) * 0.5f;
+        if (e.role == "fill") { c.w = (x1 - x0) * k; c.x = mapX(x0) + ax * c.w; }
+        else if (e.role == "tab") c.x = mapX(x0);
+        else {
+            c.x = mapX(e.x);
+            if (e.type != E_TEXT && e.w > 3 * e.h) c.w = e.w * k;   // (bars stretch across with the row)
+        }
+        if (c.role == "label") c.text = first;
+        MenuElems().push_back(c);
+    }
+    for (auto& e : MenuElems())   // the grid's own label / icon: not on this kind
+        if (InGroup(e.group, w.group) && e.tileKinds != bit && (e.role == "label" || e.role == "icon") && (e.tileKinds == 0 || (e.tileKinds & bit)))
+            e.tileKinds = (e.tileKinds ? e.tileKinds : 15) & ~bit;
+    g_dirty = true;
+}
 // the binding waiting for an input: a row (its group) or a grid's tile ("<grid>\x01<tile>")
 static Widget* CaptureWidget() {
     size_t k = g_menu.capturing.find('\x01');
@@ -443,12 +565,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
             for (int i : order) {
                 Elem& src = els[i];
                 if (src.selOnly && !cur) continue;
-                if (kind >= 0) {
-                    if (src.role == "value" && kind == W_BUTTON) continue;
-                    if ((src.role == "fill" || src.role == "tab") && kind != W_SLIDER) continue;
-                    if ((src.role == "arrowL" || src.role == "arrowR") && kind != W_PICKER) continue;
-                    if (src.role == "bindicon" && !bs) continue;
-                }
+                if (kind >= 0 && !TileShows(src, TileBit(t))) continue;
                 Elem e = src;
                 e.x = w.gx + (e.x - w.gx) * sx + ox;
                 e.y = w.gy + (e.y - w.gy) * sy + oy + scrollDy;
@@ -1055,6 +1172,17 @@ static void ElemMenuProps(Elem& e) {
         "it's laid out on (and across to its column): a shape behind the selected row, say.");
     ImGui::SameLine(); if (ImGui::Checkbox("selected row only", &e.selOnly)) g_dirty = true;
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Hidden on rows that aren't selected (the game's picker arrows).");
+    Widget* gw = WidgetFor(e.group);
+    if (gw && gw->type == W_GRID && GridHasTiles(*gw) && GridPiece(e)) {   // a grid's piece: the kinds of tile it's on
+        ImGui::TextUnformatted("shows on"); 
+        static const char* kn[] = {"buttons", "sliders", "pickers", "bindings"};
+        int mask = e.tileKinds ? e.tileKinds : 15;
+        for (int i = 0; i < 4; ++i) {
+            ImGui::SameLine(); bool on = (mask >> i) & 1;
+            if (ImGui::Checkbox(kn[i], &on)) { mask = on ? mask | (1 << i) : mask & ~(1 << i); e.tileKinds = mask == 15 ? 0 : mask; g_dirty = true; }
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The kinds of tile this piece is drawn on (by role too: value text on sliders / pickers,\nfill bar + tab on sliders, arrows on pickers, binding icon on bindings).");
+    }
 }
 static void SettingCombo(Widget& w) {
     int want = w.type == W_SLIDER ? 0 : w.type == W_PICKER || w.type == W_GRID ? 1 : 2;
@@ -1134,7 +1262,6 @@ static void TileChanges(Widget& t) {
         ImGui::EndCombo();
     }
 }
-static std::map<std::string, int> g_tileSel;   // the tile picked in each grid's panel (outlined in the editor)
 static void GridPanel(Widget& w) {
     GridFitTiles(w);
     bool tiles = GridHasTiles(w);
@@ -1208,10 +1335,14 @@ static void GridPanel(Widget& w) {
         ImGui::SameLine(); ImGui::SetNextItemWidth(170);
         if (ImGui::Combo("widget##tile", &k, kinds, 3)) {
             int nt = k == 1 ? W_SLIDER : k == 2 ? W_PICKER : W_BUTTON;
-            if (nt != t.type) { t.type = nt; t.bind.clear(); t.action.clear(); t.value = 0; g_dirty = true; }
+            if (nt != t.type) { t.type = nt; t.bind.clear(); t.action.clear(); t.value = 0; g_dirty = true; if (!GridHasKind(w, TileBit(&t))) GridAddKind(w, TileBit(&t)); }
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("What the tile is. Sliders and pickers: A takes hold of it, left / right change it, B lets go.\nIts pieces show by role: value text on sliders / pickers, fill bar + tab on sliders, arrows on pickers.");
-        ImGui::SameLine(); TileChanges(t);
+        { int was = TileBit(&t); ImGui::SameLine(); TileChanges(t); int now = TileBit(&t); if (now != was && !GridHasKind(w, now)) GridAddKind(w, now); }
+        if (TileBit(&t) != 1 && !GridHasKind(w, TileBit(&t))) {
+            ImGui::SameLine(); if (ImGui::SmallButton("add its pieces")) GridAddKind(w, TileBit(&t));
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("The grid has no pieces of its own for this kind of tile: copy them from the older menu row of that kind.");
+        }
         // (sliders / pickers of their own: their range / choices)
         if (t.type == W_SLIDER && !SettingOf(t.bind)) {
             ImGui::SetNextItemWidth(220); if (ImGui::DragFloat3("min / max / step", &t.min, 0.01f)) g_dirty = true;
@@ -1308,7 +1439,9 @@ static void WidgetPanel(Widget& w, Page* page) {
 // a new grid on the page: one cell's pieces (backing, text, selected frame, icon) + a scroller beside it
 static void AddGrid(Page& p) {
     std::string g; for (int i = 1; ; ++i) { g = p.group + "/Grid" + (i > 1 ? " " + std::to_string(i) : ""); if (!WidgetOf(g)) { bool used = false; for (auto& e : MenuElems()) if (InGroup(e.group, g)) used = true; if (!used) break; } }
-    Widget w; w.group = g; w.type = W_GRID; w.cols = 4; w.rows = 3; w.gw = 400; w.gh = 240; w.gx = -200; w.gy = -120; w.refW = 100; w.refH = 80;
+    // the default: 1 column, 8 rows of 550 x 30 tiles 7.7 apart, centred (as menu_big's grid)
+    Widget w; w.group = g; w.type = W_GRID; w.cols = 1; w.rows = 8; w.totalRows = 8; w.spX = 0; w.spY = 7.7f;
+    w.refW = 550; w.refH = 30; w.gw = 550; w.gh = 8 * 30 + 7 * 7.7f; w.gx = -16 - w.gw / 2; w.gy = -w.gh / 2;
     w.col = p.addCol;
     GridFitTiles(w);   // (Button 1, 2, 3...)
     w.startAt = 1; GridOrigin(w);   // (its origin: its centre)
@@ -1317,10 +1450,10 @@ static void AddGrid(Page& p) {
         Elem e; e.type = E_IMAGE; e.name = name; e.group = g; e.anchor = 4; e.x = x; e.y = y; e.w = ww; e.h = hh; e.tex = "WHITE16X16"; e.texIdx = -2;
         e.colTok = tok; e.colTokA = a; MenuElems().push_back(e); return &MenuElems().back();
     };
-    img("Cell", cx, cy, w.refW - 6, w.refH - 6, "hud.shade", 0.55f);
-    Elem* sel = img("Cell selected", cx, cy, w.refW - 6, w.refH - 6, "hud.accent", 0.3f); sel->selOnly = true; sel->layer = 1;
-    Elem* ic = img("Icon", cx, cy - 10, 36, 36, "", 1); ic->role = "icon"; ic->layer = 2; ic->tex.clear();
-    Elem t; t.type = E_TEXT; t.name = "Item text"; t.group = g; t.anchor = 4; t.x = cx; t.y = cy + 14; t.w = 0; t.align = 1; t.text = "{item}";
+    img("Cell", cx, cy, 517, 27.75f, "hud.shade", 0.55f);
+    Elem* sel = img("Cell selected", cx, cy, 517, 27.75f, "hud.accent", 0.3f); sel->selOnly = true; sel->layer = 1;
+    Elem* ic = img("Icon", cx, cy - 3.75f, 198, 13.5f, "", 1); ic->role = "icon"; ic->layer = 2; ic->tex.clear();
+    Elem t; t.type = E_TEXT; t.name = "Item text"; t.group = g; t.anchor = 4; t.x = cx; t.y = cy + 5.25f; t.w = 0; t.align = 1; t.text = "{item}";
     t.role = "label"; t.layer = 3; t.colTok = "hud.text"; t.colTokA = 1;
     int fi = FindFont("conduitmditc_tt14i"); if (fi < 0 && !g_fonts.empty()) fi = 0;
     if (fi >= 0) { t.font = g_fonts[fi].name; t.fontIdx = fi; }

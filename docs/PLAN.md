@@ -93,6 +93,14 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   Each tile also has an icon (texture name / icon:auto:<button> / vec:<file>) for the grid's item icon piece, and a
   button tile can be a binding ("bind: ..." in changes): A waits for an input ("???" pulsing), {binding} / {input} in
   its texts, its binding icon pieces (or its item icon piece, when it has no icon of its own) show what it's bound to.
+  New grids default to menu_big's grid: 1 column, 8 visible / 8 total rows, 550 x 293.9 (550 x 30 tiles), spacing down
+  7.7, centred, with its cell / selected / icon / centred label pieces. A tile made a slider / picker / binding gives the
+  grid pieces for that kind (once; "add its pieces" if they're missing), copied from the older rows - UniPad Options menu
+  / Steering Deadzone (label, bar outline, fill, tab, % text), Active Gamepad (label, arrows, value), Gamepad Bindings
+  menu / Steering Binding (label, binding icon); any row of that kind if those are gone, built-in copies if none - spread
+  across the tile (row width over the tile less a 4% margin; bars stretch) and shown on that kind only; the grid's own
+  label / icon stop showing on it. Pieces have "shows on: buttons / sliders / pickers / bindings" (element key
+  `tilekinds=` bitmask 1 / 2 / 4 / 8). In the editor the first tile's pieces show as the panel's picked tile would.
 - **Deprecated (2026-10-27): the row tools.** Build rows, Restack rows, row spacing / first row y, Start a new column,
   column distance, first column x, add to column, Add row (widget kit), row up / down, a row's column, Save as
   template and the Widget kit panel are gone from the editor; grids (menu buttons in rows x columns) replace them.
