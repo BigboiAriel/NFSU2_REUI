@@ -40,6 +40,7 @@ struct Widget {
     float gw = 400, gh = 240, gx = -200, gy = -120, refW = 100, refH = 80;
     bool scalePieces = true;
     int startAt = 0;                     // rows with fewer items than columns start from the left (0), centre (1) or right (2)
+    bool selectWhole = true;             // selected on the page: the whole grid lights up; Enter goes in to pick a cell, Back comes out
 };
 // how many cells a short row is moved across (a grid row starting from the centre / right)
 static float GridShift(const Widget& w, int row, int count) {
@@ -206,7 +207,7 @@ static struct MenuState {
     double flashL = 0, flashR = 0, t = 0;
     std::string capturing;   // the binding row (its group) waiting for an input; looked up each time, as the widget
                              // list can be replaced (undo, reload, duplicate...) while it waits
-    struct GridSt { int sel = -1, top = 0; float scroll = 0; };   // each grid's cursor (item), top row, shown scroll
+    struct GridSt { int sel = -1, top = 0; float scroll = 0; bool in = false; };   // each grid's cursor (item), top row, shown scroll; in: picking cells
     std::map<std::string, GridSt> grids;
 } g_menu;
 
@@ -281,6 +282,7 @@ static void GridAccept(Widget& w) {
     auto items = GridItems(w); int n = (int)items.size();
     if (!n) { Snd(SND_ERROR); return; }
     auto& st = GridState(w, n);
+    if (w.selectWhole && !st.in) { st.in = true; Snd(SND_ACCEPT); return; }   // into the grid: now a cell is picked
     const GItem& it = items[st.sel];
     if (Setting* s = SettingOf(w.bind)) { if (s->set) { s->set((float)st.sel); if (menuChanged) menuChanged(); Snd(SND_ACCEPT); return; } }
     if (it.action.compare(0, 5, "page:") == 0 && PageOf(it.action.substr(5))) { Snd(SND_ACCEPT); MenuGo(it.action.substr(5)); return; }
@@ -318,7 +320,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
             int idx = r * cols + c;
             if (idx < 0 || idx >= n) continue;
             if (preview && idx == 0) continue;   // (the pieces themselves are the first cell)
-            bool cur = on && !preview && idx == st.sel;
+            bool cur = on && !preview && (w.selectWhole && !st.in ? true : idx == st.sel);   // (the whole grid lit until you go in)
             const GItem& it = items[idx];
             float ox = (c + GridShift(w, r, n)) * px, oy = (r - scroll) * py;
             for (int i : order) {
@@ -345,6 +347,62 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
             }
         }
     dl->PopClipRect();
+}
+// ---- the editor's view of a grid
+// each cell the editor shows (cols x rows, short rows shifted): its box on screen, or a piece's copy in it
+static void GridEachCell(Widget& w, const Elem* piece, const std::function<void(ImVec2, ImVec2)>& fn) {
+    int cols = std::max(1, w.cols), rows = std::max(1, w.rows);
+    int n = std::max((int)GridItems(w).size(), cols * rows);
+    float px = w.gw / cols, py = w.gh / rows;
+    float sx = w.scalePieces && w.refW > 0.5f ? px / w.refW : 1.f, sy = w.scalePieces && w.refH > 0.5f ? py / w.refH : 1.f;
+    int anchor = 4;
+    for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && GridPiece(e)) { anchor = e.anchor; break; }
+    float ax = (anchor % 3) * 0.5f, ay = (anchor / 3) * 0.5f;
+    for (int r = 0; r < rows; ++r)
+        for (int c = 0; c < cols; ++c) {
+            int idx = r * cols + c;
+            if (idx >= n) continue;
+            float ox = (c + GridShift(w, r, n)) * px, oy = r * py;
+            ImVec2 a, b;
+            if (piece) {
+                Elem e = *piece;
+                e.x = w.gx + (e.x - w.gx) * sx + ox; e.y = w.gy + (e.y - w.gy) * sy + oy;
+                if (e.type != E_TEXT) { e.w *= sx; e.h *= sy; } else { e.scale *= std::min(sx, sy); if (e.w > 0) e.w *= sx; }
+                ElemRect(e, a, b);
+            } else {
+                Elem box; box.type = E_IMAGE; box.anchor = anchor; box.w = px; box.h = py;
+                box.x = w.gx + ox + ax * px; box.y = w.gy + oy + ay * py;
+                ElemRect(box, a, b);
+            }
+            fn(a, b);
+        }
+}
+static bool GridBox(Widget& w, ImVec2& a, ImVec2& b) {   // the whole grid on screen
+    a = ImVec2(1e9f, 1e9f); b = ImVec2(-1e9f, -1e9f);
+    GridEachCell(w, nullptr, [&](ImVec2 ca, ImVec2 cb) { a.x = std::min(a.x, ca.x); a.y = std::min(a.y, ca.y); b.x = std::max(b.x, cb.x); b.y = std::max(b.y, cb.y); });
+    return b.x > a.x;
+}
+// The grid follows its pieces when they all move together (a group drag / nudge / move), not when they're rearranged
+// inside the cell. A grid changed some other way (undo, reload) is just taken as it is.
+static void GridFollow() {
+    struct Seen { std::vector<ImVec2> at; float gx = 0, gy = 0; };
+    static std::map<std::string, Seen> last;
+    for (auto& w : g_widgets) {
+        if (w.type != W_GRID) continue;
+        Seen now; now.gx = w.gx; now.gy = w.gy;
+        for (auto& e : MenuElems()) if (InGroup(e.group, w.group)) now.at.push_back(ImVec2(e.x, e.y));
+        auto it = last.find(w.group);
+        if (it != last.end() && !now.at.empty() && it->second.at.size() == now.at.size() && it->second.gx == w.gx && it->second.gy == w.gy) {
+            float dx = now.at[0].x - it->second.at[0].x, dy = now.at[0].y - it->second.at[0].y;
+            if (dx != 0 || dy != 0) {
+                bool together = true;
+                for (size_t i = 0; i < now.at.size() && together; ++i)
+                    if (fabsf(now.at[i].x - it->second.at[i].x - dx) > 0.01f || fabsf(now.at[i].y - it->second.at[i].y - dy) > 0.01f) together = false;
+                if (together) { w.gx += dx; w.gy += dy; now.gx = w.gx; now.gy = w.gy; }
+            }
+        }
+        last[w.group] = now;
+    }
 }
 // a grid's own scroller: the tab along the track by the scroll
 static bool GridScroller(Widget& w, Elem& e) {
@@ -472,6 +530,14 @@ void MenuFrame(const MenuInput& in, double dt) {
         }
         g_menu.was[i] = now[i];
     }
+    {   // a grid you're in: Back comes out of it (not off the page); grids you've left aren't "in" any more
+        Widget* cw = n ? rows[g_menu.sel].w : nullptr;
+        for (auto& kv : g_menu.grids) if (!cw || kv.first != cw->group) kv.second.in = false;
+        if (fire[5] && cw && cw->type == W_GRID && cw->selectWhole) {
+            auto it = g_menu.grids.find(cw->group);
+            if (it != g_menu.grids.end() && it->second.in) { it->second.in = false; Snd(SND_BACK); fire[5] = false; }
+        }
+    }
     if (fire[5]) { MenuBack(); return; }
     for (auto& kv : g_menu.grids) {   // grids scroll smoothly to their top row
         auto& st = kv.second;
@@ -481,10 +547,15 @@ void MenuFrame(const MenuInput& in, double dt) {
     if (!n) return;
     if (rows[g_menu.sel].w->type == W_GRID) {   // arrows move inside the grid first; at its edge the page takes them
         Widget& gw = *rows[g_menu.sel].w;
-        if (fire[0] && GridMove(gw, 0, -1)) fire[0] = false;
-        if (fire[1] && GridMove(gw, 0, 1)) fire[1] = false;
-        if (fire[2] && GridMove(gw, -1, 0)) fire[2] = false;
-        if (fire[3] && GridMove(gw, 1, 0)) fire[3] = false;
+        auto git = g_menu.grids.find(gw.group);
+        bool in = git != g_menu.grids.end() && git->second.in;
+        if (!gw.selectWhole || in) {
+            if (fire[0] && GridMove(gw, 0, -1)) fire[0] = false;
+            if (fire[1] && GridMove(gw, 0, 1)) fire[1] = false;
+            if (fire[2] && GridMove(gw, -1, 0)) fire[2] = false;
+            if (fire[3] && GridMove(gw, 1, 0)) fire[3] = false;
+            if (in) for (int i = 0; i < 4; ++i) fire[i] = false;   // (in the grid, its edges keep you in: Back comes out)
+        }
     }
     if (fire[0] || fire[1]) {
         int d = fire[1] ? 1 : -1;
@@ -888,6 +959,8 @@ static void GridPanel(Widget& w) {
     ImGui::SameLine(); if (ImGui::Checkbox("stretch pieces to the cell", &w.scalePieces)) g_dirty = true;
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The pieces were made for a %.0f x %.0f cell; on: they're stretched to the cell's size.", w.refW, w.refH);
     ImGui::SameLine(); if (ImGui::SmallButton("from the pieces")) GridFromPieces(w);
+    if (ImGui::Checkbox("highlight the whole grid first", &w.selectWhole)) g_dirty = true;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("On: moving onto the grid lights up all of it and the arrows go on through the page;\nEnter goes in to pick a cell (just that one lit), Back comes out.\nOff: the arrows pick cells straight away and leave the grid at its edges.");
     static const char* starts[] = {"left", "centre", "right"};
     ImGui::SetNextItemWidth(100); if (ImGui::Combo("rows start from", &w.startAt, starts, 3)) g_dirty = true;
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Where a row with fewer items than columns sits: from the left, centred, or from the right\n(the last row, or a grid of a few buttons). Full rows fill the width either way.");
@@ -962,24 +1035,7 @@ static void WidgetPanel(Widget& w, Page* page) {
     if (dbFor != w.group) { snprintf(db, sizeof db, "%s", w.desc.c_str()); dbFor = w.group; }
     ImGui::SetNextItemWidth(320);
     if (ImGui::InputTextWithHint("description", "shown by the page's description text", db, sizeof db)) { w.desc = db; g_dirty = true; }
-    if (page) {
-        if (ImGui::SmallButton("row up")) SwapRows(*page, &w, -1);
-        ImGui::SameLine(); if (ImGui::SmallButton("row down")) SwapRows(*page, &w, +1);
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(80);
-        int c = w.col;
-        if (ImGui::InputInt("column", &c) && c >= 0 && c != w.col) {   // moves it across by the column distance
-            float dx = (c - w.col) * page->colDist;
-            for (auto& e : MenuElems()) if (InGroup(e.group, w.group)) e.x += dx;
-            w.x0 += dx; w.x1 += dx; w.col = c; g_dirty = true;
-        }
-        ImGui::SameLine();
-    }
-    static char tn[64] = "";
-    ImGui::SetNextItemWidth(140); ImGui::InputTextWithHint("##tname", "template name", tn, sizeof tn);
-    ImGui::SameLine();
-    if (ImGui::SmallButton("save as template")) { std::string nm = tn[0] ? tn : GroupLeaf(w.group); SaveTemplate(w, nm); tn[0] = 0; }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Keeps this row (pieces, roles, type) in the widget kit, to add more rows like it to any page.");
+    (void)page;
 }
 // a new grid on the page: one cell's pieces (backing, text, selected frame, icon) + a scroller beside it
 static void AddGrid(Page& p) {
@@ -1007,76 +1063,24 @@ static void AddGrid(Page& p) {
     g_selGroup = g; g_sel = -1;
     Log("ui editor: grid added as %s", g.c_str());
 }
+// (Deprecated 2026-10-27, no longer in the editor: Build rows, Restack rows, row spacing / first row y, columns -
+// Start a new column / column distance / first column x / add to column -, Add row from the widget kit, row up /
+// down, a row's column, Save as template and the Widget kit panel. Grids replace them. Pages made with them still
+// load, save and work: BuildRows / Restack / StampRow / SaveTemplate / SwapRows / KitPanel are kept for that only.)
 static void PagePanel(Page& p) {
-    ImGui::SetNextItemWidth(100); if (ImGui::DragFloat("row spacing", &p.spacing, 0.5f, 4.f, 200.f, "%.1f")) g_dirty = true;
-    ImGui::SameLine(); ImGui::SetNextItemWidth(100); if (ImGui::DragFloat("first row y", &p.firstY, 0.5f, -240.f, 240.f, "%.1f")) g_dirty = true;
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Where the first row goes: Add row on an empty page, and Restack rows starts here.");
-    ImGui::SameLine(); ImGui::SetNextItemWidth(80); if (ImGui::InputInt("rows shown", &p.visRows)) { p.visRows = std::max(0, p.visRows); g_dirty = true; }
+    ImGui::SetNextItemWidth(80); if (ImGui::InputInt("rows shown", &p.visRows)) { p.visRows = std::max(0, p.visRows); g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = all. More rows than this scroll (the scroller tab follows).");
     ImGui::SameLine(); if (ImGui::Checkbox("menu key opens this", &p.start)) { if (p.start) for (auto& o : g_pages) if (&o != &p) o.start = false; g_dirty = true; }
-    {   // columns
-        int maxCol = 0; for (auto& w : g_widgets) if (GroupParent(w.group) == p.group) maxCol = std::max(maxCol, w.col);
-        float cd = p.colDist;
-        ImGui::SetNextItemWidth(160);
-        if (ImGui::SliderFloat("column distance", &cd, 40.f, 600.f, "%.0f")) {   // live: every column past the first moves
-            float d = cd - p.colDist;
-            for (auto& w : g_widgets) {
-                if (GroupParent(w.group) != p.group || w.col == 0) continue;
-                for (auto& e : MenuElems()) if (InGroup(e.group, w.group)) e.x += d * w.col;
-                w.x0 += d * w.col; w.x1 += d * w.col;
-            }
-            p.colDist = cd; g_dirty = true;
-        }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("How far apart the columns are (Ctrl + click to type a value).");
-        ImGui::SameLine();
-        float cx = p.colX;
-        ImGui::SetNextItemWidth(160);
-        if (ImGui::SliderFloat("first column x", &cx, -320.f, 320.f, "%.0f")) {   // live: every column moves with the first
-            float d = cx - p.colX;
-            for (auto& w : g_widgets) {
-                if (GroupParent(w.group) != p.group) continue;
-                for (auto& e : MenuElems()) if (InGroup(e.group, w.group)) e.x += d;
-                w.x0 += d; w.x1 += d;
-            }
-            p.colX = cx; g_dirty = true;
-        }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Moves the first column across; the other columns follow, keeping the column distance.");
-        ImGui::SameLine();
-        if (ImGui::Button("Start a new column")) { p.addCol = maxCol + 1; g_dirty = true; }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Add row puts rows in a new column from now on, starting at \"first row y\".");
-        ImGui::SameLine(); ImGui::SetNextItemWidth(80);
-        if (ImGui::InputInt("add to column", &p.addCol)) { p.addCol = std::max(0, std::min(maxCol + 1, p.addCol)); g_dirty = true; }
-    }
-    if (ImGui::Checkbox("selected row colour", &p.useSel)) g_dirty = true;
+    ImGui::SameLine(); if (ImGui::Checkbox("selected row colour", &p.useSel)) g_dirty = true;
     ImGui::SameLine(); if (ImGui::ColorEdit4("##selcol", p.selCol, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) g_dirty = true;
     auto rows = PageRows(p);
-    ImGui::TextDisabled("%d row(s)%s", (int)rows.size(), PageHighlight(p) ? ", highlight" : ", no highlight yet");
-    if (ImGui::Button("Build rows")) { int n = BuildRows(p); Log("ui editor: %d row(s) built in %s", n, p.group.c_str()); }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Turns each label in the page's label column into a row with the pieces level with it,\n"
-        "and guesses its kind (slider / picker / button), roles and setting. A group named ...highlight...\n"
-        "becomes the highlight; a text \"Description\" shows the selected row's description.");
-    ImGui::SameLine(); if (ImGui::Button("Restack rows")) Restack(p);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Spaces the rows evenly (row spacing) from \"first row y\" down, in their order.");
-    ImGui::SameLine(); if (ImGui::Button("Add grid")) AddGrid(p);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A 4 x 3 grid of cells (a backing, the item's text, a selected-cell frame, its own scroller),\nwith sample items to start from. Its pieces are the first cell: change them and every cell follows.");
+    int grids = 0; for (auto& r : rows) grids += r.w->type == W_GRID;
+    ImGui::TextDisabled("%d row(s), %d grid(s)%s", (int)rows.size() - grids, grids, PageHighlight(p) ? ", highlight" : "");
+    if (ImGui::Button("Add grid")) AddGrid(p);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A 4 x 3 grid of cells (a backing, the item's text, a selected-cell frame, its own scroller),\nwith sample items to start from. Its pieces are the first cell: change them and every cell follows.\nA grid of buttons, one column wide, is a list of menu buttons.");
     ImGui::SameLine();
     if (ImGui::Button(g_menu.open ? "Close the menu" : "Try it")) { if (g_menu.open) MenuClose(); else MenuOpen(p.group); }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Opens this page as the real menu: pad / arrow keys, Enter, Esc.");
-    // add a row from the kit
-    if (!g_kitT.empty()) {
-        static int ki = 0; static char lb[64] = ""; static std::string bind;
-        ki = std::max(0, std::min((int)g_kitT.size() - 1, ki));
-        ImGui::SetNextItemWidth(130);
-        if (ImGui::BeginCombo("##kit", g_kitT[ki].name.c_str())) {
-            for (int i = 0; i < (int)g_kitT.size(); ++i) if (ImGui::Selectable(g_kitT[i].name.c_str(), i == ki)) { ki = i; bind.clear(); }
-            ImGui::EndCombo();
-        }
-        ImGui::SameLine(); ImGui::SetNextItemWidth(150); ImGui::InputTextWithHint("##rowlabel", "label", lb, sizeof lb);
-        ImGui::SameLine();
-        Widget tmp = g_kitT[ki].w; tmp.bind = bind;
-        ImGui::PushID("addrow"); SettingCombo(tmp); ImGui::PopID(); bind = tmp.bind;
-        ImGui::SameLine(); if (ImGui::Button("Add row")) { StampRow(p, g_kitT[ki], lb, bind); lb[0] = 0; }
-    } else ImGui::TextDisabled("Widget kit is empty: pick a row, then \"save as template\".");
 }
 static void GroupMenuProps(const std::string& g) {
     if (!MenuWs()) return;
@@ -1136,7 +1140,7 @@ static void SaveWidgetProps(FILE* f, const Widget& w) {
     if (!w.choices.empty()) { std::string j; for (size_t i = 0; i < w.choices.size(); ++i) j += (i ? "|" : "") + w.choices[i]; fprintf(f, "choices=%s\n", Esc(j).c_str()); }
     if (w.type == W_SLIDER) fprintf(f, "range=%g %g\n", w.x0, w.x1);
     if (w.col) fprintf(f, "col=%d\n", w.col);
-    if (w.type == W_GRID) fprintf(f, "grid=%d %d %g %g %g %g %g %g %d %d\n", w.cols, w.rows, w.gw, w.gh, w.gx, w.gy, w.refW, w.refH, w.scalePieces ? 1 : 0, w.startAt);
+    if (w.type == W_GRID) fprintf(f, "grid=%d %d %g %g %g %g %g %g %d %d %d\n", w.cols, w.rows, w.gw, w.gh, w.gx, w.gy, w.refW, w.refH, w.scalePieces ? 1 : 0, w.startAt, w.selectWhole ? 1 : 0);
     fprintf(f, "num=%g %g %g %g\n", w.min, w.max, w.step, w.value);
 }
 static void SaveMenus(FILE* f) {
@@ -1155,7 +1159,7 @@ static bool LoadWidgetKey(Widget& w, const std::string& k, const std::string& v)
     else if (k == "choices") { w.choices.clear(); std::string s = Unesc(v), cur; for (size_t i = 0; i <= s.size(); ++i) { if (i == s.size() || s[i] == '|') { if (!cur.empty()) w.choices.push_back(cur); cur.clear(); } else cur += s[i]; } }
     else if (k == "range") sscanf(v.c_str(), "%f %f", &w.x0, &w.x1);
     else if (k == "col") w.col = std::max(0, atoi(v.c_str()));
-    else if (k == "grid") { int sp = 1; sscanf(v.c_str(), "%d %d %f %f %f %f %f %f %d %d", &w.cols, &w.rows, &w.gw, &w.gh, &w.gx, &w.gy, &w.refW, &w.refH, &sp, &w.startAt); w.scalePieces = sp != 0; w.startAt = std::max(0, std::min(2, w.startAt)); w.cols = std::max(1, w.cols); w.rows = std::max(1, w.rows); }
+    else if (k == "grid") { int sp = 1; int whole = 1; sscanf(v.c_str(), "%d %d %f %f %f %f %f %f %d %d %d", &w.cols, &w.rows, &w.gw, &w.gh, &w.gx, &w.gy, &w.refW, &w.refH, &sp, &w.startAt, &whole); w.scalePieces = sp != 0; w.selectWhole = whole != 0; w.startAt = std::max(0, std::min(2, w.startAt)); w.cols = std::max(1, w.cols); w.rows = std::max(1, w.rows); }
     else if (k == "num") sscanf(v.c_str(), "%f %f %f %f", &w.min, &w.max, &w.step, &w.value);
     else return false;
     return true;

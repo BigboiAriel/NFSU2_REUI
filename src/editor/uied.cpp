@@ -2138,6 +2138,7 @@ void DrawOverlay(int mode) {
     // while editing or testing: the layout being edited; otherwise the one for what we're doing now
     {
         auto& lay = g_layout[editing || testMode ? g_editMode : mode];
+        if (MenuWs()) GridFollow();
         g_drawList = &lay;
         for (int i : DrawOrder(lay)) DrawElem(dl, lay[i], editing);
         if ((editing || panel) && MenuWs())   // grids: the other cells faded, with sample items (the pieces are the first cell)
@@ -2146,8 +2147,32 @@ void DrawOverlay(int mode) {
                 if (shown) DrawGrid(dl, PageOf(TopGroup(w.group)), w, false, 0, true);
             }
     }
+    // grids: a picked grid lights up every cell (and its whole box); a picked piece of one, its copy in every cell
+    auto gridOutlines = [&](ImDrawList* fg, ImVec2* ga, ImVec2* gb) {
+        if (!g_hiSel || !MenuWs()) return;
+        auto ring = [&](ImVec2 a, ImVec2 b, float pad, ImU32 c, float th) {
+            fg->AddRect(ImVec2(a.x - pad, a.y - pad), ImVec2(b.x + pad, b.y + pad), IM_COL32(0, 0, 0, 160), 0.f, 0, th + 1.5f);
+            fg->AddRect(ImVec2(a.x - pad, a.y - pad), ImVec2(b.x + pad, b.y + pad), c, 0.f, 0, th);
+        };
+        for (auto& w : g_widgets) {
+            if (w.type != W_GRID) continue;
+            bool whole = !g_selGroup.empty() && InGroup(w.group, g_selGroup);   // the grid (or a group around it) picked
+            if (whole) {
+                GridEachCell(w, nullptr, [&](ImVec2 a, ImVec2 b) { ring(a, b, -1, IM_COL32(60, 235, 90, 200), 1.5f); });
+                ImVec2 a, b;
+                if (ga && gb && GridBox(w, a, b)) { ga->x = std::min(ga->x, a.x); ga->y = std::min(ga->y, a.y); gb->x = std::max(gb->x, b.x); gb->y = std::max(gb->y, b.y); }
+                continue;
+            }
+            for (int i = 0; i < (int)Elems().size(); ++i) {   // a piece of it picked: its copies too
+                Elem& e = Elems()[i];
+                if (!(i == g_sel || PickedOf(i)) || !InGroup(e.group, w.group) || !GridPiece(e)) continue;
+                GridEachCell(w, &e, [&](ImVec2 a, ImVec2 b) { ring(a, b, 2, IM_COL32(60, 235, 90, 150), 1.5f); });
+            }
+        }
+    };
     if (!editing) {
         g_dragging = -1;
+        if (panel && (testMode || mode == g_editMode)) gridOutlines(ImGui::GetForegroundDrawList(), nullptr, nullptr);
         // the editor tab is open without on-screen editing: still outline what's picked, when that layout is the one shown
         if (panel && g_hiSel && (testMode || mode == g_editMode)) {
             ImDrawList* fg = ImGui::GetForegroundDrawList();
@@ -2178,6 +2203,7 @@ void DrawOverlay(int mode) {
         if (i == g_sel) fg->AddRectFilled(ImVec2(b.x - 6, b.y - 6), ImVec2(b.x + 6, b.y + 6), green);   // size handle
         if (inGroup) { ga.x = std::min(ga.x, a.x); ga.y = std::min(ga.y, a.y); gb.x = std::max(gb.x, b.x); gb.y = std::max(gb.y, b.y); }
     }
+    gridOutlines(fg, &ga, &gb);
     if (g_hiSel && gb.x > ga.x) fg->AddRect(ImVec2(ga.x - 4, ga.y - 4), ImVec2(gb.x + 4, gb.y + 4), IM_COL32(255, 150, 40, 255), 3.f, 0, 2.f);
     bool overUi = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive();
     if (g_dragging < 0 && ImGui::IsMouseClicked(0) && !overUi) {
@@ -2212,6 +2238,15 @@ void DrawOverlay(int mode) {
                 break;
             }
         }
+        if (g_dragging < 0 && MenuWs() && !(io.KeyCtrl || io.KeyShift))   // nothing under the mouse: a grid's faded cells
+            for (auto& w : g_widgets) {
+                ImVec2 a, b;
+                if (w.type != W_GRID || !GridBox(w, a, b) || m.x < a.x || m.x > b.x || m.y < a.y || m.y > b.y) continue;
+                int first = -1; for (int i = 0; i < (int)Elems().size(); ++i) if (InGroup(Elems()[i].group, w.group)) { first = i; break; }
+                if (first < 0) continue;
+                ClearMulti(); g_selGroup = w.group; g_sel = -1; g_dragging = first; g_dragMode = 2;
+                break;
+            }
         if (g_dragging >= 0) {
             Elem& e = Elems()[g_dragging];
             g_dragStart = m; g_dragOrig = ImVec2(e.x, e.y); g_dragOrigWH = ImVec2(e.w, e.h); g_dragOrigScale = e.scale;
@@ -3122,8 +3157,7 @@ void Panel() {
         }
     }
     UndoCommit(false);
-    KitPanel();
-    TokensPanel();
+    TokensPanel();   // (the Widget kit panel is deprecated: grids replace Add row)
     // ---- prefabs: a list, a preview of the picked one, Add / Delete
     if (!menuMode && ImGui::CollapsingHeader("Prefabs")) {
         static std::string pick, cacheName; static std::vector<Elem> cache; static double cacheAt = -10;

@@ -68,8 +68,14 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   or live values "list:<key>" (<key>.count, <key>.N, <key>.N.icon) for other mods' lists. Text {item} {i} {count};
   role "item icon"; "selected row only" = the selected cell. Arrows move inside it and leave it at its edges. Editor:
   "Add grid" on a page (4 x 3, 18 sample items) and faded ghost cells while laying it out. Rows with fewer items than
-  columns start from the left, centre or right (up / down keep the column on screen). Layout: widget
-  `grid=cols rows w h x y cellW cellH stretch start`.
+  columns start from the left, centre or right (up / down keep the column on screen). "Highlight the whole grid first"
+  (default): moving onto it lights every cell and the arrows go on through the page; Enter goes in (one cell lit,
+  arrows pick, edges keep you in), Back comes out. Layout: widget
+  `grid=cols rows w h x y cellW cellH stretch start whole`.
+- **Deprecated (2026-10-27): the row tools.** Build rows, Restack rows, row spacing / first row y, Start a new column,
+  column distance, first column x, add to column, Add row (widget kit), row up / down, a row's column, Save as
+  template and the Widget kit panel are gone from the editor; grids (menu buttons in rows x columns) replace them.
+  Pages made with them still load, save and work.
 - **Page highlight role (2026-10-27).** Any element on a page itself (a shape, say) can have the role "page: highlight":
   it moves to the selected row from the row it's laid out on (and across to its column), hidden when that row has
   its own highlight (a grid).
