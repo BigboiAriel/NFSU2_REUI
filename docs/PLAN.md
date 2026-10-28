@@ -101,6 +101,8 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   across the tile (row width over the tile less a 4% margin; bars stretch) and shown on that kind only; the grid's own
   label / icon stop showing on it. Pieces have "shows on: buttons / sliders / pickers / bindings" (element key
   `tilekinds=` bitmask 1 / 2 / 4 / 8). In the editor the first tile's pieces show as the panel's picked tile would.
+  Grid panel "box backgrounds": shows / hides the grid's Cell / Cell selected pieces (by name). Grid pieces' "selected row
+  only" reads "selected tile only" (a highlight of your own that shows on the selected tile).
   A kind counts as having its pieces by its fill bar / arrows / binding icon (fixed 2026-10-28: the grid's own label,
   shown on the other kinds, made pickers / bindings look done). Binding tiles: the label on the tile's left, the icon
   just after its text (`afterlabel=1`: moves with each tile's label length, keeps its shape). A binding shown in the

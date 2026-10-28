@@ -1200,8 +1200,10 @@ static void ElemMenuProps(Elem& e) {
         "\"selected row only\" pieces show on the selected cell only.\n"
         "page: highlight - a piece on the page itself (not in a row) that moves to the selected row, from the row\n"
         "it's laid out on (and across to its column): a shape behind the selected row, say.");
-    ImGui::SameLine(); if (ImGui::Checkbox("selected row only", &e.selOnly)) g_dirty = true;
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Hidden on rows that aren't selected (the game's picker arrows).");
+    Widget* inGrid = WidgetFor(e.group); bool tile = inGrid && inGrid->type == W_GRID;
+    ImGui::SameLine(); if (ImGui::Checkbox(tile ? "selected tile only" : "selected row only", &e.selOnly)) g_dirty = true;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip(tile ? "Drawn on the selected tile only (a highlight that follows the cursor, the picker arrows)."
+                                                       : "Hidden on rows that aren't selected (the game's picker arrows).");
     Widget* gw = WidgetFor(e.group);
     if (gw && gw->type == W_GRID && GridHasTiles(*gw) && GridPiece(e)) {   // a grid's piece: the kinds of tile it's on
         ImGui::TextUnformatted("shows on"); 
@@ -1328,6 +1330,15 @@ static void GridPanel(Widget& w) {
         int c = std::max(1, w.cols), r = std::max(1, w.rows);
         float cw = GCellW(w), ch = GCellH(w);
         GridResize(w, cw * c + (c - 1) * std::max(0.f, sp[0]), ch * r + (r - 1) * std::max(0.f, sp[1]), w.cols, w.rows, sp[0], sp[1]);
+    }
+    // the tiles' box backgrounds (the grid's "Cell" / "Cell selected" pieces): on / off
+    {
+        bool any = false, on = false;
+        for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.name.compare(0, 4, "Cell") == 0) { any = true; on |= e.visible; }
+        if (any) {
+            if (ImGui::Checkbox("box backgrounds", &on)) { for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.name.compare(0, 4, "Cell") == 0) e.visible = on; g_dirty = true; }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("The tiles' boxes (the grid's \"Cell\" and \"Cell selected\" pieces). Off: only your own pieces are drawn -\na highlight of your own with \"selected tile only\" on shows on the selected tile alone.");
+        }
     }
     ImGui::Separator();
     if (!tiles && !SettingOf(w.bind)) ImGui::TextDisabled("Its tiles come from the live list (%s): clear it below to make your own.", w.bind.c_str() + 5);
