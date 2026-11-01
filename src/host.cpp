@@ -629,6 +629,7 @@ static bool MapViewNow2(uied::MapView& out) {
             uied::MapBlip b;
             b.x = m[i].x; b.y = m[i].y;
             if (!(m[i].flags & 2)) { b.dirX = m[i].dirX; b.dirY = m[i].dirY; }
+            else if (m[i].flags & 4) { b.ox = m[i].dirX; b.oy = m[i].dirY; }   // (a badge: offset from its spot)
             float sz = m[i].size > 0 ? m[i].size : 1;
             if (m[i].icon && *m[i].icon) {
                 b.texName = m[i].icon; b.gameName = m[i].icon; b.w = b.h = 16 * sz;

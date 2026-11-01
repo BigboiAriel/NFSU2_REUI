@@ -54,6 +54,7 @@ namespace uied {
         std::string gameName;               // the game texture's name (tex): a redrawn REUI\vector\minimap\<name>.svg replaces it
         float u0 = 0, v0 = 0, u1 = 1, v1 = 1;
         float w = 14.5f, h = 14.5f;         // size in the game's units on a 128-unit minimap
+        float ox = 0, oy = 0;               // drawn this far from its spot, in its own size (screen x right, y down)
         float col[4] = {1, 1, 1, 1};
         bool hideOff = false;               // hidden past the rim (else held on it)
         bool farOk = false;                 // not dropped however far (other mods' markers)

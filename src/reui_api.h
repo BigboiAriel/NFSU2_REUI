@@ -68,7 +68,9 @@ typedef struct REUI_MapMarker {
     float dirX, dirY;     // heading: the world forward vector (e.g. the car matrix's first row); 0, 0 = none
     unsigned color;       // 0xAARRGGBB
     float size;           // 1 = a stock car icon's size
-    int flags;            // bit 0: hidden off the map (else held on the rim); bit 1: drawn upright (no heading)
+    int flags;            // bit 0: hidden off the map (else held on the rim); bit 1: drawn upright (no heading);
+                          // bit 2 (with bit 1): dirX / dirY are an offset on screen instead, in the marker's own size
+                          // (x right, y down): a badge drawn at a corner of another marker at the same spot
     const char* icon;     // a texture: a game texture name ("MINIMAP_ICON_CAR": one the minimap itself shows is drawn
                           // at the game's size for it, size x 1), "vec:<name>" (REUI\vector), or null / "" = REUI's
                           // arrow (outlined triangle). Tinted by color.

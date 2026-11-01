@@ -850,6 +850,7 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
             if (!bl.farOk && d > mv.limit) continue;
             if (d > 0.55f) { if (bl.hideOff) continue; ox *= 0.55f / d; oy *= 0.55f / d; }
             ImVec2 p(c.x + (ox * pc - oy * ps) * 2 * R, c.y + (ox * ps + oy * pc) * 2 * R);
+            p.x += bl.ox * bl.w * k; p.y += bl.oy * bl.h * k;   // (a badge on another marker)
             float deg = (bl.dirX != 0 || bl.dirY != 0) ? atan2f(bl.dirX, bl.dirY) * 180 / kPi + psi : 0;
             float bc[4] = {bl.col[0] * ec.x, bl.col[1] * ec.y, bl.col[2] * ec.z, bl.col[3] * ec.w};
             ImU32 bcol = Col(bc);
