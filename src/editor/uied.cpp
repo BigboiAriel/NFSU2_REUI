@@ -214,6 +214,17 @@ static void Scan() {
         "GLOBAL\\HUD_CustomTextures_ALL.bin", "GLOBAL\\GlobalTexturesNA.bin", "GLOBAL\\DYNTEX.BIN",
         "FRONTEND\\FrontB.lzc", "FRONTEND\\MAGAZINES_FRONTEND.BIN", "FRONTEND\\MAGAZINES_SHOWCASE.BIN",
         "LANGUAGES\\LanguageTextures.bin", "LANGUAGES\\English.bin" };
+    {   // the track maps (TRACKMAP<track>: free roam's 4000, each race's own), each loaded on its own by the game
+        std::vector<std::string> maps;
+        WIN32_FIND_DATAA fd;
+        HANDLE h = FindFirstFileA((g_dir + "\\TRACKS\\TRACKMAP*.BIN").c_str(), &fd);
+        if (h != INVALID_HANDLE_VALUE) {
+            do { if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) maps.push_back(std::string("TRACKS\\") + fd.cFileName); } while (FindNextFileA(h, &fd));
+            FindClose(h);
+        }
+        std::sort(maps.begin(), maps.end());
+        rels.insert(rels.end(), maps.begin(), maps.end());
+    }
     std::vector<SrcFile> files; std::vector<Tex> tex; std::vector<Font> fonts;
     g_files.clear();
     for (auto& r : rels) {
@@ -229,8 +240,10 @@ static void Scan() {
         PackCtx pk; size_t before = tex.size(), fb = fonts.size();
         Walk(d, 0, d.size(), idx, pk, tex, fonts, 0);
         if (g_files[idx].lzc) g_files[idx].cache.swap(d);   // keep unpacked frontend data for loading its textures
-        Log("ui editor: %s - %d texture(s), %d font(s)", r.c_str(), (int)(tex.size() - before), (int)(fonts.size() - fb));
+        if (r.compare(0, 7, "TRACKS\\") != 0)   // (the track maps: counted once below)
+            Log("ui editor: %s - %d texture(s), %d font(s)", r.c_str(), (int)(tex.size() - before), (int)(fonts.size() - fb));
     }
+    { int n = 0; for (auto& t : tex) if (g_files[t.file].rel.compare(0, 7, "TRACKS\\") == 0) ++n; Log("ui editor: TRACKS\\TRACKMAP*.BIN - %d track map(s)", n); }
     // fonts' textures
     for (auto& f : fonts) {
         std::string up = f.name; for (auto& c : up) c = (char)toupper((unsigned char)c);
@@ -276,6 +289,10 @@ static IDirect3DTexture9* TexOf(int i, bool mayLoad = true) {
     ++g_loadsThisFrame;
     std::vector<uint8_t> data, pal;
     if (!BytesOf(t, data, pal)) { t.failed = true; return nullptr; }
+    // the track maps' alpha is empty (the game lays them over the screen at its mask's opacity): shown opaque here,
+    // so they can be seen and used - the element's own opacity sets how see-through
+    if (g_files[t.file].rel.compare(0, 7, "TRACKS\\") == 0 && t.fmt == MAKEFOURCC('D', 'X', 'T', '3'))
+        for (size_t b = 0; b + 16 <= data.size(); b += 16) memset(data.data() + b, 0xFF, 8);
     D3DFORMAT fmt; bool dxt = false, p8 = false; int bpb = 0;
     if (t.fmt == MAKEFOURCC('D', 'X', 'T', '1')) { fmt = D3DFMT_DXT1; dxt = true; bpb = 8; }
     else if (t.fmt == MAKEFOURCC('D', 'X', 'T', '3')) { fmt = D3DFMT_DXT3; dxt = true; bpb = 16; }
@@ -2358,7 +2375,8 @@ static const char* FmtName(uint32_t f) {
 }
 static bool PassFilter(const Tex& t) {
     if (g_packSel > 0) { std::string p = g_files[t.file].rel + ": " + t.pack; if (p != g_packs[g_packSel - 1]) return false; }
-    if (g_onlyHud && t.pack.find("Hud") == std::string::npos && t.pack.find("HUD") == std::string::npos && g_files[t.file].rel.find("InGame") == std::string::npos) return false;
+    if (g_onlyHud && t.pack.find("Hud") == std::string::npos && t.pack.find("HUD") == std::string::npos && g_files[t.file].rel.find("InGame") == std::string::npos &&
+        g_files[t.file].rel.compare(0, 7, "TRACKS\\") != 0) return false;   // (the track maps: the minimap's)
     if (g_filter[0]) {
         std::string n = t.name, q = g_filter;
         for (auto& c : n) c = (char)toupper((unsigned char)c); for (auto& c : q) c = (char)toupper((unsigned char)c);
