@@ -71,6 +71,8 @@ namespace uied {
         std::vector<MapBlip> blips;
     };
     extern std::function<bool(MapView& out)> mapView;   // false: no minimap now (menus, drag races, loading)
+    // the game's tracks: id (its map is TRACKMAP<id>) and name, for the Minimap page's Tracks tab
+    extern std::function<std::vector<std::pair<int, std::string>>()> trackNames;
     bool MinimapShown(double withinSeconds = 0.3);      // a minimap element was drawn in game lately
     // Element flags other mods add (the multiplayer mod: "hide online", "online only"): a checkbox on every element while
     // the mod is loaded; hide() says whether flagged elements are hidden now. Flags in a layout whose mod isn't loaded

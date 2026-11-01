@@ -769,6 +769,18 @@ void HostInit() {
     uied::tokens = Token;
     uied::gameObject = GameObjectNow;
     uied::mapView = MapViewNow;
+    // the track table ([0x883DA0], [0x883DA4] of them, 0x128 bytes each: +0 name, +0x8A u16 id; 0x5D3E40 looks it up)
+    uied::trackNames = [] {
+        std::vector<std::pair<int, std::string>> out;
+        uint8_t* t = *(uint8_t**)0x883DA0; int n = *(int*)0x883DA4;
+        if (n <= 0 || n > 1000 || !Readable(t, (size_t)n * 0x128)) return out;
+        for (int i = 0; i < n; ++i) {
+            uint8_t* r = t + i * 0x128;
+            char name[33] = {}; memcpy(name, r, 32);
+            out.push_back({*(uint16_t*)(r + 0x8A), name});
+        }
+        return out;
+    };
     // REUI's own element flags (other mods add theirs through REUI_AddFlag)
     uied::AddFlag("hide_until_green", "hide until green light", "In a race: hidden through the fly-by and the countdown, shown from the green light\n(race status [0x890118]: 2 fly-by, 3 countdown, 4 racing).", 0, false, [] {
         if (*(int*)0x89E7B0 == 0) return false;   // free roam

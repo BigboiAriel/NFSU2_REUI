@@ -43,6 +43,7 @@ int boardRows = 4; bool boardFollow = true; bool testMode = false; bool menuMode
 std::function<IDirect3DTexture9*(const std::string&, float*, float*)> liveTexture;
 std::function<bool(unsigned, GameObject&)> gameObject;
 std::function<bool(MapView&)> mapView;
+std::function<std::vector<std::pair<int, std::string>>()> trackNames;
 std::vector<std::string> iconFamilies, iconKeys;
 std::function<IDirect3DTexture9*(int, int, int)> iconTexture;
 std::function<std::string(int, int)> iconLabel;
@@ -2898,34 +2899,10 @@ static void ResolvePending() {
     else { g_dirty = true; Log("ui editor: capture added; not saved on its own because there are other unsaved changes (Save)"); }
 }
 
-// ---- the Minimap page: one row per minimap texture - the game's picture, and what replaces it
-static void MinimapPage() {
-    static bool wasOpen = false;
-    bool open = ImGui::CollapsingHeader("Minimap");
-    if (open && !wasOpen) vecart::Rescan();   // (art added while the game runs shows up)
-    wasOpen = open;
-    if (!open) return;
-    ImGui::TextDisabled("What REUI's minimap draws for each of the game's minimap textures. Automatic: REUI\\vector\\minimap\\<name>.svg\n"
-                        "when that file is there, else the game's own. Image elements using one of these textures (or its minimap\n"
-                        "vector art - the frame, the north marker) follow it too. Save keeps it with the layout.");
-    if (ImGui::SmallButton("reload art")) vecart::Rescan();
-    ImGui::SameLine(); if (ImGui::SmallButton("open the minimap art folder")) {
-        std::string d = vecart::Dir() + "minimap"; CreateDirectoryA(d.c_str(), nullptr);
-        ShellExecuteA(nullptr, "open", d.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-    }
-    ImGui::SameLine(); ImGui::TextDisabled(g_texSel >= 0 && g_texSel < (int)g_tex.size() ? "| selected in Textures: %s" : "| (pick a texture in Textures below to use it here)",
-                                           g_texSel >= 0 && g_texSel < (int)g_tex.size() ? g_tex[g_texSel].name.c_str() : "");
-    // the rows: this track's map, the game's minimap textures, then other names the minimap has shown or the layout names
-    std::vector<std::string> rows;
-    auto add = [&](const std::string& n) { if (!n.empty() && std::find(rows.begin(), rows.end(), n) == rows.end()) rows.push_back(n); };
-    MapView mv; std::string mapNow = mapView && mapView(mv) ? mv.mapName : "";
-    add(mapNow);
-    for (auto& kv : g_mapArt) if (kv.first.compare(0, 8, "TRACKMAP") == 0) add(kv.first);
-    for (const char* n : kMapTex) add(n);
-    for (auto& n : g_mapSeen) add(n);
-    for (auto& kv : g_mapArt) add(kv.first);
+// ---- the Minimap page, in tabs: Blips (the minimap's textures and markers), Maps (free roam's and the five career
+// stage maps) and Tracks (each race's map). A row: the game's picture, what replaces it, what's drawn now.
+static void MapArtRow(const std::string& n, const std::string& note, float th) {
     const auto& arts = vecart::List();
-    const float th = 40;
     auto thumb = [&](const std::string& tex) {   // a picture of a texture on a checkerboard
         ImVec2 p = ImGui::GetCursorScreenPos();
         ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -2942,56 +2919,130 @@ static void MinimapPage() {
             dl->AddImage((ImTextureID)tx, ImVec2(p.x + off.x, p.y + off.y), ImVec2(p.x + off.x + isz.x, p.y + off.y + isz.y), ImVec2(0, 0), ImVec2(su, sv));
         } else dl->AddText(ImVec2(p.x + 4, p.y + th / 2 - 7), IM_COL32(150, 150, 150, 255), tex.empty() ? "" : "?");
         ImGui::Dummy(ImVec2(th, th));
-        if (tx && ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::TextUnformatted(tex.c_str()); ImGui::Image((ImTextureID)tx, ImVec2(160, 160), ImVec2(0, 0), ImVec2(su, sv)); ImGui::EndTooltip(); }
+        if (tx && ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::TextUnformatted(tex.c_str()); ImGui::Image((ImTextureID)tx, ImVec2(256, 256), ImVec2(0, 0), ImVec2(su, sv)); ImGui::EndTooltip(); }
     };
-    if (!ImGui::BeginTable("##maparts", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit)) return;
-    ImGui::TableSetupColumn("Game texture", ImGuiTableColumnFlags_WidthFixed, 250);
+    ImGui::PushID(n.c_str());
+    ImGui::TableNextRow(); ImGui::TableNextColumn();
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextUnformatted(n.c_str());
+    if (!note.empty()) ImGui::TextDisabled("%s", note.c_str());
+    ImGui::TableNextColumn(); thumb(n);   // the game's own
+    ImGui::TableNextColumn();
+    std::string& v = g_mapArt[n];
+    std::string autoArt = vecart::Find("minimap/" + n) ? "vector art: minimap/" + n : "the game's own";
+    auto label = [&](const std::string& s) -> std::string {
+        if (s.empty()) return "Automatic (" + autoArt + ")";
+        if (s == "-") return "The game's own";
+        if (vecart::IsRef(s)) return "Vector art: " + vecart::RefName(s) + (vecart::Find(vecart::RefName(s)) ? "" : " (file missing)");
+        int ifam, iid; if (IconRef(s, ifam, iid)) return "Button icon: " + s.substr(5);
+        return "Texture: " + s;
+    };
+    ImGui::SetNextItemWidth(std::max(200.f, ImGui::GetContentRegionAvail().x - 150));
+    if (ImGui::BeginCombo("##rep", label(v).c_str(), ImGuiComboFlags_HeightLarge)) {
+        if (ImGui::Selectable(label("").c_str(), v.empty())) { v.clear(); g_dirty = true; }
+        if (ImGui::Selectable("The game's own", v == "-")) { v = "-"; g_dirty = true; }
+        if (!v.empty() && v != "-" && !vecart::IsRef(v)) ImGui::Selectable(label(v).c_str(), true);
+        ImGui::SeparatorText("Vector art (REUI\\vector)");
+        if (arts.empty()) ImGui::TextDisabled("(no .svg files)");
+        for (auto& a : arts) {
+            std::string ref = vecart::Ref(a.name);
+            if (ImGui::Selectable(a.name.c_str(), v == ref)) { v = ref; g_dirty = true; }
+        }
+        ImGui::EndCombo();
+    }
+    ImGui::SameLine();
+    ImGui::BeginDisabled(!(g_texSel >= 0 && g_texSel < (int)g_tex.size()));
+    if (ImGui::SmallButton("use the selected texture")) { v = g_tex[g_texSel].name; g_dirty = true; }
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("The texture picked in the Textures list below (any of the game's textures).");
+    ImGui::TableNextColumn(); { std::string now = MapArtNow(n); thumb(now.empty() ? n : now); }
+    ImGui::PopID();
+}
+static bool MapArtTable(const char* id, float th) {
+    if (!ImGui::BeginTable(id, 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollY,
+                           ImVec2(0, std::min(520.f, std::max(200.f, ImGui::GetContentRegionAvail().y))))) return false;
+    ImGui::TableSetupScrollFreeze(0, 1);
+    ImGui::TableSetupColumn("Game texture", ImGuiTableColumnFlags_WidthFixed, 260);
     ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, th);
     ImGui::TableSetupColumn("Replace with", ImGuiTableColumnFlags_WidthStretch);
     ImGui::TableSetupColumn("Now", ImGuiTableColumnFlags_WidthFixed, th);
     ImGui::TableHeadersRow();
-    for (auto& n : rows) {
-        ImGui::PushID(n.c_str());
-        ImGui::TableNextRow(); ImGui::TableNextColumn();
-        bool isMap = n.compare(0, 8, "TRACKMAP") == 0;
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted(n.c_str());
-        if (isMap) ImGui::TextDisabled(n == mapNow ? "the map (this track's)" : "the map (another track's)");
-        else if (std::find(std::begin(kMapTex), std::end(kMapTex), n) == std::end(kMapTex)) ImGui::TextDisabled("(another mod's marker)");
-        ImGui::TableNextColumn(); thumb(n);   // the game's own
-        ImGui::TableNextColumn();
-        std::string& v = g_mapArt[n];
-        std::string autoArt = vecart::Find("minimap/" + n) ? "vector art: minimap/" + n : "the game's own";
-        auto label = [&](const std::string& s) -> std::string {
-            if (s.empty()) return "Automatic (" + autoArt + ")";
-            if (s == "-") return "The game's own";
-            if (vecart::IsRef(s)) return "Vector art: " + vecart::RefName(s) + (vecart::Find(vecart::RefName(s)) ? "" : " (file missing)");
-            int ifam, iid; if (IconRef(s, ifam, iid)) return "Button icon: " + s.substr(5);
-            return "Texture: " + s;
-        };
-        ImGui::SetNextItemWidth(std::max(200.f, ImGui::GetContentRegionAvail().x - 150));
-        if (ImGui::BeginCombo("##rep", label(v).c_str(), ImGuiComboFlags_HeightLarge)) {
-            if (ImGui::Selectable(label("").c_str(), v.empty())) { v.clear(); g_dirty = true; }
-            if (ImGui::Selectable("The game's own", v == "-")) { v = "-"; g_dirty = true; }
-            if (!v.empty() && v != "-" && !vecart::IsRef(v)) ImGui::Selectable(label(v).c_str(), true);
-            ImGui::SeparatorText("Vector art (REUI\\vector)");
-            if (arts.empty()) ImGui::TextDisabled("(no .svg files)");
-            for (auto& a : arts) {
-                std::string ref = vecart::Ref(a.name);
-                if (ImGui::Selectable(a.name.c_str(), v == ref)) { v = ref; g_dirty = true; }
-            }
-            ImGui::EndCombo();
-        }
-        ImGui::SameLine();
-        ImGui::BeginDisabled(!(g_texSel >= 0 && g_texSel < (int)g_tex.size()));
-        if (ImGui::SmallButton("use the selected texture")) { v = g_tex[g_texSel].name; g_dirty = true; }
-        ImGui::EndDisabled();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("The texture picked in the Textures list below (any of the game's textures).");
-        if (isMap && !v.empty() && v != "-") ImGui::TextDisabled("Laid over the same world square as the game's map, with its own transparency.");
-        ImGui::TableNextColumn(); { std::string now = MapArtNow(n); thumb(now.empty() ? n : now); }
-        ImGui::PopID();
+    return true;
+}
+static void MinimapPage() {
+    static bool wasOpen = false;
+    bool open = ImGui::CollapsingHeader("Minimap");
+    if (open && !wasOpen) vecart::Rescan();   // (art added while the game runs shows up)
+    wasOpen = open;
+    if (!open) return;
+    ImGui::TextDisabled("What REUI's minimap draws for each of the game's minimap textures and maps. Automatic: REUI\\vector\\minimap\\<name>.svg\n"
+                        "when that file is there, else the game's own. Image elements using one of these textures (or its minimap vector\n"
+                        "art - the frame, the north marker) follow it too. Save keeps it with the layout.");
+    if (ImGui::SmallButton("reload art")) vecart::Rescan();
+    ImGui::SameLine(); if (ImGui::SmallButton("open the minimap art folder")) {
+        std::string d = vecart::Dir() + "minimap"; CreateDirectoryA(d.c_str(), nullptr);
+        ShellExecuteA(nullptr, "open", d.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
     }
-    ImGui::EndTable();
+    ImGui::SameLine(); ImGui::TextDisabled(g_texSel >= 0 && g_texSel < (int)g_tex.size() ? "| selected in Textures: %s" : "| (pick a texture in Textures below to use it here)",
+                                           g_texSel >= 0 && g_texSel < (int)g_tex.size() ? g_tex[g_texSel].name.c_str() : "");
+    MapView mv; std::string mapNow = mapView && mapView(mv) ? mv.mapName : "";
+    auto isMap = [](const std::string& n) { return n.compare(0, 8, "TRACKMAP") == 0; };
+    if (ImGui::BeginTabBar("##maptabs")) {
+        if (ImGui::BeginTabItem("Blips")) {   // the game's minimap textures, then other names the minimap has shown or the layout names
+            std::vector<std::string> rows;
+            auto add = [&](const std::string& n) { if (!n.empty() && !isMap(n) && std::find(rows.begin(), rows.end(), n) == rows.end()) rows.push_back(n); };
+            for (const char* n : kMapTex) add(n);
+            for (auto& n : g_mapSeen) add(n);
+            for (auto& kv : g_mapArt) add(kv.first);
+            if (MapArtTable("##blips", 40)) {
+                for (auto& n : rows)
+                    MapArtRow(n, std::find(std::begin(kMapTex), std::end(kMapTex), n) == std::end(kMapTex) ? "(another mod's marker)" : "", 40);
+                ImGui::EndTable();
+            }
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Maps")) {
+            ImGui::TextDisabled("Free roam's minimap is TRACKMAP4000 at every stage. The five stage maps are the career World Map screen's\n"
+                                "(the regions not open yet are dimmed in each) - that screen is the game's own: REUI doesn't draw it yet.");
+            if (MapArtTable("##maps", 64)) {
+                MapArtRow("TRACKMAP4000", std::string("Free roam (the minimap)") + (mapNow == "TRACKMAP4000" ? " - shown now" : ""), 64);
+                for (int st = 0; st < 5; ++st) MapArtRow("TRACKMAP" + std::to_string(4500 + st), "Stage " + std::to_string(st + 1) + " (career World Map)", 64);
+                ImGui::EndTable();
+            }
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Tracks")) {
+            static char filt[64] = "";
+            ImGui::SetNextItemWidth(220); ImGui::InputTextWithHint("##trkf", "search names / numbers", filt, sizeof filt);
+            ImGui::SameLine(); ImGui::TextDisabled("Each race's own map (the city with its route drawn on), used by the minimap in that race.");
+            auto tracks = trackNames ? trackNames() : std::vector<std::pair<int, std::string>>();
+            std::sort(tracks.begin(), tracks.end());
+            tracks.erase(std::unique(tracks.begin(), tracks.end()), tracks.end());
+            std::string q = filt; for (auto& c : q) c = (char)toupper((unsigned char)c);
+            std::vector<std::pair<std::string, std::string>> rows;   // texture, note
+            for (auto& t : tracks) {
+                if (t.first == 4000) continue;   // (free roam: Maps)
+                std::string n = "TRACKMAP" + std::to_string(t.first);
+                if (FindTex(n, "") < 0) continue;   // no map file
+                std::string note = t.second + (mapNow == n ? " - shown now" : "");
+                std::string hay = n + " " + note; for (auto& c : hay) c = (char)toupper((unsigned char)c);
+                if (!q.empty() && hay.find(q) == std::string::npos) continue;
+                rows.push_back({n, note});
+            }
+            for (auto& kv : g_mapArt) if (isMap(kv.first) && std::find_if(rows.begin(), rows.end(), [&](auto& r) { return r.first == kv.first; }) == rows.end()) {
+                int id = atoi(kv.first.c_str() + 8);
+                if (id != 4000 && (id < 4500 || id > 4504) && q.empty()) rows.push_back({kv.first, "(no track by that number)"});
+            }
+            if (tracks.empty()) ImGui::TextDisabled("(the game's track list isn't loaded yet)");
+            if (MapArtTable("##tracks", 48)) {
+                ImGuiListClipper clip; clip.Begin((int)rows.size(), 52);   // (only the rows on screen load their maps)
+                while (clip.Step()) for (int i = clip.DisplayStart; i < clip.DisplayEnd; ++i) MapArtRow(rows[i].first, rows[i].second, 48);
+                ImGui::EndTable();
+            }
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
     for (auto it = g_mapArt.begin(); it != g_mapArt.end();) { if (it->second.empty()) it = g_mapArt.erase(it); else ++it; }   // (automatic: not kept)
 }
 

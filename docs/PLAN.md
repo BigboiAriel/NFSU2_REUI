@@ -65,6 +65,10 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   layout as `mapart=<name>;<texture>`. Applies to the minimap's icons, the map (its own alpha; same world square) and
   image elements whose texture is one of the names or vec:minimap/<name>; a replaced MASK's first shape sets the map
   opacity. Vector art names match without regard to case; the art list is rescanned when the section opens.
+  In tabs: Blips (the minimap textures and other mods' markers), Maps (free roam's TRACKMAP4000 - the minimap at every
+  stage - and the career World Map's five stage maps TRACKMAP4500..4504, regions not open yet dimmed; that screen is
+  the game's, not REUI's, so their replacements don't show yet) and Tracks (each race's TRACKMAP<id> with its name
+  from the track table [0x883DA0] x [0x883DA4], 0x128 each: +0 name, +0x8A id; searchable).
 - **Colour tokens (built 2026-10-27).** Elements can take their colour (and my-row colour) from a named token
   instead of a literal: `colortoken=<name> <opacity>` (the resolved `color=` is still saved for older builds).
   Built in: the game's HUD palette (hud.text, hud.accent, hud.accent_soft, hud.line, hud.shade, hud.orange,
