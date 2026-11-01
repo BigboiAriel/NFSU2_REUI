@@ -52,6 +52,12 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   in through REUI_AddMapMarkers, and it stops drawing its own arrows while REUI_MinimapShown.
   *Future:* zoom out with speed; a north-up setting on the element whatever the game's option (its arrow turns
   instead). Not yet: the start-line / checkpoint ring (types 1-2 and TrackMapTargetRing are drawn elsewhere).
+- **Redrawn minimap art (2026-10-31).** `REUI\vector\minimap\<game texture name>.svg` replaces that texture on REUI's
+  minimap: the game's icons (blip `gameName` from its TextureInfo) and other mods' markers by icon name (the whole SVG,
+  sharp at its size, tinted as before; names with no game texture work too - the multiplayer mod's
+  MINIMAP_ICON_GARAGE for players in a shop). A redrawn MINIMAP_MASK sets the map's opacity (its first shape's
+  opacity; stock 72%). The Minimap prefab's frame is one 160 x 160 ring (vec:minimap/MINIMAP_BORDER) centred on the map
+  instead of four quarters, the north marker vec:minimap/MINIMAP_NORTH_INDICATOR.
 - **Colour tokens (built 2026-10-27).** Elements can take their colour (and my-row colour) from a named token
   instead of a literal: `colortoken=<name> <opacity>` (the resolved `color=` is still saved for older builds).
   Built in: the game's HUD palette (hud.text, hud.accent, hud.accent_soft, hud.line, hud.shade, hud.orange,

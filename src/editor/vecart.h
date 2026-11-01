@@ -18,6 +18,7 @@ const Art* Find(const std::string& name);
 // the art drawn about px pixels on its longest side (cached; redrawn when the file changes); nullptr if missing
 IDirect3DTexture9* Texture(IDirect3DDevice9* dev, const std::string& name, int px);
 void Release();                        // device going away: every texture made
+float Opacity(const std::string& name, float def);   // its first shape's opacity (times its fill's alpha); def if missing
 
 inline bool IsRef(const std::string& tex) { return tex.compare(0, 4, "vec:") == 0; }
 inline std::string RefName(const std::string& tex) { return tex.substr(4); }

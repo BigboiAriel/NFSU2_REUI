@@ -768,8 +768,10 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
     // the map: a fan over the circle, each rim point's uv turned back by the world's turn
     const int N = 64;
     ImU32 mapCol = col;
-    if (!mv.alphaOk) {   // over the screen at the game's mask opacity (about 72%)
-        ImVec4 mc = ImGui::ColorConvertU32ToFloat4(col); mc.w *= 0.72f; mapCol = ImGui::ColorConvertFloat4ToU32(mc);
+    if (!mv.alphaOk) {   // over the screen at the game's mask opacity (about 72%; a redrawn minimap/MINIMAP_MASK: its opacity)
+        static float maskA = 0.72f; static double maskAt = -100;
+        if (ImGui::GetTime() - maskAt > 2) { maskAt = ImGui::GetTime(); maskA = vecart::Opacity("minimap/MINIMAP_MASK", 0.72f); }
+        ImVec4 mc = ImGui::ColorConvertU32ToFloat4(col); mc.w *= maskA; mapCol = ImGui::ColorConvertFloat4ToU32(mc);
     }
     dl->AddCallback(MapAddrOn, mv.alphaOk ? nullptr : (void*)1);
     dl->PushTextureID((ImTextureID)mv.tex);
@@ -800,8 +802,13 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
             ImU32 bcol = Col(bc);
             float su = 1, sv = 1;
             IDirect3DTexture9* tx = bl.tex;
+            ImVec2 uv0(bl.u0, bl.v0), uv1(bl.u1, bl.v1);
+            // a redrawn icon: REUI\vector\minimap\<the game texture's name>.svg (the whole picture, sharp at its size)
+            const std::string& gn = !bl.gameName.empty() ? bl.gameName : bl.texName;
+            if (!gn.empty() && !vecart::IsRef(gn) && gn.find(':') == std::string::npos && vecart::Find("minimap/" + gn))
+                if (IDirect3DTexture9* vt = vecart::Texture(g_dev, "minimap/" + gn, (int)ceilf(std::max(bl.w, bl.h) * k))) { tx = vt; uv0 = ImVec2(0, 0); uv1 = ImVec2(1, 1); }
             if (!tx && !bl.texName.empty()) tx = NamedTex(bl.texName, (int)ceilf(std::max(bl.w, bl.h) * k), su, sv);
-            if (tx) TurnedQuad(dl, tx, p, bl.w * k, bl.h * k, deg, ImVec2(bl.u0 * su, bl.v0 * sv), ImVec2(bl.u1 * su, bl.v1 * sv), bcol);
+            if (tx) TurnedQuad(dl, tx, p, bl.w * k, bl.h * k, deg, ImVec2(uv0.x * su, uv0.y * sv), ImVec2(uv1.x * su, uv1.y * sv), bcol);
             else if (bl.texName.empty()) Arrow(dl, p, bl.w * k, bl.h * k, deg, bcol);
         }
 }

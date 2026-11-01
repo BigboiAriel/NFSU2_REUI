@@ -111,6 +111,16 @@ IDirect3DTexture9* Rasterize(IDirect3DDevice9* dev, const std::string& name, int
 
 } // namespace
 
+float Opacity(const std::string& name, float def) {
+    if (!Find(name)) return def;
+    NSVGimage* img = Parse(name);
+    if (!img) return def;
+    float o = def;
+    if (NSVGshape* s = img->shapes) o = s->opacity * (s->fill.type == NSVG_PAINT_COLOR ? ((s->fill.color >> 24) & 255) / 255.f : 1.f);
+    nsvgDelete(img);
+    return o;
+}
+
 void SetDir(const std::string& dir) {
     g_dir = dir;
     if (!g_dir.empty() && g_dir.back() != '\\') g_dir += '\\';

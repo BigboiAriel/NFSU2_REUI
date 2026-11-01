@@ -51,6 +51,7 @@ namespace uied {
         float dirX = 0, dirY = 0;           // heading (world forward); 0, 0 = upright
         IDirect3DTexture9* tex = nullptr;   // the game's icon, or
         std::string texName;                // a texture by name (an icon / "vec:" / game texture), or neither = an arrow
+        std::string gameName;               // the game texture's name (tex): a redrawn REUI\vector\minimap\<name>.svg replaces it
         float u0 = 0, v0 = 0, u1 = 1, v1 = 1;
         float w = 14.5f, h = 14.5f;         // size in the game's units on a 128-unit minimap
         float col[4] = {1, 1, 1, 1};

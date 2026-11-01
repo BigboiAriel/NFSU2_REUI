@@ -606,6 +606,7 @@ static bool MapViewNow2(uied::MapView& out) {
             b.col[0] = c[2] / 255.f; b.col[1] = c[1] / 255.f; b.col[2] = c[0] / 255.f; b.col[3] = c[3] / 255.f;
             if (uint8_t* ii = TexInfo(*(uint32_t*)(obj + 0x24))) {
                 b.tex = TexOfInfo(ii);
+                { char n[25] = {}; memcpy(n, ii + 0x0C, 24); b.gameName = n; }
                 int iw = *(int16_t*)(ii + 0x44), ih = *(int16_t*)(ii + 0x46);
                 if (b.tex && SUCCEEDED(b.tex->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && iw > 0 && ih > 0) {
                     float su = (float)iw / dd.Width, sv = (float)ih / dd.Height; b.u0 *= su; b.u1 *= su; b.v0 *= sv; b.v1 *= sv;
@@ -629,7 +630,7 @@ static bool MapViewNow2(uied::MapView& out) {
             if (!(m[i].flags & 2)) { b.dirX = m[i].dirX; b.dirY = m[i].dirY; }
             float sz = m[i].size > 0 ? m[i].size : 1;
             if (m[i].icon && *m[i].icon) {
-                b.texName = m[i].icon; b.w = b.h = 16 * sz;
+                b.texName = m[i].icon; b.gameName = m[i].icon; b.w = b.h = 16 * sz;
                 // one of the game's own minimap icons (MINIMAP_ICON_CAR): its size there, as on the game's icon
                 if (IDirect3DTexture9* gt = TexOfInfo(TexInfo(BHash(m[i].icon))))
                     for (size_t j = 0; j < v.blips.size(); ++j)
