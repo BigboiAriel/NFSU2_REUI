@@ -697,6 +697,30 @@ static IDirect3DTexture9* NamedTex(const std::string& name, int px, float& su, f
     if (IDirect3DTexture9* t = TexOf(i)) return t;
     return liveTexture ? liveTexture(name, &su, &sv) : nullptr;
 }
+// ---- the Minimap page: what's drawn for each of the game's minimap textures. Per name (MINIMAP_ICON_CIRCUIT, the
+// map TRACKMAP<track>, other mods' markers): "" automatic - REUI\vector\minimap\<name>.svg when that file is there,
+// else the game's own; "-" the game's own always; anything else a texture as image elements take it ("vec:<art>",
+// a game texture's name, "icon:..."). Used for the minimap's icons and map, and for image elements whose texture is
+// one of these names (or vec:minimap/<name>: the frame / north pieces). Saved with the layout ("mapart=").
+static std::map<std::string, std::string> g_mapArt;
+static std::set<std::string> g_mapSeen;   // names the minimap has shown (other mods' markers, this track's map)
+static const char* const kMapTex[] = {"MINIMAP_MASK", "MINIMAP_BORDER", "MINIMAP_BORDER_2", "MINIMAP_NORTH_INDICATOR",
+    "MINIMAP_GPS_SELECTOR", "MINIMAP_ICON_CAR", "MINIMAP_ICON_CIRCUIT", "MINIMAP_ICON_COP_STAR", "MINIMAP_ICON_CROSS",
+    "MINIMAP_ICON_SAFE_HOUSE", "MINIMAP_ICON_START_LINE", "MINIMAP_ICON_TICK"};
+static bool PlainName(const std::string& n) { return !n.empty() && n.find(':') == std::string::npos && n.find('{') == std::string::npos; }
+static bool MinimapName(const std::string& n) { return n.compare(0, 8, "MINIMAP_") == 0 || n.compare(0, 8, "TRACKMAP") == 0; }
+// the texture drawn for a minimap name now: "" = the game's own
+static std::string MapArtNow(const std::string& name) {
+    auto it = g_mapArt.find(name);
+    if (it != g_mapArt.end() && !it->second.empty()) return it->second == "-" ? std::string() : it->second;
+    return vecart::Find("minimap/" + name) ? vecart::Ref("minimap/" + name) : std::string();
+}
+// an image element's texture that stands for a minimap name: the name (else "")
+static std::string MapKeyOf(const std::string& tex) {
+    std::string k = tex;
+    if (vecart::IsRef(k)) { k = vecart::RefName(k); if (k.compare(0, 8, "minimap/") != 0) return ""; k = k.substr(8); }
+    return PlainName(k) && MinimapName(k) ? k : "";
+}
 // the map outside the texture is empty, not its edge pixels repeated: border addressing while the map is drawn
 // and the game's own mip settings (its last ones are still set) don't apply: level 0 down, linear between levels.
 // cb->UserCallbackData != null: the map's alpha is empty - the game lays it over the screen at the opacity of its
@@ -760,6 +784,13 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
         return;
     }
     g_mapDrawnAt = ImGui::GetTime();   // (other mods put their markers here instead of drawing their own)
+    if (!mv.mapName.empty()) {   // the map itself, replaced on the Minimap page (its own alpha is used then)
+        if (g_mapSeen.size() < 64) g_mapSeen.insert(mv.mapName);
+        std::string r = MapArtNow(mv.mapName);
+        float rsu = 1, rsv = 1;
+        int px = (int)std::min(2048.f, 2 * R / std::max(0.01f, mv.span / e.mapZoom));
+        if (!r.empty()) if (IDirect3DTexture9* t = NamedTex(r, px, rsu, rsv)) { mv.tex = t; mv.su = rsu; mv.sv = rsv; mv.alphaOk = true; }
+    }
     const float kPi = 3.14159265f;
     float span = mv.span / e.mapZoom;
     float psi = mv.rotate ? -mv.bearing : 0;   // the world's turn on screen (degrees clockwise)
@@ -770,7 +801,11 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
     ImU32 mapCol = col;
     if (!mv.alphaOk) {   // over the screen at the game's mask opacity (about 72%; a redrawn minimap/MINIMAP_MASK: its opacity)
         static float maskA = 0.72f; static double maskAt = -100;
-        if (ImGui::GetTime() - maskAt > 2) { maskAt = ImGui::GetTime(); maskA = vecart::Opacity("minimap/MINIMAP_MASK", 0.72f); }
+        if (ImGui::GetTime() - maskAt > 2) {   // (a redrawn MINIMAP_MASK on the Minimap page: its first shape's opacity)
+            maskAt = ImGui::GetTime();
+            std::string r = MapArtNow("MINIMAP_MASK");
+            maskA = vecart::IsRef(r) ? vecart::Opacity(vecart::RefName(r), 0.72f) : 0.72f;
+        }
         ImVec4 mc = ImGui::ColorConvertU32ToFloat4(col); mc.w *= maskA; mapCol = ImGui::ColorConvertFloat4ToU32(mc);
     }
     dl->AddCallback(MapAddrOn, mv.alphaOk ? nullptr : (void*)1);
@@ -803,10 +838,14 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
             float su = 1, sv = 1;
             IDirect3DTexture9* tx = bl.tex;
             ImVec2 uv0(bl.u0, bl.v0), uv1(bl.u1, bl.v1);
-            // a redrawn icon: REUI\vector\minimap\<the game texture's name>.svg (the whole picture, sharp at its size)
+            // replaced on the Minimap page (automatic: REUI\vector\minimap\<the game texture's name>.svg) - the whole picture
             const std::string& gn = !bl.gameName.empty() ? bl.gameName : bl.texName;
-            if (!gn.empty() && !vecart::IsRef(gn) && gn.find(':') == std::string::npos && vecart::Find("minimap/" + gn))
-                if (IDirect3DTexture9* vt = vecart::Texture(g_dev, "minimap/" + gn, (int)ceilf(std::max(bl.w, bl.h) * k))) { tx = vt; uv0 = ImVec2(0, 0); uv1 = ImVec2(1, 1); }
+            if (PlainName(gn)) {
+                if (g_mapSeen.size() < 64) g_mapSeen.insert(gn);
+                std::string r = MapArtNow(gn);
+                float rsu = 1, rsv = 1;
+                if (!r.empty()) if (IDirect3DTexture9* vt = NamedTex(r, (int)ceilf(std::max(bl.w, bl.h) * k), rsu, rsv)) { tx = vt; uv0 = ImVec2(0, 0); uv1 = ImVec2(rsu, rsv); }
+            }
             if (!tx && !bl.texName.empty()) tx = NamedTex(bl.texName, (int)ceilf(std::max(bl.w, bl.h) * k), su, sv);
             if (tx) TurnedQuad(dl, tx, p, bl.w * k, bl.h * k, deg, ImVec2(uv0.x * su, uv0.y * sv), ImVec2(uv1.x * su, uv1.y * sv), bcol);
             else if (bl.texName.empty()) Arrow(dl, p, bl.w * k, bl.h * k, deg, bcol);
@@ -950,6 +989,14 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (!tx && !icon && e.texIdx < 0 && liveTexture && !e.tex.empty()) {
             std::string tn = texVal ? Expand(e.tex) : e.tex;
             if (!tn.empty() && tn.find('{') == std::string::npos) tx = liveTexture(tn, &su, &sv);
+        }
+        {   // a minimap texture (or its vec:minimap/ art): what the Minimap page says to draw for it
+            std::string key = MapKeyOf(e.tex);
+            if (!key.empty()) {
+                std::string r = MapArtNow(key), want = r.empty() ? key : r;
+                float rsu = 1, rsv = 1;
+                if (want != e.tex) if (IDirect3DTexture9* rt = NamedTex(want, onScreen, rsu, rsv)) { tx = rt; su = rsu; sv = rsv; }
+            }
         }
         ImVec2 uv0(e.u0 * su, e.v0 * sv), uv1(e.u1 * su, e.v1 * sv);
         float rotSave = e.rot, bf = BindFrac(e);
@@ -1674,6 +1721,7 @@ static void Save() {
     for (auto& fd : g_flagDefs) fprintf(f, "flagdef=%s %d\n", fd.key.c_str(), fd.hideMissing ? 1 : 0);
     for (auto& t : g_tokens) if (!t.builtIn || TokenModified(t)) fprintf(f, "token=%s\n", TokenLine(t).c_str());
     for (auto& t : g_gradTokens) if (!t.builtIn || !SameStops(t.stops, t.def)) fprintf(f, "gradtoken=%s\n", GradTokenLine(t).c_str());
+    for (auto& kv : g_mapArt) if (!kv.second.empty()) fprintf(f, "mapart=%s;%s\n", kv.first.c_str(), kv.second.c_str());
     int total = 0;
     auto put = [&](int m, const Elem& e) { ++total; PutElem(f, m, e); };
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
@@ -1753,7 +1801,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
 // intoMode >= 0: every element goes in that layout; merge: added to what's there (an import), not instead
 static bool LoadFile(const std::string& path, int intoMode, bool merge) {
     FILE* f = fopen(path.c_str(), "r"); if (!f) return false;
-    if (!merge) { for (auto& l : g_layout) l.clear(); LoadMenusReset(); g_kit.clear(); TokensReset(); }
+    if (!merge) { for (auto& l : g_layout) l.clear(); LoadMenusReset(); g_kit.clear(); TokensReset(); g_mapArt.clear(); }
     g_sel = -1; ClearMulti();
     std::vector<Elem> all;
     char line[2048]; Elem* cur = nullptr; int msect = 0;
@@ -1773,6 +1821,7 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
             else if (k == "highlightsel") g_hiSel = atoi(v.c_str()) != 0;
             else if (k == "boardrows") boardRows = std::max(1, std::min(22, atoi(v.c_str())));
             else if (k == "boardfollow") boardFollow = atoi(v.c_str()) != 0;
+            else if (k == "mapart") { size_t sc = v.find(';'); if (sc != std::string::npos && sc > 0) g_mapArt[v.substr(0, sc)] = v.substr(sc + 1); }
             else if (k == "listheight") g_listH = std::max(80.f, std::min(1400.f, (float)atof(v.c_str())));
             else if (k == "flagdef") {   // "key hidden-when-missing": a mod's flag, for when that mod isn't loaded
                 char key[64] = {}; int hm = 0;
@@ -2831,6 +2880,103 @@ static void ResolvePending() {
     else { g_dirty = true; Log("ui editor: capture added; not saved on its own because there are other unsaved changes (Save)"); }
 }
 
+// ---- the Minimap page: one row per minimap texture - the game's picture, and what replaces it
+static void MinimapPage() {
+    static bool wasOpen = false;
+    bool open = ImGui::CollapsingHeader("Minimap");
+    if (open && !wasOpen) vecart::Rescan();   // (art added while the game runs shows up)
+    wasOpen = open;
+    if (!open) return;
+    ImGui::TextDisabled("What REUI's minimap draws for each of the game's minimap textures. Automatic: REUI\\vector\\minimap\\<name>.svg\n"
+                        "when that file is there, else the game's own. Image elements using one of these textures (or its minimap\n"
+                        "vector art - the frame, the north marker) follow it too. Save keeps it with the layout.");
+    if (ImGui::SmallButton("reload art")) vecart::Rescan();
+    ImGui::SameLine(); if (ImGui::SmallButton("open the minimap art folder")) {
+        std::string d = vecart::Dir() + "minimap"; CreateDirectoryA(d.c_str(), nullptr);
+        ShellExecuteA(nullptr, "open", d.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+    }
+    ImGui::SameLine(); ImGui::TextDisabled(g_texSel >= 0 && g_texSel < (int)g_tex.size() ? "| selected in Textures: %s" : "| (pick a texture in Textures below to use it here)",
+                                           g_texSel >= 0 && g_texSel < (int)g_tex.size() ? g_tex[g_texSel].name.c_str() : "");
+    // the rows: this track's map, the game's minimap textures, then other names the minimap has shown or the layout names
+    std::vector<std::string> rows;
+    auto add = [&](const std::string& n) { if (!n.empty() && std::find(rows.begin(), rows.end(), n) == rows.end()) rows.push_back(n); };
+    MapView mv; std::string mapNow = mapView && mapView(mv) ? mv.mapName : "";
+    add(mapNow);
+    for (auto& kv : g_mapArt) if (kv.first.compare(0, 8, "TRACKMAP") == 0) add(kv.first);
+    for (const char* n : kMapTex) add(n);
+    for (auto& n : g_mapSeen) add(n);
+    for (auto& kv : g_mapArt) add(kv.first);
+    const auto& arts = vecart::List();
+    const float th = 40;
+    auto thumb = [&](const std::string& tex) {   // a picture of a texture on a checkerboard
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        float cs = th / 4;
+        for (int yy = 0; yy < 4; ++yy) for (int xx = 0; xx < 4; ++xx)
+            dl->AddRectFilled(ImVec2(p.x + xx * cs, p.y + yy * cs), ImVec2(p.x + (xx + 1) * cs, p.y + (yy + 1) * cs), ((xx + yy) & 1) ? IM_COL32(90, 90, 90, 255) : IM_COL32(60, 60, 60, 255));
+        float su = 1, sv = 1;
+        IDirect3DTexture9* tx = tex.empty() ? nullptr : NamedTex(tex, (int)th, su, sv);
+        if (tx) {
+            float w = 1, h = 1;
+            if (vecart::IsRef(tex)) { if (const vecart::Art* a = vecart::Find(vecart::RefName(tex))) { w = a->w > 0 ? a->w : 1; h = a->h > 0 ? a->h : 1; } }
+            else { int i = FindTex(tex, ""); if (i >= 0) { w = (float)g_tex[i].w; h = (float)g_tex[i].h; } }
+            float sc = (th - 4) / std::max(w, h); ImVec2 isz(w * sc, h * sc), off((th - isz.x) / 2, (th - isz.y) / 2);
+            dl->AddImage((ImTextureID)tx, ImVec2(p.x + off.x, p.y + off.y), ImVec2(p.x + off.x + isz.x, p.y + off.y + isz.y), ImVec2(0, 0), ImVec2(su, sv));
+        } else dl->AddText(ImVec2(p.x + 4, p.y + th / 2 - 7), IM_COL32(150, 150, 150, 255), tex.empty() ? "" : "?");
+        ImGui::Dummy(ImVec2(th, th));
+        if (tx && ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::TextUnformatted(tex.c_str()); ImGui::Image((ImTextureID)tx, ImVec2(160, 160), ImVec2(0, 0), ImVec2(su, sv)); ImGui::EndTooltip(); }
+    };
+    if (!ImGui::BeginTable("##maparts", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit)) return;
+    ImGui::TableSetupColumn("Game texture", ImGuiTableColumnFlags_WidthFixed, 250);
+    ImGui::TableSetupColumn("", ImGuiTableColumnFlags_WidthFixed, th);
+    ImGui::TableSetupColumn("Replace with", ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableSetupColumn("Now", ImGuiTableColumnFlags_WidthFixed, th);
+    ImGui::TableHeadersRow();
+    for (auto& n : rows) {
+        ImGui::PushID(n.c_str());
+        ImGui::TableNextRow(); ImGui::TableNextColumn();
+        bool isMap = n.compare(0, 8, "TRACKMAP") == 0;
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(n.c_str());
+        if (isMap) ImGui::TextDisabled(n == mapNow ? "the map (this track's)" : "the map (another track's)");
+        else if (std::find(std::begin(kMapTex), std::end(kMapTex), n) == std::end(kMapTex)) ImGui::TextDisabled("(another mod's marker)");
+        ImGui::TableNextColumn(); thumb(n);   // the game's own
+        ImGui::TableNextColumn();
+        std::string& v = g_mapArt[n];
+        std::string autoArt = vecart::Find("minimap/" + n) ? "vector art: minimap/" + n : "the game's own";
+        auto label = [&](const std::string& s) -> std::string {
+            if (s.empty()) return "Automatic (" + autoArt + ")";
+            if (s == "-") return "The game's own";
+            if (vecart::IsRef(s)) return "Vector art: " + vecart::RefName(s) + (vecart::Find(vecart::RefName(s)) ? "" : " (file missing)");
+            int ifam, iid; if (IconRef(s, ifam, iid)) return "Button icon: " + s.substr(5);
+            return "Texture: " + s;
+        };
+        ImGui::SetNextItemWidth(std::max(200.f, ImGui::GetContentRegionAvail().x - 150));
+        if (ImGui::BeginCombo("##rep", label(v).c_str(), ImGuiComboFlags_HeightLarge)) {
+            if (ImGui::Selectable(label("").c_str(), v.empty())) { v.clear(); g_dirty = true; }
+            if (ImGui::Selectable("The game's own", v == "-")) { v = "-"; g_dirty = true; }
+            if (!v.empty() && v != "-" && !vecart::IsRef(v)) ImGui::Selectable(label(v).c_str(), true);
+            ImGui::SeparatorText("Vector art (REUI\\vector)");
+            if (arts.empty()) ImGui::TextDisabled("(no .svg files)");
+            for (auto& a : arts) {
+                std::string ref = vecart::Ref(a.name);
+                if (ImGui::Selectable(a.name.c_str(), v == ref)) { v = ref; g_dirty = true; }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!(g_texSel >= 0 && g_texSel < (int)g_tex.size()));
+        if (ImGui::SmallButton("use the selected texture")) { v = g_tex[g_texSel].name; g_dirty = true; }
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("The texture picked in the Textures list below (any of the game's textures).");
+        if (isMap && !v.empty() && v != "-") ImGui::TextDisabled("Laid over the same world square as the game's map, with its own transparency.");
+        ImGui::TableNextColumn(); { std::string now = MapArtNow(n); thumb(now.empty() ? n : now); }
+        ImGui::PopID();
+    }
+    ImGui::EndTable();
+    for (auto it = g_mapArt.begin(); it != g_mapArt.end();) { if (it->second.empty()) it = g_mapArt.erase(it); else ++it; }   // (automatic: not kept)
+}
+
 bool Unsaved() { return g_dirty; }
 void Panel() {
     g_panelOpen = true;
@@ -3187,6 +3333,7 @@ void Panel() {
     }
     UndoCommit(false);
     TokensPanel();   // (the Widget kit panel is deprecated: grids replace Add row)
+    if (!menuMode) MinimapPage();
     // ---- prefabs: a list, a preview of the picked one, Add / Delete
     if (!menuMode && ImGui::CollapsingHeader("Prefabs")) {
         static std::string pick, cacheName; static std::vector<Elem> cache; static double cacheAt = -10;

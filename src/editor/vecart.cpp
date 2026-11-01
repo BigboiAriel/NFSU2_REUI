@@ -139,7 +139,7 @@ void Rescan() {
 }
 const std::vector<Art>& List() { if (!g_scanned) Rescan(); return g_list; }
 const Art* Find(const std::string& name) {
-    for (auto& a : List()) if (a.name == name) return &a;
+    for (auto& a : List()) if (_stricmp(a.name.c_str(), name.c_str()) == 0) return &a;   // (file names' case doesn't matter)
     return nullptr;
 }
 

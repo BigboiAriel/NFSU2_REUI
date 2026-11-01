@@ -58,6 +58,13 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   MINIMAP_ICON_GARAGE for players in a shop). A redrawn MINIMAP_MASK sets the map's opacity (its first shape's
   opacity; stock 72%). The Minimap prefab's frame is one 160 x 160 ring (vec:minimap/MINIMAP_BORDER) centred on the map
   instead of four quarters, the north marker vec:minimap/MINIMAP_NORTH_INDICATOR.
+- **Minimap page (2026-10-31).** A "Minimap" section in the editor: a row per minimap texture (this track's map
+  TRACKMAP<n>, MINIMAP_MASK / BORDER / BORDER_2 / NORTH_INDICATOR / GPS_SELECTOR / the ICON_ textures, other mods'
+  markers once seen) with the game's picture, "Replace with" (Automatic = REUI\vector\minimap\<name>.svg if there,
+  else stock / the game's own / any vector art / the texture selected in Textures) and what's drawn now. Saved with the
+  layout as `mapart=<name>;<texture>`. Applies to the minimap's icons, the map (its own alpha; same world square) and
+  image elements whose texture is one of the names or vec:minimap/<name>; a replaced MASK's first shape sets the map
+  opacity. Vector art names match without regard to case; the art list is rescanned when the section opens.
 - **Colour tokens (built 2026-10-27).** Elements can take their colour (and my-row colour) from a named token
   instead of a literal: `colortoken=<name> <opacity>` (the resolved `color=` is still saved for older builds).
   Built in: the game's HUD palette (hud.text, hud.accent, hud.accent_soft, hud.line, hud.shade, hud.orange,

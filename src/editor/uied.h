@@ -66,6 +66,7 @@ namespace uied {
         float span = 0.2f;                  // uv across the minimap at the game's zoom
         bool rotate = false;                // heading-up (the game's radar option), else north-up
         bool alphaOk = true;                // false: the texture's alpha is empty (drawn with the element's alpha)
+        std::string mapName;                // the map texture's name (TRACKMAP<track>): the Minimap page can replace it
         float limit = 1;                    // game icons further than this (in minimap widths) are dropped
         std::vector<MapBlip> blips;
     };

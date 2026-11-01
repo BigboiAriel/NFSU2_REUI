@@ -562,6 +562,7 @@ static bool MapViewNow2(uied::MapView& out) {
     char tn[32]; snprintf(tn, sizeof tn, "TRACKMAP%d", track);
     uint8_t* tinfo = TexInfo(BHash(tn));
     v.tex = TexOfInfo(tinfo);
+    v.mapName = tn;
     if (!v.tex) { g_mapWhy = tinfo ? "map texture not loaded" : "no map texture info"; return false; }
     D3DSURFACE_DESC dd; int tw = *(int16_t*)(tinfo + 0x44), th = *(int16_t*)(tinfo + 0x46);
     if (SUCCEEDED(v.tex->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && tw > 0 && th > 0) { v.su = (float)tw / dd.Width; v.sv = (float)th / dd.Height; }
