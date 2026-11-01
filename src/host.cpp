@@ -621,6 +621,8 @@ static bool MapViewNow2(uied::MapView& out) {
         v.blips.push_back(b);
     }
     // other mods' markers (the multiplayer mod's players)
+    size_t gameBlips = v.blips.size();
+    std::vector<std::pair<float, float>> covers;   // (flag 8: the game's icons under these aren't drawn)
     for (auto& p : g_mapMarkers) {
         REUI_MapMarker m[64];
         memset(m, 0, sizeof m);
@@ -630,6 +632,7 @@ static bool MapViewNow2(uied::MapView& out) {
             b.x = m[i].x; b.y = m[i].y;
             if (!(m[i].flags & 2)) { b.dirX = m[i].dirX; b.dirY = m[i].dirY; }
             else if (m[i].flags & 4) { b.ox = m[i].dirX; b.oy = m[i].dirY; }   // (a badge: offset from its spot)
+            if (m[i].flags & 8) covers.push_back({m[i].x, m[i].y});
             float sz = m[i].size > 0 ? m[i].size : 1;
             if (m[i].icon && *m[i].icon) {
                 b.texName = m[i].icon; b.gameName = m[i].icon; b.w = b.h = 16 * sz;
@@ -645,6 +648,16 @@ static bool MapViewNow2(uied::MapView& out) {
             b.hideOff = (m[i].flags & 1) != 0; b.farOk = true;
             v.blips.push_back(b);
         }
+    }
+    if (!covers.empty()) {
+        std::vector<uied::MapBlip> kept;
+        for (size_t i = 0; i < v.blips.size(); ++i) {
+            bool hide = false;
+            if (i < gameBlips && !v.blips[i].player)
+                for (auto& c : covers) { float dx = v.blips[i].x - c.first, dy = v.blips[i].y - c.second; if (dx * dx + dy * dy < 4.f) { hide = true; break; } }
+            if (!hide) kept.push_back(v.blips[i]);
+        }
+        v.blips.swap(kept);
     }
     return true;
 }
