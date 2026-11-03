@@ -14,8 +14,23 @@ namespace shapes {
 
 namespace {
 
-struct Entry { IDirect3DTexture9* fill = nullptr; IDirect3DTexture9* stroke = nullptr; float margin = 0; int pw = 0, ph = 0; DWORD used = 0; };
+struct Entry { IDirect3DTexture9* fill = nullptr; IDirect3DTexture9* stroke = nullptr; float margin = 0; int pw = 0, ph = 0; DWORD used = 0; size_t bytes = 0; };
 std::unordered_map<std::string, Entry> g_cache;
+// A shape that animates (pulse, keyframes) or is being resized is a new size - a new entry - every frame: kept to a
+// budget, the least recently drawn let go first (code review, 2026-11-03: a pulsing 600x300 panel made ~260 MB).
+constexpr size_t kMaxBytes = 64u << 20; constexpr size_t kMaxEntries = 128;
+size_t g_bytes = 0;
+void Drop(std::unordered_map<std::string, Entry>::iterator it) {
+    deferfree::Later(it->second.fill); deferfree::Later(it->second.stroke);
+    g_bytes -= std::min(g_bytes, it->second.bytes); g_cache.erase(it);
+}
+void MakeRoom(size_t need) {
+    while (!g_cache.empty() && (g_bytes + need > kMaxBytes || g_cache.size() >= kMaxEntries)) {
+        auto old = g_cache.begin();
+        for (auto it = g_cache.begin(); it != g_cache.end(); ++it) if (it->second.used < old->second.used) old = it;
+        Drop(old);
+    }
+}
 const float kPi = 3.14159265f;
 
 // signed distance to a rounded box centred at 0 (half size b), corner radius by quadrant (y down)
@@ -119,8 +134,9 @@ IDirect3DTexture9* Upload(IDirect3DDevice9* dev, const std::vector<uint32_t>& px
 } // namespace
 
 bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gradient& sg, const Gradient& fg, const std::vector<Box>& cuts, Result& out) {
-    if (!dev || s.w < 1 || s.h < 1) return false;
-    float sw = std::max(0.f, stroke);
+    // (not a number / infinite / absurd: "s.w < 1" lets NaN through and (int)ceilf(inf) wraps past the 2048 clamp)
+    if (!dev || !std::isfinite(s.w) || !std::isfinite(s.h) || !std::isfinite(stroke) || s.w < 1 || s.h < 1 || s.w > 1e5f || s.h > 1e5f) return false;
+    float sw = std::max(0.f, std::min(stroke, 1e4f));
     if (align < ALIGN_INSIDE || align > ALIGN_OUTSIDE) align = ALIGN_INSIDE;
     std::string key = Key(s, sw, align, sg, fg, cuts);
     DWORD now = GetTickCount();
@@ -198,9 +214,11 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
             }
         }
     Entry e; e.margin = margin; e.pw = pw; e.ph = ph; e.used = now;
+    e.bytes = (size_t)pw * ph * 4 * (sw > 0 ? 2 : 1);
+    MakeRoom(e.bytes);
     e.fill = Upload(dev, fpx, pw, ph);
     if (sw > 0) e.stroke = Upload(dev, spx, pw, ph);
-    g_cache[key] = e;
+    g_cache[key] = e; g_bytes += e.bytes;
     out.fill = e.fill; out.stroke = e.stroke; out.margin = margin; out.pw = pw; out.ph = ph;
     return out.fill || out.stroke;
 }
@@ -208,14 +226,14 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
 void Trim() {
     DWORD now = GetTickCount();
     for (auto it = g_cache.begin(); it != g_cache.end();) {
-        if (now - it->second.used > 3000) { deferfree::Later(it->second.fill); deferfree::Later(it->second.stroke); it = g_cache.erase(it); }
+        if (now - it->second.used > 3000) { auto d = it++; Drop(d); }
         else ++it;
     }
 }
 
 void Release() {
     for (auto& kv : g_cache) { if (kv.second.fill) kv.second.fill->Release(); if (kv.second.stroke) kv.second.stroke->Release(); }
-    g_cache.clear();
+    g_cache.clear(); g_bytes = 0;
 }
 
 } // namespace shapes

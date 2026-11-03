@@ -2353,7 +2353,7 @@ void DrawOverlay(int mode) {
         else if (e.type != E_TEXT) {
             float ax = (e.anchor % 3) * 0.5f, ay = (e.anchor / 3) * 0.5f;
             float nw = std::max(2.f, roundf(g_dragOrigWH.x + d.x)), nh = std::max(2.f, roundf(g_dragOrigWH.y + d.y));
-            if (io.KeyShift && g_dragOrigWH.y > 0) nh = roundf(nw * g_dragOrigWH.y / g_dragOrigWH.x);   // keep the shape
+            if (io.KeyShift && g_dragOrigWH.x > 0 && g_dragOrigWH.y > 0) nh = roundf(nw * g_dragOrigWH.y / g_dragOrigWH.x);   // keep the shape
             e.x = g_dragOrig.x + ax * (nw - g_dragOrigWH.x); e.y = g_dragOrig.y + ay * (nh - g_dragOrigWH.y);
             e.w = nw; e.h = nh;
         } else {
@@ -2623,7 +2623,7 @@ static void Selected(Elem& e) {
     char nb[64]; snprintf(nb, sizeof nb, "%s", e.name.c_str());
     if (ImGui::InputText("name", nb, sizeof nb)) { e.name = nb; g_dirty = true; }
     GroupField(e);
-    ImGui::Checkbox("visible", &e.visible);
+    if (ImGui::Checkbox("visible", &e.visible)) g_dirty = true;
     FlagBoxes({&e}, "");
     ImGui::SameLine();
     { int an = e.anchor; ImGui::SetNextItemWidth(140); if (ImGui::Combo("anchored to", &an, kAnchors, 9)) { SetAnchorKeep(e, an); g_dirty = true; } }
