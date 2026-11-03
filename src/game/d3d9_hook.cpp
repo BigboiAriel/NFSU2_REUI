@@ -70,6 +70,10 @@ static void OurFrame(IDirect3DDevice9* dev, bool insideScene) {
     }
     PanelPollKey();
     if (!PanelWantsFrame()) return;
+    // Lost device (alt-tab, screen asleep / locked): draw nothing until the game has reset it. Drawing now would make
+    // ImGui's vertex / index buffers again (video memory, released by our Reset hook) and the game's next Reset would
+    // fail on them - the game doesn't cope with a failed Reset (the multiplayer mod's crash 0x5BA6C7, 2026-11-02).
+    if (dev->TestCooperativeLevel() != D3D_OK) return;
     if (insideScene) {
         PanelFrame();
     } else if (SUCCEEDED(dev->BeginScene())) {
