@@ -143,6 +143,14 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   the stock item (its current item set, then the pause screen's own accept: confirm dialogs and screens as stock).
   UniPad presses accept through the game's input and gives the press the item's own FE button (the scroller only runs
   an item whose button the accept carries, React 0x50D980 vs icon+0x10).
+- **Sub menus (2026-11-03).** A custom menu can sit inside another (its group inside the other's: "Pause 1/Unipad
+  Options"), any depth. A page's pieces are only those whose nearest page group is it (OwnerPage), so a menu never
+  draws, lists or edits its sub menus' pieces. The menu bar shows two rows: the menus at one level (the top, or inside
+  g_menuRoot) and the picked one's sub menus, each with "+" (a new menu there); picking a sub menu moves down a level
+  (its row becomes the first), "<" at the end of the first row goes back up; a button with sub menus reads "Name >".
+  Right-click a menu's button: Move into (any other custom menu, not itself / its own sub menus) or Move to the top
+  level - a rename of its group, so its pieces, rows, sub menus and every "open" link to it go along (no opener tile
+  is added). Renaming keeps it where it is; deleting takes its sub menus too.
 - **Carousel (2026-11-03).** A widget type of its own ("Carousel (scrolls left / right)", `type=carousel`, saved with the
   grid's `grid=` line - cols = slots on screen, rows 1, totalRows = its tiles - and `carousel=centred wrap`): a grid's
   tiles on one row, left / right scroll it. Centred (default): the selected tile stays in the middle slot and the row

@@ -2231,7 +2231,7 @@ void DrawOverlay(int mode) {
         if ((editing || panel) && MenuWs())   // grids: the other cells faded, with sample items (the pieces are the first cell)
             for (auto& w : g_widgets) if (GridLike(w) && !MenuEdOff(w.group)) {
                 bool shown = false; for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.visible) { shown = true; break; }
-                if (shown) DrawGrid(dl, PageOf(TopGroup(w.group)), w, false, 0, true);
+                if (shown) DrawGrid(dl, PageOf(OwnerPage(w.group)), w, false, 0, true);
             }
     }
     // grids: a picked grid lights up every cell (and its whole box); a picked piece of one, its copy in every cell

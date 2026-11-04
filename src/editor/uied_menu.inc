@@ -101,6 +101,10 @@ std::function<void()> menuChanged;
 
 static Widget* WidgetOf(const std::string& g) { for (auto& w : g_widgets) if (w.group == g) return &w; return nullptr; }
 static Page* PageOf(const std::string& g) { for (auto& p : g_pages) if (p.group == g) return &p; return nullptr; }
+// The page a group belongs to: itself or the nearest group around it that's a page ("" = none). A custom menu can sit
+// inside another (a sub menu: "Pause 1/Unipad Options"); its pieces are its own, not the menu around it's.
+static std::string OwnerPage(const std::string& g) { for (std::string x = g; !x.empty(); x = GroupParent(x)) if (PageOf(x)) return x; return std::string(); }
+static std::string ParentMenu(const std::string& page) { return OwnerPage(GroupParent(page)); }   // the menu a sub menu is in ("" = top level)
 static Setting* SettingOf(const std::string& k) { if (k.empty()) return nullptr; for (auto& s : settings) if (s.key == k) return &s; return nullptr; }
 static std::string TopGroup(const std::string& g) { return g.substr(0, g.find('/')); }
 static void Snd(int s) { if (menuSound) menuSound(s); }
@@ -478,7 +482,7 @@ static bool MenuEdOff(const std::string& group) {
     }
     Page* p = PageOf(g_menuEd);
     if (!p || !p->dedicated) { g_menuEd.clear(); return false; }   // (gone: undo, reload)
-    return !InGroup(group, g_menuEd);
+    return !InGroup(group, g_menuEd) || OwnerPage(group) != g_menuEd;   // (its sub menus' pieces are theirs)
 }
 // a group as the editor shows it while a custom menu is being edited: the menu is the page, not a group ("" = the menu)
 static std::string RelGroup(const std::string& g) {
@@ -1035,7 +1039,7 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel, int top) {
     }
     // scroller: where the tab sits on the track
     float trTop = 0, trBot = 0; bool track = false;
-    for (auto& e : MenuElems()) if (InGroup(e.group, p.group) && e.role == "strack") { trTop = e.y - e.h / 2; trBot = e.y + e.h / 2; track = true; }
+    for (auto& e : MenuElems()) if (InGroup(e.group, p.group) && e.role == "strack" && OwnerPage(e.group) == p.group) { trTop = e.y - e.h / 2; trBot = e.y + e.h / 2; track = true; }
     std::string desc = sel >= 0 && n ? rows[sel].w->desc : "";
     if (sel >= 0 && n && GridLike(*rows[sel].w) && GridHasTiles(*rows[sel].w)) {   // a grid: its selected tile's
         Widget& g = *rows[sel].w; auto items = GridItems(g);
@@ -1046,7 +1050,7 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel, int top) {
     g_drawList = &els;   // (shapes find their cutters here)
     for (int i : DrawOrder(els)) {
         Elem& src = els[i];
-        if (!InGroup(src.group, p.group) || !src.visible) continue;
+        if (!InGroup(src.group, p.group) || !src.visible || OwnerPage(src.group) != p.group) continue;   // (not its sub menus' pieces)
         Elem e = src;
         Widget* w = WidgetFor(e.group);
         auto it = w ? rowIdx.find(w) : rowIdx.end();
@@ -1760,57 +1764,134 @@ static void PagePanel(Page& p) {
 // The menu bar (Menus workspace, under Add image ... Undo): a button per custom menu and "+" to make another ("Add Menu +"
 // when there are none). Picking one edits it alone (picking it again shows everything); under the buttons: its name,
 // its page settings and Delete. Older pages - groups ticked "menu page" - aren't in it (deprecated, left as they are).
+// Sub menus: custom menus inside another ("Pause 1/Unipad Options"), any depth, two rows shown at a time - the first
+// row is the menus at one level (the top, or inside g_menuRoot), the second the picked one's sub menus (+ makes one
+// there). Picking a sub menu moves down a level (its row becomes the first); "<" at the end of the first row goes back
+// up. Right-click a menu: move it into another menu, or back to the top level.
+static std::string g_menuRoot;   // the menu whose sub menus are the first row ("" = the top level)
+static std::vector<std::string> SubMenus(const std::string& leader) {
+    std::vector<std::string> v;
+    for (auto& p : g_pages) if (p.dedicated && ParentMenu(p.group) == leader) v.push_back(p.group);
+    return v;
+}
 static void MenuBar() {
     if (!MenuWs()) return;
-    auto newMenu = [] {
+    auto pick = [](const std::string& g) { g_menuEd = g; g_sel = -1; g_selGroup.clear(); ClearMulti(); };
+    auto newMenu = [&](const std::string& in) {   // in: the menu it goes in ("" = the top level)
         std::string g;
         for (int i = 1; ; ++i) {
-            g = "Menu " + std::to_string(i);
+            g = (in.empty() ? "" : in + "/") + "Menu " + std::to_string(i);
             bool used = PageOf(g) != nullptr; for (auto& e : MenuElems()) if (InGroup(e.group, g)) used = true;
             if (!used) break;
         }
         Page np; np.group = g; np.dedicated = true; np.start = g_pages.empty(); g_pages.push_back(np);
-        g_menuEd = g; g_sel = -1; g_selGroup.clear(); g_dirty = true;
+        pick(g); g_dirty = true;
+        if (!in.empty()) g_menuRoot = in;   // (a sub menu: its leader's row on top, it in the second)
         Log("ui editor: custom menu %s made", g.c_str());
     };
+    // move menu g into menu `into` ("" = the top level): its pieces, rows, links and sub menus go with it
+    auto moveMenu = [&](const std::string& g, const std::string& into) {
+        std::string to = (into.empty() ? "" : into + "/") + GroupLeaf(g);
+        bool used = PageOf(to) != nullptr; for (auto& e : MenuElems()) if (InGroup(e.group, to)) used = true;
+        if (used || InGroup(into, g)) { Log("ui editor: can't move %s there (%s)", g.c_str(), used ? "something there is already called that" : "it's inside it"); return; }
+        RebaseGroup(g, to);
+        g_menuEd = to; g_menuRoot = ParentMenu(ParentMenu(to)); g_sel = -1; g_selGroup.clear(); ClearMulti();
+        Log("ui editor: menu %s moved to %s", g.c_str(), to.c_str());
+    };
     MenuEdOff("");   // (forgets a menu that went away)
-    std::vector<std::string> mine; for (auto& p : g_pages) if (p.dedicated) mine.push_back(p.group);
-    if (mine.empty()) {
-        if (ImGui::Button("Add Menu +")) newMenu();
+    if (!g_menuRoot.empty() && (!PageOf(g_menuRoot) || (!g_menuEd.empty() && !InGroup(g_menuEd, g_menuRoot)))) g_menuRoot.clear();
+    bool any = false; for (auto& p : g_pages) any |= p.dedicated;
+    if (!any) {
+        if (ImGui::Button("Add Menu +")) newMenu("");
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("A new custom menu: its own page, edited on its own. Add images / text / shapes / grids to it.");
         return;
     }
-    for (size_t i = 0; i < mine.size(); ++i) {
-        if (i) ImGui::SameLine();
-        bool on = mine[i] == g_menuEd;
+    // a menu's button: picked = lit; right-click = move it
+    bool moved = false;
+    auto button = [&](const std::string& g, bool on, int row, const std::function<void()>& click) {
         if (on) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-        if (ImGui::Button((mine[i] + "##menu" + std::to_string(i)).c_str())) { g_menuEd = on ? std::string() : mine[i]; g_sel = -1; g_selGroup.clear(); ClearMulti(); }
+        std::string subs = SubMenus(g).empty() ? "" : " >";
+        bool hit = ImGui::Button((GroupLeaf(g) + subs + "##menu" + std::to_string(row) + g).c_str());
         if (on) ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip(on ? "Editing this menu alone. Click again to go back to the rest of the layout." : "Edit this menu (alone on screen and in the list; custom menus show only while picked).");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n%s\nRight-click: move it into another menu (a sub menu) or to the top level.", g.c_str(),
+            on ? "Editing this menu alone. Click again to stop." : "Edit this menu (alone on screen and in the list).");
+        if (ImGui::BeginPopupContextItem(("##menuctx" + std::to_string(row) + g).c_str())) {
+            ImGui::TextDisabled("%s", g.c_str());
+            if (ImGui::BeginMenu("Move into")) {
+                std::string cur = ParentMenu(g);
+                int n = 0;
+                for (auto& p : g_pages) {
+                    if (!p.dedicated || p.group == cur || InGroup(p.group, g)) continue;   // (not where it is, not itself / its own sub menus)
+                    ++n; if (ImGui::MenuItem(p.group.c_str())) { moveMenu(g, p.group); moved = true; }
+                }
+                if (!n) ImGui::TextDisabled("(no other menu)");
+                ImGui::EndMenu();
+            }
+            if (!ParentMenu(g).empty() && ImGui::MenuItem("Move to the top level")) { moveMenu(g, ""); moved = true; }
+            ImGui::EndPopup();
+        }
+        if (hit && !moved) click();
+    };
+    // row 1: the menus at this level; the one holding the menu being edited is lit
+    std::string lead;   // (the row-1 menu picked, or holding the one picked)
+    {
+        auto row = SubMenus(g_menuRoot);
+        for (auto& g : row) if (!g_menuEd.empty() && InGroup(g_menuEd, g)) lead = g;
+        for (size_t i = 0; i < row.size() && !moved; ++i) {
+            if (i) ImGui::SameLine();
+            std::string g = row[i];
+            button(g, g == lead, 1, [&] { pick(g == g_menuEd ? std::string() : g); });
+        }
+        if (moved) return;
+        if (!row.empty()) ImGui::SameLine();
+        if (ImGui::Button("+##menuadd1")) { newMenu(g_menuRoot); return; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip(g_menuRoot.empty() ? "Add another custom menu." : "Add another sub menu to %s.", g_menuRoot.c_str());
+        if (!g_menuRoot.empty()) {
+            ImGui::SameLine();
+            if (ImGui::Button("<##menuup")) { std::string up = g_menuRoot; g_menuRoot = ParentMenu(up); pick(up); return; }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Back one menu (to %s's row).", ParentMenu(g_menuRoot).empty() ? "the top level" : ParentMenu(g_menuRoot).c_str());
+        }
     }
-    ImGui::SameLine(); if (ImGui::Button("+")) newMenu();
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Add another custom menu.");
+    // row 2: the lit menu's sub menus (picking one moves down: its row becomes the first)
+    if (!lead.empty()) {
+        auto row = SubMenus(lead);
+        ImGui::TextDisabled("%s >", GroupLeaf(lead).c_str()); ImGui::SameLine();
+        for (size_t i = 0; i < row.size() && !moved; ++i) {
+            std::string g = row[i];
+            bool on = !g_menuEd.empty() && InGroup(g_menuEd, g);
+            button(g, on, 2, [&] { if (g == g_menuEd) pick(lead); else { pick(g); g_menuRoot = lead; } });
+            ImGui::SameLine();
+        }
+        if (moved) return;
+        if (ImGui::Button("+##menuadd2")) { newMenu(lead); return; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Add a sub menu to %s.", lead.c_str());
+    }
     Page* p = g_menuEd.empty() ? nullptr : PageOf(g_menuEd);
     if (!p) return;
     static char nb[64]; static std::string nbFor;
-    if (nbFor != p->group) { snprintf(nb, sizeof nb, "%s", p->group.c_str()); nbFor = p->group; }
+    if (nbFor != p->group) { snprintf(nb, sizeof nb, "%s", GroupLeaf(p->group).c_str()); nbFor = p->group; }
     ImGui::SetNextItemWidth(160);
     ImGui::InputText("name##menuname", nb, sizeof nb);
     if (ImGui::IsItemDeactivatedAfterEdit()) {
-        std::string to = CleanGroup(RowName(nb));
+        std::string par = GroupParent(p->group), leaf = CleanGroup(RowName(nb));
+        std::string to = leaf.empty() ? std::string() : (par.empty() ? "" : par + "/") + leaf;
         bool used = to.empty() || PageOf(to) != nullptr; for (auto& e : MenuElems()) if (InGroup(e.group, to)) used = true;
-        if (!used) { std::string from = p->group; RebaseGroup(from, to); g_menuEd = to; nbFor = to; g_dirty = true; }
-        else { snprintf(nb, sizeof nb, "%s", p->group.c_str()); Log("ui editor: a menu or group is already called that"); }
+        if (!used) {
+            std::string from = p->group; RebaseGroup(from, to); g_menuEd = to; nbFor = to; g_dirty = true;
+            if (InGroup(g_menuRoot, from)) g_menuRoot = CleanGroup(to + g_menuRoot.substr(from.size()));
+        }
+        else { snprintf(nb, sizeof nb, "%s", GroupLeaf(p->group).c_str()); Log("ui editor: a menu or group is already called that"); }
         p = PageOf(g_menuEd); if (!p) return;
     }
     ImGui::SameLine();
     if (ImGui::Button("Delete menu")) ImGui::OpenPopup("##delmenu");
     if (ImGui::BeginPopup("##delmenu")) {
-        ImGui::Text("Delete \"%s\" and everything in it?", p->group.c_str());
+        ImGui::Text("Delete \"%s\" and everything in it (its sub menus too)?", p->group.c_str());
         if (ImGui::Button("Delete")) {
             std::string g = p->group;
             MenuElems().erase(std::remove_if(MenuElems().begin(), MenuElems().end(), [&](const Elem& e) { return InGroup(e.group, g); }), MenuElems().end());
             MenuForget(g); g_menuEd.clear(); g_sel = -1; g_selGroup.clear(); ClearMulti(); g_dirty = true;
+            if (InGroup(g_menuRoot, g)) g_menuRoot = ParentMenu(g);
             ImGui::CloseCurrentPopup(); ImGui::EndPopup(); return;
         }
         ImGui::SameLine(); if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
@@ -1821,6 +1902,7 @@ static void MenuBar() {
 static void GroupMenuProps(const std::string& g) {
     if (!MenuWs()) return;
     ImGui::SeparatorText("Menu");
+    if (Page* sp = PageOf(g)) if (sp->dedicated && !GroupParent(g).empty()) { ImGui::TextDisabled("A sub menu of %s (the menu bar).", ParentMenu(g).c_str()); PagePanel(*sp); return; }
     if (GroupParent(g).empty()) {
         Page* p = PageOf(g);
         if (p && p->dedicated) { ImGui::TextDisabled("A custom menu (the menu bar under Add image / Undo)."); PagePanel(*p); return; }
