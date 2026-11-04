@@ -22,7 +22,7 @@ enum { ALIGN_INSIDE = 0, ALIGN_CENTRE = 1, ALIGN_OUTSIDE = 2 };
 struct Box {                 // in the shape's own pixels: centre (from the shape's centre), size, turn
     float cx = 0, cy = 0, w = 0, h = 0, rot = 0;   // rot: radians, clockwise (screen, y down)
     float r[4] = {0, 0, 0, 0};                     // corner radii: top-left, top-right, bottom-right, bottom-left
-    float gap = 0;                                 // cutters: cut this much wider than themselves
+    float gap = 0;                                 // cutters: cut this much wider than themselves (negative: narrower)
 };
 // fill / stroke: white with alpha (or the gradient's colours). A cut's edge has no stroke of the shape's: cutters are
 // drawn as shapes themselves (their own border outlines the cut).

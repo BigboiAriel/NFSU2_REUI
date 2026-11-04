@@ -470,7 +470,7 @@ struct Elem {
     float colTokA = 1, hiTokA = 1;
     // shapes (E_SHAPE): a rounded rectangle - corner radii (units: top-left, top-right, bottom-right, bottom-left),
     // a stroke (inside its edge, units; 0 = none) in col, a fill in fillCol (its own token). cut: draws nothing itself
-    // and is subtracted from cutTarget (an element name; "" = every shape in its group), grown by cutGap
+    // and is subtracted from cutTarget (an element name; "" = every shape in its group), grown by cutGap (negative: shrunk)
     float rad[4] = {12, 12, 12, 12}; bool radLink = true;
     float stroke = 2;
     float fillCol[4] = {0, 0, 0, 1};
@@ -891,7 +891,7 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
             ImVec2 oa, ob; ElemRect(o, oa, ob);
             float ow = ob.x - oa.x, oh = ob.y - oa.y, ok = o.w > 0 ? ow / o.w : 1;
             ImVec2 oc((oa.x + ob.x) / 2, (oa.y + ob.y) / 2);
-            float dx = oc.x - c.x, dy = oc.y - c.y, gap = std::max(0.f, o.cutGap) * ok;
+            float dx = oc.x - c.x, dy = oc.y - c.y, gap = std::max(-1000.f, std::min(1000.f, o.cutGap)) * ok;   // (negative: the cut is smaller than the cutter)
             // (out of reach: left out, so moving it elsewhere doesn't redraw the shape)
             if (sqrtf(dx * dx + dy * dy) > (sqrtf(pw * pw + ph * ph) + sqrtf(ow * ow + oh * oh)) / 2 + gap + 2) continue;
             shapes::Box x;
@@ -1672,8 +1672,8 @@ static void ShapeProps(Elem& e) {
             ImGui::EndCombo();
         }
         ImGui::SameLine(); ImGui::SetNextItemWidth(110);
-        if (ImGui::DragFloat("gap", &e.cutGap, 0.05f, 0.f, 200.f, "%.1f")) { e.cutGap = std::max(0.f, e.cutGap); g_dirty = true; }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Cuts this much wider than the cutter itself (units): room around what sits in the cut-out.");
+        if (ImGui::DragFloat("gap", &e.cutGap, 0.05f, -200.f, 200.f, "%.1f")) { e.cutGap = std::max(-200.f, std::min(200.f, e.cutGap)); g_dirty = true; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Cuts this much wider than the cutter itself (units): room around what sits in the cut-out.\nNegative: the cut is that much smaller than the cutter (the cutter overlaps the shape).\nCtrl + click to type a value.");
 
     }
 }
