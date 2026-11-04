@@ -68,6 +68,7 @@ EXPORT void REUI_SetIcons(int families, const char* const* familyNames, int coun
 EXPORT void REUI_SetMenuDriver(int external) { g_menuDriverExternal = external != 0; reui::Log("api: menus driven by %s", external ? "another mod" : "REUI"); }
 EXPORT int REUI_HasMenuPages() { return !uied::MenuPages().empty(); }
 EXPORT int REUI_MenuOpen(const char* page) { return uied::MenuOpen(page ? page : "") ? 1 : 0; }
+EXPORT const char* REUI_PausePage() { static std::string s; s = uied::MenuPausePage(); return s.c_str(); }
 EXPORT void REUI_MenuClose() { uied::MenuClose(); }
 EXPORT int REUI_MenuIsOpen() { return uied::MenuIsOpen() ? 1 : 0; }
 EXPORT void REUI_AddFlag(const char* key, const char* label, const char* tooltip, int group, int hiddenWhenMissing, REUI_FlagFn hideNow, void* ctx) {

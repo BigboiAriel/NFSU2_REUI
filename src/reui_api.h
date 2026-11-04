@@ -54,6 +54,9 @@ typedef void (*PFN_REUI_MenuFrame)(int up, int down, int left, int right, int ac
 // the editor's state a value provider may need: testing a layout (no real race: show sample values), and the
 // leaderboard's row count / follow-me setting. Null pointers are skipped.
 typedef void (*PFN_REUI_EditorState)(int* testMode, int* boardRows, int* boardFollow);
+// the menu page that replaces the game's pause menu ("" = none; the page's "replaces the pause menu" box). Optional
+// (look it up; older REUI builds don't have it)
+typedef const char* (*PFN_REUI_PausePage)(void);
 // An element flag (a checkbox on every element while your mod is loaded): hideNow(ctx) returns 1 while flagged elements
 // are to be hidden. hiddenWhenMissing: what flagged elements do when your mod isn't installed. group > 0: only one flag
 // of the group per element (e.g. "hide online" / "online only").

@@ -81,6 +81,7 @@ struct Page {
     bool start = false;                  // opened by the menu key
     bool useSel = true; float selCol[4] = { 202 / 255.f, 244 / 255.f, 138 / 255.f, 1.f };   // selected row's label / value
     bool dedicated = false;              // made with the editor's menu bar (a custom menu); false: a group ticked "menu page" (deprecated)
+    bool pauseMenu = false;              // opened instead of the game's pause menu (by the menu driver, UniPad)
 };
 struct KitT { std::string name; Widget w; };        // a template: widget settings (group = "")
 static std::vector<Widget> g_widgets;
@@ -789,6 +790,7 @@ static void GridFromPieces(Widget& w) {
 }
 
 std::vector<std::string> MenuPages() { std::vector<std::string> v; for (auto& p : g_pages) v.push_back(p.group); return v; }
+std::string MenuPausePage() { for (auto& p : g_pages) if (p.pauseMenu) return p.group; return std::string(); }
 bool MenuIsOpen() { return g_menu.open; }
 static Page* MenuPage() { return g_menu.stack.empty() ? nullptr : PageOf(g_menu.stack.back()); }
 static void MenuGo(const std::string& page) {
@@ -1598,6 +1600,8 @@ static void PagePanel(Page& p) {
     ImGui::SetNextItemWidth(80); if (ImGui::InputInt("rows shown", &p.visRows)) { p.visRows = std::max(0, p.visRows); g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = all. More rows than this scroll (the scroller tab follows).");
     ImGui::SameLine(); if (ImGui::Checkbox("menu key opens this", &p.start)) { if (p.start) for (auto& o : g_pages) if (&o != &p) o.start = false; g_dirty = true; }
+    ImGui::SameLine(); if (ImGui::Checkbox("replaces the pause menu", &p.pauseMenu)) { if (p.pauseMenu) for (auto& o : g_pages) if (&o != &p) o.pauseMenu = false; g_dirty = true; }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Opens instead of the game's pause menu (Start / Esc in the world; needs UniPad). Back closes it and\nresumes; give tiles the \"Pause: ...\" actions (Resume, Restart race, Jump to Garage, Options, Quit,\nFree Cam...) under changes.");
     ImGui::SameLine(); if (ImGui::Checkbox("selected row colour", &p.useSel)) g_dirty = true;
     ImGui::SameLine(); if (ImGui::ColorEdit4("##selcol", p.selCol, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) g_dirty = true;
     auto rows = PageRows(p);
@@ -1753,6 +1757,7 @@ static void SaveMenus(FILE* f) {
         fprintf(f, "\n[page]\ngroup=%s\nspacing=%g\nfirsty=%g\ncoldist=%g\ncolx=%g\naddcol=%d\nrows=%d\nstart=%d\nselcolor=%d %g %g %g %g\n", Esc(p.group).c_str(), p.spacing, p.firstY, p.colDist, p.colX, p.addCol, p.visRows, p.start ? 1 : 0,
                 p.useSel ? 1 : 0, p.selCol[0], p.selCol[1], p.selCol[2], p.selCol[3]);
         if (p.dedicated) fprintf(f, "dedicated=1\n");
+        if (p.pauseMenu) fprintf(f, "pausemenu=1\n");
     }
     for (auto& w : g_widgets) { fprintf(f, "\n[widget]\ngroup=%s\n", Esc(w.group).c_str()); SaveWidgetProps(f, w); }
     for (auto& k : g_kitT) { fprintf(f, "\n[template]\nname=%s\n", Esc(k.name).c_str()); SaveWidgetProps(f, k.w); }
@@ -1800,6 +1805,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "rows") p.visRows = atoi(v.c_str());
         else if (k == "start") p.start = atoi(v.c_str()) != 0;
         else if (k == "dedicated") p.dedicated = atoi(v.c_str()) != 0;
+        else if (k == "pausemenu") p.pauseMenu = atoi(v.c_str()) != 0;
         else if (k == "selcolor") { int u = 1; sscanf(v.c_str(), "%d %f %f %f %f", &u, &p.selCol[0], &p.selCol[1], &p.selCol[2], &p.selCol[3]); p.useSel = u != 0; }
         return true;
     }

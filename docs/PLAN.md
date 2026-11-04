@@ -136,6 +136,11 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   across the row, drawn as they are on whole-row tiles, and on resize their places follow the grid's width, bars (wider
   than 2x their height) stretch, the rest keep their size - changing the columns no longer squeezes them. Grid line
   field 16 = 1 marks this; older grids' slider / picker pieces are spread from the tile to the row on load.
+- **Pause menu replacement (2026-11-03).** A page's "replaces the pause menu" box (`pausemenu=1`, one page at a time;
+  export REUI_PausePage). UniPad (menu driver) opens that page whenever the game's pause screen comes up (the stock one
+  stays underneath, hidden), Back on it picks the stock resume item; tiles take UniPad's "Pause: ..." actions (Resume,
+  Restart race, Jump to Garage, Options, World map, Replay, Statistics, Quit, Free Cam), which close the page and pick
+  the stock item (its current item set, then the pause screen's own accept: confirm dialogs and screens as stock).
 - **Custom menus (2026-10-28).** A bar under Add image ... Undo (Menus workspace): "Add Menu +" when there are none,
   then a button per custom menu and "+". Each is a dedicated page (`[page]` with `dedicated=1`; its group is its name,
   "Menu N" to start). Picking one edits it alone: everything outside it is hidden on screen, in the list and from clicks,
