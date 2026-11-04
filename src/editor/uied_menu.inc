@@ -1890,7 +1890,7 @@ static void MenuBar() {
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Back one menu (to %s's row).", ParentMenu(g_menuRoot).empty() ? "the top level" : ParentMenu(g_menuRoot).c_str());
         }
     }
-    // row 2: the lit menu's sub menus (picking one moves down: its row becomes the first)
+    // row 2 (always shown): the lit menu's sub menus (picking one moves down: its row becomes the first)
     if (!lead.empty()) {
         auto row = SubMenus(lead);
         ImGui::TextDisabled("%s >", GroupLeaf(lead).c_str()); ImGui::SameLine();
@@ -1903,6 +1903,10 @@ static void MenuBar() {
         if (moved) return;
         if (ImGui::Button("+##menuadd2")) { newMenu(lead); return; }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Add a sub menu to %s.", lead.c_str());
+    } else {   // (always there: nothing picked yet)
+        ImGui::TextDisabled("sub menus >"); ImGui::SameLine();
+        ImGui::BeginDisabled(); ImGui::Button("+##menuadd2"); ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Pick a menu above: its sub menus show in this row (+ adds one).");
     }
     Page* p = g_menuEd.empty() ? nullptr : PageOf(g_menuEd);
     if (!p) return;
