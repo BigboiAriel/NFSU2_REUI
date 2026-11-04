@@ -2225,7 +2225,7 @@ void DrawOverlay(int mode) {
         g_drawList = &lay;
         for (int i : DrawOrder(lay)) if (!(MenuWs() && GridPieceOff(lay[i]))) DrawElem(dl, lay[i], editing);
         if ((editing || panel) && MenuWs())   // grids: the other cells faded, with sample items (the pieces are the first cell)
-            for (auto& w : g_widgets) if (w.type == W_GRID && !MenuEdOff(w.group)) {
+            for (auto& w : g_widgets) if (GridLike(w) && !MenuEdOff(w.group)) {
                 bool shown = false; for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.visible) { shown = true; break; }
                 if (shown) DrawGrid(dl, PageOf(TopGroup(w.group)), w, false, 0, true);
             }
@@ -2238,7 +2238,7 @@ void DrawOverlay(int mode) {
             fg->AddRect(ImVec2(a.x - pad, a.y - pad), ImVec2(b.x + pad, b.y + pad), c, 0.f, 0, th);
         };
         for (auto& w : g_widgets) {
-            if (w.type != W_GRID || MenuEdOff(w.group)) continue;
+            if (!GridLike(w) || MenuEdOff(w.group)) continue;
             bool whole = !g_selGroup.empty() && InGroup(w.group, g_selGroup);   // the grid (or a group around it) picked
             if (whole) {
                 int cell = 0, pick = GridHasTiles(w) && g_tileSel.count(w.group) ? g_tileSel[w.group] : -1;   // (the tile set up in its panel: brighter)
@@ -2329,7 +2329,7 @@ void DrawOverlay(int mode) {
         if (g_dragging < 0 && MenuWs() && !(io.KeyCtrl || io.KeyShift))   // nothing under the mouse: a grid's faded cells
             for (auto& w : g_widgets) {
                 ImVec2 a, b;
-                if (w.type != W_GRID || MenuEdOff(w.group) || !GridBox(w, a, b) || m.x < a.x || m.x > b.x || m.y < a.y || m.y > b.y) continue;
+                if (!GridLike(w) || MenuEdOff(w.group) || !GridBox(w, a, b) || m.x < a.x || m.x > b.x || m.y < a.y || m.y > b.y) continue;
                 int first = -1; for (int i = 0; i < (int)Elems().size(); ++i) if (InGroup(Elems()[i].group, w.group)) { first = i; break; }
                 if (first < 0) continue;
                 ClearMulti(); g_selGroup = w.group; g_sel = -1; g_dragging = first; g_dragMode = 2;

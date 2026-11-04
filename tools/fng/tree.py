@@ -12,7 +12,7 @@ def bh(s):
     return h
 for v in list(H.values()):
     for s in (v,v.upper(),v.lower()): H.setdefault(bh(s),s)
-blk=load(sys.argv[1]) if len(sys.argv)>1 else load('/mnt/user-data/uploads/NFSU2/GLOBAL/InGameFreeRoam.bun')
+blk=(open(sys.argv[1],"rb").read() if sys.argv[1].endswith(".bin") else load(sys.argv[1])) if len(sys.argv)>1 else load('/mnt/user-data/uploads/NFSU2/GLOBAL/InGameFreeRoam.bun')
 names,resl,objs=parse(blk)
 for n in names: H.setdefault(bh(n.upper()),n); H.setdefault(bh(n),n)
 by={o['guid']:o for o in objs}

@@ -141,6 +141,18 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   stays underneath, hidden), Back on it picks the stock resume item; tiles take UniPad's "Pause: ..." actions (Resume,
   Restart race, Jump to Garage, Options, World map, Replay, Statistics, Quit, Free Cam), which close the page and pick
   the stock item (its current item set, then the pause screen's own accept: confirm dialogs and screens as stock).
+  UniPad presses accept through the game's input and gives the press the item's own FE button (the scroller only runs
+  an item whose button the accept carries, React 0x50D980 vs icon+0x10).
+- **Carousel (2026-11-03).** A widget type of its own ("Carousel (scrolls left / right)", `type=carousel`, saved with the
+  grid's `grid=` line - cols = slots on screen, rows 1, totalRows = its tiles - and `carousel=centred wrap`): a grid's
+  tiles on one row, left / right scroll it. Centred (default): the selected tile stays in the middle slot and the row
+  slides under it (the game's pause menu; the ends left empty unless "wraps around"); off: the cursor moves along the
+  slots and the row scrolls at the ends. Tiles sliding past the end slots are cut half a gap out. Its "left / right
+  arrow" pieces stay at the row's ends (light up when pressed; resizing keeps them at the ends) and its scroller tab
+  (gtab) moves across its track (gtrack) by the selected tile. Tiles are buttons. "Add carousel" (page panel) lays one
+  out as UI_pause.fng: 126 x 62 slots 159 apart about (0.3, -14.3), icon backing + U2_ICON_HIGHLIGHT on the selected,
+  118 x 59 icons, U2_MENU_ARROW_WHITE arrows 26 x 26 at 150/255 (-250.3 / 259.1, y -12.8), the scroller's 562 x 8
+  backing at y -52 and a 16 x 16 U2_SCROLLER_TAB.
 - **Custom menus (2026-10-28).** A bar under Add image ... Undo (Menus workspace): "Add Menu +" when there are none,
   then a button per custom menu and "+". Each is a dedicated page (`[page]` with `dedicated=1`; its group is its name,
   "Menu N" to start). Picking one edits it alone: everything outside it is hidden on screen, in the list and from clicks,
