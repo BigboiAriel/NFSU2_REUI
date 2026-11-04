@@ -1798,6 +1798,26 @@ static void MenuBar() {
         g_menuEd = to; g_menuRoot = ParentMenu(ParentMenu(to)); g_sel = -1; g_selGroup.clear(); ClearMulti();
         Log("ui editor: menu %s moved to %s", g.c_str(), to.c_str());
     };
+    // rename menu g (it stays where it is); false: the name's taken / empty
+    auto renameMenu = [&](const std::string& g, const char* name) {
+        std::string par = GroupParent(g), leaf = CleanGroup(RowName(name));
+        std::string to = leaf.empty() ? std::string() : (par.empty() ? "" : par + "/") + leaf;
+        if (to == g) return true;
+        bool used = to.empty() || PageOf(to) != nullptr; for (auto& e : MenuElems()) if (InGroup(e.group, to)) used = true;
+        if (used) { Log("ui editor: a menu or group is already called that"); return false; }
+        RebaseGroup(g, to); g_dirty = true;
+        if (InGroup(g_menuEd, g)) g_menuEd = CleanGroup(to + g_menuEd.substr(g.size()));
+        if (InGroup(g_menuRoot, g)) g_menuRoot = CleanGroup(to + g_menuRoot.substr(g.size()));
+        return true;
+    };
+    auto deleteMenu = [&](const std::string& g) {   // with everything in it (its sub menus too)
+        MenuElems().erase(std::remove_if(MenuElems().begin(), MenuElems().end(), [&](const Elem& e) { return InGroup(e.group, g); }), MenuElems().end());
+        std::string up = ParentMenu(g);
+        MenuForget(g); g_dirty = true;
+        if (InGroup(g_menuEd, g)) { g_menuEd.clear(); g_sel = -1; g_selGroup.clear(); ClearMulti(); }
+        if (InGroup(g_menuRoot, g)) g_menuRoot = up;
+        Log("ui editor: menu %s deleted", g.c_str());
+    };
     MenuEdOff("");   // (forgets a menu that went away)
     if (!g_menuRoot.empty() && (!PageOf(g_menuRoot) || (!g_menuEd.empty() && !InGroup(g_menuEd, g_menuRoot)))) g_menuRoot.clear();
     bool any = false; for (auto& p : g_pages) any |= p.dedicated;
@@ -1813,11 +1833,22 @@ static void MenuBar() {
         std::string subs = SubMenus(g).empty() ? "" : " >";
         bool hit = ImGui::Button((GroupLeaf(g) + subs + "##menu" + std::to_string(row) + g).c_str());
         if (on) ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n%s\nRight-click: move it into another menu (a sub menu) or to the top level.", g.c_str(),
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n%s\nRight-click: rename, move into another menu (a sub menu) / to the top level, delete.", g.c_str(),
             on ? "Editing this menu alone. Click again to stop." : "Edit this menu (alone on screen and in the list).");
         if (ImGui::BeginPopupContextItem(("##menuctx" + std::to_string(row) + g).c_str())) {
-            ImGui::TextDisabled("%s", g.c_str());
-            if (ImGui::BeginMenu("Move into")) {
+            // name (Enter or leaving the box renames it)
+            static char nb[64]; static std::string nbFor;
+            if (nbFor != g || ImGui::IsWindowAppearing()) { snprintf(nb, sizeof nb, "%s", GroupLeaf(g).c_str()); nbFor = g; }
+            if (ImGui::IsWindowAppearing()) ImGui::SetKeyboardFocusHere();
+            ImGui::SetNextItemWidth(180);
+            bool enter = ImGui::InputText("name##menuname", nb, sizeof nb, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
+            if (enter || ImGui::IsItemDeactivatedAfterEdit()) {
+                if (renameMenu(g, nb)) { moved = true; if (enter) ImGui::CloseCurrentPopup(); }
+                else snprintf(nb, sizeof nb, "%s", GroupLeaf(g).c_str());
+            }
+            if (!ParentMenu(g).empty()) ImGui::TextDisabled("in %s", ParentMenu(g).c_str());
+            ImGui::Separator();
+            if (!moved && ImGui::BeginMenu("Move into")) {
                 std::string cur = ParentMenu(g);
                 int n = 0;
                 for (auto& p : g_pages) {
@@ -1827,7 +1858,14 @@ static void MenuBar() {
                 if (!n) ImGui::TextDisabled("(no other menu)");
                 ImGui::EndMenu();
             }
-            if (!ParentMenu(g).empty() && ImGui::MenuItem("Move to the top level")) { moveMenu(g, ""); moved = true; }
+            if (!moved && !ParentMenu(g).empty() && ImGui::MenuItem("Move to the top level")) { moveMenu(g, ""); moved = true; }
+            ImGui::Separator();
+            if (!moved && ImGui::BeginMenu("Delete menu")) {
+                ImGui::TextUnformatted(("Delete \"" + GroupLeaf(g) + "\" and everything in it" + (SubMenus(g).empty() ? "?" : " (its sub menus too)?")).c_str());
+                if (ImGui::MenuItem("Delete")) { deleteMenu(g); moved = true; }
+                ImGui::MenuItem("Cancel");
+                ImGui::EndMenu();
+            }
             ImGui::EndPopup();
         }
         if (hit && !moved) click();
@@ -1868,35 +1906,7 @@ static void MenuBar() {
     }
     Page* p = g_menuEd.empty() ? nullptr : PageOf(g_menuEd);
     if (!p) return;
-    static char nb[64]; static std::string nbFor;
-    if (nbFor != p->group) { snprintf(nb, sizeof nb, "%s", GroupLeaf(p->group).c_str()); nbFor = p->group; }
-    ImGui::SetNextItemWidth(160);
-    ImGui::InputText("name##menuname", nb, sizeof nb);
-    if (ImGui::IsItemDeactivatedAfterEdit()) {
-        std::string par = GroupParent(p->group), leaf = CleanGroup(RowName(nb));
-        std::string to = leaf.empty() ? std::string() : (par.empty() ? "" : par + "/") + leaf;
-        bool used = to.empty() || PageOf(to) != nullptr; for (auto& e : MenuElems()) if (InGroup(e.group, to)) used = true;
-        if (!used) {
-            std::string from = p->group; RebaseGroup(from, to); g_menuEd = to; nbFor = to; g_dirty = true;
-            if (InGroup(g_menuRoot, from)) g_menuRoot = CleanGroup(to + g_menuRoot.substr(from.size()));
-        }
-        else { snprintf(nb, sizeof nb, "%s", GroupLeaf(p->group).c_str()); Log("ui editor: a menu or group is already called that"); }
-        p = PageOf(g_menuEd); if (!p) return;
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Delete menu")) ImGui::OpenPopup("##delmenu");
-    if (ImGui::BeginPopup("##delmenu")) {
-        ImGui::Text("Delete \"%s\" and everything in it (its sub menus too)?", p->group.c_str());
-        if (ImGui::Button("Delete")) {
-            std::string g = p->group;
-            MenuElems().erase(std::remove_if(MenuElems().begin(), MenuElems().end(), [&](const Elem& e) { return InGroup(e.group, g); }), MenuElems().end());
-            MenuForget(g); g_menuEd.clear(); g_sel = -1; g_selGroup.clear(); ClearMulti(); g_dirty = true;
-            if (InGroup(g_menuRoot, g)) g_menuRoot = ParentMenu(g);
-            ImGui::CloseCurrentPopup(); ImGui::EndPopup(); return;
-        }
-        ImGui::SameLine(); if (ImGui::Button("Cancel")) ImGui::CloseCurrentPopup();
-        ImGui::EndPopup();
-    }
+    // (its name and Delete: right-click its button)
     PagePanel(*p);
 }
 static void GroupMenuProps(const std::string& g) {

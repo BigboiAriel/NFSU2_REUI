@@ -150,7 +150,8 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   (its row becomes the first), "<" at the end of the first row goes back up; a button with sub menus reads "Name >".
   Right-click a menu's button: Move into (any other custom menu, not itself / its own sub menus) or Move to the top
   level - a rename of its group, so its pieces, rows, sub menus and every "open" link to it go along (no opener tile
-  is added). Renaming keeps it where it is; deleting takes its sub menus too.
+  is added). The same menu has its name box (Enter renames; it stays where it is) and Delete menu (a confirm
+  sub-item; its sub menus go too) - no longer under the rows.
 - **Carousel (2026-11-03).** A widget type of its own ("Carousel (scrolls left / right)", `type=carousel`, saved with the
   grid's `grid=` line - cols = slots on screen, rows 1, totalRows = its tiles - and `carousel=centred wrap`): a grid's
   tiles on one row, left / right scroll it. Centred (default): the selected tile stays in the middle slot and the row
