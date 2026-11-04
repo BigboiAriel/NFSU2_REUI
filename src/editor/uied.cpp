@@ -443,7 +443,7 @@ struct Elem {
     bool selOnly = false;                 // menus: shown on the selected row only
     bool afterLabel = false;              // menus, a grid's piece: moves with the end of its tile's label text (a binding's icon)
     int tileKinds = 0;                    // menus, a grid's piece: the tiles it shows on (1 buttons, 2 sliders, 4 pickers, 8 bindings; 0 all)
-    std::string kit;                      // menus: the widget-kit template it belongs to ("" = in the layout)
+    std::string kit;                      // (loading only: an older widget-kit template piece - left out)
     // live-value rules: showIf = a value key ("!key": the opposite) - shown only while it's set (not blank / "0");
     // bind = a value key driving the element: bindKind 1 fill left to right, 2 fill bottom to top (images: cut, not
     // squashed), 3 rotation (images; rotMin..rotMax degrees); the value is mapped from bindMin..bindMax
@@ -1107,7 +1107,6 @@ static void LoadMenusReset();
 static int LoadMenuSection(const std::string& s);
 static bool LoadMenuKey(int sect, const std::string& k, const std::string& v);
 static void LoadMenuEnd();
-static std::vector<Elem> g_kit;                     // widget-kit template elements (kit = template name, y relative to the row)
 // ---------------------------------------------------------------- colour tokens
 // A token is a colour by its role ("hud.accent"): elements that use it follow it, so a look is changed in one place.
 // Built-in ones are the game's own HUD palette; a token can also follow a live value giving "R G B" (0-255, as
@@ -1176,10 +1175,8 @@ static std::vector<GradToken> g_gradTokens;
 static int TokenUses(const std::string& n) {
     int u = 0;
     for (auto& l : g_layout) for (auto& e : l) u += (e.colTok == n) + (e.hiTok == n) + (e.fillTok == n);
-    for (auto& e : g_kit) u += (e.colTok == n) + (e.hiTok == n) + (e.fillTok == n);
     auto stops = [&](const std::vector<UStop>& v) { for (auto& st : v) u += st.tok == n; };   // gradient stops
     for (auto& l : g_layout) for (auto& e : l) { stops(e.strokeGrad.stops); stops(e.fillGrad.stops); }
-    for (auto& e : g_kit) { stops(e.strokeGrad.stops); stops(e.fillGrad.stops); }
     for (auto& t : g_gradTokens) stops(t.stops);
     return u;
 }
@@ -1199,7 +1196,6 @@ static void ResolveTokens() {
     };
     auto each = [&](Elem& e) { apply(e.colTok, e.colTokA, e.col); apply(e.hiTok, e.hiTokA, e.hiCol); apply(e.fillTok, e.fillTokA, e.fillCol); };
     for (auto& l : g_layout) for (auto& e : l) each(e);
-    for (auto& e : g_kit) each(e);
 }
 void AddColorToken(const std::string& name, const std::string& label, const float rgba[4]) {
     if (name.empty()) return;
@@ -1271,7 +1267,6 @@ static void GradTokensReset() {
 static int GradTokenUses(const std::string& n) {
     int u = 0;
     for (auto& l : g_layout) for (auto& e : l) u += (e.strokeGrad.tok == n) + (e.fillGrad.tok == n);
-    for (auto& e : g_kit) u += (e.strokeGrad.tok == n) + (e.fillGrad.tok == n);
     return u;
 }
 // the gradient to draw: its stops (or its token's), colour tokens' colours now; false: no gradient
@@ -1360,10 +1355,8 @@ static void TokensPanel() {
     }
     if (!drop.empty()) {   // its users keep their resolved colour, as their own
         for (auto& l : g_layout) for (auto& e : l) { if (e.colTok == drop) e.colTok.clear(); if (e.hiTok == drop) e.hiTok.clear(); if (e.fillTok == drop) e.fillTok.clear(); }
-        for (auto& e : g_kit) { if (e.colTok == drop) e.colTok.clear(); if (e.hiTok == drop) e.hiTok.clear(); if (e.fillTok == drop) e.fillTok.clear(); }
         auto unstop = [&](std::vector<UStop>& v) { for (auto& st : v) if (st.tok == drop) { StopColour(st, st.c); st.tok.clear(); } };
         for (auto& l : g_layout) for (auto& e : l) { unstop(e.strokeGrad.stops); unstop(e.fillGrad.stops); }
-        for (auto& e : g_kit) { unstop(e.strokeGrad.stops); unstop(e.fillGrad.stops); }
         for (auto& t : g_gradTokens) unstop(t.stops);
         g_tokens.erase(std::remove_if(g_tokens.begin(), g_tokens.end(), [&](const ColorToken& t) { return t.name == drop; }), g_tokens.end());
         g_dirty = true;
@@ -1409,7 +1402,6 @@ static void TokensPanel() {
             GradToken* t = GradTokenOf(gdrop);
             auto keep = [&](UGrad& g) { if (g.tok == gdrop) { if (t) g.stops = t->stops; g.tok.clear(); } };
             for (auto& l : g_layout) for (auto& e : l) { keep(e.strokeGrad); keep(e.fillGrad); }
-            for (auto& e : g_kit) { keep(e.strokeGrad); keep(e.fillGrad); }
             g_gradTokens.erase(std::remove_if(g_gradTokens.begin(), g_gradTokens.end(), [&](const GradToken& x) { return x.name == gdrop; }), g_gradTokens.end());
             g_dirty = true;
         }
@@ -1439,7 +1431,6 @@ static void TokensPanel() {
         };
         auto scan = [&](Elem& e) { if (e.colTok.empty()) add(e, false); if (e.hiMine && e.hiTok.empty()) add(e, true); };
         for (auto& l : g_layout) for (auto& e : l) scan(e);
-        for (auto& e : g_kit) scan(e);
         std::sort(groups.begin(), groups.end(), [](const Group& a, const Group& b) { return a.uses.size() > b.uses.size(); });
         int shown = 0;
         for (auto& gr : groups) {
@@ -1710,7 +1701,6 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
     if (e.selOnly) fprintf(f, "selonly=1\n");
     if (e.tileKinds) fprintf(f, "tilekinds=%d\n", e.tileKinds);
     if (e.afterLabel) fprintf(f, "afterlabel=1\n");
-    if (!e.kit.empty()) fprintf(f, "kit=%s\n", Esc(e.kit).c_str());
     if (!e.showIf.empty()) fprintf(f, "showif=%s\n", e.showIf.c_str());
     if (e.bindKind) fprintf(f, "bind=%s\nbindkind=%d\nbindrange=%g %g\n", e.bind.c_str(), e.bindKind, e.bindMin, e.bindMax);
     if (e.bindKind == 3 || e.bindKind == 4) fprintf(f, "bindrot=%g %g\n", e.rotMin, e.rotMax);
@@ -1748,7 +1738,6 @@ static void Save() {
     int total = 0;
     auto put = [&](int m, const Elem& e) { ++total; PutElem(f, m, e); };
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
-    for (auto& e : g_kit) put(0, e);
     SaveMenus(f);
     if (!EndWrite(f, g_layoutPath)) { Log("ui editor: couldn't save %s (the old file is kept; still unsaved)", g_layoutPath.c_str()); return; }
     g_dirty = false;
@@ -1824,7 +1813,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
 // intoMode >= 0: every element goes in that layout; merge: added to what's there (an import), not instead
 static bool LoadFile(const std::string& path, int intoMode, bool merge) {
     FILE* f = fopen(path.c_str(), "r"); if (!f) return false;
-    if (!merge) { for (auto& l : g_layout) l.clear(); LoadMenusReset(); g_kit.clear(); TokensReset(); g_mapArt.clear(); }
+    if (!merge) { for (auto& l : g_layout) l.clear(); LoadMenusReset(); TokensReset(); g_mapArt.clear(); }
     g_sel = -1; ClearMulti();
     std::vector<Elem> all;
     char line[2048]; Elem* cur = nullptr; int msect = 0;
@@ -1856,7 +1845,9 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
     }
     fclose(f);
     if (merge) g_dirty = true; else g_dirty = false;
-    for (auto& e : all) { if (intoMode >= 0) e.mode = intoMode; if (!e.kit.empty()) g_kit.push_back(e); else g_layout[e.mode].push_back(e); }
+    int oldKit = 0;
+    for (auto& e : all) { if (intoMode >= 0) e.mode = intoMode; if (!e.kit.empty()) ++oldKit; else g_layout[e.mode].push_back(e); }   // (widget-kit pieces: gone)
+    if (oldKit) Log("ui editor: %d widget-kit piece(s) left out (the widget kit is gone)", oldKit);
     LoadMenuEnd();
     return true;
 }
@@ -2069,16 +2060,16 @@ static void RebaseGroup(const std::string& g, const std::string& to);
 // A snapshot of everything editable is kept at each settled point (no mouse button down, nothing being typed or
 // dragged); the first frame that settles after edits pushes the previous one. kUndoSteps of them.
 constexpr size_t kUndoSteps = 24;
-struct Snap { std::vector<Elem> lay[NMODES]; std::vector<Elem> kit; std::vector<Widget> widgets; std::vector<Page> pages; std::vector<KitT> kitT; };
+struct Snap { std::vector<Elem> lay[NMODES]; std::vector<Widget> widgets; std::vector<Page> pages; };
 static std::deque<Snap> g_undo, g_redo;
 static Snap g_base; static bool g_baseOk = false; static unsigned g_baseGen = 0;
 static Snap TakeSnap() {
     Snap s; for (int m = 0; m < NMODES; ++m) s.lay[m] = g_layout[m];
-    s.kit = g_kit; s.widgets = g_widgets; s.pages = g_pages; s.kitT = g_kitT; return s;
+    s.widgets = g_widgets; s.pages = g_pages; return s;
 }
 static void PutSnap(const Snap& s) {
     for (int m = 0; m < NMODES; ++m) g_layout[m] = s.lay[m];
-    g_kit = s.kit; g_widgets = s.widgets; g_pages = s.pages; g_kitT = s.kitT;
+    g_widgets = s.widgets; g_pages = s.pages;
     g_sel = -1; g_selGroup.clear(); ClearMulti(); g_dragging = -1;
 }
 static void UndoReset() { g_undo.clear(); g_redo.clear(); g_baseOk = false; }
@@ -3398,7 +3389,7 @@ void Panel() {
         }
     }
     UndoCommit(false);
-    TokensPanel();   // (the Widget kit panel is deprecated: grids replace Add row)
+    TokensPanel();
     if (!menuMode) MinimapPage();
     // ---- prefabs: a list, a preview of the picked one, Add / Delete
     if (!menuMode && ImGui::CollapsingHeader("Prefabs")) {

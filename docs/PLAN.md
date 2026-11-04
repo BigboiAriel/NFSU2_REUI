@@ -11,9 +11,9 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   (PackageInit 0x54E4A0 / WillUnload 0x51C8C0), screen capture, the editor; `NFSU2_REUI.quit` closes the game.
   Files: src/{dllmain,config,log,panel,host}.cpp, src/game/{d3d9_hook,feng,addresses}, src/editor/uied*.
 - **P1 merge — done (local).** UniPad's editor is the superset (multiplayer's hadn't changed since the copy).
-  HUD layouts per game mode (Free roam, Racing, Drag, Drift, Outrun) + a **Menus** workspace (menu pages, rows,
-  templates; never drawn as a HUD; menu runtime always reads it). Imports: UniPad's NFSU2UniPad_menus.txt -> Menus,
-  NFSU2Multiplayer_overlay.txt -> the HUD modes. Without UniPad: MenuKey F7 + arrows / Enter / Esc drive menus.
+  HUD layouts per game mode (Free roam, Racing, Drag, Drift, Outrun) + a **Menus** workspace (custom menus of grids /
+  carousels; never drawn as a HUD; menu runtime always reads it). Import: NFSU2Multiplayer_overlay.txt -> the HUD
+  modes (UniPad's menus file import was removed 2026-11-03). Without UniPad: MenuKey F7 + arrows / Enter / Esc drive menus.
   Game mode detection as the multiplayer mod's (state 0x8654A4 == 6, race coordinator [0x8900D8] state 4, race type
   0x89E7B0, drag 0x89E7D8 / 0x890108, drift 0x89E7D9 / 0x890104, outrun type 7).
 - **P2 interop API.** C exports (no std::function across DLLs): token providers (multiplayer leaderboard / race
@@ -178,8 +178,15 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
 - **Deprecated (2026-10-27): the row tools.** Build rows, Restack rows, row spacing / first row y, Start a new column,
   column distance, first column x, add to column, Add row (widget kit), row up / down, a row's column, Save as
   template and the Widget kit panel are gone from the editor; grids (menu buttons in rows x columns) replace them.
-  Pages made with them still load, save and work.
-- **Page highlight role (2026-10-27).** Any element on a page itself (a shape, say) can have the role "page: highlight":
+  Pages made with them still load, save and work. **Removed (2026-11-03):** the older menu system's code is gone -
+  groups ticked "menu page", one-row widgets (button / slider / picker / highlight rows) and their runtime (row values,
+  row slider bars / picker arrows / binding rows, Highlight widgets, the page highlight / page scroller roles, rows
+  shown, columns), the widget kit (templates, kit pieces, DetectRoles / GuessBind / BuildRows / Restack / SwapRows /
+  SaveTemplate / StampRow / KitPanel), "Import UniPad's menus file", and KindRef (new tile kinds take the built-in
+  pieces). Every page is a custom menu; pages are rows of grids / carousels only (MoveSel still moves between grids
+  on a page). Loading an older layout: old pages become custom menus, one-row widgets / templates / kit pieces are
+  left out (logged); older page lines are ignored. Saved pages: group, start, selcolor, dedicated=1, pausemenu.
+- **Page highlight role (2026-10-27; removed 2026-11-03).** Any element on a page itself (a shape, say) can have the role "page: highlight":
   it moves to the selected row from the row it's laid out on (and across to its column), hidden when that row has
   its own highlight (a grid).
 - **Shapes and cutters (built 2026-10-27).** A "shape" element: a rounded rectangle (radius per corner, rotation), a
