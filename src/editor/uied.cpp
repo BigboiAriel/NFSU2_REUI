@@ -3101,15 +3101,7 @@ void Panel() {
         }
         if (g_nowMode >= 0 && g_nowMode < NMODES && g_nowMode != g_editMode) { ImGui::SameLine(); if (ImGui::SmallButton("edit the current mode's layout")) { g_editMode = g_nowMode; g_sel = -1; } }
     }
-    if (g_editMode == MENUS) {   // menu pages: bring in UniPad's
-        ImGui::TextDisabled("Menu pages: a top-level group ticked \"menu page\" (select it). Opened with UniPad's menu key / pause menu item.");
-        if (ImGui::Button("Import UniPad's menus file")) {
-            std::string p = g_dir + "\\scripts\\NFSU2UniPad_menus.txt";
-            if (LoadFile(p, MENUS, true)) Log("ui editor: imported %s into Menus", p.c_str());
-            else Log("ui editor: couldn't read %s", p.c_str());
-        }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Adds the pages, rows and templates from scripts\\NFSU2UniPad_menus.txt to this workspace.");
-    }
+    // (Menus: "Import UniPad's menus file" and the old "menu page" hint are gone - menus live in REUI now)
     if (g_editMode != MENUS) {
         if (ImGui::Button("Import the multiplayer mod's overlay")) {
             std::string p = g_dir + "\\scripts\\NFSU2Multiplayer_overlay.txt";

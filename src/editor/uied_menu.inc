@@ -1743,9 +1743,8 @@ static void AddCarousel(Page& p) {
 // down, a row's column, Save as template and the Widget kit panel. Grids replace them. Pages made with them still
 // load, save and work: BuildRows / Restack / StampRow / SaveTemplate / SwapRows / KitPanel are kept for that only.)
 static void PagePanel(Page& p) {
-    ImGui::SetNextItemWidth(80); if (ImGui::InputInt("rows shown", &p.visRows)) { p.visRows = std::max(0, p.visRows); g_dirty = true; }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = all. More rows than this scroll (the scroller tab follows).");
-    ImGui::SameLine(); if (ImGui::Checkbox("menu key opens this", &p.start)) { if (p.start) for (auto& o : g_pages) if (&o != &p) o.start = false; g_dirty = true; }
+    // (rows shown - visRows - is no longer offered: grids / carousels have their own; pages that set it keep it)
+    if (ImGui::Checkbox("menu key opens this", &p.start)) { if (p.start) for (auto& o : g_pages) if (&o != &p) o.start = false; g_dirty = true; }
     ImGui::SameLine(); if (ImGui::Checkbox("replaces the pause menu", &p.pauseMenu)) { if (p.pauseMenu) for (auto& o : g_pages) if (&o != &p) o.pauseMenu = false; g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Opens instead of the game's pause menu (Start / Esc in the world; needs UniPad). Back closes it and\nresumes; give tiles the \"Pause: ...\" actions (Resume, Restart race, Jump to Garage, Options, Quit,\nFree Cam...) under changes.");
     ImGui::SameLine(); if (ImGui::Checkbox("selected row colour", &p.useSel)) g_dirty = true;
