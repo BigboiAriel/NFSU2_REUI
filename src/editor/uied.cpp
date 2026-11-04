@@ -422,6 +422,9 @@ enum { E_IMAGE = 0, E_TEXT = 1, E_SHAPE = 2 };
 // opacity); a gradient can instead use a gradient token's stops (tok). Resolved to shapes::Gradient when drawn.
 struct UStop { float t = 0; float c[4] = {1, 1, 1, 1}; std::string tok; };
 struct UGrad { int mode = 0; float angle = 0, depth = 0; std::vector<UStop> stops; std::string tok; };
+// A cut gap of 0 cuts 0.1 units inside the cutter (closes the hairline seam an exact cut leaves); the gap shown / saved
+// is counted from there.
+constexpr float kCutZero = -0.1f;
 struct Elem {
     int type = E_IMAGE; std::string name = "element", tex, pack, font, text = "Text";
     int anchor = 0;                       // 0..8: top-left, top, top-right, left, centre, right, bottom-left, bottom, bottom-right
@@ -476,6 +479,7 @@ struct Elem {
     float fillCol[4] = {0, 0, 0, 1};
     std::string fillTok; float fillTokA = 1;
     bool cut = false; float cutGap = 0; std::string cutTarget;
+
     int strokeAlign = 0;                  // 0 inside the edge, 1 centred on it, 2 outside
     UGrad strokeGrad, fillGrad;           // gradients (shapes.h modes): with one, its colours replace the colour (alpha still fades)
 };
@@ -891,7 +895,7 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
             ImVec2 oa, ob; ElemRect(o, oa, ob);
             float ow = ob.x - oa.x, oh = ob.y - oa.y, ok = o.w > 0 ? ow / o.w : 1;
             ImVec2 oc((oa.x + ob.x) / 2, (oa.y + ob.y) / 2);
-            float dx = oc.x - c.x, dy = oc.y - c.y, gap = std::max(-1000.f, std::min(1000.f, o.cutGap)) * ok;   // (negative: the cut is smaller than the cutter)
+            float dx = oc.x - c.x, dy = oc.y - c.y, gap = (std::max(-1000.f, std::min(1000.f, o.cutGap)) + kCutZero) * ok;   // (negative: the cut is smaller than the cutter; 0 = kCutZero)
             // (out of reach: left out, so moving it elsewhere doesn't redraw the shape)
             if (sqrtf(dx * dx + dy * dy) > (sqrtf(pw * pw + ph * ph) + sqrtf(ow * ow + oh * oh)) / 2 + gap + 2) continue;
             shapes::Box x;
@@ -1673,7 +1677,7 @@ static void ShapeProps(Elem& e) {
         }
         ImGui::SameLine(); ImGui::SetNextItemWidth(110);
         if (ImGui::DragFloat("gap", &e.cutGap, 0.05f, -200.f, 200.f, "%.1f")) { e.cutGap = std::max(-200.f, std::min(200.f, e.cutGap)); g_dirty = true; }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Cuts this much wider than the cutter itself (units): room around what sits in the cut-out.\nNegative: the cut is that much smaller than the cutter (the cutter overlaps the shape).\nCtrl + click to type a value.");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Cuts this much wider than the cutter itself (units): room around what sits in the cut-out.\n0 is 0.1 inside the cutter (no seam).\nNegative: the cut is that much smaller than the cutter (the cutter overlaps the shape).\nCtrl + click to type a value.");
 
     }
 }
