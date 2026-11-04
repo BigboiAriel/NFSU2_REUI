@@ -159,6 +159,13 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   / gameplay / player: the stock item picked, its settings panel opens) or open a page; Back on it presses the game's
   back (to a new pause screen, where the pause page opens again). A pause screen left for its Options isn't stood in
   for again (only the new one built on the way back). Menu cutters cut only shapes in their own menu (OwnerPage).
+- **Confirm page (2026-11-04).** "replaces: Yes / No confirm dialogs" (`confirmdlg=1`, REUI_ConfirmPage): UniPad opens
+  that page whenever the game's dialog screen (vtable 0x79C88C, handler 0x54C050; UI_InGameDialog / GenericDialog
+  packages: Jump to Garage?, Quit?, Restart race?...) is up with 2 buttons. {dialog.text} (a token UniPad provides)
+  is its question (the builder 0x558680's format + arguments; ^ = new line). "Dialog: Yes / No" tiles answer it
+  (Button1's / Button2's result into +0x50; it closes on its next update and sends it to its parent); Back = the
+  dialog's own Back (No when it has none). Dialogs with 1 or 3 buttons stay the game's. A dialog over the pause page
+  takes over; once answered the pause page comes back.
 - **Carousel (2026-11-03).** A widget type of its own ("Carousel (scrolls left / right)", `type=carousel`, saved with the
   grid's `grid=` line - cols = slots on screen, rows 1, totalRows = its tiles - and `carousel=centred wrap`): a grid's
   tiles on one row, left / right scroll it. Centred (default): the selected tile stays in the middle slot and the row

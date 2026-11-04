@@ -128,4 +128,5 @@ namespace uied {
     std::vector<std::string> MenuPages();
     std::string MenuPausePage();                       // the page that replaces the game's pause menu ("" none)
     std::string MenuPauseOptionsPage();                // ... its Options screen ("" none)
+    std::string MenuConfirmPage();                     // ... the game's Yes / No dialogs ("" none)
 }

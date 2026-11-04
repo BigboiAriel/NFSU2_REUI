@@ -84,6 +84,7 @@ struct Page {
     bool dedicated = true;               // a custom menu (all are now; saved for older builds)
     bool pauseMenu = false;              // opened instead of the game's pause menu (by the menu driver, UniPad)
     bool pauseOptions = false;           // opened instead of the pause menu's Options screen (Audio / Display / Gameplay / Player)
+    bool confirm = false;                // opened instead of the game's Yes / No confirm dialogs ({dialog.text}: its question)
 };
 static std::vector<Widget> g_widgets;
 static std::vector<Page> g_pages;
@@ -830,6 +831,7 @@ static void GridFromPieces(Widget& w) {
 std::vector<std::string> MenuPages() { std::vector<std::string> v; for (auto& p : g_pages) v.push_back(p.group); return v; }
 std::string MenuPausePage() { for (auto& p : g_pages) if (p.pauseMenu) return p.group; return std::string(); }
 std::string MenuPauseOptionsPage() { for (auto& p : g_pages) if (p.pauseOptions) return p.group; return std::string(); }
+std::string MenuConfirmPage() { for (auto& p : g_pages) if (p.confirm) return p.group; return std::string(); }
 bool MenuIsOpen() { return g_menu.open; }
 static Page* MenuPage() { return g_menu.stack.empty() ? nullptr : PageOf(g_menu.stack.back()); }
 static void MenuGo(const std::string& page) {
@@ -1349,21 +1351,22 @@ static void AddCarousel(Page& p) {
 // A game menu the page stands in for (one page each; UniPad opens it when that screen comes up): the right-click menu's
 // "replaces" dropdown
 static void ReplacesCombo(Page& p) {
-    static const char* kRep[] = { "nothing", "the pause menu", "the pause Options menu" };
-    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : 0;
+    static const char* kRep[] = { "nothing", "the pause menu", "the pause Options menu", "Yes / No confirm dialogs" };
+    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : p.confirm ? 3 : 0;
     ImGui::SetNextItemWidth(180);
     if (ImGui::BeginCombo("replaces", kRep[cur])) {
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 4; ++i) {
             std::string taken;   // (another page has it: picking it here moves it)
-            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions))) taken = o.group;
+            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions) || (i == 3 && o.confirm))) taken = o.group;
             std::string lb = std::string(kRep[i]) + (taken.empty() ? "" : "  (now " + taken + ")");
             if (ImGui::Selectable(lb.c_str(), i == cur) && i != cur) {
-                p.pauseMenu = i == 1; p.pauseOptions = i == 2;
-                for (auto& o : g_pages) if (&o != &p) { if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; }
+                p.pauseMenu = i == 1; p.pauseOptions = i == 2; p.confirm = i == 3;
+                for (auto& o : g_pages) if (&o != &p) { if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; if (i == 3) o.confirm = false; }
                 g_dirty = true;
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip(i == 1 ? "Opens instead of the game's pause menu (Start / Esc in the world; needs UniPad). Back closes it and\nresumes; give tiles the \"Pause: ...\" actions (Resume, Restart race, Jump to Garage, Options, Quit,\nFree Cam...) under changes."
                                                    : i == 2 ? "Opens instead of the pause menu's Options screen (its Options item; needs UniPad). Back goes back to the\npause menu; give tiles the \"Pause Options: ...\" actions (Audio, Display, Gameplay, Player) - they open the\ngame's settings panels - or open a page (UniPad Options)."
+                                                   : i == 3 ? "Opens instead of the game's Yes / No dialogs (Jump to Garage?, Quit?, Restart race?...; needs UniPad).\n{dialog.text} in a text shows its question; give tiles the \"Dialog: ...\" actions (Yes, No). Back answers\nas the dialog's own Back would (No when it has none)."
                                                    : "Opened only by tiles / the menu key.");
         }
         ImGui::EndCombo();
@@ -1592,6 +1595,7 @@ static void SaveMenus(FILE* f) {
                 p.useSel ? 1 : 0, p.selCol[0], p.selCol[1], p.selCol[2], p.selCol[3]);
         if (p.pauseMenu) fprintf(f, "pausemenu=1\n");
         if (p.pauseOptions) fprintf(f, "pauseopts=1\n");
+        if (p.confirm) fprintf(f, "confirmdlg=1\n");
     }
     for (auto& w : g_widgets) { fprintf(f, "\n[widget]\ngroup=%s\n", Esc(w.group).c_str()); SaveWidgetProps(f, w); }
 }
@@ -1633,6 +1637,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "start") p.start = atoi(v.c_str()) != 0;
         else if (k == "pausemenu") p.pauseMenu = atoi(v.c_str()) != 0;
         else if (k == "pauseopts") p.pauseOptions = atoi(v.c_str()) != 0;
+        else if (k == "confirmdlg") p.confirm = atoi(v.c_str()) != 0;
         else if (k == "selcolor") { int u = 1; sscanf(v.c_str(), "%d %f %f %f %f", &u, &p.selCol[0], &p.selCol[1], &p.selCol[2], &p.selCol[3]); p.useSel = u != 0; }
         return true;
     }
