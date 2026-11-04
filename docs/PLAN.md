@@ -137,7 +137,7 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   than 2x their height) stretch, the rest keep their size - changing the columns no longer squeezes them. Grid line
   field 16 = 1 marks this; older grids' slider / picker pieces are spread from the tile to the row on load.
 - **Pause menu replacement (2026-11-03).** A page's "replaces the pause menu" box (`pausemenu=1`, one page at a time;
-  export REUI_PausePage). UniPad (menu driver) opens that page whenever the game's pause screen comes up (the stock one
+  export REUI_PausePage; set with the "replaces" dropdown in the menu button's right-click menu, 2026-11-04). UniPad (menu driver) opens that page whenever the game's pause screen comes up (the stock one
   stays underneath, hidden), Back on it picks the stock resume item; tiles take UniPad's "Pause: ..." actions (Resume,
   Restart race, Jump to Garage, Options, World map, Replay, Statistics, Quit, Free Cam), which close the page and pick
   the stock item (its current item set, then the pause screen's own accept: confirm dialogs and screens as stock).

@@ -1346,12 +1346,32 @@ static void AddCarousel(Page& p) {
     g_selGroup = g; g_sel = -1;
     Log("ui editor: carousel added as %s", g.c_str());
 }
+// A game menu the page stands in for (one page each; UniPad opens it when that screen comes up): the right-click menu's
+// "replaces" dropdown
+static void ReplacesCombo(Page& p) {
+    static const char* kRep[] = { "nothing", "the pause menu", "the pause Options menu" };
+    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : 0;
+    ImGui::SetNextItemWidth(180);
+    if (ImGui::BeginCombo("replaces", kRep[cur])) {
+        for (int i = 0; i < 3; ++i) {
+            std::string taken;   // (another page has it: picking it here moves it)
+            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions))) taken = o.group;
+            std::string lb = std::string(kRep[i]) + (taken.empty() ? "" : "  (now " + taken + ")");
+            if (ImGui::Selectable(lb.c_str(), i == cur) && i != cur) {
+                p.pauseMenu = i == 1; p.pauseOptions = i == 2;
+                for (auto& o : g_pages) if (&o != &p) { if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; }
+                g_dirty = true;
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip(i == 1 ? "Opens instead of the game's pause menu (Start / Esc in the world; needs UniPad). Back closes it and\nresumes; give tiles the \"Pause: ...\" actions (Resume, Restart race, Jump to Garage, Options, Quit,\nFree Cam...) under changes."
+                                                   : i == 2 ? "Opens instead of the pause menu's Options screen (its Options item; needs UniPad). Back goes back to the\npause menu; give tiles the \"Pause Options: ...\" actions (Audio, Display, Gameplay, Player) - they open the\ngame's settings panels - or open a page (UniPad Options)."
+                                                   : "Opened only by tiles / the menu key.");
+        }
+        ImGui::EndCombo();
+    }
+}
 static void PagePanel(Page& p) {
     if (ImGui::Checkbox("menu key opens this", &p.start)) { if (p.start) for (auto& o : g_pages) if (&o != &p) o.start = false; g_dirty = true; }
-    ImGui::SameLine(); if (ImGui::Checkbox("replaces the pause menu", &p.pauseMenu)) { if (p.pauseMenu) for (auto& o : g_pages) if (&o != &p) o.pauseMenu = false; g_dirty = true; }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Opens instead of the game's pause menu (Start / Esc in the world; needs UniPad). Back closes it and\nresumes; give tiles the \"Pause: ...\" actions (Resume, Restart race, Jump to Garage, Options, Quit,\nFree Cam...) under changes.");
-    ImGui::SameLine(); if (ImGui::Checkbox("replaces the pause Options menu", &p.pauseOptions)) { if (p.pauseOptions) for (auto& o : g_pages) if (&o != &p) o.pauseOptions = false; g_dirty = true; }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Opens instead of the pause menu's Options screen (its Options item; needs UniPad). Back goes back to the\npause menu; give tiles the \"Pause Options: ...\" actions (Audio, Display, Gameplay, Player) - they open the\ngame's settings panels - or open a page (UniPad Options).");
+    // (what it replaces - the game's pause menu / its Options screen - is in the menu button's right-click menu)
     ImGui::SameLine(); if (ImGui::Checkbox("selected row colour", &p.useSel)) g_dirty = true;
     ImGui::SameLine(); if (ImGui::ColorEdit4("##selcol", p.selCol, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) g_dirty = true;
     auto rows = PageRows(p);
@@ -1437,7 +1457,7 @@ static void MenuBar() {
         std::string subs = SubMenus(g).empty() ? "" : " >";
         bool hit = ImGui::Button((GroupLeaf(g) + subs + "##menu" + std::to_string(row) + g).c_str());
         if (on) ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n%s\nRight-click: rename, move into another menu (a sub menu) / to the top level, delete.", g.c_str(),
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n%s\nRight-click: rename, what it replaces (the pause menu / its Options), move into another menu / to the top level, delete.", g.c_str(),
             on ? "Editing this menu alone. Click again to stop." : "Edit this menu (alone on screen and in the list).");
         if (ImGui::BeginPopupContextItem(("##menuctx" + std::to_string(row) + g).c_str())) {
             // name (Enter or leaving the box renames it)
@@ -1451,6 +1471,7 @@ static void MenuBar() {
                 else snprintf(nb, sizeof nb, "%s", GroupLeaf(g).c_str());
             }
             if (!ParentMenu(g).empty()) ImGui::TextDisabled("in %s", ParentMenu(g).c_str());
+            if (!moved) if (Page* pg = PageOf(g)) ReplacesCombo(*pg);
             ImGui::Separator();
             if (!moved && ImGui::BeginMenu("Move into")) {
                 std::string cur = ParentMenu(g);
