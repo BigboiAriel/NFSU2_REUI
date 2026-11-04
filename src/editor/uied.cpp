@@ -878,6 +878,7 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
 static std::vector<Elem>* g_drawList = nullptr;   // the elements being drawn now (where a shape's cutters are)
 // a shape: its stroke and fill textures (shapes.cpp) on its box, turned; cutters found among the elements drawn now
 static bool ResolveGrad(const UGrad& g, float depthScale, shapes::Gradient& out);
+static std::string OwnerPage(const std::string& g);   // (uied_menu.inc)
 static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bool editing) {
     float pw = b.x - a.x, ph = b.y - a.y;
     if (pw < 1 || ph < 1) return;
@@ -892,6 +893,7 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
         for (auto& o : *g_drawList) {
             if (o.type != E_SHAPE || !o.cut || !o.visible || !ShowIfOk(o)) continue;
             if (o.cutTarget.empty() ? o.group != e.group : o.cutTarget != e.name) continue;
+            if (OwnerPage(o.group) != OwnerPage(e.group)) continue;   // (menus: a cutter cuts in its own menu only; HUD pieces have none)
             ImVec2 oa, ob; ElemRect(o, oa, ob);
             float ow = ob.x - oa.x, oh = ob.y - oa.y, ok = o.w > 0 ? ow / o.w : 1;
             ImVec2 oc((oa.x + ob.x) / 2, (oa.y + ob.y) / 2);

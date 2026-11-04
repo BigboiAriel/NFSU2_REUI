@@ -57,6 +57,7 @@ typedef void (*PFN_REUI_EditorState)(int* testMode, int* boardRows, int* boardFo
 // the menu page that replaces the game's pause menu ("" = none; the page's "replaces the pause menu" box). Optional
 // (look it up; older REUI builds don't have it)
 typedef const char* (*PFN_REUI_PausePage)(void);
+typedef const char* (*PFN_REUI_PauseOptionsPage)(void);   // the page standing in for the pause menu's Options screen ("" none)
 // An element flag (a checkbox on every element while your mod is loaded): hideNow(ctx) returns 1 while flagged elements
 // are to be hidden. hiddenWhenMissing: what flagged elements do when your mod isn't installed. group > 0: only one flag
 // of the group per element (e.g. "hide online" / "online only").

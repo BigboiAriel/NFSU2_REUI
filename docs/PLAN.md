@@ -152,6 +152,13 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   level - a rename of its group, so its pieces, rows, sub menus and every "open" link to it go along (no opener tile
   is added). The same menu has its name box (Enter renames; it stays where it is) and Delete menu (a confirm
   sub-item; its sub menus go too) - no longer under the rows.
+- **Pause Options page (2026-11-04).** A page's "replaces the pause Options menu" box (`pauseopts=1`, one page;
+  export REUI_PauseOptionsPage): UniPad opens it whenever the pause menu's Options screen (UI_PauseOptionsMain: Audio /
+  Display / Gameplay / Player, OPTIONS_ICON_AUDIO / _DISPLAY / _GAMEPLAY_SETTINGS / _PLAYER_SETTINGS) comes up - so the
+  pause page's Options tile (pause.options) lands on it. Its tiles take "Pause Options: ..." (pauseopt.audio / display
+  / gameplay / player: the stock item picked, its settings panel opens) or open a page; Back on it presses the game's
+  back (to a new pause screen, where the pause page opens again). A pause screen left for its Options isn't stood in
+  for again (only the new one built on the way back). Menu cutters cut only shapes in their own menu (OwnerPage).
 - **Carousel (2026-11-03).** A widget type of its own ("Carousel (scrolls left / right)", `type=carousel`, saved with the
   grid's `grid=` line - cols = slots on screen, rows 1, totalRows = its tiles - and `carousel=centred wrap`): a grid's
   tiles on one row, left / right scroll it. Centred (default): the selected tile stays in the middle slot and the row

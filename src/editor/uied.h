@@ -127,4 +127,5 @@ namespace uied {
     void MenuFrame(const MenuInput& held, double dt);  // every frame while open: held buttons (repeat is handled here)
     std::vector<std::string> MenuPages();
     std::string MenuPausePage();                       // the page that replaces the game's pause menu ("" none)
+    std::string MenuPauseOptionsPage();                // ... its Options screen ("" none)
 }
