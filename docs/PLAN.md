@@ -187,6 +187,10 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   the menu's top.
   Grid / carousel tiles: each tile's pieces are placed first and drawn together, so its shapes are cut by its own copies
   of the grid's cutters (and by cutters outside the grid), not by the first tile's.
+- **Icons of bindings (2026-11-04).** `icon:bind:<game event>` (e.g. icon:bind:FENG_LTRIGGER): the controller's icon for
+  what that event is bound to now - the menu driver's token {bindicon.<event>} (UniPad: the event's first pad binding
+  as an icon key), LT / RT for the triggers when there's none. The World Map page's LT / RT use them, and UniPad reads
+  the view switch from the FENG_LTRIGGER / FENG_RTRIGGER bindings (pad and keyboard).
 - **Carousel (2026-11-03).** A widget type of its own ("Carousel (scrolls left / right)", `type=carousel`, saved with the
   grid's `grid=` line - cols = slots on screen, rows 1, totalRows = its tiles - and `carousel=centred wrap`): a grid's
   tiles on one row, left / right scroll it. Centred (default): the selected tile stays in the middle slot and the row

@@ -50,12 +50,19 @@ std::function<IDirect3DTexture9*(int, int, int)> iconTexture;
 std::function<std::string(int, int)> iconLabel;
 std::function<int(const std::string&)> iconForGameTexture;
 std::function<void()> iconReload;
-// "icon:<family folder | auto>:<key>" -> family (-1 = auto) and id
+// "icon:<family folder | auto>:<key>" -> family (-1 = auto) and id; "icon:bind:<game event>" (FENG_LTRIGGER...): the
+// controller's icon for what that event is bound to now (the menu driver's {bindicon.<event>}; LT / RT if it gives none)
 static bool IconRef(const std::string& tex, int& fam, int& id) {
     if (tex.compare(0, 5, "icon:") != 0) return false;
     size_t c = tex.find(':', 5); if (c == std::string::npos) return false;
     std::string f = tex.substr(5, c - 5), k = tex.substr(c + 1);
     fam = -2; id = -1;
+    if (f == "bind") {
+        std::string v;
+        if (tokens && tokens("bindicon." + k, v)) k = v;
+        else k = k == "FENG_LTRIGGER" ? "LT" : k == "FENG_RTRIGGER" ? "RT" : "";
+        f = "auto";
+    }
     if (f == "auto") fam = -1; else for (size_t i = 0; i < iconFamilies.size(); ++i) if (iconFamilies[i] == f) fam = (int)i;
     for (size_t i = 0; i < iconKeys.size(); ++i) if (iconKeys[i] == k) id = (int)i;
     return fam > -2 && id >= 0;
