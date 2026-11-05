@@ -635,6 +635,9 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
     { Elem box; box.type = E_IMAGE; box.anchor = els[order[0]].anchor; float ax = (box.anchor % 3) * 0.5f, ay = (box.anchor / 3) * 0.5f;
       box.w = w.gw; box.h = w.gh; box.x = w.gx + ax * w.gw; box.y = w.gy + ay * w.gh + scrollDy; ElemRect(box, ga, gb); }
     float scroll = preview ? 0.f : st.scroll;
+    // cutters outside the grid (they still cut its tiles' shapes)
+    std::vector<Elem> outerCut;
+    if (g_drawList) for (auto& o : *g_drawList) if (o.type == E_SHAPE && o.cut && o.visible && !InGroup(o.group, w.group)) outerCut.push_back(o);
     // where each tile is drawn (cells across / down from the first): a grid's visible rows; a carousel's slots
     struct At { int idx; float ox, oy; };
     std::vector<At> at;
@@ -689,6 +692,9 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 afterDx = L.w > 0 ? 0.f : grow * (1.f - L.align * 0.5f);
                 break;
             }
+            // this tile's pieces, placed; drawn together after, so its shapes are cut by its own cutters (each tile its own
+            // copies), as well as by cutters outside the grid
+            std::vector<Elem> tileEls; std::vector<std::pair<int, bool>> tileSrc;
             for (int i : order) {
                 Elem& src = els[i];
                 if (src.selOnly && !cur) continue;
@@ -729,10 +735,20 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 if (preview) e.col[3] *= 0.45f;
                 if (!ownTex) e.texIdx = src.texIdx;
                 e.fontIdx = src.fontIdx;
+                tileEls.push_back(e); tileSrc.push_back({i, ownTex});
+            }
+            std::vector<Elem> cutList = tileEls;
+            bool anyShape = false; for (auto& t : tileEls) anyShape |= t.type == E_SHAPE;
+            if (anyShape) for (auto& o : outerCut) cutList.push_back(o);
+            std::vector<Elem>* was = g_drawList;
+            g_drawList = &cutList;
+            for (size_t q = 0; q < tileEls.size(); ++q) {
+                Elem& e = tileEls[q]; Elem& src = els[tileSrc[q].first];
                 DrawElem(dl, e, false);
-                if (!ownTex) src.texIdx = e.texIdx;
+                if (!tileSrc[q].second) src.texIdx = e.texIdx;
                 src.fontIdx = e.fontIdx;
             }
+            g_drawList = was;
     }
     dl->PopClipRect();
 }

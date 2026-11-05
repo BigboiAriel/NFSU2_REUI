@@ -185,6 +185,8 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   renaming / moving the group carries the target). With a custom menu picked, the multi-selection's "put them in a
   group" lists that menu's groups, "or a new group" makes it inside the menu and "(out of its groups)" leaves them at
   the menu's top.
+  Grid / carousel tiles: each tile's pieces are placed first and drawn together, so its shapes are cut by its own copies
+  of the grid's cutters (and by cutters outside the grid), not by the first tile's.
 - **Carousel (2026-11-03).** A widget type of its own ("Carousel (scrolls left / right)", `type=carousel`, saved with the
   grid's `grid=` line - cols = slots on screen, rows 1, totalRows = its tiles - and `carousel=centred wrap`): a grid's
   tiles on one row, left / right scroll it. Centred (default): the selected tile stays in the middle slot and the row
