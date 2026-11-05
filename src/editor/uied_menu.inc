@@ -87,6 +87,7 @@ struct Page {
     bool confirm = false;                // opened instead of the game's Yes / No confirm dialogs ({dialog.text}: its question)
     bool worldMap = false;               // opened instead of the game's World Map (UniPad drives the game's own with its buttons)
     bool raceDialog = false;             // opened instead of the race start dialog (UI_EngageRaceDialog: Accept / Decline)
+    bool raceDialogMp = false;           // ... in a multiplayer session (COOP / SOLO / race settings)
 };
 static std::vector<Widget> g_widgets;
 static std::vector<Page> g_pages;
@@ -887,6 +888,7 @@ std::string MenuPauseOptionsPage() { if (customMenus) for (auto& p : g_pages) if
 std::string MenuConfirmPage() { if (customMenus) for (auto& p : g_pages) if (p.confirm) return p.group; return std::string(); }
 std::string MenuWorldMapPage() { if (customMenus) for (auto& p : g_pages) if (p.worldMap) return p.group; return std::string(); }
 std::string MenuRaceDialogPage() { if (customMenus) for (auto& p : g_pages) if (p.raceDialog) return p.group; return std::string(); }
+std::string MenuRaceDialogMpPage() { if (customMenus) for (auto& p : g_pages) if (p.raceDialogMp) return p.group; return std::string(); }
 bool MenuIsOpen() { return g_menu.open; }
 static Page* MenuPage() { return g_menu.stack.empty() ? nullptr : PageOf(g_menu.stack.back()); }
 static void MenuGo(const std::string& page, bool over) {
@@ -1457,17 +1459,18 @@ static void AddCarousel(Page& p) {
 // A game menu the page stands in for (one page each; UniPad opens it when that screen comes up): the right-click menu's
 // "replaces" dropdown
 static void ReplacesCombo(Page& p) {
-    static const char* kRep[] = { "nothing", "the pause menu", "the pause Options menu", "Yes / No confirm dialogs", "the World Map", "the race start dialog" };
-    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : p.confirm ? 3 : p.worldMap ? 4 : p.raceDialog ? 5 : 0;
+    static const char* kRep[] = { "nothing", "the pause menu", "the pause Options menu", "Yes / No confirm dialogs", "the World Map", "the race start dialog",
+                                  "the race start dialog (multiplayer)" };
+    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : p.confirm ? 3 : p.worldMap ? 4 : p.raceDialog ? 5 : p.raceDialogMp ? 6 : 0;
     ImGui::SetNextItemWidth(180);
     if (ImGui::BeginCombo("replaces", kRep[cur])) {
-        for (int i = 0; i < 6; ++i) {
+        for (int i = 0; i < 7; ++i) {
             std::string taken;   // (another page has it: picking it here moves it)
-            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions) || (i == 3 && o.confirm) || (i == 4 && o.worldMap) || (i == 5 && o.raceDialog))) taken = o.group;
+            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions) || (i == 3 && o.confirm) || (i == 4 && o.worldMap) || (i == 5 && o.raceDialog) || (i == 6 && o.raceDialogMp))) taken = o.group;
             std::string lb = std::string(kRep[i]) + (taken.empty() ? "" : "  (now " + taken + ")");
             if (ImGui::Selectable(lb.c_str(), i == cur) && i != cur) {
-                p.pauseMenu = i == 1; p.pauseOptions = i == 2; p.confirm = i == 3; p.worldMap = i == 4; p.raceDialog = i == 5;
-                for (auto& o : g_pages) if (&o != &p) { if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; if (i == 3) o.confirm = false; if (i == 4) o.worldMap = false; if (i == 5) o.raceDialog = false; }
+                p.pauseMenu = i == 1; p.pauseOptions = i == 2; p.confirm = i == 3; p.worldMap = i == 4; p.raceDialog = i == 5; p.raceDialogMp = i == 6;
+                for (auto& o : g_pages) if (&o != &p) { if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; if (i == 3) o.confirm = false; if (i == 4) o.worldMap = false; if (i == 5) o.raceDialog = false; if (i == 6) o.raceDialogMp = false; }
                 g_dirty = true;
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip(i == 1 ? "Opens instead of the game's pause menu (Start / Esc in the world; needs UniPad). Back closes it and\nresumes; give tiles the \"Pause: ...\" actions (Resume, Restart race, Jump to Garage, Options, Quit,\nFree Cam...) under changes."
@@ -1475,6 +1478,7 @@ static void ReplacesCombo(Page& p) {
                                                    : i == 3 ? "Opens instead of the game's Yes / No dialogs (Jump to Garage?, Quit?, Restart race?...; needs UniPad).\n{dialog.text} in a text shows its question; give tiles the \"Dialog: ...\" actions (Yes, No). Back answers\nas the dialog's own Back would (No when it has none)."
                                                    : i == 4 ? "Opens instead of the game's World Map (needs UniPad, which drives the game's own map with your buttons:\nup / down its list, left / right that type's places, X show / hide the type, LT / RT the view, A the GPS).\nAn image element with \"world map\" ticked draws the map; a grid with the live list map.legend is the list\n({map.view} names the view)."
                                                    : i == 5 ? "Opens instead of the race start dialog (driving into a race's start: Accept / Decline; needs UniPad).\nGive tiles the \"Race: Accept\" / \"Race: Decline\" actions (Back declines). The game's own texts:\n{race.from} {race.subject} {race.type} {race.distance} {race.purse} {race.message}; an image with the\ntexture {race.map} shows the race's route map."
+                                                   : i == 6 ? "The race start dialog's page while you're in a multiplayer session (needs UniPad and NFSU2 Multiplayer;\nout of a session the race start dialog's own page shows). Tiles: \"Race: COOP (everyone)\" starts it for every player with\nyour race settings (you run the AI racers), \"Race: Accept\" is SOLO (just you), \"Race: Decline\". Race settings rows:\nrace.ai / race.traffic / race.aicount / race.difficulty / race.rubberband / race.collision."
                                                    : "Opened only by tiles / the menu key.");
         }
         ImGui::EndCombo();
@@ -1712,6 +1716,7 @@ static void SaveMenus(FILE* f) {
         if (p.confirm) fprintf(f, "confirmdlg=1\n");
         if (p.worldMap) fprintf(f, "worldmap=1\n");
         if (p.raceDialog) fprintf(f, "racedlg=1\n");
+        if (p.raceDialogMp) fprintf(f, "racedlgmp=1\n");
     }
     for (auto& w : g_widgets) { fprintf(f, "\n[widget]\ngroup=%s\n", Esc(w.group).c_str()); SaveWidgetProps(f, w); }
 }
@@ -1756,6 +1761,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "confirmdlg") p.confirm = atoi(v.c_str()) != 0;
         else if (k == "worldmap") p.worldMap = atoi(v.c_str()) != 0;
         else if (k == "racedlg") p.raceDialog = atoi(v.c_str()) != 0;
+        else if (k == "racedlgmp") p.raceDialogMp = atoi(v.c_str()) != 0;
         else if (k == "selcolor") { int u = 1; sscanf(v.c_str(), "%d %f %f %f %f", &u, &p.selCol[0], &p.selCol[1], &p.selCol[2], &p.selCol[3]); p.useSel = u != 0; }
         return true;
     }

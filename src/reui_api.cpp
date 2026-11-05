@@ -73,6 +73,7 @@ EXPORT const char* REUI_PauseOptionsPage() { static std::string s; s = uied::Men
 EXPORT const char* REUI_ConfirmPage() { static std::string s; s = uied::MenuConfirmPage(); return s.c_str(); }
 EXPORT const char* REUI_WorldMapPage() { static std::string s; s = uied::MenuWorldMapPage(); return s.c_str(); }
 EXPORT const char* REUI_RaceDialogPage() { static std::string s; s = uied::MenuRaceDialogPage(); return s.c_str(); }
+EXPORT const char* REUI_RaceDialogMpPage() { static std::string s; s = uied::MenuRaceDialogMpPage(); return s.c_str(); }
 EXPORT void REUI_MenuClose() { uied::MenuClose(); }
 EXPORT int REUI_MenuOpenOver(const char* page) { return uied::MenuOpenOver(page ? page : "") ? 1 : 0; }
 EXPORT const char* REUI_MenuTopPage() { static std::string s; s = uied::MenuTopPage(); return s.c_str(); }
