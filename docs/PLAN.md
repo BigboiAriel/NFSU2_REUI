@@ -180,6 +180,11 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   from the game's text, icon + colour from the map icons of that type, on = shown), map.legend.sel, map.view (the
   view's name), map.view.uv, map.sel, map.hidden. Buttons: up / down rows, left / right that type's places, X show /
   hide, LT / RT view, A GPS (closes the map), B back (keys: arrows, X, Enter, Page Up / Down, Esc).
+- **Group cuts, groups in the active menu (2026-11-04).** A cutter's "cuts into" can be a whole group (`cut=<gap>;group:<group>`):
+  every shape in that group and the groups inside it (listed apart from its own group, which stays the first choice;
+  renaming / moving the group carries the target). With a custom menu picked, the multi-selection's "put them in a
+  group" lists that menu's groups, "or a new group" makes it inside the menu and "(out of its groups)" leaves them at
+  the menu's top.
 - **Carousel (2026-11-03).** A widget type of its own ("Carousel (scrolls left / right)", `type=carousel`, saved with the
   grid's `grid=` line - cols = slots on screen, rows 1, totalRows = its tiles - and `carousel=centred wrap`): a grid's
   tiles on one row, left / right scroll it. Centred (default): the selected tile stays in the middle slot and the row

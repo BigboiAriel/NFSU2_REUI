@@ -475,7 +475,8 @@ struct Elem {
     float colTokA = 1, hiTokA = 1;
     // shapes (E_SHAPE): a rounded rectangle - corner radii (units: top-left, top-right, bottom-right, bottom-left),
     // a stroke (inside its edge, units; 0 = none) in col, a fill in fillCol (its own token). cut: draws nothing itself
-    // and is subtracted from cutTarget (an element name; "" = every shape in its group), grown by cutGap (negative: shrunk)
+    // and is subtracted from cutTarget (an element name; "group:<group>" = every shape in that group and the groups in it;
+    // "" = every shape in its own group), grown by cutGap (negative: shrunk)
     float rad[4] = {12, 12, 12, 12}; bool radLink = true;
     float stroke = 2;
     float fillCol[4] = {0, 0, 0, 1};
@@ -965,6 +966,16 @@ static std::vector<Elem>* g_drawList = nullptr;   // the elements being drawn no
 // a shape: its stroke and fill textures (shapes.cpp) on its box, turned; cutters found among the elements drawn now
 static bool ResolveGrad(const UGrad& g, float depthScale, shapes::Gradient& out);
 static std::string OwnerPage(const std::string& g);   // (uied_menu.inc)
+static bool InGroup(const std::string& eg, const std::string& g);
+static std::string RelGroup(const std::string& g);   // (uied_menu.inc)
+static bool MenuEdOff(const std::string& group);   // (uied_menu.inc)
+static std::vector<std::string> GroupNames();
+// does cutter o cut shape e: its own group's shapes, a whole group's, or the shape it names
+static bool CutHits(const Elem& o, const Elem& e) {
+    if (o.cutTarget.empty()) return o.group == e.group;
+    if (o.cutTarget.compare(0, 6, "group:") == 0) return InGroup(e.group, o.cutTarget.substr(6));
+    return o.cutTarget == e.name;
+}
 static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bool editing) {
     float pw = b.x - a.x, ph = b.y - a.y;
     if (pw < 1 || ph < 1) return;
@@ -978,7 +989,7 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
     if (g_drawList && !e.cut)   // (a cutter is drawn as itself, not cut by others)
         for (auto& o : *g_drawList) {
             if (o.type != E_SHAPE || !o.cut || !o.visible || !ShowIfOk(o)) continue;
-            if (o.cutTarget.empty() ? o.group != e.group : o.cutTarget != e.name) continue;
+            if (!CutHits(o, e)) continue;
             if (OwnerPage(o.group) != OwnerPage(e.group)) continue;   // (menus: a cutter cuts in its own menu only; HUD pieces have none)
             ImVec2 oa, ob; ElemRect(o, oa, ob);
             float ow = ob.x - oa.x, oh = ob.y - oa.y, ok = o.w > 0 ? ow / o.w : 1;
@@ -1743,18 +1754,28 @@ static void ShapeProps(Elem& e) {
             if (e.fillGrad.mode) { float fc[4] = {e.fillCol[0], e.fillCol[1], e.fillCol[2], 1}; GradientEdit("fgrad", e.fillGrad, fc, e.fillTok.empty() ? nullptr : e.fillTok.c_str()); }
         }
         int cutters = 0;
-        if (!e.cut) for (auto& o : Elems()) if (o.type == E_SHAPE && o.cut && (o.cutTarget.empty() ? o.group == e.group : o.cutTarget == e.name)) ++cutters;
+        if (!e.cut) for (auto& o : Elems()) if (o.type == E_SHAPE && o.cut && CutHits(o, e)) ++cutters;
         if (cutters) { ImGui::SameLine(); ImGui::TextDisabled("(%d cutter%s on it)", cutters, cutters == 1 ? "" : "s"); }
     }
     if (ImGui::Checkbox("cut", &e.cut)) g_dirty = true;
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("A boolean: this shape is cut out of another shape (a notch, a window, a panel or button sitting\nin a frame) and drawn itself over the hole, with its own fill and border - its border outlines the cut.\nFor an empty cut, set its fill and stroke opacity to 0. Cutters keep a pink outline while editing.");
     if (e.cut) {
         ImGui::SameLine(); ImGui::SetNextItemWidth(220);
-        if (ImGui::BeginCombo("cuts into", e.cutTarget.empty() ? "every shape in its group" : e.cutTarget.c_str())) {
+        bool grpT = e.cutTarget.compare(0, 6, "group:") == 0;
+        std::string shown = e.cutTarget.empty() ? "every shape in its group" : grpT ? "group: " + RelGroup(e.cutTarget.substr(6)) : e.cutTarget;
+        if (ImGui::BeginCombo("cuts into", shown.c_str())) {
             if (ImGui::Selectable("every shape in its group", e.cutTarget.empty())) { e.cutTarget.clear(); g_dirty = true; }
-            for (auto& o : Elems()) if (o.type == E_SHAPE && !o.cut && ImGui::Selectable(o.name.c_str(), e.cutTarget == o.name)) { e.cutTarget = o.name; g_dirty = true; }
+            ImGui::SeparatorText("a whole group");
+            for (auto& n : GroupNames()) {   // (not its own - that's the first choice; not hidden by the menu being edited)
+                if (n == e.group || MenuEdOff(n) || RelGroup(n).empty()) continue;
+                std::string lb = "group: " + RelGroup(n) + "##cg" + n;
+                if (ImGui::Selectable(lb.c_str(), e.cutTarget == "group:" + n)) { e.cutTarget = "group:" + n; g_dirty = true; }
+            }
+            ImGui::SeparatorText("one shape");
+            for (auto& o : Elems()) if (o.type == E_SHAPE && !o.cut && !MenuEdOff(o.group) && ImGui::Selectable(o.name.c_str(), e.cutTarget == o.name)) { e.cutTarget = o.name; g_dirty = true; }
             ImGui::EndCombo();
         }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("What it cuts: every shape in its own group, every shape in another group (and the groups inside it),\nor one shape by name.");
         ImGui::SameLine(); ImGui::SetNextItemWidth(110);
         if (ImGui::DragFloat("gap", &e.cutGap, 0.05f, -200.f, 200.f, "%.1f")) { e.cutGap = std::max(-200.f, std::min(200.f, e.cutGap)); g_dirty = true; }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Cuts this much wider than the cutter itself (units): room around what sits in the cut-out.\n0 is 0.1 inside the cutter (no seam).\nNegative: the cut is that much smaller than the cutter (the cutter overlaps the shape).\nCtrl + click to type a value.");
@@ -2263,10 +2284,11 @@ static void MultiPanel() {
     {   // into a group (picked groups go inside it, as groups)
         ImGui::SetNextItemWidth(180);
         if (ImGui::BeginCombo("##multigrp", "put them in a group...")) {
-            if (ImGui::Selectable("(no group / top level)")) PutPickedIn("");
+            if (ImGui::Selectable(MenuEdOff("") ? "(out of its groups)" : "(no group / top level)")) PutPickedIn(IntoMenu(""));
             for (auto& n : GroupNames()) {
+                if (MenuEdOff(n) || RelGroup(n).empty()) continue;   // (a custom menu picked: its own groups)
                 bool own = false; for (auto& g : g_multiG) own |= InGroup(n, g);   // not into one of themselves
-                if (!own && ImGui::Selectable(n.c_str())) PutPickedIn(n);
+                if (!own && ImGui::Selectable((RelGroup(n) + "##pg" + n).c_str())) PutPickedIn(n);
             }
             ImGui::EndCombo();
         }
@@ -2274,7 +2296,7 @@ static void MultiPanel() {
         static char ng[64] = "";
         ImGui::SetNextItemWidth(160);
         if (ImGui::InputTextWithHint("##multinew", "or a new group (Enter)", ng, sizeof ng, ImGuiInputTextFlags_EnterReturnsTrue) && CleanGroup(ng)[0]) {
-            PutPickedIn(CleanGroup(ng)); ng[0] = 0;
+            PutPickedIn(IntoMenu(CleanGroup(ng))); ng[0] = 0;   // (inside the custom menu being edited)
         }
     }
     if (ImGui::Button("Duplicate them")) {
@@ -2493,6 +2515,8 @@ static std::vector<std::string> GroupNames() {   // every group, nested ones and
 // move group g (and what's inside it) to path to
 static void RebaseGroup(const std::string& g, const std::string& to) {
     MenuRebase(g, to);
+    for (auto& l : g_layout) for (auto& e : l)   // (cutters aimed at the group follow it)
+        if (e.cutTarget.compare(0, 6, "group:") == 0 && InGroup(e.cutTarget.substr(6), g)) e.cutTarget = "group:" + CleanGroup(to + e.cutTarget.substr(6 + g.size()));
     for (auto& e : Elems()) if (InGroup(e.group, g)) e.group = CleanGroup(to + e.group.substr(g.size()));
     if (InGroup(g_selGroup, g)) g_selGroup = CleanGroup(to + g_selGroup.substr(g.size()));
     g_dirty = true;
