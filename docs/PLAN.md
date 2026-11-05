@@ -210,7 +210,11 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   REUI_MenuPopOver returns to it, REUI_MenuTopPage names the top one - UniPad opens the confirm page over the World Map
   page for the GPS questions, as the game draws its dialog over its map. Menu pages draw copies of their elements, so
   an element's animation start is now copied back (play on works there). The trigger icons idle at 0.588 alpha (the
-  stock arrows' 150/255) and flash to full on the press.
+  stock arrows' 150/255) and flash to full on the press (their own colour - no tint).
+- **No hitch when a menu opens (2026-11-04).** Shape pictures (computed per pixel at screen size) were let go 3 s after
+  last drawn, so each menu open remade every panel in one frame. Now kept 10 minutes (128 MB / 192 entries, least
+  recently drawn first) and made on up to 8 threads. Still to watch: a shape whose cutters move relative to it (a
+  carousel sliding under an outer cutter) is a new picture every frame of the slide.
 - **Carousel (2026-11-03).** A widget type of its own ("Carousel (scrolls left / right)", `type=carousel`, saved with the
   grid's `grid=` line - cols = slots on screen, rows 1, totalRows = its tiles - and `carousel=centred wrap`): a grid's
   tiles on one row, left / right scroll it. Centred (default): the selected tile stays in the middle slot and the row
