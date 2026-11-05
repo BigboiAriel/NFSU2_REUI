@@ -470,6 +470,8 @@ struct Elem {
     int anim = 0;                         // 1 pulse (grows and fades, ~1 s), 2 blink (on / off, ~0.5 s), 3 keyframes
     std::string keys;                     // anim 3: "period ms;t sx sy a;t sx sy a;..." - size and alpha multipliers, linear, looping
     double shownSince = -1;               // (running) when its show-only-while value last came on: animations start there
+    std::string playOn;                   // a value key: its animation (re)starts each time it comes on (a button press: bindheld.<event>)
+    bool playWas = false;                 // (running) that value last frame
     std::vector<std::string> flags;       // other mods' flags (AddFlag), by key
     // minimap: drawn as the track map around the car (the host's mapView), round, with the game's icons and other
     // mods' markers on it; mapZoom multiplies the game's zoom, mapBlip the icons' size; mapPlayer: the player's icon
@@ -957,13 +959,31 @@ static void DrawWorldMap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col,
         }
     // the selected icon's ring
     if (hasSel) {
+        // the game's (UI_InGame_WorldMap.fng, its two GPS selectors' looping script): two rings growing out from the
+        // place and fading, 1.6 s, the second 0.4 s behind - sizes in the stock map's units (353 across)
         ImVec2 p = at(sx, sy);
-        float rr = 26 * k * (0.85f + 0.15f * sinf((float)ImGui::GetTime() * 5));
+        float ku = side / 353.f * e.mapBlip;
+        static const float kRing[2][6][3] = {   // ms, size, alpha (0-255)
+            {{0, 28.75f, 0}, {200, 37.83f, 255}, {600, 56, 180}, {1200, 70, 0}, {1600, 70, 0}, {1600, 70, 0}},
+            {{0, 28.75f, 0}, {400, 28.75f, 255}, {1000, 56, 180}, {1600, 70, 0}, {1600, 70, 0}, {1600, 70, 0}}};
+        float ph = (float)fmod(ImGui::GetTime() * 1000.0, 1600.0);
+        float big = 70 * ku;
         std::string r = MapArtNow("MINIMAP_GPS_SELECTOR"); float su = 1, sv = 1;
-        IDirect3DTexture9* tx = r.empty() ? nullptr : NamedTex(r, (int)ceilf(rr), su, sv);
-        if (!tx) tx = NamedTex("MINIMAP_GPS_SELECTOR", (int)ceilf(rr), su, sv);
-        if (tx) dl->AddImage((ImTextureID)tx, ImVec2(p.x - rr / 2, p.y - rr / 2), ImVec2(p.x + rr / 2, p.y + rr / 2), ImVec2(0, 0), ImVec2(su, sv), Mul(IM_COL32(255, 255, 255, 255), e.col));
-        else dl->AddCircle(p, rr / 2, Mul(IM_COL32(40, 140, 255, 255), e.col), 32, std::max(1.5f, rr * 0.08f));
+        IDirect3DTexture9* tx = r.empty() ? nullptr : NamedTex(r, (int)ceilf(big), su, sv);
+        if (!tx) tx = NamedTex("MINIMAP_GPS_SELECTOR", (int)ceilf(big), su, sv);
+        for (auto& ring : kRing) {
+            float sz = ring[5][1], al = ring[5][2];
+            for (int i = 0; i < 5; ++i)
+                if (ph >= ring[i][0] && ph <= ring[i + 1][0]) {
+                    float f = ring[i + 1][0] > ring[i][0] ? (ph - ring[i][0]) / (ring[i + 1][0] - ring[i][0]) : 0.f;
+                    sz = ring[i][1] + (ring[i + 1][1] - ring[i][1]) * f; al = ring[i][2] + (ring[i + 1][2] - ring[i][2]) * f;
+                    break;
+                }
+            if (al < 1) continue;
+            float rr = sz * ku;
+            if (tx) dl->AddImage((ImTextureID)tx, ImVec2(p.x - rr / 2, p.y - rr / 2), ImVec2(p.x + rr / 2, p.y + rr / 2), ImVec2(0, 0), ImVec2(su, sv), Mul(IM_COL32(255, 255, 255, (int)al), e.col));
+            else dl->AddCircle(p, rr / 2, Mul(IM_COL32(0, 128, 255, (int)al), e.col), 32, std::max(1.5f, rr * 0.08f));
+        }
     }
     dl->PopClipRect();
 }
@@ -1034,6 +1054,11 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     struct AnimSave { Elem& e; bool on = false; float scale = 1, x = 0, y = 0; ~AnimSave() { if (on) { e.scale = scale; e.x = x; e.y = y; } } } animSave{ e };
     if (!ShowIfOk(e)) { e.shownSince = -1; if (!editing) return; }
     else if (e.shownSince < 0) e.shownSince = ImGui::GetTime();
+    if (!e.playOn.empty() && !editing) {   // replays from its start when its value comes on (pressed)
+        std::string v; bool on = tokens && tokens(e.playOn, v) && !v.empty() && v != "0";
+        if (on && !e.playWas) e.shownSince = ImGui::GetTime();
+        e.playWas = on;
+    }
     if (e.row > boardRows) return;               // past the rows shown (also while editing)
     bool mine = false;
     if (!RowShown(e, mine) && !editing) return;   // (while editing, rows nobody fills are drawn so they can be placed)
@@ -1831,6 +1856,7 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
     if (!e.tint.empty()) fprintf(f, "tint=%s\n", e.tint.c_str());
     if (e.anim) fprintf(f, "anim=%d\n", e.anim);
     if (!e.keys.empty()) fprintf(f, "keys=%s\n", e.keys.c_str());
+    if (!e.playOn.empty()) fprintf(f, "playon=%s\n", e.playOn.c_str());
     if (!e.flags.empty()) { std::string l; for (auto& k : e.flags) { if (!l.empty()) l += ','; l += k; } fprintf(f, "flags=%s\n", l.c_str()); }
     if (!e.colTok.empty()) fprintf(f, "colortoken=%s %g\n", e.colTok.c_str(), e.colTokA);
     if (!e.hiTok.empty()) fprintf(f, "hitoken=%s %g\n", e.hiTok.c_str(), e.hiTokA);
@@ -1927,6 +1953,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "tint") e.tint = v;
     else if (k == "anim") e.anim = std::max(0, std::min(3, atoi(v.c_str())));
     else if (k == "keys") e.keys = v;
+    else if (k == "playon") e.playOn = v;
     else if (k == "flags") { e.flags.clear(); size_t p = 0; while (p <= v.size()) { size_t q = v.find(',', p); if (q == std::string::npos) q = v.size(); if (q > p) e.flags.push_back(v.substr(p, q - p)); p = q + 1; } }
 }
 // intoMode >= 0: every element goes in that layout; merge: added to what's there (an import), not instead
@@ -2856,6 +2883,12 @@ static void Selected(Elem& e) {
             ImGui::SetNextItemWidth(320);
             if (ImGui::InputTextWithHint("keys", "800;0 1 1 1;400 1.6 1.7 1;800 1 1 1", kb, sizeof kb)) { e.keys = kb; g_dirty = true; }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Loop length in ms (! in front: play once and hold), then keys \"time width-scale height-scale alpha [move-x move-y [red green blue]]\" separated by ;\n(scales and colours multiply, moves are units; straight lines between keys; the game's HUD animations as\nthey're stored in its .fng). Text scales from its alignment point.");
+        }
+        if (e.anim) {
+            static char pb[96]; snprintf(pb, sizeof pb, "%s", e.playOn.c_str());
+            ImGui::SetNextItemWidth(200);
+            if (ImGui::InputTextWithHint("play on", "e.g. bindheld.FENG_LTRIGGER", pb, sizeof pb)) { e.playOn = pb; g_dirty = true; }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("A live value: the animation starts over each time it comes on (blank: from when the element shows).\nbindheld.<event>: while that UniPad binding is held - a button's press animation (keys with ! in front: plays once).");
         }
         if (e.type == E_IMAGE) {
             const char* kinds[] = { "nothing", "fill left to right", "fill bottom to top", "rotation", "reveal (turning half)" };

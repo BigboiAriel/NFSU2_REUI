@@ -242,6 +242,7 @@ static void FadeOutNow() {
 // ---------------------------------------------------------------- grids
 // (a live list's item: <key>.N.color "r g b" tints its icon piece, <key>.N.on "1" / "0" shows its "item on" / "item
 // off" pieces - neither when it has none)
+static const float kOffAlpha = 60 / 255.f;   // an "off" live list item's icon and label (the game's World Map legend: 0x496920)
 struct GItem { std::string label, icon, action; int tile = -1; float tint[3] = {1, 1, 1}; bool hasTint = false; int on = -1; };
 // a piece only for slider / picker tiles: laid out across the grid's whole row (those tiles take a row of their own), so
 // changing the columns doesn't squeeze it
@@ -737,12 +738,18 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                     put("{item}", it.label); put("{value}", val); put("{i}", std::to_string(idx + 1)); put("{count}", std::to_string(n));
                     if (bs) { put("{binding}", bs->label); put("{input}", waiting ? std::string("???") : bs->current ? bs->current() : std::string()); }
                     if (cur && p && p->useSel && (e.role == "label" || e.role == "value")) memcpy(e.col, p->selCol, sizeof e.col);
+                    if (it.on == 0 && e.role == "label") e.col[3] *= kOffAlpha;   // (an "off" live list item: see-through, as the game's)
                 }
                 // its picture: the tile's icon; a binding tile without one (and binding icon pieces): what it's bound to
                 bool ownTex = e.role == "icon" || e.role == "bindicon";
                 if (bs && e.role == "icon" && it.icon.empty()) e.w = e.h = std::min(e.w, e.h);   // (a controller icon: square)
                 if (bs && (e.role == "bindicon" || (e.role == "icon" && it.icon.empty()))) { if (!BindIcon(dl, e, bs, waiting, w.group)) continue; }
-                else if (e.role == "icon") { if (it.icon.empty()) continue; e.tex = it.icon; e.texIdx = -2; if (it.hasTint) for (int q = 0; q < 3; ++q) e.col[q] *= it.tint[q]; }
+                else if (e.role == "icon") {
+                    if (it.icon.empty()) continue;
+                    e.tex = it.icon; e.texIdx = -2;
+                    if (it.hasTint) for (int q = 0; q < 3; ++q) e.col[q] *= it.tint[q];
+                    if (it.on == 0) e.col[3] *= kOffAlpha;   // (an "off" live list item: see-through, as the game's)
+                }
                 if (preview) e.col[3] *= 0.45f;
                 if (!ownTex) e.texIdx = src.texIdx;
                 e.fontIdx = src.fontIdx;
