@@ -206,6 +206,11 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   0x34DC1BEC, no Back) gets the confirm page too - Yes turns the GPS off, No sends the map's own 0xB4623F67 ("leave
   it", ends its wait); other one-button notices: either answer is their one button. {map.gps} / {map.gps.action}
   ("Activate GPS" / "Deactivate GPS", from 0x838590+0x29 and 0x501100).
+  Pages over pages: REUI_MenuOpenOver opens a page over the one shown (drawn under it, fading with it), Back /
+  REUI_MenuPopOver returns to it, REUI_MenuTopPage names the top one - UniPad opens the confirm page over the World Map
+  page for the GPS questions, as the game draws its dialog over its map. Menu pages draw copies of their elements, so
+  an element's animation start is now copied back (play on works there). The trigger icons idle at 0.588 alpha (the
+  stock arrows' 150/255) and flash to full on the press.
 - **Carousel (2026-11-03).** A widget type of its own ("Carousel (scrolls left / right)", `type=carousel`, saved with the
   grid's `grid=` line - cols = slots on screen, rows 1, totalRows = its tiles - and `carousel=centred wrap`): a grid's
   tiles on one row, left / right scroll it. Centred (default): the selected tile stays in the middle slot and the row
