@@ -1042,6 +1042,7 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
         for (auto& o : *g_drawList) {
             if (o.type != E_SHAPE || !o.cut || !o.visible || !ShowIfOk(o)) continue;
             if (!CutHits(o, e)) continue;
+            if (e.layer > o.layer) continue;   // (a cutter cuts what's on its layer and under it - not shapes laid over it)
             if (OwnerPage(o.group) != OwnerPage(e.group)) continue;   // (menus: a cutter cuts in its own menu only; HUD pieces have none)
             ImVec2 oa, ob; ElemRect(o, oa, ob);
             float ow = ob.x - oa.x, oh = ob.y - oa.y, ok = o.w > 0 ? ow / o.w : 1;
@@ -1844,7 +1845,7 @@ static void ShapeProps(Elem& e) {
             for (auto& o : Elems()) if (o.type == E_SHAPE && !o.cut && !MenuEdOff(o.group) && ImGui::Selectable(o.name.c_str(), e.cutTarget == o.name)) { e.cutTarget = o.name; g_dirty = true; }
             ImGui::EndCombo();
         }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("What it cuts: every shape in its own group, every shape in another group (and the groups inside it),\nor one shape by name.");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("What it cuts: every shape in its own group, every shape in another group (and the groups inside it),\nor one shape by name.\nOnly shapes on its layer or lower: a shape on a higher layer sits over the cutter and isn't cut.");
         ImGui::SameLine(); ImGui::SetNextItemWidth(110);
         if (ImGui::DragFloat("gap", &e.cutGap, 0.05f, -200.f, 200.f, "%.1f")) { e.cutGap = std::max(-200.f, std::min(200.f, e.cutGap)); g_dirty = true; }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Cuts this much wider than the cutter itself (units): room around what sits in the cut-out.\n0 is 0.1 inside the cutter (no seam).\nNegative: the cut is that much smaller than the cutter (the cutter overlaps the shape).\nCtrl + click to type a value.");
