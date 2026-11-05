@@ -527,7 +527,15 @@ static bool MapAlphaOk(IDirect3DTexture9* t) {
 }
 static const char* g_mapWhy = "";   // (diagnostics: why there's no minimap, the icon list's counts)
 static int g_mapStat[8];
-static bool MapViewNow2(uied::MapView& out);
+static bool MapViewNow2(uied::MapView& out, bool world = false);
+// the whole map, for a world map element (the game's World Map screen is up, not the HUD): every icon, none dropped
+static bool WorldViewNow(uied::MapView& out) {
+    static int frame = -1; static bool have = false; static uied::MapView cache;
+    int fr = ImGui::GetCurrentContext() ? ImGui::GetFrameCount() : 0;
+    if (fr != frame) { frame = fr; have = MapViewNow2(cache, true); }
+    if (have) out = cache;
+    return have;
+}
 static bool MapViewNow(uied::MapView& out) {
     static int frame = -1; static bool have = false; static uied::MapView cache;
     int fr = ImGui::GetCurrentContext() ? ImGui::GetFrameCount() : 0;
@@ -541,7 +549,7 @@ static bool MapViewNow(uied::MapView& out) {
     if (have) out = cache;
     return have;
 }
-static bool MapViewNow2(uied::MapView& out) {
+static bool MapViewNow2(uied::MapView& out, bool world) {
     out = uied::MapView();
     if (*(int*)0x8654A4 != 6) { g_mapWhy = "not in the world"; return false; }
     uint8_t* p1 = *(uint8_t**)0x8900AC;
@@ -550,7 +558,7 @@ static bool MapViewNow2(uied::MapView& out) {
     uint8_t* hud = *(uint8_t**)(p1 + 0x9A4);
     if (!Readable(car, 0x410) || !Readable(hud, 0x60)) { g_mapWhy = "no car / HUD"; return false; }
     uint8_t* comp = *(uint8_t**)(hud + 0x5C);
-    if (!Readable(comp, 0x20) || !(*(uint32_t*)(comp + 0x18) & 1)) { g_mapWhy = "game shows no minimap"; return false; }   // the game isn't showing a minimap now
+    if (!world && (!Readable(comp, 0x20) || !(*(uint32_t*)(comp + 0x18) & 1))) { g_mapWhy = "game shows no minimap"; return false; }   // the game isn't showing a minimap now
     int track = *(int*)0x89E7A0;
     uint8_t* ti = ((uint8_t*(__cdecl*)(int))0x5D3E40)(track);
     if (!Readable(ti, 0xC4)) { g_mapWhy = "no track info"; return false; }
@@ -558,6 +566,7 @@ static bool MapViewNow2(uied::MapView& out) {
     v.x0 = *(float*)(ti + 0xAC); v.y0 = *(float*)(ti + 0xB0); v.size = *(float*)(ti + 0xB4);
     float zoom = *(float*)(ti + 0xC0), zg = *(float*)0x78E098;
     v.span = zg > 1 ? 0.3f / zg : zoom > 1e-4f ? 0.3f / zoom : 0;
+    if (world && !(v.span > 1e-4f && v.span < 10)) v.span = 1;
     if (!(v.size > 1 && v.size < 1e6f) || !(v.span > 1e-4f && v.span < 10)) { g_mapWhy = "odd map size / zoom"; return false; }
     char tn[32]; snprintf(tn, sizeof tn, "TRACKMAP%d", track);
     uint8_t* tinfo = TexInfo(BHash(tn));
@@ -591,13 +600,13 @@ static bool MapViewNow2(uied::MapView& out) {
         uint32_t fl = *(uint32_t*)(node + 0x18);
         if (type < 3 || type > 18) { ++g_mapStat[1]; continue; }
         if (fl & 2) { ++g_mapStat[2]; continue; }
-        if (!((bool(__thiscall*)(void*))0x4CA6D0)(node)) { ++g_mapStat[3]; continue; }
+        if (!world && !((bool(__thiscall*)(void*))0x4CA6D0)(node)) { ++g_mapStat[3]; continue; }
         float pos[2] = {NAN, NAN}, dir[2] = {0, 0};
         ((void(__thiscall*)(void*, float*, float*))0x4AC2B0)(node, pos, dir);
         if (!(pos[0] == pos[0]) || !(pos[1] == pos[1])) { ++g_mapStat[4]; continue; }   // (its car is gone)
         uied::MapBlip b;
         b.x = pos[0]; b.y = pos[1]; b.dirX = dir[0]; b.dirY = dir[1];
-        b.hideOff = (fl & 1) != 0; b.player = type == 4;
+        b.hideOff = (fl & 1) != 0; b.player = type == 4; b.type = type;
         uint8_t* obj = *(uint8_t**)info;   // its FE object: texture, uv, size, colour as the game set them
         uint8_t* d = Readable(obj, 0x30) ? *(uint8_t**)(obj + 0x2C) : nullptr;
         if (Readable(d, 0x54)) {
@@ -783,6 +792,7 @@ void HostInit() {
     uied::tokens = Token;
     uied::gameObject = GameObjectNow;
     uied::mapView = MapViewNow;
+    uied::worldView = WorldViewNow;
     // the track table ([0x883DA0], [0x883DA4] of them, 0x128 bytes each: +0 name, +0x8A u16 id; 0x5D3E40 looks it up)
     uied::trackNames = [] {
         std::vector<std::pair<int, std::string>> out;

@@ -59,6 +59,7 @@ namespace uied {
         bool hideOff = false;               // hidden past the rim (else held on it)
         bool farOk = false;                 // not dropped however far (other mods' markers)
         bool player = false;                // the player's own icon (drawn on top)
+        int type = -1;                      // the game's icon type (its info +4: 3 racer, 4 player, 5..18 shops / events)
     };
     struct MapView {
         IDirect3DTexture9* tex = nullptr; float su = 1, sv = 1;
@@ -72,6 +73,9 @@ namespace uied {
         std::vector<MapBlip> blips;
     };
     extern std::function<bool(MapView& out)> mapView;   // false: no minimap now (menus, drag races, loading)
+    // the whole map for a world map element: as mapView, but whether or not the game shows a minimap now, every icon (none
+    // dropped for distance); the view, selection and hidden icon types come from tokens (map.view.uv, map.sel, map.hidden)
+    extern std::function<bool(MapView& out)> worldView;
     // the game's tracks: id (its map is TRACKMAP<id>) and name, for the Minimap page's Tracks tab
     extern std::function<std::vector<std::pair<int, std::string>>()> trackNames;
     bool MinimapShown(double withinSeconds = 0.3);      // a minimap element was drawn in game lately
@@ -129,4 +133,5 @@ namespace uied {
     std::string MenuPausePage();                       // the page that replaces the game's pause menu ("" none)
     std::string MenuPauseOptionsPage();                // ... its Options screen ("" none)
     std::string MenuConfirmPage();                     // ... the game's Yes / No dialogs ("" none)
+    std::string MenuWorldMapPage();                    // ... the game's World Map ("" none)
 }

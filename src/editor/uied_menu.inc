@@ -85,6 +85,7 @@ struct Page {
     bool pauseMenu = false;              // opened instead of the game's pause menu (by the menu driver, UniPad)
     bool pauseOptions = false;           // opened instead of the pause menu's Options screen (Audio / Display / Gameplay / Player)
     bool confirm = false;                // opened instead of the game's Yes / No confirm dialogs ({dialog.text}: its question)
+    bool worldMap = false;               // opened instead of the game's World Map (UniPad drives the game's own with its buttons)
 };
 static std::vector<Widget> g_widgets;
 static std::vector<Page> g_pages;
@@ -228,7 +229,9 @@ static struct MenuState {
 } g_menu;
 
 // ---------------------------------------------------------------- grids
-struct GItem { std::string label, icon, action; int tile = -1; };
+// (a live list's item: <key>.N.color "r g b" tints its icon piece, <key>.N.on "1" / "0" shows its "item on" / "item
+// off" pieces - neither when it has none)
+struct GItem { std::string label, icon, action; int tile = -1; float tint[3] = {1, 1, 1}; bool hasTint = false; int on = -1; };
 // a piece only for slider / picker tiles: laid out across the grid's whole row (those tiles take a row of their own), so
 // changing the columns doesn't squeeze it
 static bool RowPiece(const Elem& e) { return e.tileKinds && !(e.tileKinds & ~6); }
@@ -260,7 +263,12 @@ static std::vector<GItem> GridItemsAll(const Widget& w) {
         int n = tokens && tokens(key + ".count", s) ? atoi(s.c_str()) : 0;
         for (int i = 1; i <= std::min(n, 1000); ++i) {
             GItem it; std::string k = key + "." + std::to_string(i);
-            if (tokens) { tokens(k, it.label); tokens(k + ".icon", it.icon); }
+            if (tokens) {
+                tokens(k, it.label); tokens(k + ".icon", it.icon);
+                std::string c, o; int r, g, b;
+                if (tokens(k + ".color", c) && sscanf(c.c_str(), "%d %d %d", &r, &g, &b) == 3) { it.tint[0] = r / 255.f; it.tint[1] = g / 255.f; it.tint[2] = b / 255.f; it.hasTint = true; }
+                if (tokens(k + ".on", o) && !o.empty()) it.on = o != "0";
+            }
             v.push_back(it);
         }
         return v;
@@ -335,6 +343,11 @@ static MenuState::GridSt& GridState(const Widget& w, int count) {
     if (first) {   // first look: on the setting's value, scrolled to it
         Setting* s = SettingOf(w.bind);
         st.sel = s && s->get ? (int)lroundf(s->get()) : w.bind.empty() ? (int)lroundf(w.value) : 0;
+    }
+    std::string sv;   // a live list whose selection another mod keeps: <key>.sel
+    if (w.bind.compare(0, 5, "list:") == 0 && tokens && tokens(w.bind.substr(5) + ".sel", sv) && !sv.empty()) {
+        int s2 = atoi(sv.c_str());
+        if (s2 != st.sel || first) { st.sel = s2; GridKeepVisible(w, st, count); if (first) st.scroll = (float)st.top; }
     }
     st.sel = std::max(0, std::min(std::max(0, count - 1), st.sel));
     if (first) { GridKeepVisible(w, st, count); st.scroll = (float)st.top; }
@@ -679,6 +692,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
             for (int i : order) {
                 Elem& src = els[i];
                 if (src.selOnly && !cur) continue;
+                if ((src.role == "on" && it.on != 1) || (src.role == "off" && it.on != 0)) continue;   // (a live list item's state)
                 if (kind >= 0 && !TileShows(src, TileBit(t))) continue;
                 Elem e = src;
                 bool rowP = RowPiece(src);   // (slider / picker pieces: already laid out across the row)
@@ -711,7 +725,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 bool ownTex = e.role == "icon" || e.role == "bindicon";
                 if (bs && e.role == "icon" && it.icon.empty()) e.w = e.h = std::min(e.w, e.h);   // (a controller icon: square)
                 if (bs && (e.role == "bindicon" || (e.role == "icon" && it.icon.empty()))) { if (!BindIcon(dl, e, bs, waiting, w.group)) continue; }
-                else if (e.role == "icon") { if (it.icon.empty()) continue; e.tex = it.icon; e.texIdx = -2; }
+                else if (e.role == "icon") { if (it.icon.empty()) continue; e.tex = it.icon; e.texIdx = -2; if (it.hasTint) for (int q = 0; q < 3; ++q) e.col[q] *= it.tint[q]; }
                 if (preview) e.col[3] *= 0.45f;
                 if (!ownTex) e.texIdx = src.texIdx;
                 e.fontIdx = src.fontIdx;
@@ -832,6 +846,7 @@ std::vector<std::string> MenuPages() { std::vector<std::string> v; for (auto& p 
 std::string MenuPausePage() { for (auto& p : g_pages) if (p.pauseMenu) return p.group; return std::string(); }
 std::string MenuPauseOptionsPage() { for (auto& p : g_pages) if (p.pauseOptions) return p.group; return std::string(); }
 std::string MenuConfirmPage() { for (auto& p : g_pages) if (p.confirm) return p.group; return std::string(); }
+std::string MenuWorldMapPage() { for (auto& p : g_pages) if (p.worldMap) return p.group; return std::string(); }
 bool MenuIsOpen() { return g_menu.open; }
 static Page* MenuPage() { return g_menu.stack.empty() ? nullptr : PageOf(g_menu.stack.back()); }
 static void MenuGo(const std::string& page) {
@@ -1004,9 +1019,10 @@ static bool DrawMenu(ImDrawList* dl) {
 }
 
 // ---------------------------------------------------------------- authoring
-static const char* kRoleKey[] = { "", "label", "value", "fill", "tab", "arrowL", "arrowR", "desc", "bindicon", "icon", "gtab", "gtrack" };
+static const char* kRoleKey[] = { "", "label", "value", "fill", "tab", "arrowL", "arrowR", "desc", "bindicon", "icon", "gtab", "gtrack", "on", "off" };
 static const char* kRoleName[] = { "(none)", "label", "value text", "slider fill bar", "slider tab", "left arrow", "right arrow",
-                                   "page: description text", "binding icon (??? while waiting)", "item icon", "scroller tab", "scroller track" };
+                                   "page: description text", "binding icon (??? while waiting)", "item icon", "scroller tab", "scroller track",
+                                   "live list: item on (a tick)", "live list: item off (a cross)" };
 
 // ---------------------------------------------------------------- authoring panels
 static void ElemMenuProps(Elem& e) {
@@ -1351,22 +1367,23 @@ static void AddCarousel(Page& p) {
 // A game menu the page stands in for (one page each; UniPad opens it when that screen comes up): the right-click menu's
 // "replaces" dropdown
 static void ReplacesCombo(Page& p) {
-    static const char* kRep[] = { "nothing", "the pause menu", "the pause Options menu", "Yes / No confirm dialogs" };
-    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : p.confirm ? 3 : 0;
+    static const char* kRep[] = { "nothing", "the pause menu", "the pause Options menu", "Yes / No confirm dialogs", "the World Map" };
+    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : p.confirm ? 3 : p.worldMap ? 4 : 0;
     ImGui::SetNextItemWidth(180);
     if (ImGui::BeginCombo("replaces", kRep[cur])) {
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < 5; ++i) {
             std::string taken;   // (another page has it: picking it here moves it)
-            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions) || (i == 3 && o.confirm))) taken = o.group;
+            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions) || (i == 3 && o.confirm) || (i == 4 && o.worldMap))) taken = o.group;
             std::string lb = std::string(kRep[i]) + (taken.empty() ? "" : "  (now " + taken + ")");
             if (ImGui::Selectable(lb.c_str(), i == cur) && i != cur) {
-                p.pauseMenu = i == 1; p.pauseOptions = i == 2; p.confirm = i == 3;
-                for (auto& o : g_pages) if (&o != &p) { if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; if (i == 3) o.confirm = false; }
+                p.pauseMenu = i == 1; p.pauseOptions = i == 2; p.confirm = i == 3; p.worldMap = i == 4;
+                for (auto& o : g_pages) if (&o != &p) { if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; if (i == 3) o.confirm = false; if (i == 4) o.worldMap = false; }
                 g_dirty = true;
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip(i == 1 ? "Opens instead of the game's pause menu (Start / Esc in the world; needs UniPad). Back closes it and\nresumes; give tiles the \"Pause: ...\" actions (Resume, Restart race, Jump to Garage, Options, Quit,\nFree Cam...) under changes."
                                                    : i == 2 ? "Opens instead of the pause menu's Options screen (its Options item; needs UniPad). Back goes back to the\npause menu; give tiles the \"Pause Options: ...\" actions (Audio, Display, Gameplay, Player) - they open the\ngame's settings panels - or open a page (UniPad Options)."
                                                    : i == 3 ? "Opens instead of the game's Yes / No dialogs (Jump to Garage?, Quit?, Restart race?...; needs UniPad).\n{dialog.text} in a text shows its question; give tiles the \"Dialog: ...\" actions (Yes, No). Back answers\nas the dialog's own Back would (No when it has none)."
+                                                   : i == 4 ? "Opens instead of the game's World Map (needs UniPad, which drives the game's own map with your buttons:\nup / down its list, left / right that type's places, X show / hide the type, LT / RT the view, A the GPS).\nAn image element with \"world map\" ticked draws the map; a grid with the live list map.legend is the list\n({map.view} names the view)."
                                                    : "Opened only by tiles / the menu key.");
         }
         ImGui::EndCombo();
@@ -1596,6 +1613,7 @@ static void SaveMenus(FILE* f) {
         if (p.pauseMenu) fprintf(f, "pausemenu=1\n");
         if (p.pauseOptions) fprintf(f, "pauseopts=1\n");
         if (p.confirm) fprintf(f, "confirmdlg=1\n");
+        if (p.worldMap) fprintf(f, "worldmap=1\n");
     }
     for (auto& w : g_widgets) { fprintf(f, "\n[widget]\ngroup=%s\n", Esc(w.group).c_str()); SaveWidgetProps(f, w); }
 }
@@ -1638,6 +1656,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "pausemenu") p.pauseMenu = atoi(v.c_str()) != 0;
         else if (k == "pauseopts") p.pauseOptions = atoi(v.c_str()) != 0;
         else if (k == "confirmdlg") p.confirm = atoi(v.c_str()) != 0;
+        else if (k == "worldmap") p.worldMap = atoi(v.c_str()) != 0;
         else if (k == "selcolor") { int u = 1; sscanf(v.c_str(), "%d %f %f %f %f", &u, &p.selCol[0], &p.selCol[1], &p.selCol[2], &p.selCol[3]); p.useSel = u != 0; }
         return true;
     }

@@ -59,6 +59,7 @@ typedef void (*PFN_REUI_EditorState)(int* testMode, int* boardRows, int* boardFo
 typedef const char* (*PFN_REUI_PausePage)(void);
 typedef const char* (*PFN_REUI_PauseOptionsPage)(void);   // the page standing in for the pause menu's Options screen ("" none)
 typedef const char* (*PFN_REUI_ConfirmPage)(void);        // ... for the game's Yes / No dialogs ("" none)
+typedef const char* (*PFN_REUI_WorldMapPage)(void);       // ... for the game's World Map ("" none)
 // An element flag (a checkbox on every element while your mod is loaded): hideNow(ctx) returns 1 while flagged elements
 // are to be hidden. hiddenWhenMissing: what flagged elements do when your mod isn't installed. group > 0: only one flag
 // of the group per element (e.g. "hide online" / "online only").

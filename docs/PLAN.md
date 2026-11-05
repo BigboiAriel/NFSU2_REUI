@@ -166,6 +166,20 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   (Button1's / Button2's result into +0x50; it closes on its next update and sends it to its parent); Back = the
   dialog's own Back (No when it has none). Dialogs with 1 or 3 buttons stay the game's. A dialog over the pause page
   takes over; once answered the pause page comes back.
+- **World Map page (2026-11-04).** "replaces: the World Map" (`worldmap=1` on the page, REUI_WorldMapPage): UniPad
+  opens that page whenever the game's World Map screen (vtable 0x797F20, handler 0x4E08E0) is up and sends the
+  player's buttons to it as its own messages, so the game keeps its list, places, view, shown types (saved with the
+  career) and GPS; the page draws its state from tokens. An image element ticked "world map" (`worldmap=1`, icon size
+  `mapblip`, your car `mapplayer`) draws the whole track map (TRACKMAP<track>, Minimap page art) in its box, square:
+  the window map.view.uv ("u0 v0 frac": Full Map, or the region views City Core / Beacon Hill / Jackson Heights / Coal
+  Harbor East / West - the game's table 0x7F42C8, open by stage), the game's icons by world position (every one: the
+  host's worldView, no minimap needed) less the types in map.hidden, other mods' markers, your car on top, and the
+  selected place's ring (map.sel "x y"; MINIMAP_GPS_SELECTOR art). Blips carry their game type. Live-list grids:
+  <key>.N.color tints an item's icon, <key>.N.on shows its "item on" / "item off" pieces (roles on / off), <key>.sel
+  is its selection (kept by the mod). UniPad's tokens: map.legend (Your Car, Opponent Car, then the game's rows - label
+  from the game's text, icon + colour from the map icons of that type, on = shown), map.legend.sel, map.view (the
+  view's name), map.view.uv, map.sel, map.hidden. Buttons: up / down rows, left / right that type's places, X show /
+  hide, LT / RT view, A GPS (closes the map), B back (keys: arrows, X, Enter, Page Up / Down, Esc).
 - **Carousel (2026-11-03).** A widget type of its own ("Carousel (scrolls left / right)", `type=carousel`, saved with the
   grid's `grid=` line - cols = slots on screen, rows 1, totalRows = its tiles - and `carousel=centred wrap`): a grid's
   tiles on one row, left / right scroll it. Centred (default): the selected tile stays in the middle slot and the row

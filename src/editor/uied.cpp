@@ -43,6 +43,7 @@ int boardRows = 4; bool boardFollow = true; bool testMode = false; bool menuMode
 std::function<IDirect3DTexture9*(const std::string&, float*, float*)> liveTexture;
 std::function<bool(unsigned, GameObject&)> gameObject;
 std::function<bool(MapView&)> mapView;
+std::function<bool(MapView&)> worldView;
 std::function<std::vector<std::pair<int, std::string>>()> trackNames;
 std::vector<std::string> iconFamilies, iconKeys;
 std::function<IDirect3DTexture9*(int, int, int)> iconTexture;
@@ -466,6 +467,7 @@ struct Elem {
     // minimap: drawn as the track map around the car (the host's mapView), round, with the game's icons and other
     // mods' markers on it; mapZoom multiplies the game's zoom, mapBlip the icons' size; mapPlayer: the player's icon
     bool minimap = false, mapPlayer = true;
+    bool worldMap = false;   // drawn as the world map (the whole map, this box): see DrawWorldMap
     float mapZoom = 1, mapBlip = 1;
     // colour tokens: the colour (and my-row colour) taken from a named token every frame, times an opacity of its own;
     // col / hiCol then hold the resolved colour (saved too, so a build without tokens still shows it)
@@ -874,6 +876,90 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
             else if (bl.texName.empty()) Arrow(dl, p, bl.w * k, bl.h * k, deg, bcol);
         }
 }
+// The world map (the game's World Map screen, 0x4B09E0): the track map's window [u0, u0 + frac] x [v0, v0 + frac] (Full
+// Map: all of it; a region: the game's table at 0x7F42C8) in this box, square; the game's icons where they are in it
+// (racers, shops / events - their types hidden on the World Map left out -, your car on top) and other mods' markers;
+// the selected icon's ring (MINIMAP_GPS_SELECTOR). Tokens (UniPad): map.view.uv "u0 v0 frac", map.sel "x y", map.hidden
+// " 6 7 " (the icon types hidden).
+static void DrawWorldMap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bool editing) {
+    if (b.x - a.x < 4 || b.y - a.y < 4) return;
+    MapView mv;
+    bool ok = worldView && worldView(mv) && mv.tex && mv.size > 0;
+    if (!ok) {   // nothing to show: in the editor, where it goes
+        if (!editing) return;
+        dl->AddRectFilled(a, b, Mul(IM_COL32(20, 32, 40, 200), e.col));
+        dl->AddRect(a, b, Mul(IM_COL32(120, 200, 255, 200), e.col), 0, 0, 1.5f);
+        ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2);
+        dl->AddText(ImVec2(c.x - ImGui::CalcTextSize("world map").x / 2, c.y - 7), IM_COL32(200, 230, 255, 200), "world map");
+        return;
+    }
+    std::string v;
+    float u0 = 0, v0 = 0, frac = 1;
+    if (tokens && tokens("map.view.uv", v)) { float x, y, f; if (sscanf(v.c_str(), "%f %f %f", &x, &y, &f) == 3 && f > 0.01f && f <= 1.5f) { u0 = x; v0 = y; frac = f; } }
+    std::string hidden; if (tokens) tokens("map.hidden", hidden);
+    hidden = " " + hidden + " ";
+    bool hasSel = false; float sx = 0, sy = 0;
+    if (tokens && tokens("map.sel", v) && sscanf(v.c_str(), "%f %f", &sx, &sy) == 2) hasSel = true;
+    // a square in the box (centred)
+    float side = std::min(b.x - a.x, b.y - a.y);
+    ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), A(c.x - side / 2, c.y - side / 2), B(c.x + side / 2, c.y + side / 2);
+    if (!mv.mapName.empty()) {   // the map itself, replaced on the Minimap page
+        if (g_mapSeen.size() < 64) g_mapSeen.insert(mv.mapName);
+        std::string r = MapArtNow(mv.mapName);
+        float rsu = 1, rsv = 1;
+        if (!r.empty()) if (IDirect3DTexture9* t = NamedTex(r, (int)std::min(2048.f, side / frac), rsu, rsv)) { mv.tex = t; mv.su = rsu; mv.sv = rsv; mv.alphaOk = true; }
+    }
+    ImU32 mapCol = col;
+    if (!mv.alphaOk) { ImVec4 mc = ImGui::ColorConvertU32ToFloat4(col); mc.w *= 0.72f; mapCol = ImGui::ColorConvertFloat4ToU32(mc); }
+    dl->PushClipRect(A, B, true);
+    dl->AddCallback(MapAddrOn, mv.alphaOk ? nullptr : (void*)1);
+    dl->AddImage((ImTextureID)mv.tex, A, B, ImVec2(u0 * mv.su, v0 * mv.sv), ImVec2((u0 + frac) * mv.su, (v0 + frac) * mv.sv), mapCol);
+    dl->AddCallback(MapAddrOff, nullptr);
+    auto at = [&](float wx, float wy) {
+        float u = (wx - mv.x0) / mv.size, w = (mv.y0 - wy) / mv.size;
+        return ImVec2(A.x + (u - u0) / frac * side, A.y + (w - v0) / frac * side);
+    };
+    const float kPi = 3.14159265f;
+    float k = side / 353.f * e.mapBlip * 0.9f;   // (the stock icons against its 353-unit map)
+    ImVec4 ec = ImGui::ColorConvertU32ToFloat4(col);
+    auto draw = [&](const MapBlip& bl, ImVec2 p, float scale) {
+        p.x += bl.ox * bl.w * k; p.y += bl.oy * bl.h * k;
+        float deg = (bl.dirX != 0 || bl.dirY != 0) ? atan2f(bl.dirX, bl.dirY) * 180 / kPi : 0;
+        float bc[4] = {bl.col[0] * ec.x, bl.col[1] * ec.y, bl.col[2] * ec.z, bl.col[3] * ec.w};
+        ImU32 bcol = Col(bc);
+        float su = 1, sv = 1, w = bl.w * k * scale, h = bl.h * k * scale;
+        IDirect3DTexture9* tx = bl.tex;
+        ImVec2 uv0(bl.u0, bl.v0), uv1(bl.u1, bl.v1);
+        const std::string& gn = !bl.gameName.empty() ? bl.gameName : bl.texName;
+        if (PlainName(gn)) {
+            if (g_mapSeen.size() < 64) g_mapSeen.insert(gn);
+            std::string r = MapArtNow(gn);
+            float rsu = 1, rsv = 1;
+            if (!r.empty()) if (IDirect3DTexture9* vt = NamedTex(r, (int)ceilf(std::max(w, h)), rsu, rsv)) { tx = vt; uv0 = ImVec2(0, 0); uv1 = ImVec2(rsu, rsv); }
+        }
+        if (!tx && !bl.texName.empty()) tx = NamedTex(bl.texName, (int)ceilf(std::max(w, h)), su, sv);
+        if (tx) TurnedQuad(dl, tx, p, w, h, deg, ImVec2(uv0.x * su, uv0.y * sv), ImVec2(uv1.x * su, uv1.y * sv), bcol);
+        else if (bl.texName.empty()) Arrow(dl, p, w, h, deg, bcol);
+    };
+    for (int pass = 0; pass < 2; ++pass)
+        for (auto& bl : mv.blips) {
+            if (bl.player != (pass == 1) || (bl.player && !e.mapPlayer)) continue;
+            if (bl.type >= 0 && hidden.find(" " + std::to_string(bl.type) + " ") != std::string::npos) continue;
+            draw(bl, at(bl.x, bl.y), 1.f);
+        }
+    // the selected icon's ring
+    if (hasSel) {
+        ImVec2 p = at(sx, sy);
+        float rr = 26 * k * (0.85f + 0.15f * sinf((float)ImGui::GetTime() * 5));
+        std::string r = MapArtNow("MINIMAP_GPS_SELECTOR"); float su = 1, sv = 1;
+        IDirect3DTexture9* tx = r.empty() ? nullptr : NamedTex(r, (int)ceilf(rr), su, sv);
+        if (!tx) tx = NamedTex("MINIMAP_GPS_SELECTOR", (int)ceilf(rr), su, sv);
+        if (tx) dl->AddImage((ImTextureID)tx, ImVec2(p.x - rr / 2, p.y - rr / 2), ImVec2(p.x + rr / 2, p.y + rr / 2), ImVec2(0, 0), ImVec2(su, sv), Mul(IM_COL32(255, 255, 255, 255), e.col));
+        else dl->AddCircle(p, rr / 2, Mul(IM_COL32(40, 140, 255, 255), e.col), 32, std::max(1.5f, rr * 0.08f));
+    }
+    dl->PopClipRect();
+}
+
 // ---- shapes
 static std::vector<Elem>* g_drawList = nullptr;   // the elements being drawn now (where a shape's cutters are)
 // a shape: its stroke and fill textures (shapes.cpp) on its box, turned; cutters found among the elements drawn now
@@ -1000,6 +1086,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     }
     if (e.type == E_SHAPE) { DrawShape(dl, e, a, b, col, editing); return; }
     if (e.type == E_IMAGE && e.minimap) { DrawMinimap(dl, e, a, b, col, editing); return; }
+    if (e.type == E_IMAGE && e.worldMap) { DrawWorldMap(dl, e, a, b, col, editing); return; }
     if (e.type == E_IMAGE) {
         int ifam, iid;
         bool icon = IconRef(e.tex, ifam, iid);   // a controller button icon (its own textures)
@@ -1711,6 +1798,7 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
     if (e.follow) fprintf(f, "follow=%08X\n", e.follow);
     if (e.circle) fprintf(f, "circle=1\n");
     if (e.minimap) fprintf(f, "minimap=1\nmapzoom=%g\nmapblip=%g\nmapplayer=%d\n", e.mapZoom, e.mapBlip, e.mapPlayer ? 1 : 0);
+    if (e.worldMap) fprintf(f, "worldmap=1\nmapblip=%g\nmapplayer=%d\n", e.mapBlip, e.mapPlayer ? 1 : 0);
     if (e.additive) fprintf(f, "additive=1\n");
     if (!e.tint.empty()) fprintf(f, "tint=%s\n", e.tint.c_str());
     if (e.anim) fprintf(f, "anim=%d\n", e.anim);
@@ -1799,6 +1887,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "follow") e.follow = (unsigned)strtoul(v.c_str(), nullptr, 16);
     else if (k == "circle") e.circle = atoi(v.c_str()) != 0;
     else if (k == "minimap") e.minimap = atoi(v.c_str()) != 0;
+    else if (k == "worldmap") e.worldMap = atoi(v.c_str()) != 0;
     else if (k == "mapzoom") e.mapZoom = std::max(0.1f, std::min(10.f, (float)atof(v.c_str())));
     else if (k == "mapblip") e.mapBlip = std::max(0.1f, std::min(10.f, (float)atof(v.c_str())));
     else if (k == "mapplayer") e.mapPlayer = atoi(v.c_str()) != 0;
@@ -2651,6 +2740,13 @@ static void Selected(Elem& e) {
             ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("icons", &e.mapBlip, 0.01f, 0.1f, 10.f, "x%.2f")) g_dirty = true;
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Icon size (x1: as big against the map as the stock minimap's).");
             ImGui::SameLine(); if (ImGui::Checkbox("your car's icon", &e.mapPlayer)) g_dirty = true;
+        }
+        if (ImGui::Checkbox("world map", &e.worldMap)) { if (e.worldMap) e.minimap = false; g_dirty = true; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Drawn as the world map: the whole city map in this box (your Minimap page art), the game's icons (shops,\nevents, racers, your car) and other mods' markers (the multiplayer mod's players). With UniPad standing a page\nin for the game's World Map: its view (Full Map / a region: LT / RT), the selected icon's ring and the types\nhidden there. Its texture and UV aren't used.");
+        if (e.worldMap) {
+            ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("icons##wm", &e.mapBlip, 0.01f, 0.1f, 10.f, "x%.2f")) g_dirty = true;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Icon size (x1: as big against this box as the stock world map's).");
+            ImGui::SameLine(); if (ImGui::Checkbox("your car's icon##wm", &e.mapPlayer)) g_dirty = true;
         }
         if (ImGui::Checkbox("clip to a circle", &e.circle)) g_dirty = true;
         ImGui::SameLine(); if (ImGui::Checkbox("glow (additive)", &e.additive)) g_dirty = true;
