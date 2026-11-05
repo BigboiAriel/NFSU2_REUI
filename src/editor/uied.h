@@ -127,6 +127,9 @@ namespace uied {
     struct MenuInput { bool up = false, down = false, left = false, right = false, accept = false, back = false; };
     bool MenuOpen(const std::string& page = "");       // "" = the start page; false if there's no such page
     void MenuClose();
+    bool MenuOpenOver(const std::string& page);        // opened over the page shown (which stays drawn under it)
+    std::string MenuTopPage();                         // the page on top ("" = closed)
+    bool MenuPopOver();                                // the page on top, opened over another: closed (back to that one)
     bool MenuIsOpen();
     void MenuFrame(const MenuInput& held, double dt);  // every frame while open: held buttons (repeat is handled here)
     std::vector<std::string> MenuPages();

@@ -49,6 +49,9 @@ typedef void (*PFN_REUI_SetMenuDriver)(int external);       // 1: you drive the 
 typedef int (*PFN_REUI_HasMenuPages)(void);
 typedef int (*PFN_REUI_MenuOpen)(const char* page);         // "" / null = the start page; 0 if it can't open now
 typedef void (*PFN_REUI_MenuClose)(void);
+typedef int (*PFN_REUI_MenuOpenOver)(const char* page);     // over the page shown, which stays drawn under it (optional export)
+typedef const char* (*PFN_REUI_MenuTopPage)(void);          // the page on top ("" = closed) (optional export)
+typedef int (*PFN_REUI_MenuPopOver)(void);                  // the page on top, opened over another: closed, back to it (optional)
 typedef int (*PFN_REUI_MenuIsOpen)(void);
 typedef void (*PFN_REUI_MenuFrame)(int up, int down, int left, int right, int accept, int back, double dt);   // held buttons
 // the editor's state a value provider may need: testing a layout (no real race: show sample values), and the

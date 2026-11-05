@@ -218,6 +218,7 @@ static struct MenuState {
     bool open = false;
     std::vector<std::string> stack;      // pages opened, the last is shown
     std::vector<int> selStack;           // selected row on each
+    std::vector<bool> over;              // each: opened over the one under it (drawn on top of it, which stays shown)
     int sel = 0;                         // the selected row (grid / carousel)
     bool was[6] = {}; double held[6] = {}, next[6] = {};
     double flashL = 0, flashR = 0, t = 0;
@@ -233,10 +234,13 @@ static struct MenuState {
 float menuFade = 0.15f;
 bool customMenus = true;
 static double g_menuOpenAt = -100;   // when the page now shown came up
-static struct { std::string page; int sel = 0; double at = -100; bool on = false; } g_fadeOut;   // the page fading out
+static struct { std::string page, under; int sel = 0, underSel = 0; double at = -100; bool on = false; } g_fadeOut;   // the page fading out (and the one it was over)
 static void FadeOutNow() {
     if (g_menu.stack.empty()) return;
     g_fadeOut.page = g_menu.stack.back(); g_fadeOut.sel = g_menu.sel; g_fadeOut.at = ImGui::GetTime(); g_fadeOut.on = menuFade > 0;
+    bool ov = g_menu.stack.size() > 1 && !g_menu.over.empty() && g_menu.over.back();
+    g_fadeOut.under = ov ? g_menu.stack[g_menu.stack.size() - 2] : std::string();
+    g_fadeOut.underSel = ov && !g_menu.selStack.empty() ? g_menu.selStack.back() : 0;
 }
 
 // ---------------------------------------------------------------- grids
@@ -426,7 +430,7 @@ static bool GridMove(Widget& w, int dx, int dy) {
     Snd(dy < 0 ? SND_UP : dy > 0 ? SND_DOWN : dx < 0 ? SND_LEFT : SND_RIGHT);
     return true;
 }
-static void MenuGo(const std::string& page);
+static void MenuGo(const std::string& page, bool over = false);
 static void MenuBack();
 void MenuClose();
 static void GridAccept(Widget& w) {
@@ -883,10 +887,32 @@ std::string MenuConfirmPage() { if (customMenus) for (auto& p : g_pages) if (p.c
 std::string MenuWorldMapPage() { if (customMenus) for (auto& p : g_pages) if (p.worldMap) return p.group; return std::string(); }
 bool MenuIsOpen() { return g_menu.open; }
 static Page* MenuPage() { return g_menu.stack.empty() ? nullptr : PageOf(g_menu.stack.back()); }
-static void MenuGo(const std::string& page) {
-    if (!g_menu.stack.empty()) { FadeOutNow(); g_menu.selStack.push_back(g_menu.sel); }   // (another page: cross-fade)
+static void MenuGo(const std::string& page, bool over) {
+    if (!g_menu.stack.empty()) { if (!over) FadeOutNow(); g_menu.selStack.push_back(g_menu.sel); }   // (another page: cross-fade; over one: it stays)
     g_menuOpenAt = ImGui::GetTime();
-    g_menu.stack.push_back(page); g_menu.sel = 0;
+    g_menu.stack.push_back(page); g_menu.over.push_back(over && g_menu.stack.size() > 1); g_menu.sel = 0;
+}
+// a page opened over the one shown (a dialog over the World Map): drawn on top of it, which stays shown under it; Back
+// (or MenuPopOver) returns to it. Not open: opens it as usual.
+bool MenuOpenOver(const std::string& page) {
+    if (!g_menu.open) return MenuOpen(page);
+    if (page.empty() || !PageOf(page)) return false;
+    MenuGo(page, true);
+    for (auto& b : g_menu.was) b = true;   // (the press that brought it doesn't act on it)
+    for (auto& x : g_menu.next) x = 1e9;
+    return true;
+}
+// the page on top (shown / taking the input); "" = none
+std::string MenuTopPage() { return g_menu.open && !g_menu.stack.empty() ? g_menu.stack.back() : std::string(); }
+// the page on top, if it was opened over another: closed, back to that one (quietly); false if not
+bool MenuPopOver() {
+    if (!g_menu.open || g_menu.stack.size() < 2 || g_menu.over.empty() || !g_menu.over.back()) return false;
+    FadeOutNow(); g_fadeOut.under.clear();   // (only it fades; the one under stays)
+    g_menu.stack.pop_back(); g_menu.over.pop_back();
+    g_menu.sel = g_menu.selStack.empty() ? 0 : g_menu.selStack.back(); if (!g_menu.selStack.empty()) g_menu.selStack.pop_back();
+    for (auto& b : g_menu.was) b = true;
+    for (auto& x : g_menu.next) x = 1e9;
+    return true;
 }
 bool MenuOpen(const std::string& page) {
     std::string p = page;
@@ -903,7 +929,7 @@ bool MenuOpen(const std::string& page) {
 void MenuClose() {
     if (!g_menu.open) return;
     FadeOutNow();
-    g_menu.open = false; g_menu.stack.clear(); g_menu.selStack.clear(); g_menu.capturing.clear();
+    g_menu.open = false; g_menu.stack.clear(); g_menu.selStack.clear(); g_menu.over.clear(); g_menu.capturing.clear();
     if (g_menuValDirty) {   // own values of unbound widgets: saved, unless that would also save other unsaved edits
         if (!g_menuOtherEdits) Save();
         else Log("menu: a value changed; not saved on its own because the editor has other unsaved changes (Save there)");
@@ -912,9 +938,10 @@ void MenuClose() {
 }
 static void MenuBack() {
     Snd(SND_BACK);
-    if (g_menu.stack.size() > 1) { FadeOutNow(); g_menuOpenAt = ImGui::GetTime(); }   // (back a page: cross-fade)
+    bool ov = !g_menu.over.empty() && g_menu.over.back();
+    if (g_menu.stack.size() > 1) { FadeOutNow(); if (ov) g_fadeOut.under.clear(); else g_menuOpenAt = ImGui::GetTime(); }   // (back a page: cross-fade; from one over it: just that fades)
     else { MenuClose(); return; }
-    g_menu.stack.pop_back();
+    g_menu.stack.pop_back(); if (!g_menu.over.empty()) g_menu.over.pop_back();
     g_menu.sel = g_menu.selStack.empty() ? 0 : g_menu.selStack.back(); if (!g_menu.selStack.empty()) g_menu.selStack.pop_back();
 }
 static void MenuAccept(Widget& w) { if (GridLike(w)) GridAccept(w); }
@@ -1045,6 +1072,7 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel) {
         e.texIdx = src.texIdx; e.fontIdx = src.fontIdx;
         DrawElem(dl, e, false);
         src.texIdx = e.texIdx; src.fontIdx = e.fontIdx;   // keep what it looked up
+        src.shownSince = e.shownSince; src.playWas = e.playWas;   // (and when its animation started: play on / show only while)
     }
 }
 // while the menu is open it's all that's drawn (a page fading out after it closed is drawn under the rest)
@@ -1062,10 +1090,18 @@ static bool DrawMenu(ImDrawList* dl) {
     if (g_fadeOut.on) {
         float k = (float)((now - g_fadeOut.at) / F);
         if (k >= 1 || menuFade <= 0) g_fadeOut.on = false;
-        else if (Page* pp = PageOf(g_fadeOut.page)) drawA(*pp, g_fadeOut.sel, 1 - k);
+        else {
+            if (Page* up = g_fadeOut.under.empty() ? nullptr : PageOf(g_fadeOut.under)) drawA(*up, g_fadeOut.underSel, 1 - k);
+            if (Page* pp = PageOf(g_fadeOut.page)) drawA(*pp, g_fadeOut.sel, 1 - k);
+        }
     }
     if (!g_menu.open) return false;
     Page* p = MenuPage(); if (!p) return false;
+    // pages opened over others: the ones under them first (as they were left)
+    size_t n = g_menu.stack.size(), base = n - 1;
+    while (base > 0 && base < g_menu.over.size() && g_menu.over[base]) --base;
+    for (size_t i = base; i + 1 < n; ++i)
+        if (Page* up = PageOf(g_menu.stack[i])) drawA(*up, i < g_menu.selStack.size() ? g_menu.selStack[i] : 0, 1.f);
     drawA(*p, g_menu.sel, menuFade > 0 ? std::min(1.f, (float)((now - g_menuOpenAt) / F)) : 1.f);
     return true;
 }

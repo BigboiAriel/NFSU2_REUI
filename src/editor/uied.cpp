@@ -1053,7 +1053,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!editing && !e.flags.empty() && FlagsHide(e)) return;
     struct AnimSave { Elem& e; bool on = false; float scale = 1, x = 0, y = 0; ~AnimSave() { if (on) { e.scale = scale; e.x = x; e.y = y; } } } animSave{ e };
     if (!ShowIfOk(e)) { e.shownSince = -1; if (!editing) return; }
-    else if (e.shownSince < 0) e.shownSince = ImGui::GetTime();
+    else if (e.shownSince < 0 && e.playOn.empty()) e.shownSince = ImGui::GetTime();   // (play on: only when its value comes on)
     if (!e.playOn.empty() && !editing) {   // replays from its start when its value comes on (pressed)
         std::string v; bool on = tokens && tokens(e.playOn, v) && !v.empty() && v != "0";
         if (on && !e.playWas) e.shownSince = ImGui::GetTime();
