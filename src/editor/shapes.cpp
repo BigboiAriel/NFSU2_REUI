@@ -9,6 +9,8 @@
 #include <cstring>
 #include <string>
 #include <unordered_map>
+#include <thread>
+#include <vector>
 
 namespace shapes {
 
@@ -18,7 +20,10 @@ struct Entry { IDirect3DTexture9* fill = nullptr; IDirect3DTexture9* stroke = nu
 std::unordered_map<std::string, Entry> g_cache;
 // A shape that animates (pulse, keyframes) or is being resized is a new size - a new entry - every frame: kept to a
 // budget, the least recently drawn let go first (code review, 2026-11-03: a pulsing 600x300 panel made ~260 MB).
-constexpr size_t kMaxBytes = 64u << 20; constexpr size_t kMaxEntries = 128;
+constexpr size_t kMaxBytes = 128u << 20; constexpr size_t kMaxEntries = 192;
+// kept this long after last drawn (a menu's panels: made again when it reopens would hitch the game - each is computed
+// pixel by pixel at screen size); the byte / entry budget lets the least recently drawn go first meanwhile
+constexpr DWORD kKeepMs = 10 * 60 * 1000;
 size_t g_bytes = 0;
 void Drop(std::unordered_map<std::string, Entry>::iterator it) {
     deferfree::Later(it->second.fill); deferfree::Later(it->second.stroke);
@@ -171,7 +176,9 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
     float lext = std::max(1e-3f, fabsf(ldx) * bx + fabsf(ldy) * by);   // the shape's half length along the linear gradient
     const float white[4] = {1, 1, 1, 1};
     float aa = 0.5f / k;   // a pixel is 1/k shape pixels: the soft edge is one screen pixel wide
-    for (int y = 0; y < ph; ++y)
+    // rows split over the CPU's cores (each pixel is its own; a big panel at 1440p is over a million of them)
+    auto rows = [&](int y0, int y1) {
+    for (int y = y0; y < y1; ++y)
         for (int x = 0; x < pw; ++x) {
             float px = (x + 0.5f) / k - margin - bx, py = (y + 0.5f) / k - margin - by;   // from the centre, shape pixels
             float d = SdRoundBox(px, py, bx, by, s.r);
@@ -213,6 +220,17 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
                 spx[i] = Argb(c, band);
             }
         }
+    };
+    int nt = (int)std::max(1u, std::min(8u, std::thread::hardware_concurrency()));
+    if ((size_t)pw * ph < 40000) nt = 1;   // (small: not worth the threads)
+    if (nt == 1) rows(0, ph);
+    else {
+        std::vector<std::thread> th;
+        int per = (ph + nt - 1) / nt;
+        for (int t = 1; t < nt; ++t) { int a = t * per, b = std::min(ph, a + per); if (a < b) th.emplace_back(rows, a, b); }
+        rows(0, std::min(ph, per));
+        for (auto& t : th) t.join();
+    }
     Entry e; e.margin = margin; e.pw = pw; e.ph = ph; e.used = now;
     e.bytes = (size_t)pw * ph * 4 * (sw > 0 ? 2 : 1);
     MakeRoom(e.bytes);
@@ -226,7 +244,7 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
 void Trim() {
     DWORD now = GetTickCount();
     for (auto it = g_cache.begin(); it != g_cache.end();) {
-        if (now - it->second.used > 3000) { auto d = it++; Drop(d); }
+        if (now - it->second.used > kKeepMs) { auto d = it++; Drop(d); }
         else ++it;
     }
 }
