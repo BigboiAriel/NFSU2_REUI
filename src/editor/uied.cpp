@@ -1848,7 +1848,7 @@ static bool EndWrite(FILE* f, const std::string& path) {
 }
 static void Save() {
     FILE* f = BeginWrite(g_layoutPath); if (!f) { Log("ui editor: couldn't save %s", g_layoutPath.c_str()); return; }
-    fprintf(f, "# NFSU2 overlay (UI editor): one layout per game mode\nshow=%d\nboardrows=%d\nboardfollow=%d\nlistheight=%d\nhighlightsel=%d\n", g_show ? 1 : 0, boardRows, boardFollow ? 1 : 0, (int)g_listH, g_hiSel ? 1 : 0);
+    fprintf(f, "# NFSU2 overlay (UI editor): one layout per game mode\nshow=%d\nboardrows=%d\nboardfollow=%d\nlistheight=%d\nhighlightsel=%d\nmenufade=%g\ncustommenus=%d\n", g_show ? 1 : 0, boardRows, boardFollow ? 1 : 0, (int)g_listH, g_hiSel ? 1 : 0, menuFade, customMenus ? 1 : 0);
     for (auto& fd : g_flagDefs) fprintf(f, "flagdef=%s %d\n", fd.key.c_str(), fd.hideMissing ? 1 : 0);
     for (auto& t : g_tokens) if (!t.builtIn || TokenModified(t)) fprintf(f, "token=%s\n", TokenLine(t).c_str());
     for (auto& t : g_gradTokens) if (!t.builtIn || !SameStops(t.stops, t.def)) fprintf(f, "gradtoken=%s\n", GradTokenLine(t).c_str());
@@ -1954,6 +1954,8 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
             else if (k == "boardfollow") boardFollow = atoi(v.c_str()) != 0;
             else if (k == "mapart") { size_t sc = v.find(';'); if (sc != std::string::npos && sc > 0) g_mapArt[v.substr(0, sc)] = v.substr(sc + 1); }
             else if (k == "listheight") g_listH = std::max(80.f, std::min(1400.f, (float)atof(v.c_str())));
+            else if (k == "menufade") menuFade = std::max(0.f, std::min(1.f, (float)atof(v.c_str())));
+            else if (k == "custommenus") customMenus = atoi(v.c_str()) != 0;
             else if (k == "flagdef") {   // "key hidden-when-missing": a mod's flag, for when that mod isn't loaded
                 char key[64] = {}; int hm = 0;
                 if (sscanf(v.c_str(), "%63s %d", key, &hm) >= 1 && !FlagOf(key)) { FlagDef d; d.key = key; d.hideMissing = hm != 0; g_flagDefs.push_back(d); }

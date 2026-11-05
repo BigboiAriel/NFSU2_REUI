@@ -227,6 +227,17 @@ static struct MenuState {
                              // shown scroll; locked: left / right change its slider / picker tile (B lets go)
     std::map<std::string, GridSt> grids;
 } g_menu;
+// Fades (menuFade seconds; 0 = none): a page fades in as the menu opens, out as it closes (the game showing through),
+// and pages cross-fade when one opens another / goes back. customMenus off: no page stands in for the game's menus
+// (pause, its Options, the Yes / No dialogs, the World Map) - the game's own show; the menu key's page still opens.
+float menuFade = 0.15f;
+bool customMenus = true;
+static double g_menuOpenAt = -100;   // when the page now shown came up
+static struct { std::string page; int sel = 0; double at = -100; bool on = false; } g_fadeOut;   // the page fading out
+static void FadeOutNow() {
+    if (g_menu.stack.empty()) return;
+    g_fadeOut.page = g_menu.stack.back(); g_fadeOut.sel = g_menu.sel; g_fadeOut.at = ImGui::GetTime(); g_fadeOut.on = menuFade > 0;
+}
 
 // ---------------------------------------------------------------- grids
 // (a live list's item: <key>.N.color "r g b" tints its icon piece, <key>.N.on "1" / "0" shows its "item on" / "item
@@ -859,14 +870,15 @@ static void GridFromPieces(Widget& w) {
 }
 
 std::vector<std::string> MenuPages() { std::vector<std::string> v; for (auto& p : g_pages) v.push_back(p.group); return v; }
-std::string MenuPausePage() { for (auto& p : g_pages) if (p.pauseMenu) return p.group; return std::string(); }
-std::string MenuPauseOptionsPage() { for (auto& p : g_pages) if (p.pauseOptions) return p.group; return std::string(); }
-std::string MenuConfirmPage() { for (auto& p : g_pages) if (p.confirm) return p.group; return std::string(); }
-std::string MenuWorldMapPage() { for (auto& p : g_pages) if (p.worldMap) return p.group; return std::string(); }
+std::string MenuPausePage() { if (customMenus) for (auto& p : g_pages) if (p.pauseMenu) return p.group; return std::string(); }
+std::string MenuPauseOptionsPage() { if (customMenus) for (auto& p : g_pages) if (p.pauseOptions) return p.group; return std::string(); }
+std::string MenuConfirmPage() { if (customMenus) for (auto& p : g_pages) if (p.confirm) return p.group; return std::string(); }
+std::string MenuWorldMapPage() { if (customMenus) for (auto& p : g_pages) if (p.worldMap) return p.group; return std::string(); }
 bool MenuIsOpen() { return g_menu.open; }
 static Page* MenuPage() { return g_menu.stack.empty() ? nullptr : PageOf(g_menu.stack.back()); }
 static void MenuGo(const std::string& page) {
-    if (!g_menu.stack.empty()) g_menu.selStack.push_back(g_menu.sel);
+    if (!g_menu.stack.empty()) { FadeOutNow(); g_menu.selStack.push_back(g_menu.sel); }   // (another page: cross-fade)
+    g_menuOpenAt = ImGui::GetTime();
     g_menu.stack.push_back(page); g_menu.sel = 0;
 }
 bool MenuOpen(const std::string& page) {
@@ -883,6 +895,7 @@ bool MenuOpen(const std::string& page) {
 }
 void MenuClose() {
     if (!g_menu.open) return;
+    FadeOutNow();
     g_menu.open = false; g_menu.stack.clear(); g_menu.selStack.clear(); g_menu.capturing.clear();
     if (g_menuValDirty) {   // own values of unbound widgets: saved, unless that would also save other unsaved edits
         if (!g_menuOtherEdits) Save();
@@ -892,8 +905,9 @@ void MenuClose() {
 }
 static void MenuBack() {
     Snd(SND_BACK);
+    if (g_menu.stack.size() > 1) { FadeOutNow(); g_menuOpenAt = ImGui::GetTime(); }   // (back a page: cross-fade)
+    else { MenuClose(); return; }
     g_menu.stack.pop_back();
-    if (g_menu.stack.empty()) { MenuClose(); return; }
     g_menu.sel = g_menu.selStack.empty() ? 0 : g_menu.selStack.back(); if (!g_menu.selStack.empty()) g_menu.selStack.pop_back();
 }
 static void MenuAccept(Widget& w) { if (GridLike(w)) GridAccept(w); }
@@ -1026,11 +1040,26 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel) {
         src.texIdx = e.texIdx; src.fontIdx = e.fontIdx;   // keep what it looked up
     }
 }
-// while the menu is open it's all that's drawn
+// while the menu is open it's all that's drawn (a page fading out after it closed is drawn under the rest)
 static bool DrawMenu(ImDrawList* dl) {
+    double now = ImGui::GetTime(); float F = std::max(0.001f, menuFade);
+    auto drawA = [&](const Page& p, int sel, float a) {   // the page at an opacity: its vertices' alpha scaled
+        if (a <= 0.003f) return;
+        int v0 = dl->VtxBuffer.Size;
+        DrawMenuPage(dl, p, sel);
+        if (a < 0.999f) for (int i = v0; i < dl->VtxBuffer.Size; ++i) {
+            ImU32& c = dl->VtxBuffer[i].col;
+            c = (c & ~IM_COL32_A_MASK) | ((ImU32)(((c >> IM_COL32_A_SHIFT) & 0xFF) * a) << IM_COL32_A_SHIFT);
+        }
+    };
+    if (g_fadeOut.on) {
+        float k = (float)((now - g_fadeOut.at) / F);
+        if (k >= 1 || menuFade <= 0) g_fadeOut.on = false;
+        else if (Page* pp = PageOf(g_fadeOut.page)) drawA(*pp, g_fadeOut.sel, 1 - k);
+    }
     if (!g_menu.open) return false;
     Page* p = MenuPage(); if (!p) return false;
-    DrawMenuPage(dl, *p, g_menu.sel);
+    drawA(*p, g_menu.sel, menuFade > 0 ? std::min(1.f, (float)((now - g_menuOpenAt) / F)) : 1.f);
     return true;
 }
 
@@ -1436,6 +1465,12 @@ static std::vector<std::string> SubMenus(const std::string& leader) {
 }
 static void MenuBar() {
     if (!MenuWs()) return;
+    // all of them: on / off, and their fades
+    if (ImGui::Checkbox("custom menus replace the game's", &customMenus)) g_dirty = true;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Off: no menu stands in for the game's own (the pause menu, its Options, the Yes / No dialogs, the World\nMap) - the game's show again. The menu key's page still opens. Saved with the layout.");
+    ImGui::SameLine(); ImGui::SetNextItemWidth(120);
+    if (ImGui::SliderFloat("fade", &menuFade, 0.f, 1.f, menuFade > 0 ? "%.2f s" : "off")) { menuFade = std::max(0.f, std::min(1.f, menuFade)); g_dirty = true; }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Menus fade in as they open, out as they close, and cross-fade between pages (seconds; 0 = off).");
     auto pick = [](const std::string& g) { g_menuEd = g; g_sel = -1; g_selGroup.clear(); ClearMulti(); };
     auto newMenu = [&](const std::string& in) {   // in: the menu it goes in ("" = the top level)
         std::string g;

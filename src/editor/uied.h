@@ -134,4 +134,6 @@ namespace uied {
     std::string MenuPauseOptionsPage();                // ... its Options screen ("" none)
     std::string MenuConfirmPage();                     // ... the game's Yes / No dialogs ("" none)
     std::string MenuWorldMapPage();                    // ... the game's World Map ("" none)
+    extern float menuFade;                             // menus fade in / out / cross-fade over this (seconds; 0 = off)
+    extern bool customMenus;                           // false: no page stands in for the game's menus
 }

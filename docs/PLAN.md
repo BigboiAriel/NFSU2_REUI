@@ -187,6 +187,11 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   the menu's top.
   Grid / carousel tiles: each tile's pieces are placed first and drawn together, so its shapes are cut by its own copies
   of the grid's cutters (and by cutters outside the grid), not by the first tile's.
+- **Menu fades, custom menus on / off (2026-11-04).** `menufade=<s>` (layout header; 0.15 to start, 0 = off): a page
+  fades in as the menu opens, out as it closes (drawn under the HUD, the game showing through) and pages cross-fade
+  when one opens another or goes back - the page's vertices' alpha scaled. `custommenus=0`: no page stands in for the
+  game's menus (REUI_PausePage / PauseOptionsPage / ConfirmPage / WorldMapPage give ""), so the game's own show; the
+  menu key's page still opens. Both at the top of the menu bar.
 - **Icons of bindings (2026-11-04).** `icon:bind:<game event>` (e.g. icon:bind:FENG_LTRIGGER): the controller's icon for
   what that event is bound to now - the menu driver's token {bindicon.<event>} (UniPad: the event's first pad binding
   as an icon key), LT / RT for the triggers when there's none. The World Map page's LT / RT use them, and UniPad reads
