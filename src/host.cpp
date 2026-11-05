@@ -20,6 +20,7 @@
 #include <cstring>
 #include <string>
 #include <unordered_map>
+#include <map>
 #include <vector>
 
 namespace reui {
@@ -718,7 +719,7 @@ static bool Token(const std::string& k, std::string& out) {
             {"race.from", 0xFECED617}, {"race.subject", 0x2C167533}, {"race.type", 0x15E1351B}, {"race.distance", 0x080C9DAA},
             {"race.purse", 0xB54B81A7}, {"race.message", 0xDE075B62}};
         for (auto& r : kRace) if (k == r.key) { if (!FeText(r.hash, out)) out.clear(); return true; }
-        if (k == "race.map") { out = "fe:0F365871"; return true; }   // (a texture: the race's route map, TRACKMAP<n>)
+        // {race.map} (the route map's texture) comes from UniPad, which has the screen: "#<hash>" once it's loaded
     }
     if (k == "fps") { snprintf(b, sizeof b, "%.0f", g_fps); out = b; return true; }
     if (k == "speed" || k == "mph") {
@@ -870,10 +871,20 @@ void HostInit() {
         if (name.size() == 11 && name.compare(0, 3, "fe:") == 0) {   // "fe:<8 hex>": the picture a FEng image object shows now
             uint8_t* obj = FeObject((uint32_t)strtoul(name.c_str() + 3, nullptr, 16));
             uint32_t ty = obj ? *(uint32_t*)(obj + 0x18) : 0;
-            if (!obj || (ty != fe::kImage && ty != fe::kMultiImage && ty != fe::kColoredImage)) return nullptr;
-            if (*(uint32_t*)(obj + 0x1C) & 1) return nullptr;   // (hidden by the game: e.g. a race map still loading)
-            uint8_t* fti = TexInfo(*(uint32_t*)(obj + 0x24));
+            bool image = obj && (ty == fe::kImage || ty == fe::kMultiImage || ty == fe::kColoredImage);
+            bool hidden = image && (*(uint32_t*)(obj + 0x1C) & 1);   // (hidden by the game: e.g. a race map still loading)
+            uint8_t* fti = image && !hidden ? TexInfo(*(uint32_t*)(obj + 0x24)) : nullptr;
             IDirect3DTexture9* ft = TexOfInfo(fti);
+            {   // (diagnostics: each name's state, when it changes)
+                static std::map<std::string, int> told;
+                int st = !obj ? 1 : !image ? 2 : hidden ? 3 : !fti ? 4 : !ft ? 5 : 6;
+                int& was = told[name];
+                if (was != st) {
+                    was = st;
+                    static const char* kSt[] = {"", "no such object", "not an image", "hidden", "its texture isn't known", "its texture isn't loaded", "shown"};
+                    Log("texture %s: %s (type %u, texture %08X)", name.c_str(), kSt[st], ty, obj ? *(uint32_t*)(obj + 0x24) : 0);
+                }
+            }
             if (!ft) return nullptr;
             D3DSURFACE_DESC dd; int w = *(int16_t*)(fti + 0x44), h = *(int16_t*)(fti + 0x46);
             if (SUCCEEDED(ft->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && w > 0 && h > 0) { *su = (float)w / dd.Width; *sv = (float)h / dd.Height; }
