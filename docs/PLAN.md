@@ -196,6 +196,16 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   what that event is bound to now - the menu driver's token {bindicon.<event>} (UniPad: the event's first pad binding
   as an icon key), LT / RT for the triggers when there's none. The World Map page's LT / RT use them, and UniPad reads
   the view switch from the FENG_LTRIGGER / FENG_RTRIGGER bindings (pad and keyboard).
+- **World Map GPS and animations (2026-11-04).** From the stock UI_InGame_WorldMap.fng (GLOBALB.BUN, JDLZ block, read
+  with the FEngLib format): the selected place's two GPS selector rings loop 1.6 s (28.75 -> 70 units against the
+  353-unit map, fading in then out; the second 0.4 s behind), now drawn that way. An "off" live list item's icon and
+  label go to the game's alpha 60/255 (0x496920). `playon=<value key>` (editor: "play on"): an element's animation
+  starts over each time that value comes on; UniPad's {bindheld.<event>} is "1" while that binding is held, so the
+  World Map's LT / RT icons play the stock view arrows' press script (0x0280164F: 400 ms, 1.3x at 200 ms, tinted
+  0.79 0.96 0.54). UniPad: the World Map's one-button "Deactivating GPS" dialog (0x558610 -> 0x558490, Button3 result
+  0x34DC1BEC, no Back) gets the confirm page too - Yes turns the GPS off, No sends the map's own 0xB4623F67 ("leave
+  it", ends its wait); other one-button notices: either answer is their one button. {map.gps} / {map.gps.action}
+  ("Activate GPS" / "Deactivate GPS", from 0x838590+0x29 and 0x501100).
 - **Carousel (2026-11-03).** A widget type of its own ("Carousel (scrolls left / right)", `type=carousel`, saved with the
   grid's `grid=` line - cols = slots on screen, rows 1, totalRows = its tiles - and `carousel=centred wrap`): a grid's
   tiles on one row, left / right scroll it. Centred (default): the selected tile stays in the middle slot and the row
