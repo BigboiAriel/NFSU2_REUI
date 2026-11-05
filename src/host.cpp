@@ -671,8 +671,55 @@ static bool MapViewNow2(uied::MapView& out, bool world) {
     return true;
 }
 
+// A FEng object by name hash anywhere in the loaded packages (the newest package first; groups searched, hidden objects
+// too) - kitbashed pages show the game's own texts ({fe.<hash>}) and pictures (texture fe:<hash>) of a screen they
+// stand in for
+static uint8_t* FindFeObj(uint8_t* obj, uint32_t hash, int depth) {
+    for (int guard = 0; obj && guard < 4096; ++guard, obj = *(uint8_t**)(obj + 4)) {
+        if (!Readable(obj, 0x78)) return nullptr;
+        if (*(uint32_t*)(obj + 0x10) == hash) return obj;
+        if (*(uint32_t*)(obj + 0x18) == fe::kGroup && depth < 16 && *(int*)(obj + 0x60) > 0)
+            if (uint8_t* f = FindFeObj(*(uint8_t**)(obj + 0x64), hash, depth + 1)) return f;
+    }
+    return nullptr;
+}
+static uint8_t* FeObject(uint32_t hash) {
+    auto pk = FengPackages();
+    for (auto it = pk.rbegin(); it != pk.rend(); ++it) {
+        uint8_t* pkg = (uint8_t*)it->first;
+        if (Readable(pkg, 0x50)) if (uint8_t* o = FindFeObj(*(uint8_t**)(pkg + 0x4C), hash, 0)) return o;
+    }
+    return nullptr;
+}
+// a FEng string object's text now (its own buffer, else its language label's text)
+static bool FeText(uint32_t hash, std::string& out) {
+    uint8_t* obj = FeObject(hash);
+    if (!obj || *(uint32_t*)(obj + 0x18) != fe::kString) return false;
+    out.clear();
+    if (*(uint32_t*)(obj + 0x1C) & 2) {
+        const wchar_t* w = *(const wchar_t**)(obj + 0x64);
+        if (Readable(w, 2)) out = Narrow(w);
+    } else {
+        static wchar_t buf[0x800];
+        buf[0] = 0;
+        if (((bool(__cdecl*)(wchar_t*, int, uint32_t))fe::LocalizeString)(buf, 0x800, *(uint32_t*)(obj + 0x60))) out = Narrow(buf);
+    }
+    return true;
+}
+
 static bool Token(const std::string& k, std::string& out) {
     char b[64];
+    if (k.size() == 11 && k.compare(0, 3, "fe.") == 0) {   // {fe.<8 hex>}: the game's FEng string with that name hash
+        if (!FeText((uint32_t)strtoul(k.c_str() + 3, nullptr, 16), out)) out.clear();
+        return true;
+    }
+    if (k.compare(0, 5, "race.") == 0) {   // the race start dialog's (UI_EngageRaceDialog, filled by 0x4B53C0) texts and map
+        static const struct { const char* key; uint32_t hash; } kRace[] = {
+            {"race.from", 0xFECED617}, {"race.subject", 0x2C167533}, {"race.type", 0x15E1351B}, {"race.distance", 0x080C9DAA},
+            {"race.purse", 0xB54B81A7}, {"race.message", 0xDE075B62}};
+        for (auto& r : kRace) if (k == r.key) { if (!FeText(r.hash, out)) out.clear(); return true; }
+        if (k == "race.map") { out = "fe:0F365871"; return true; }   // (a texture: the race's route map, TRACKMAP<n>)
+    }
     if (k == "fps") { snprintf(b, sizeof b, "%.0f", g_fps); out = b; return true; }
     if (k == "speed" || k == "mph") {
         uint8_t* p1 = *(uint8_t**)0x8900AC;
@@ -819,6 +866,18 @@ void HostInit() {
             IDirect3DTexture9* t = RvmTexture();
             if (t) g_rvmDrawnAt = GetTickCount();
             return t;
+        }
+        if (name.size() == 11 && name.compare(0, 3, "fe:") == 0) {   // "fe:<8 hex>": the picture a FEng image object shows now
+            uint8_t* obj = FeObject((uint32_t)strtoul(name.c_str() + 3, nullptr, 16));
+            uint32_t ty = obj ? *(uint32_t*)(obj + 0x18) : 0;
+            if (!obj || (ty != fe::kImage && ty != fe::kMultiImage && ty != fe::kColoredImage)) return nullptr;
+            if (*(uint32_t*)(obj + 0x1C) & 1) return nullptr;   // (hidden by the game: e.g. a race map still loading)
+            uint8_t* fti = TexInfo(*(uint32_t*)(obj + 0x24));
+            IDirect3DTexture9* ft = TexOfInfo(fti);
+            if (!ft) return nullptr;
+            D3DSURFACE_DESC dd; int w = *(int16_t*)(fti + 0x44), h = *(int16_t*)(fti + 0x46);
+            if (SUCCEEDED(ft->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && w > 0 && h > 0) { *su = (float)w / dd.Width; *sv = (float)h / dd.Height; }
+            return ft;
         }
         uint8_t* ti = TexInfo(name.size() == 9 && name[0] == '#' ? (uint32_t)strtoul(name.c_str() + 1, nullptr, 16) : BHash(name.c_str()));   // "#HHHHHHHH": by hash
         if (name[0] == '#') {   // (diagnostics: each hash once)

@@ -381,6 +381,23 @@ static float TextWidth(const Font& f, const std::string& s) {
     return std::max(best, x);
 }
 static int Lines(const std::string& s) { return 1 + (int)std::count(s.begin(), s.end(), '\n'); }
+// s broken at spaces into lines no wider than maxW (font pixels); its own line breaks kept, a word wider than the line
+// left whole
+static std::string WrapText(const Font& f, const std::string& s, float maxW) {
+    if (maxW <= 0) return s;
+    std::string out, line;
+    size_t i = 0;
+    while (i <= s.size()) {
+        size_t e = s.find_first_of(" \n", i); if (e == std::string::npos) e = s.size();
+        std::string word = s.substr(i, e - i);
+        std::string tryLine = line.empty() ? word : line + " " + word;
+        if (!line.empty() && TextWidth(f, tryLine) > maxW) { out += line + "\n"; line = word; }
+        else line = tryLine;
+        if (e < s.size() && s[e] == '\n') { out += line + "\n"; line.clear(); }
+        i = e + 1;
+    }
+    return out + line;
+}
 // draw s with its top-left at p, glyphs scaled by k (screen pixels per font pixel)
 static void DrawText(ImDrawList* dl, const Font& f, ImVec2 p, float k, ImU32 col, const std::string& s, int align, float boxW) {
     IDirect3DTexture9* tx = TexOf(f.tex); if (!tx) return;
@@ -451,6 +468,7 @@ struct Elem {
     int texIdx = -2, fontIdx = -2;        // resolved lazily (-2: not yet)
     std::string role;                     // menus: what it does in its row / page (uied_menu.inc)
     bool selOnly = false;                 // menus: shown on the selected row only
+    bool wrap = false;                    // text: broken into lines to fit its box width (a game screen's long message)
     bool afterLabel = false;              // menus, a grid's piece: moves with the end of its tile's label text (a binding's icon)
     int tileKinds = 0;                    // menus, a grid's piece: the tiles it shows on (1 buttons, 2 sliders, 4 pickers, 8 bindings; 0 all)
     std::string kit;                      // (loading only: an older widget-kit template piece - left out)
@@ -644,6 +662,7 @@ static ImVec2 ElemSize(Elem& e) {
         if (e.fontIdx == -2) e.fontIdx = FindFont(e.font);
         if (e.fontIdx < 0) return ImVec2(40, 12);
         const Font& f = g_fonts[e.fontIdx]; std::string s = Expand(e.text, e.row);
+        if (e.wrap && e.w > 0 && e.scale > 0) s = WrapText(f, s, e.w / e.scale);
         return ImVec2(std::max(e.w, TextWidth(f, s) * e.scale), Lines(s) * f.line * e.scale);
     }
     return ImVec2(e.w, e.h);
@@ -1235,6 +1254,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (e.fontIdx == -2) e.fontIdx = FindFont(e.font);
         std::string s = Expand(e.text, e.row);
         if (editing && s.empty()) s = e.text;   // show the template where there's no value yet
+        if (e.fontIdx >= 0 && e.wrap && e.w > 0 && e.scale > 0) s = WrapText(g_fonts[e.fontIdx], s, e.w / e.scale);
         if (e.fontIdx >= 0) DrawText(dl, g_fonts[e.fontIdx], a, e.scale * Unit(), col, s, e.align, b.x - a.x);
     }
 }
@@ -1853,6 +1873,7 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
     if (e.selOnly) fprintf(f, "selonly=1\n");
     if (e.tileKinds) fprintf(f, "tilekinds=%d\n", e.tileKinds);
     if (e.afterLabel) fprintf(f, "afterlabel=1\n");
+    if (e.wrap) fprintf(f, "wrap=1\n");
     if (!e.showIf.empty()) fprintf(f, "showif=%s\n", e.showIf.c_str());
     if (e.bindKind) fprintf(f, "bind=%s\nbindkind=%d\nbindrange=%g %g\n", e.bind.c_str(), e.bindKind, e.bindMin, e.bindMax);
     if (e.bindKind == 3 || e.bindKind == 4) fprintf(f, "bindrot=%g %g\n", e.rotMin, e.rotMax);
@@ -1940,6 +1961,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "selonly") e.selOnly = atoi(v.c_str()) != 0;
     else if (k == "tilekinds") e.tileKinds = atoi(v.c_str()) & 15;
     else if (k == "afterlabel") e.afterLabel = atoi(v.c_str()) != 0;
+    else if (k == "wrap") e.wrap = atoi(v.c_str()) != 0;
     else if (k == "kit") e.kit = Unesc(v);
     else if (k == "showif") e.showIf = v;
     else if (k == "bind") e.bind = v;
@@ -2760,7 +2782,7 @@ static void CopyToSimilar(Elem& e) {
                 if (e.type == E_TEXT) { o.font = e.font; o.fontIdx = e.fontIdx; }
                 else { o.tex = e.tex; o.pack = e.pack; o.texIdx = e.texIdx; o.u0 = e.u0; o.v0 = e.v0; o.u1 = e.u1; o.v1 = e.v1; o.rot = e.rot; }
             }
-            if (e.type == E_TEXT && cAlign) { o.align = e.align; o.w = e.w; }
+            if (e.type == E_TEXT && cAlign) { o.align = e.align; o.w = e.w; o.wrap = e.wrap; }
             if (e.type == E_TEXT && cText) o.text = e.text;
             if (cHi) { o.hiMine = e.hiMine; memcpy(o.hiCol, e.hiCol, sizeof o.hiCol); o.hiTok = e.hiTok; o.hiTokA = e.hiTokA; }
             if (cVis) o.visible = e.visible;
@@ -2863,6 +2885,8 @@ static void Selected(Elem& e) {
         ImGui::SameLine(); const char* al[] = { "left", "centre", "right" };
         ImGui::SetNextItemWidth(100); if (ImGui::Combo("align", &e.align, al, 3)) g_dirty = true;
         ImGui::SetNextItemWidth(160); if (ImGui::DragFloat("box width (for centre/right)", &e.w, 0.5f, 0.f, 2000.f, "%.0f")) g_dirty = true;
+        ImGui::SameLine(); if (ImGui::Checkbox("wrap", &e.wrap)) g_dirty = true;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Break the text into lines to fit the box width (a long message from the game).");
         std::vector<const char*> fn; int cur = -1;
         for (size_t i = 0; i < g_fonts.size(); ++i) { fn.push_back(g_fonts[i].name.c_str()); if (g_fonts[i].name == e.font) cur = (int)i; }
         ImGui::SetNextItemWidth(220);
