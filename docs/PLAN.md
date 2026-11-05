@@ -230,6 +230,13 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   (0xDE075B62); texture {race.map} (fe:0F365871, the race's TRACKMAP<n>). The layout's "Race Start" page was
   kitbashed from the World Map's box, legend bars and dark list panel, the Engage panel's icons and the Confirm Page's
   buttons.
+- **Multiplayer race start page (2026-11-05).** "replaces: the race start dialog (multiplayer)" (`racedlgmp=1`,
+  REUI_RaceDialogMpPage): UniPad opens it instead of the race start page while NFSU2 Multiplayer says we're in a session
+  (NFSU2MP_InSession). Tiles: "Race: COOP" (UniPad tells the multiplayer mod NFSU2MP_RaceChoice(1), then accepts), "Race:
+  Accept" (= SOLO there: choice 0), "Race: Decline". Race settings rows come from the multiplayer mod (REUI_AddSetting):
+  race.ai / race.traffic / race.rubberband / race.collision (On / Off pickers), race.aicount (slider 0-5),
+  race.difficulty (Easy / Medium / Hard). The layout's "Race Start Multiplayer" page has Coop / Solo / Race Settings;
+  "Race Start Multiplayer/Race Settings" is a copy of the UniPad Options page with those six rows.
 - **Cutters and layers (2026-11-04).** A cutter cuts only shapes on its own layer or lower; a shape on a higher layer
   sits over it uncut (the race start page's buttons and info rows were cut away by the panel cutter behind them).
 - **No hitch when a menu opens (2026-11-04).** Shape pictures (computed per pixel at screen size) were let go 3 s after
