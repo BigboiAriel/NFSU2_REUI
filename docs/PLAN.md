@@ -230,6 +230,8 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   (0xDE075B62); texture {race.map} (fe:0F365871, the race's TRACKMAP<n>). The layout's "Race Start" page was
   kitbashed from the World Map's box, legend bars and dark list panel, the Engage panel's icons and the Confirm Page's
   buttons.
+- **Cutters and layers (2026-11-04).** A cutter cuts only shapes on its own layer or lower; a shape on a higher layer
+  sits over it uncut (the race start page's buttons and info rows were cut away by the panel cutter behind them).
 - **No hitch when a menu opens (2026-11-04).** Shape pictures (computed per pixel at screen size) were let go 3 s after
   last drawn, so each menu open remade every panel in one frame. Now kept 10 minutes (128 MB / 192 entries, least
   recently drawn first) and made on up to 8 threads. Still to watch: a shape whose cutters move relative to it (a
