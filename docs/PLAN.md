@@ -211,6 +211,14 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   page for the GPS questions, as the game draws its dialog over its map. Menu pages draw copies of their elements, so
   an element's animation start is now copied back (play on works there). The trigger icons idle at 0.588 alpha (the
   stock arrows' 150/255) and flash to full on the press (their own colour - no tint).
+- **Shapes on the graphics card (2026-11-04).** shapes_gpu.cpp: the shape (rounded box, stroke inside / centre /
+  outside, fill and stroke gradients, up to 16 cuts with their gaps, cut edges without the stroke) worked out per screen
+  pixel by a ps_3_0 pixel shader with a vs_3_0 vertex shader repeating ImGui's DX9 projection - the same maths as
+  shapes.cpp, one screen pixel of soft edge from the derivatives. Drawn as ImGui quads between callbacks that set the
+  shaders and the shape's constants (kept per frame, cleared at SetDevice). Compiled on a background thread from
+  d3dcompiler_47.dll (_43 as a fallback) the first time a shape is drawn; until then, if it fails (logged), or for a
+  shape with more than 16 cuts / 8 stops per gradient, the CPU textures as before. Log: "shapes: drawn on the graphics
+  card".
 - **No hitch when a menu opens (2026-11-04).** Shape pictures (computed per pixel at screen size) were let go 3 s after
   last drawn, so each menu open remade every panel in one frame. Now kept 10 minutes (128 MB / 192 entries, least
   recently drawn first) and made on up to 8 threads. Still to watch: a shape whose cutters move relative to it (a

@@ -18,6 +18,7 @@
 #include "vecart.h"
 #include "deferfree.h"
 #include "shapes.h"
+#include "shapes_gpu.h"
 #include <windows.h>
 #include <shellapi.h>
 #include "imgui.h"
@@ -344,6 +345,7 @@ void Release() {
     for (auto& t : g_tex) if (t.tex) { t.tex->Release(); t.tex = nullptr; }
     vecart::Release();
     shapes::Release();
+    shapes::GpuRelease();
     deferfree::Flush();
 }
 static void Trim() {   // keep at most ~400 textures made; drop the least recently used
@@ -1030,19 +1032,27 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
             for (int i = 0; i < 4; ++i) x.r[i] = std::max(0.f, o.rad[i]) * ok;
             cuts.push_back(x);
         }
-    shapes::Result r;
     shapes::Gradient sg, fg;   // (tokens resolved now: a token's change redraws the shape)
     bool sOn = ResolveGrad(e.strokeGrad, 1, sg), fOn = ResolveGrad(e.fillGrad, k, fg);
-    if (!shapes::Get(g_dev, box, std::max(0.f, e.stroke) * k, e.strokeAlign, sg, fg, cuts, r)) return;
-    float m = r.margin;
-    ImVec2 q0 = at(-pw / 2 - m, -ph / 2 - m), q1 = at(pw / 2 + m, -ph / 2 - m), q2 = at(pw / 2 + m, ph / 2 + m), q3 = at(-pw / 2 - m, ph / 2 + m);
+    float sw = std::max(0.f, e.stroke) * k;
     // the fill keeps its own colour, faded with the element (animations, blink) as the stroke colour is
     float fade = e.col[3] > 0.001f ? std::min(1.f, ImGui::ColorConvertU32ToFloat4(col).w / e.col[3]) : 1.f;
     float fc[4] = {e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3] * fade};
     if (fOn) fc[0] = fc[1] = fc[2] = 1;   // the gradient's colours, at the fill's opacity
     if (sOn) { ImVec4 v = ImGui::ColorConvertU32ToFloat4(col); col = ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, v.w)); }
-    if (r.fill && fc[3] > 0.002f) dl->AddImageQuad((ImTextureID)r.fill, q0, q1, q2, q3, ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), Col(fc));
-    if (r.stroke) dl->AddImageQuad((ImTextureID)r.stroke, q0, q1, q2, q3, ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), col);
+    auto quad = [&](float m, ImVec2* q) { q[0] = at(-pw / 2 - m, -ph / 2 - m); q[1] = at(pw / 2 + m, -ph / 2 - m); q[2] = at(pw / 2 + m, ph / 2 + m); q[3] = at(-pw / 2 - m, ph / 2 + m); };
+    bool drawn = false;
+    if (shapes::GpuOn(g_dev)) {   // the graphics card works it out per pixel (nothing made, nothing kept)
+        float m = shapes::GpuMargin(sw, e.strokeAlign); ImVec2 q[4]; quad(m, q);
+        drawn = shapes::GpuDraw(dl, box, sw, e.strokeAlign, sg, fg, cuts, m, q, fc[3] > 0.002f ? Col(fc) : 0u, col);
+    }
+    if (!drawn) {   // (no shaders, or more cuts / gradient stops than they take): a texture made on the CPU
+        shapes::Result r;
+        if (!shapes::Get(g_dev, box, sw, e.strokeAlign, sg, fg, cuts, r)) return;
+        ImVec2 q[4]; quad(r.margin, q);
+        if (r.fill && fc[3] > 0.002f) dl->AddImageQuad((ImTextureID)r.fill, q[0], q[1], q[2], q[3], ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), Col(fc));
+        if (r.stroke) dl->AddImageQuad((ImTextureID)r.stroke, q[0], q[1], q[2], q[3], ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), col);
+    }
     if (e.cut && editing) {   // a cutter: marked as one while editing (an invisible one - opacity 0 - is still found)
         ImVec2 q[4] = {at(-pw / 2, -ph / 2), at(pw / 2, -ph / 2), at(pw / 2, ph / 2), at(-pw / 2, ph / 2)};
         dl->AddPolyline(q, 4, IM_COL32(255, 80, 200, 150), ImDrawFlags_Closed, 1.f);
@@ -2177,6 +2187,7 @@ void SetDevice(IDirect3DDevice9* dev) {   // the start of a frame: last frame's 
     deferfree::Flush();
     ResolveTokens();
     shapes::Trim();
+    shapes::GpuFrameStart();
 }
 IDirect3DDevice9* Device() { return g_dev; }
 static bool MenuOpenNow();
