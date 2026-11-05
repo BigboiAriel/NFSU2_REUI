@@ -38,6 +38,8 @@ namespace uied {
     // live copy, by name; nullptr when it isn't loaded right now. *su / *sv: the picture's share of the texture
     // (the game pads textures to powers of two)
     extern std::function<IDirect3DTexture9*(const std::string& name, float* su, float* sv)> liveTexture;
+    // whether a live texture's alpha says anything (the game's track maps have none: drawn with the element's alpha)
+    extern std::function<bool(IDirect3DTexture9*)> textureAlphaOk;
     // A game HUD object as it is on screen this frame, by its FEng name hash (the host walks the loaded packages):
     // centre x, y from the screen centre in 640x480 units (y down), size, turn (degrees clockwise), uv, colour, its
     // texture (su / sv: the picture's share of a padded texture). Not found / hidden: false.

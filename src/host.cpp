@@ -526,6 +526,16 @@ static bool MapAlphaOk(IDirect3DTexture9* t) {
     Log("minimap: map %ux%u alpha: average %u, highest %u -> %s", dd.Width, dd.Height, n ? sum / n : 0, mx, ok ? "used" : "empty, ignored");
     return ok;
 }
+// the same for any live texture (an image element's): checked once per texture
+static bool TexAlphaOk(IDirect3DTexture9* t) {
+    static std::unordered_map<IDirect3DTexture9*, bool> seen;
+    auto it = seen.find(t);
+    if (it != seen.end()) return it->second;
+    bool ok = MapAlphaOk(t);
+    if (seen.size() > 256) seen.clear();
+    seen[t] = ok;
+    return ok;
+}
 static const char* g_mapWhy = "";   // (diagnostics: why there's no minimap, the icon list's counts)
 static int g_mapStat[8];
 static bool MapViewNow2(uied::MapView& out, bool world = false);
@@ -862,6 +872,7 @@ void HostInit() {
     for (const HudPiece& p : kHudPieces) if (p.label) uied::AddReplaceTarget(p.id, p.label, p.tip);
     uied::AddReplaceTarget("rvm", "rear-view mirror", "The game's own rear-view mirror (also hidden by itself while an element shows {rvm}).");
     uied::AddFlag("hide_wreck", "hide in a wreck", "Hidden while the game shows a wreck: its crash camera, which slows the world to x0.33\n(World [0x890080] +0x108; the jump camera uses x0.4).", 0, false, [] { return InWreck(); });
+    uied::textureAlphaOk = TexAlphaOk;
     uied::liveTexture = [](const std::string& name, float* su, float* sv) -> IDirect3DTexture9* {
         if (name == "@rvm") {   // the live rear-view mirror ({rvm})
             IDirect3DTexture9* t = RvmTexture();

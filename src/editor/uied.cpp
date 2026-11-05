@@ -42,6 +42,7 @@ namespace uied {
 std::function<bool(const std::string&, std::string&)> tokens;
 int boardRows = 4; bool boardFollow = true; bool testMode = false; bool menuMode = false;
 std::function<IDirect3DTexture9*(const std::string&, float*, float*)> liveTexture;
+std::function<bool(IDirect3DTexture9*)> textureAlphaOk;
 std::function<bool(unsigned, GameObject&)> gameObject;
 std::function<bool(MapView&)> mapView;
 std::function<bool(MapView&)> worldView;
@@ -783,6 +784,9 @@ static std::string MapKeyOf(const std::string& tex) {
 // drawn the same way: the vertex (element) alpha only.
 static DWORD g_mapSamp[6], g_mapAlphaOp, g_mapBlend[2];
 static const D3DSAMPLERSTATETYPE kMapSamp[6] = {D3DSAMP_ADDRESSU, D3DSAMP_ADDRESSV, D3DSAMP_BORDERCOLOR, D3DSAMP_MIPFILTER, D3DSAMP_MAXMIPLEVEL, D3DSAMP_MIPMAPLODBIAS};
+static void NoAlphaOn(const ImDrawList*, const ImDrawCmd*) {   // the next draws: alpha from the vertices only (ALPHAARG2 = diffuse)
+    if (g_dev) g_dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+}
 static void MapAddrOn(const ImDrawList*, const ImDrawCmd* cb) {
     if (!g_dev) return;
     for (int i = 0; i < 6; ++i) g_dev->GetSamplerState(0, kMapSamp[i], &g_mapSamp[i]);
@@ -1170,9 +1174,11 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         IDirect3DTexture9* tx = icon ? (iconTexture ? iconTexture(ifam, iid, onScreen) : nullptr)
                               : vec ? vecart::Texture(g_dev, vecart::RefName(e.tex), onScreen) : TexOf(e.texIdx);
         float su = 1, sv = 1;   // a live texture padded to a power of two: the picture is its top-left part
+        bool noAlpha = false;   // a live texture with nothing in its alpha (a track map): drawn with the element's alpha only
         if (!tx && !icon && e.texIdx < 0 && liveTexture && !e.tex.empty()) {
             std::string tn = texVal ? Expand(e.tex) : e.tex;
             if (!tn.empty() && tn.find('{') == std::string::npos) tx = liveTexture(tn, &su, &sv);
+            if (tx && tn[0] != '@' && textureAlphaOk && !textureAlphaOk(tx)) noAlpha = true;
         }
         {   // a minimap texture (or its vec:minimap/ art): what the Minimap page says to draw for it
             std::string key = MapKeyOf(e.tex);
@@ -1196,6 +1202,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         struct Restore { Elem& e; float r; ~Restore() { e.rot = r; } } restore{ e, rotSave };
         if (tx && (bf == 0.f && (e.bindKind == 1 || e.bindKind == 2))) tx = nullptr;   // empty bar: nothing
         if (tx && e.additive) dl->AddCallback(AdditiveOn, nullptr);
+        if (tx && noAlpha) dl->AddCallback(NoAlphaOn, nullptr);
         if (tx && bf >= 0.f && e.bindKind == 4) {   // reveal: only the half on the "up" side of a line through the pivot, turned by the value
             float ku = Unit(), th = (e.rotMin + (e.rotMax - e.rotMin) * bf) * 3.14159265f / 180;
             ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), pv(c.x + e.pivX * ku, c.y + e.pivY * ku), up(sinf(th), -cosf(th));
@@ -1249,7 +1256,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             dl->AddImageQuad((ImTextureID)tx, P(-hw.x, -hw.y), P(hw.x, -hw.y), P(hw.x, hw.y), P(-hw.x, hw.y),
                              uv0, ImVec2(uv1.x, uv0.y), uv1, ImVec2(uv0.x, uv1.y), col);
         }
-        if (tx && e.additive) dl->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+        if (tx && (e.additive || noAlpha)) dl->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
     } else {
         if (e.fontIdx == -2) e.fontIdx = FindFont(e.font);
         std::string s = Expand(e.text, e.row);
