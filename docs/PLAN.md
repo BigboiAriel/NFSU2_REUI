@@ -219,6 +219,17 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   d3dcompiler_47.dll (_43 as a fallback) the first time a shape is drawn; until then, if it fails (logged), or for a
   shape with more than 16 cuts / 8 stops per gradient, the CPU textures as before. Log: "shapes: drawn on the graphics
   card".
+- **Race start page; the game's texts on any page (2026-11-04).** `{fe.<8 hex>}`: a FEng string object's text now (any
+  loaded package, newest first; its buffer, else its label's language text); texture `fe:<8 hex>`: the picture a FEng
+  image shows (nothing while the game hides it) - a kitbashed page can show a screen's own texts and pictures. Text
+  elements: `wrap=1` breaks the text to its box width. "replaces: the race start dialog" (`racedlg=1`,
+  REUI_RaceDialogPage): UniPad opens the page in place of UI_EngageRaceDialog (vtable 0x78F988, handler 0x499C00,
+  filled by 0x4B53C0) with "Race: Accept" / "Race: Decline" (Back declines), the stock dialog hidden from its
+  package's load. Its texts: {race.from} ("From: <giver>", 0xFECED617), {race.subject} ("Subject: <type>",
+  0x2C167533), {race.type} (0x15E1351B), {race.distance} (0x080C9DAA), {race.purse} (0xB54B81A7), {race.message}
+  (0xDE075B62); texture {race.map} (fe:0F365871, the race's TRACKMAP<n>). The layout's "Race Start" page was
+  kitbashed from the World Map's box, legend bars and dark list panel, the Engage panel's icons and the Confirm Page's
+  buttons.
 - **No hitch when a menu opens (2026-11-04).** Shape pictures (computed per pixel at screen size) were let go 3 s after
   last drawn, so each menu open remade every panel in one frame. Now kept 10 minutes (128 MB / 192 entries, least
   recently drawn first) and made on up to 8 threads. Still to watch: a shape whose cutters move relative to it (a
