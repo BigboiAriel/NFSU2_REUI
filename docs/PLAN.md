@@ -236,13 +236,15 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   1 -> 0; Fade_In backwards), about its alignment point across / middle down. Not on its first showing. With UniPad's
   {bar.ticker} (the game's ticker: name 0.75 s, cash 5 s) it's the stock profile name / cash swap. Layout: Shared/Glyphs
   Bar/Cash Block's Cash.
-- **Glyph bars (2026-11-05).** A menu's right-click menu has "Glyph bar: ...": pick a group (any menu group that isn't
-  a page or a grid) to draw over that menu and every sub menu under it (a sub menu can pick its own; "its parent
-  menu's" / "Off"). Saved per page as `glyphbar=<group>`; follows renames / moves. The bar's group isn't drawn as part
-  of the page it lives in - only over the menus that use it, on top (the page on top of a stack, and a page fading
-  out); its grids aren't menu rows (not selectable). Editing a menu that uses a bar from elsewhere shows it as it will
-  be (edit it where its group lives). Layout: Garage uses "Garage/Glyphs Bar" (so Garage/Menu 1 does too). Next: the
-  bar's glyphs from the menu's context (a live list from UniPad).
+- **Shared pieces (2026-11-05/06).** A menu's right-click menu has "Shared pieces": tick groups to draw over that menu
+  and every sub menu under it (the glyph bar, the performance bar...). The "Shared" menu's groups are listed first,
+  any other group under "Other groups"; a sub menu shows its parent menus' (greyed: "from Garage") plus its own.
+  Saved per page as `shared=<group>` lines (`glyphbar=` from the first build still loads); they follow renames / moves.
+  A shared group isn't drawn as part of the page it lives in - only over the menus that show it, on top (the page on
+  top of a stack, and a page fading out); its grids aren't menu rows. Editing a menu shows its shared pieces as they'll
+  be (edit them in the Shared menu). A page listed twice in a layout is saved once. Layout: Shared/Glyphs Bar on
+  Garage (and Garage/Menu 1); Shared/Performance Bar made, on no menu yet. Next: the glyph bar from the menu's
+  context (a live list from UniPad); the performance bar's meters from the car's ratings.
 - **Garage menu page (2026-11-05, untested).** "replaces: the garage menu" (`garagemenu=1`, REUI_GaragePage): UniPad
   opens it instead of the safehouse's "The Garage" menu (UI_CareerCrib.fng, screen vtable 0x797548). Tiles: "Garage: ..."
   actions pick the game's own items (Return to Explore Mode, World Map, Car Select, Change Parts, Performance Tuning /

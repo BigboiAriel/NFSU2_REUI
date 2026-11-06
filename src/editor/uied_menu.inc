@@ -89,8 +89,8 @@ struct Page {
     bool raceDialog = false;             // opened instead of the race start dialog (UI_EngageRaceDialog: Accept / Decline)
     bool raceDialogMp = false;           // ... in a multiplayer session (COOP / SOLO / race settings)
     bool garage = false;                 // opened instead of the garage menu ("The Garage": UI_CareerCrib)
-    std::string glyphBar;                // a glyph bar (a group: the buttons and what they do) drawn over this menu and its
-                                         // sub menus ("" = none, or its parent menu's)
+    std::vector<std::string> shared;     // shared pieces (groups: the glyph bar, the performance bar...) drawn over this menu
+                                         // and its sub menus, with what its parent menus show
 };
 static std::vector<Widget> g_widgets;
 static std::vector<Page> g_pages;
@@ -105,15 +105,23 @@ static Page* PageOf(const std::string& g) { for (auto& p : g_pages) if (p.group 
 // inside another (a sub menu: "Pause 1/Unipad Options"); its pieces are its own, not the menu around it's.
 static std::string OwnerPage(const std::string& g) { for (std::string x = g; !x.empty(); x = GroupParent(x)) if (PageOf(x)) return x; return std::string(); }
 static std::string ParentMenu(const std::string& page) { return OwnerPage(GroupParent(page)); }   // the menu a sub menu is in ("" = top level)
-// Glyph bars (2026-11-05): a group set as a menu's glyph bar is drawn over that menu and all its sub menus (a sub menu
-// can set its own), on top of the page and not as a part of the page it lives in - one bar, edited in one place.
-static std::string PageGlyphBar(const std::string& page, std::string* from = nullptr) {
-    for (std::string x = page; !x.empty(); x = ParentMenu(x))
-        if (Page* p = PageOf(x)) if (!p->glyphBar.empty()) { if (from) *from = x; return p->glyphBar; }
-    return std::string();
+// Shared pieces (2026-11-05/06): groups a menu shows over itself and all of its sub menus - the glyph bar, the performance
+// bar... - drawn on top of the page and not as a part of the page they live in (usually the "Shared" menu): one copy,
+// edited in one place. A sub menu adds its own to its parent menus'.
+struct SharedUse { std::string group, from; };   // (from: the menu that switched it on)
+static std::vector<SharedUse> PageShared(const std::string& page) {
+    std::vector<std::string> chain;
+    for (std::string x = page; !x.empty(); x = ParentMenu(x)) chain.push_back(x);
+    std::vector<SharedUse> v;
+    for (auto it = chain.rbegin(); it != chain.rend(); ++it)   // (the top menu's first: under a sub menu's own)
+        if (Page* p = PageOf(*it)) for (auto& g : p->shared) {
+            bool dup = false; for (auto& u : v) dup |= u.group == g;
+            if (!dup && !g.empty()) v.push_back({g, *it});
+        }
+    return v;
 }
-static bool IsGlyphBar(const std::string& g) {   // (in a group some menu uses as its glyph bar)
-    for (auto& p : g_pages) if (!p.glyphBar.empty() && InGroup(g, p.glyphBar)) return true;
+static bool IsShared(const std::string& g) {   // (in a group some menu shows as a shared piece)
+    for (auto& p : g_pages) for (auto& x : p.shared) if (!x.empty() && InGroup(g, x)) return true;
     return false;
 }
 static Setting* SettingOf(const std::string& k) { if (k.empty()) return nullptr; for (auto& s : settings) if (s.key == k) return &s; return nullptr; }
@@ -125,7 +133,7 @@ static Widget* WidgetFor(const std::string& eg) {
 }
 // renames / copies / deletes follow the groups
 static void MenuRebase(const std::string& from, const std::string& to) {
-    for (auto& p : g_pages) if (!p.glyphBar.empty() && InGroup(p.glyphBar, from)) p.glyphBar = CleanGroup(to + p.glyphBar.substr(from.size()));   // (the bar follows its group)
+    for (auto& p : g_pages) for (auto& x : p.shared) if (!x.empty() && InGroup(x, from)) x = CleanGroup(to + x.substr(from.size()));   // (shared pieces follow their group)
     for (auto& w : g_widgets) if (InGroup(w.group, from)) w.group = CleanGroup(to + w.group.substr(from.size()));
     for (auto& p : g_pages) if (InGroup(p.group, from)) p.group = CleanGroup(to + p.group.substr(from.size()));
     auto follow = [&](Widget& w) { if (w.action.compare(0, 5, "page:") == 0 && InGroup(w.action.substr(5), from)) w.action = "page:" + CleanGroup(to + w.action.substr(5 + from.size())); };
@@ -200,7 +208,7 @@ static float RowX(const Widget& w) {
 static std::vector<Row> PageRows(const Page& p) {
     std::vector<Row> r;
     for (auto& w : g_widgets)
-        if (GroupParent(w.group) == p.group && GridLike(w) && !IsGlyphBar(w.group)) r.push_back({ &w, RowY(w), RowX(w) });
+        if (GroupParent(w.group) == p.group && GridLike(w) && !IsShared(w.group)) r.push_back({ &w, RowY(w), RowX(w) });
     std::stable_sort(r.begin(), r.end(), [](const Row& a, const Row& b) { return fabsf(a.y - b.y) > kBand ? a.y < b.y : a.x < b.x; });
     return r;
 }
@@ -1079,7 +1087,7 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel) {
     for (int i : DrawOrder(els)) {
         Elem& src = els[i];
         if (!InGroup(src.group, p.group) || !src.visible || OwnerPage(src.group) != p.group) continue;   // (not its sub menus' pieces)
-        if (IsGlyphBar(src.group)) continue;   // (a glyph bar: drawn over the menus that use it, DrawGlyphBar)
+        if (IsShared(src.group)) continue;   // (a shared piece: drawn over the menus that show it, DrawShared)
         Elem e = src;
         Widget* w = WidgetFor(e.group);
         auto it = w ? rowIdx.find(w) : rowIdx.end();
@@ -1096,16 +1104,19 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel) {
         src.shownSince = e.shownSince; src.playWas = e.playWas;   // (and when its animation started: play on / show only while)
     }
 }
-// the glyph bar a page uses (its own or its parent menu's), over it
-static void DrawGlyphBar(ImDrawList* dl, const Page& p) {
-    std::string bar = PageGlyphBar(p.group);
-    if (bar.empty()) return;
+// the shared pieces a page shows (its own and its parent menus'), over it. skipIn: not those inside this group (the
+// editor: the menu being edited draws its own)
+static void DrawShared(ImDrawList* dl, const Page& p, const std::string& skipIn = std::string()) {
+    auto use = PageShared(p.group);
+    if (use.empty()) return;
     std::set<const Widget*> gridsDrawn;
     auto& els = MenuElems();
     g_drawList = &els;
     for (int i : DrawOrder(els)) {
         Elem& src = els[i];
-        if (!InGroup(src.group, bar) || !src.visible) continue;
+        if (!src.visible) continue;
+        bool in = false; for (auto& u : use) in |= InGroup(src.group, u.group);
+        if (!in || (!skipIn.empty() && InGroup(src.group, skipIn))) continue;
         Widget* w = WidgetFor(src.group);
         if (w && GridLike(*w) && GridPiece(src)) { if (gridsDrawn.insert(w).second) DrawGrid(dl, &p, *w, false, 0, false); continue; }
         Elem e = src;
@@ -1116,11 +1127,11 @@ static void DrawGlyphBar(ImDrawList* dl, const Page& p) {
 // while the menu is open it's all that's drawn (a page fading out after it closed is drawn under the rest)
 static bool DrawMenu(ImDrawList* dl) {
     double now = ImGui::GetTime(); float F = std::max(0.001f, menuFade);
-    auto drawA = [&](const Page& p, int sel, float a, bool bar) {   // the page at an opacity: its vertices' alpha scaled
+    auto drawA = [&](const Page& p, int sel, float a, bool bar) {   // (bar: with its shared pieces)   // the page at an opacity: its vertices' alpha scaled
         if (a <= 0.003f) return;
         int v0 = dl->VtxBuffer.Size;
         DrawMenuPage(dl, p, sel);
-        if (bar) DrawGlyphBar(dl, p);   // (the page on top: its glyph bar)
+        if (bar) DrawShared(dl, p);   // (the page on top: its shared pieces)
         if (a < 0.999f) for (int i = v0; i < dl->VtxBuffer.Size; ++i) {
             ImU32& c = dl->VtxBuffer[i].col;
             c = (c & ~IM_COL32_A_MASK) | ((ImU32)(((c >> IM_COL32_A_SHIFT) & 0xFF) * a) << IM_COL32_A_SHIFT);
@@ -1536,29 +1547,45 @@ static void PagePanel(Page& p) {
     if (ImGui::Button(g_menu.open ? "Close the menu" : "Try it")) { if (g_menu.open) MenuClose(); else MenuOpen(p.group); }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Opens this page as the real menu: pad / arrow keys, Enter, Esc.");
 }
-// A menu's glyph bar (its right-click menu): pick the group drawn over it and its sub menus, or none
-static void GlyphBarMenu(Page& p) {
-    std::string from, cur = PageGlyphBar(p.group, &from);
-    bool inherited = !cur.empty() && from != p.group;
-    std::string label = "Glyph bar: " + (cur.empty() ? std::string("off") : GroupLeaf(cur) + (inherited ? " (from " + GroupLeaf(from) + ")" : ""));
-    if (!ImGui::BeginMenu((label + "##glyphbar").c_str())) {
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("A group drawn over this menu and all of its sub menus (the button glyphs and what they do).\nIt isn't drawn as part of the page it lives in - only on the menus that use it.");
+// A menu's shared pieces (its right-click menu): tick the groups shown over it and its sub menus. The "Shared" menu's
+// groups first (where shared pieces live), any other group under "Other groups".
+static void SharedMenu(Page& p) {
+    auto use = PageShared(p.group);
+    int n = 0; for (auto& u : use) ++n;
+    std::string label = "Shared pieces" + (n ? " (" + std::to_string(n) + " on)" : std::string()) + "##sharedpieces";
+    if (!ImGui::BeginMenu(label.c_str())) {
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Groups shown over this menu and all of its sub menus (the glyph bar, the performance bar...).\nThey aren't drawn as part of the page they live in - only on the menus that show them.");
         return;
     }
-    if (ImGui::MenuItem(inherited ? "Its parent menu's" : "Off", nullptr, p.glyphBar.empty())) { p.glyphBar.clear(); g_dirty = true; }
-    ImGui::Separator();
-    // groups that can be one: any menu group that isn't a menu page or a grid
-    std::set<std::string> seen;
-    for (auto& e : MenuElems()) {
+    std::set<std::string> cands;   // any menu group that isn't a menu page or a grid
+    for (auto& e : MenuElems())
         for (std::string x = e.group; !x.empty(); x = GroupParent(x)) {
-            if (PageOf(x) || seen.count(x)) continue;
+            if (PageOf(x) || cands.count(x)) continue;
             Widget* w = WidgetFor(x); if (w && GridLike(*w)) continue;
-            seen.insert(x);
+            cands.insert(x);
         }
+    auto item = [&](const std::string& g, const char* shown) {
+        std::string from; for (auto& u : use) if (u.group == g) from = u.from;
+        bool mine = std::find(p.shared.begin(), p.shared.end(), g) != p.shared.end();
+        if (!from.empty() && !mine) {   // (switched on by a parent menu)
+            ImGui::MenuItem((std::string(shown) + "  (from " + GroupLeaf(from) + ")").c_str(), nullptr, true, false);
+            return;
+        }
+        if (ImGui::MenuItem(shown, nullptr, mine)) {
+            if (mine) p.shared.erase(std::remove(p.shared.begin(), p.shared.end(), g), p.shared.end()); else p.shared.push_back(g);
+            g_dirty = true; Log("ui editor: menu %s %s %s (and its sub menus)", p.group.c_str(), mine ? "no longer shows" : "shows", g.c_str());
+        }
+    };
+    int sharedN = 0;
+    for (auto& g : cands) if (GroupParent(g) == "Shared") { item(g, GroupLeaf(g).c_str()); ++sharedN; }   // (the Shared menu's own)
+    if (!sharedN) ImGui::TextDisabled("(no groups in a \"Shared\" menu yet)");
+    ImGui::Separator();
+    if (ImGui::BeginMenu("Other groups")) {
+        int k = 0;
+        for (auto& g : cands) if (GroupParent(g) != "Shared") { item(g, g.c_str()); ++k; }
+        if (!k) ImGui::TextDisabled("(none)");
+        ImGui::EndMenu();
     }
-    if (seen.empty()) ImGui::TextDisabled("(no groups yet)");
-    for (auto& g : seen)
-        if (ImGui::MenuItem(g.c_str(), nullptr, p.glyphBar == g)) { p.glyphBar = g; g_dirty = true; Log("ui editor: menu %s's glyph bar: %s (and its sub menus)", p.group.c_str(), g.c_str()); }
     ImGui::EndMenu();
 }
 // The menu bar (Menus workspace, under Add image ... Undo): a button per custom menu and "+" to make another ("Add Menu +"
@@ -1654,7 +1681,7 @@ static void MenuBar() {
             }
             if (!ParentMenu(g).empty()) ImGui::TextDisabled("in %s", ParentMenu(g).c_str());
             if (!moved) if (Page* pg = PageOf(g)) ReplacesCombo(*pg);
-            if (!moved) if (Page* pg = PageOf(g)) GlyphBarMenu(*pg);
+            if (!moved) if (Page* pg = PageOf(g)) SharedMenu(*pg);
             ImGui::Separator();
             if (!moved && ImGui::BeginMenu("Move into")) {
                 std::string cur = ParentMenu(g);
@@ -1770,7 +1797,9 @@ static void SaveWidgetProps(FILE* f, const Widget& w) {
     fprintf(f, "num=%g %g %g %g\n", w.min, w.max, w.step, w.value);
 }
 static void SaveMenus(FILE* f) {
+    std::set<std::string> done;
     for (auto& p : g_pages) {
+        if (!done.insert(p.group).second) continue;   // (a page listed twice: once)
         fprintf(f, "\n[page]\ngroup=%s\nstart=%d\nselcolor=%d %g %g %g %g\ndedicated=1\n", Esc(p.group).c_str(), p.start ? 1 : 0,
                 p.useSel ? 1 : 0, p.selCol[0], p.selCol[1], p.selCol[2], p.selCol[3]);
         if (p.pauseMenu) fprintf(f, "pausemenu=1\n");
@@ -1780,7 +1809,7 @@ static void SaveMenus(FILE* f) {
         if (p.raceDialog) fprintf(f, "racedlg=1\n");
         if (p.raceDialogMp) fprintf(f, "racedlgmp=1\n");
         if (p.garage) fprintf(f, "garagemenu=1\n");
-        if (!p.glyphBar.empty()) fprintf(f, "glyphbar=%s\n", p.glyphBar.c_str());
+        for (auto& x : p.shared) fprintf(f, "shared=%s\n", Esc(x).c_str());
     }
     for (auto& w : g_widgets) { fprintf(f, "\n[widget]\ngroup=%s\n", Esc(w.group).c_str()); SaveWidgetProps(f, w); }
 }
@@ -1827,7 +1856,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "racedlg") p.raceDialog = atoi(v.c_str()) != 0;
         else if (k == "racedlgmp") p.raceDialogMp = atoi(v.c_str()) != 0;
         else if (k == "garagemenu") p.garage = atoi(v.c_str()) != 0;
-        else if (k == "glyphbar") p.glyphBar = v;
+        else if (k == "shared" || k == "glyphbar") p.shared.push_back(Unesc(v));   // (glyphbar: the first builds)
         else if (k == "selcolor") { int u = 1; sscanf(v.c_str(), "%d %f %f %f %f", &u, &p.selCol[0], &p.selCol[1], &p.selCol[2], &p.selCol[3]); p.useSel = u != 0; }
         return true;
     }
