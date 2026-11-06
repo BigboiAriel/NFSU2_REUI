@@ -230,6 +230,13 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   (0xDE075B62); texture {race.map} (fe:0F365871, the race's TRACKMAP<n>). The layout's "Race Start" page was
   kitbashed from the World Map's box, legend bars and dark list panel, the Engage panel's icons and the Confirm Page's
   buttons.
+- **Garage menu page (2026-11-05, untested).** "replaces: the garage menu" (`garagemenu=1`, REUI_GaragePage): UniPad
+  opens it instead of the safehouse's "The Garage" menu (UI_CareerCrib.fng, screen vtable 0x797548). Tiles: "Garage: ..."
+  actions pick the game's own items (Return to Explore Mode, World Map, Car Select, Change Parts, Performance Tuning /
+  Dyno, View Rewards, Save, Back to Main Menu); Back asks to return to explore mode, as the game's Back does. The game's
+  icons by texture hash: #A230CD88 #22F2CEAB #A964095B #511F9D75 #7A9B397A #49D2E3DE #8ADA6FD4 #FC39853F. The layout's
+  "Garage" page: the user's Pause Screen copy + a carousel kitbashed from "Pause 1" (8 tiles), its description, "The
+  Garage" title, {cash}, Back / Select prompts (all 120 units higher than the pause page's).
 - **Multiplayer race start page (2026-11-05).** "replaces: the race start dialog (multiplayer)" (`racedlgmp=1`,
   REUI_RaceDialogMpPage): UniPad opens it instead of the race start page while NFSU2 Multiplayer says we're in a session
   (NFSU2MP_InSession). Tiles: "Race: COOP" (UniPad tells the multiplayer mod NFSU2MP_RaceChoice(1), then accepts), "Race:
