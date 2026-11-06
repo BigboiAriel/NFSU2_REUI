@@ -230,6 +230,15 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   (0xDE075B62); texture {race.map} (fe:0F365871, the race's TRACKMAP<n>). The layout's "Race Start" page was
   kitbashed from the World Map's box, legend bars and dark list panel, the Engage panel's icons and the Confirm Page's
   buttons.
+- **Car select page and meters (2026-11-06, untested).** "replaces: the garage's car select" (`carselect=1`,
+  REUI_CarSelectPage): UniPad shows the page over the game's Car Select, which keeps the pad (left / right, select,
+  back, the camera) - the page only shows. Live values from UniPad: {car.accel} {car.topspeed} {car.handling} (0-100);
+  the game's texts by object hash ({fe.6D221AA2} slot, {fe.BA5709C8} open / locked, {fe.2F5E7DA3} trade-in) and images
+  (fe:B05DD708 name badge, fe:3E01AD1D maker logo). Value bindings now work on shapes ("fill left to right / bottom to
+  top": the shape drawn as long as its value) and a new kind "move across" (any element: from / to move in units, saved
+  in bindrot) - a meter's handle riding its fill. Layout: "Garage/Garage Car Select" is the car select page; its and
+  Shared/Performance Bar's meters / handles are bound to the car.* values; maker logo and name badge images added; the
+  slot text is {fe.6D221AA2}.
 - **Animated text changes (2026-11-05).** A text's "animate changes" box (`swapanim=1`): when its text changes, the
   old one plays the game's help bar Fade_Out while the new one plays Fade_In (both 320 ms, straight lines, from the
   name / cash strings' scripts in the game's packages: size across 1 -> 0.5, down 1 -> -1/6 (gone at ~274 ms), alpha

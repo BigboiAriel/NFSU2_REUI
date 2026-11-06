@@ -1132,6 +1132,10 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!RowShown(e, mine) && !editing) return;   // (while editing, rows nobody fills are drawn so they can be placed)
     if (!e.flags.empty() && ShowIfOk(e) && !FlagsHide(e)) ReplaceSeen(e);
     ImVec2 a, b; ElemRect(e, a, b);
+    if (e.bindKind == 5) {   // moves across with its value (from / to move: rotMin / rotMax, units)
+        float f = BindFrac(e);
+        if (f >= 0.f) { float dx = (e.rotMin + (e.rotMax - e.rotMin) * f) * Unit(); a.x += dx; b.x += dx; }
+    }
     ImU32 col = Col(mine && e.hiMine ? e.hiCol : e.col);
     if (!e.tint.empty()) {   // colour times a value's "R G B"
         std::string v; int r, g, b2;
@@ -1195,7 +1199,13 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             col = Col(c);
         }
     }
-    if (e.type == E_SHAPE) { DrawShape(dl, e, a, b, col, editing); return; }
+    if (e.type == E_SHAPE) {
+        float bf = (e.bindKind == 1 || e.bindKind == 2) ? BindFrac(e) : -1.f;   // a meter: the shape drawn as long as its value
+        if (bf >= 0.f) bf = e.cutLo + (e.cutHi - e.cutLo) * bf;
+        if (bf >= 0.f && e.bindKind == 1) { if (bf <= 0.001f && !editing) return; b.x = a.x + (b.x - a.x) * std::max(bf, editing ? 0.02f : 0.f); }
+        if (bf >= 0.f && e.bindKind == 2) { if (bf <= 0.001f && !editing) return; a.y = b.y - (b.y - a.y) * std::max(bf, editing ? 0.02f : 0.f); }
+        DrawShape(dl, e, a, b, col, editing); return;
+    }
     if (e.type == E_IMAGE && e.minimap) { DrawMinimap(dl, e, a, b, col, editing); return; }
     if (e.type == E_IMAGE && e.worldMap) { DrawWorldMap(dl, e, a, b, col, editing); return; }
     if (e.type == E_IMAGE) {
@@ -1920,7 +1930,7 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
     if (e.swapAnim) fprintf(f, "swapanim=1\n");
     if (!e.showIf.empty()) fprintf(f, "showif=%s\n", e.showIf.c_str());
     if (e.bindKind) fprintf(f, "bind=%s\nbindkind=%d\nbindrange=%g %g\n", e.bind.c_str(), e.bindKind, e.bindMin, e.bindMax);
-    if (e.bindKind == 3 || e.bindKind == 4) fprintf(f, "bindrot=%g %g\n", e.rotMin, e.rotMax);
+    if (e.bindKind == 3 || e.bindKind == 4 || e.bindKind == 5) fprintf(f, "bindrot=%g %g\n", e.rotMin, e.rotMax);
     if (e.cutLo != 0 || e.cutHi != 1) fprintf(f, "bindcut=%g %g\n", e.cutLo, e.cutHi);
     if (e.pivX != 0 || e.pivY != 0) fprintf(f, "pivot=%g %g\n", e.pivX, e.pivY);
     if (e.follow) fprintf(f, "follow=%08X\n", e.follow);
@@ -2010,7 +2020,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "kit") e.kit = Unesc(v);
     else if (k == "showif") e.showIf = v;
     else if (k == "bind") e.bind = v;
-    else if (k == "bindkind") e.bindKind = std::max(0, std::min(4, atoi(v.c_str())));
+    else if (k == "bindkind") e.bindKind = std::max(0, std::min(5, atoi(v.c_str())));
     else if (k == "bindrange") sscanf(v.c_str(), "%f %f", &e.bindMin, &e.bindMax);
     else if (k == "bindrot") sscanf(v.c_str(), "%f %f", &e.rotMin, &e.rotMax);
     else if (k == "bindcut") sscanf(v.c_str(), "%f %f", &e.cutLo, &e.cutHi);
@@ -2974,10 +2984,13 @@ static void Selected(Elem& e) {
             if (ImGui::InputTextWithHint("play on", "e.g. bindheld.FENG_LTRIGGER", pb, sizeof pb)) { e.playOn = pb; g_dirty = true; }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("A live value: the animation starts over each time it comes on (blank: from when the element shows).\nbindheld.<event>: while that UniPad binding is held - a button's press animation (keys with ! in front: plays once).");
         }
-        if (e.type == E_IMAGE) {
-            const char* kinds[] = { "nothing", "fill left to right", "fill bottom to top", "rotation", "reveal (turning half)" };
+        {   // (images: all of them; shapes: fills and moving; text: moving)
+            const char* kinds[] = { "nothing", "fill left to right", "fill bottom to top", "rotation", "reveal (turning half)", "move across" };
             ImGui::SetNextItemWidth(160);
-            if (ImGui::Combo("value drives", &e.bindKind, kinds, 5)) g_dirty = true;
+            if (ImGui::Combo("value drives", &e.bindKind, kinds, 6)) g_dirty = true;
+            if (e.bindKind == 5 && ImGui::IsItemHovered()) ImGui::SetTooltip("The element moves across with the value (from / to move, in units) - a meter's handle riding its fill.");
+            if ((e.type == E_SHAPE && (e.bindKind == 3 || e.bindKind == 4)) || (e.type == E_TEXT && e.bindKind >= 1 && e.bindKind <= 4))
+                { ImGui::SameLine(); ImGui::TextDisabled("(images only)"); }
             if (e.bindKind == 4 && ImGui::IsItemHovered()) ImGui::SetTooltip("Only the half on the far side of a line through the pivot is drawn; the line turns with the value\n(from / to angle; 0 = the top half shows). The game's nitrous arc works like this.");
             if (e.bindKind) {
                 snprintf(bb, sizeof bb, "%s", e.bind.c_str());
@@ -2986,6 +2999,7 @@ static void Selected(Elem& e) {
                 ImGui::SetNextItemWidth(160);
                 if (ImGui::DragFloat2("from / to value", &e.bindMin, 1.f, -100000.f, 100000.f, "%.0f")) g_dirty = true;
                 if (e.bindKind == 3 || e.bindKind == 4) { ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("from / to angle", &e.rotMin, 0.5f, -720.f, 720.f, "%.0f deg")) g_dirty = true; }
+                if (e.bindKind == 5) { ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("from / to move", &e.rotMin, 0.5f, -2000.f, 2000.f, "%.1f")) g_dirty = true; }
                 if (e.bindKind == 1 || e.bindKind == 2) {
                     ImGui::SetNextItemWidth(160);
                     if (ImGui::DragFloat2("empty / full at", &e.cutLo, 0.002f, 0.f, 1.f, "%.3f")) g_dirty = true;
