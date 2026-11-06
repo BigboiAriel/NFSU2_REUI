@@ -2409,6 +2409,11 @@ void DrawOverlay(int mode) {
         if (MenuWs()) GridFollow();
         g_drawList = &lay;
         for (int i : DrawOrder(lay)) if (!(MenuWs() && GridPieceOff(lay[i]))) DrawElem(dl, lay[i], editing);
+        // a custom menu being edited: the glyph bar it uses, as it will be over it (edited where its group lives)
+        if (MenuWs() && !g_menuEd.empty()) {
+            std::string bar = PageGlyphBar(g_menuEd);
+            if (!bar.empty() && !InGroup(bar, g_menuEd)) if (Page* pg = PageOf(g_menuEd)) DrawGlyphBar(dl, *pg);
+        }
         if ((editing || panel) && MenuWs())   // grids: the other cells faded, with sample items (the pieces are the first cell)
             for (auto& w : g_widgets) if (GridLike(w) && !MenuEdOff(w.group)) {
                 bool shown = false; for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.visible) { shown = true; break; }

@@ -89,6 +89,8 @@ struct Page {
     bool raceDialog = false;             // opened instead of the race start dialog (UI_EngageRaceDialog: Accept / Decline)
     bool raceDialogMp = false;           // ... in a multiplayer session (COOP / SOLO / race settings)
     bool garage = false;                 // opened instead of the garage menu ("The Garage": UI_CareerCrib)
+    std::string glyphBar;                // a glyph bar (a group: the buttons and what they do) drawn over this menu and its
+                                         // sub menus ("" = none, or its parent menu's)
 };
 static std::vector<Widget> g_widgets;
 static std::vector<Page> g_pages;
@@ -103,6 +105,17 @@ static Page* PageOf(const std::string& g) { for (auto& p : g_pages) if (p.group 
 // inside another (a sub menu: "Pause 1/Unipad Options"); its pieces are its own, not the menu around it's.
 static std::string OwnerPage(const std::string& g) { for (std::string x = g; !x.empty(); x = GroupParent(x)) if (PageOf(x)) return x; return std::string(); }
 static std::string ParentMenu(const std::string& page) { return OwnerPage(GroupParent(page)); }   // the menu a sub menu is in ("" = top level)
+// Glyph bars (2026-11-05): a group set as a menu's glyph bar is drawn over that menu and all its sub menus (a sub menu
+// can set its own), on top of the page and not as a part of the page it lives in - one bar, edited in one place.
+static std::string PageGlyphBar(const std::string& page, std::string* from = nullptr) {
+    for (std::string x = page; !x.empty(); x = ParentMenu(x))
+        if (Page* p = PageOf(x)) if (!p->glyphBar.empty()) { if (from) *from = x; return p->glyphBar; }
+    return std::string();
+}
+static bool IsGlyphBar(const std::string& g) {   // (in a group some menu uses as its glyph bar)
+    for (auto& p : g_pages) if (!p.glyphBar.empty() && InGroup(g, p.glyphBar)) return true;
+    return false;
+}
 static Setting* SettingOf(const std::string& k) { if (k.empty()) return nullptr; for (auto& s : settings) if (s.key == k) return &s; return nullptr; }
 static void Snd(int s) { if (menuSound) menuSound(s); }
 // the widget an element belongs to: its group or the nearest group around it that's a widget
@@ -112,6 +125,7 @@ static Widget* WidgetFor(const std::string& eg) {
 }
 // renames / copies / deletes follow the groups
 static void MenuRebase(const std::string& from, const std::string& to) {
+    for (auto& p : g_pages) if (!p.glyphBar.empty() && InGroup(p.glyphBar, from)) p.glyphBar = CleanGroup(to + p.glyphBar.substr(from.size()));   // (the bar follows its group)
     for (auto& w : g_widgets) if (InGroup(w.group, from)) w.group = CleanGroup(to + w.group.substr(from.size()));
     for (auto& p : g_pages) if (InGroup(p.group, from)) p.group = CleanGroup(to + p.group.substr(from.size()));
     auto follow = [&](Widget& w) { if (w.action.compare(0, 5, "page:") == 0 && InGroup(w.action.substr(5), from)) w.action = "page:" + CleanGroup(to + w.action.substr(5 + from.size())); };
@@ -186,7 +200,7 @@ static float RowX(const Widget& w) {
 static std::vector<Row> PageRows(const Page& p) {
     std::vector<Row> r;
     for (auto& w : g_widgets)
-        if (GroupParent(w.group) == p.group && GridLike(w)) r.push_back({ &w, RowY(w), RowX(w) });
+        if (GroupParent(w.group) == p.group && GridLike(w) && !IsGlyphBar(w.group)) r.push_back({ &w, RowY(w), RowX(w) });
     std::stable_sort(r.begin(), r.end(), [](const Row& a, const Row& b) { return fabsf(a.y - b.y) > kBand ? a.y < b.y : a.x < b.x; });
     return r;
 }
@@ -1065,6 +1079,7 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel) {
     for (int i : DrawOrder(els)) {
         Elem& src = els[i];
         if (!InGroup(src.group, p.group) || !src.visible || OwnerPage(src.group) != p.group) continue;   // (not its sub menus' pieces)
+        if (IsGlyphBar(src.group)) continue;   // (a glyph bar: drawn over the menus that use it, DrawGlyphBar)
         Elem e = src;
         Widget* w = WidgetFor(e.group);
         auto it = w ? rowIdx.find(w) : rowIdx.end();
@@ -1081,13 +1096,31 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel) {
         src.shownSince = e.shownSince; src.playWas = e.playWas;   // (and when its animation started: play on / show only while)
     }
 }
+// the glyph bar a page uses (its own or its parent menu's), over it
+static void DrawGlyphBar(ImDrawList* dl, const Page& p) {
+    std::string bar = PageGlyphBar(p.group);
+    if (bar.empty()) return;
+    std::set<const Widget*> gridsDrawn;
+    auto& els = MenuElems();
+    g_drawList = &els;
+    for (int i : DrawOrder(els)) {
+        Elem& src = els[i];
+        if (!InGroup(src.group, bar) || !src.visible) continue;
+        Widget* w = WidgetFor(src.group);
+        if (w && GridLike(*w) && GridPiece(src)) { if (gridsDrawn.insert(w).second) DrawGrid(dl, &p, *w, false, 0, false); continue; }
+        Elem e = src;
+        DrawElem(dl, e, false);
+        src.texIdx = e.texIdx; src.fontIdx = e.fontIdx; src.shownSince = e.shownSince; src.playWas = e.playWas;
+    }
+}
 // while the menu is open it's all that's drawn (a page fading out after it closed is drawn under the rest)
 static bool DrawMenu(ImDrawList* dl) {
     double now = ImGui::GetTime(); float F = std::max(0.001f, menuFade);
-    auto drawA = [&](const Page& p, int sel, float a) {   // the page at an opacity: its vertices' alpha scaled
+    auto drawA = [&](const Page& p, int sel, float a, bool bar) {   // the page at an opacity: its vertices' alpha scaled
         if (a <= 0.003f) return;
         int v0 = dl->VtxBuffer.Size;
         DrawMenuPage(dl, p, sel);
+        if (bar) DrawGlyphBar(dl, p);   // (the page on top: its glyph bar)
         if (a < 0.999f) for (int i = v0; i < dl->VtxBuffer.Size; ++i) {
             ImU32& c = dl->VtxBuffer[i].col;
             c = (c & ~IM_COL32_A_MASK) | ((ImU32)(((c >> IM_COL32_A_SHIFT) & 0xFF) * a) << IM_COL32_A_SHIFT);
@@ -1097,8 +1130,8 @@ static bool DrawMenu(ImDrawList* dl) {
         float k = (float)((now - g_fadeOut.at) / F);
         if (k >= 1 || menuFade <= 0) g_fadeOut.on = false;
         else {
-            if (Page* up = g_fadeOut.under.empty() ? nullptr : PageOf(g_fadeOut.under)) drawA(*up, g_fadeOut.underSel, 1 - k);
-            if (Page* pp = PageOf(g_fadeOut.page)) drawA(*pp, g_fadeOut.sel, 1 - k);
+            if (Page* up = g_fadeOut.under.empty() ? nullptr : PageOf(g_fadeOut.under)) drawA(*up, g_fadeOut.underSel, 1 - k, false);
+            if (Page* pp = PageOf(g_fadeOut.page)) drawA(*pp, g_fadeOut.sel, 1 - k, true);
         }
     }
     if (!g_menu.open) return false;
@@ -1107,8 +1140,8 @@ static bool DrawMenu(ImDrawList* dl) {
     size_t n = g_menu.stack.size(), base = n - 1;
     while (base > 0 && base < g_menu.over.size() && g_menu.over[base]) --base;
     for (size_t i = base; i + 1 < n; ++i)
-        if (Page* up = PageOf(g_menu.stack[i])) drawA(*up, i < g_menu.selStack.size() ? g_menu.selStack[i] : 0, 1.f);
-    drawA(*p, g_menu.sel, menuFade > 0 ? std::min(1.f, (float)((now - g_menuOpenAt) / F)) : 1.f);
+        if (Page* up = PageOf(g_menu.stack[i])) drawA(*up, i < g_menu.selStack.size() ? g_menu.selStack[i] : 0, 1.f, false);
+    drawA(*p, g_menu.sel, menuFade > 0 ? std::min(1.f, (float)((now - g_menuOpenAt) / F)) : 1.f, true);
     return true;
 }
 
@@ -1503,6 +1536,31 @@ static void PagePanel(Page& p) {
     if (ImGui::Button(g_menu.open ? "Close the menu" : "Try it")) { if (g_menu.open) MenuClose(); else MenuOpen(p.group); }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Opens this page as the real menu: pad / arrow keys, Enter, Esc.");
 }
+// A menu's glyph bar (its right-click menu): pick the group drawn over it and its sub menus, or none
+static void GlyphBarMenu(Page& p) {
+    std::string from, cur = PageGlyphBar(p.group, &from);
+    bool inherited = !cur.empty() && from != p.group;
+    std::string label = "Glyph bar: " + (cur.empty() ? std::string("off") : GroupLeaf(cur) + (inherited ? " (from " + GroupLeaf(from) + ")" : ""));
+    if (!ImGui::BeginMenu((label + "##glyphbar").c_str())) {
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("A group drawn over this menu and all of its sub menus (the button glyphs and what they do).\nIt isn't drawn as part of the page it lives in - only on the menus that use it.");
+        return;
+    }
+    if (ImGui::MenuItem(inherited ? "Its parent menu's" : "Off", nullptr, p.glyphBar.empty())) { p.glyphBar.clear(); g_dirty = true; }
+    ImGui::Separator();
+    // groups that can be one: any menu group that isn't a menu page or a grid
+    std::set<std::string> seen;
+    for (auto& e : MenuElems()) {
+        for (std::string x = e.group; !x.empty(); x = GroupParent(x)) {
+            if (PageOf(x) || seen.count(x)) continue;
+            Widget* w = WidgetFor(x); if (w && GridLike(*w)) continue;
+            seen.insert(x);
+        }
+    }
+    if (seen.empty()) ImGui::TextDisabled("(no groups yet)");
+    for (auto& g : seen)
+        if (ImGui::MenuItem(g.c_str(), nullptr, p.glyphBar == g)) { p.glyphBar = g; g_dirty = true; Log("ui editor: menu %s's glyph bar: %s (and its sub menus)", p.group.c_str(), g.c_str()); }
+    ImGui::EndMenu();
+}
 // The menu bar (Menus workspace, under Add image ... Undo): a button per custom menu and "+" to make another ("Add Menu +"
 // when there are none). Picking one edits it alone (picking it again shows everything); under the buttons: its name,
 // its page settings and Delete. Older pages - groups ticked "menu page" - aren't in it (deprecated, left as they are).
@@ -1596,6 +1654,7 @@ static void MenuBar() {
             }
             if (!ParentMenu(g).empty()) ImGui::TextDisabled("in %s", ParentMenu(g).c_str());
             if (!moved) if (Page* pg = PageOf(g)) ReplacesCombo(*pg);
+            if (!moved) if (Page* pg = PageOf(g)) GlyphBarMenu(*pg);
             ImGui::Separator();
             if (!moved && ImGui::BeginMenu("Move into")) {
                 std::string cur = ParentMenu(g);
@@ -1721,6 +1780,7 @@ static void SaveMenus(FILE* f) {
         if (p.raceDialog) fprintf(f, "racedlg=1\n");
         if (p.raceDialogMp) fprintf(f, "racedlgmp=1\n");
         if (p.garage) fprintf(f, "garagemenu=1\n");
+        if (!p.glyphBar.empty()) fprintf(f, "glyphbar=%s\n", p.glyphBar.c_str());
     }
     for (auto& w : g_widgets) { fprintf(f, "\n[widget]\ngroup=%s\n", Esc(w.group).c_str()); SaveWidgetProps(f, w); }
 }
@@ -1767,6 +1827,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "racedlg") p.raceDialog = atoi(v.c_str()) != 0;
         else if (k == "racedlgmp") p.raceDialogMp = atoi(v.c_str()) != 0;
         else if (k == "garagemenu") p.garage = atoi(v.c_str()) != 0;
+        else if (k == "glyphbar") p.glyphBar = v;
         else if (k == "selcolor") { int u = 1; sscanf(v.c_str(), "%d %f %f %f %f", &u, &p.selCol[0], &p.selCol[1], &p.selCol[2], &p.selCol[3]); p.useSel = u != 0; }
         return true;
     }

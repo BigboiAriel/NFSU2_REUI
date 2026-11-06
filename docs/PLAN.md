@@ -230,6 +230,13 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   (0xDE075B62); texture {race.map} (fe:0F365871, the race's TRACKMAP<n>). The layout's "Race Start" page was
   kitbashed from the World Map's box, legend bars and dark list panel, the Engage panel's icons and the Confirm Page's
   buttons.
+- **Glyph bars (2026-11-05).** A menu's right-click menu has "Glyph bar: ...": pick a group (any menu group that isn't
+  a page or a grid) to draw over that menu and every sub menu under it (a sub menu can pick its own; "its parent
+  menu's" / "Off"). Saved per page as `glyphbar=<group>`; follows renames / moves. The bar's group isn't drawn as part
+  of the page it lives in - only over the menus that use it, on top (the page on top of a stack, and a page fading
+  out); its grids aren't menu rows (not selectable). Editing a menu that uses a bar from elsewhere shows it as it will
+  be (edit it where its group lives). Layout: Garage uses "Garage/Glyphs Bar" (so Garage/Menu 1 does too). Next: the
+  bar's glyphs from the menu's context (a live list from UniPad).
 - **Garage menu page (2026-11-05, untested).** "replaces: the garage menu" (`garagemenu=1`, REUI_GaragePage): UniPad
   opens it instead of the safehouse's "The Garage" menu (UI_CareerCrib.fng, screen vtable 0x797548). Tiles: "Garage: ..."
   actions pick the game's own items (Return to Explore Mode, World Map, Car Select, Change Parts, Performance Tuning /
