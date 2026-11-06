@@ -230,6 +230,12 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   (0xDE075B62); texture {race.map} (fe:0F365871, the race's TRACKMAP<n>). The layout's "Race Start" page was
   kitbashed from the World Map's box, legend bars and dark list panel, the Engage panel's icons and the Confirm Page's
   buttons.
+- **Animated text changes (2026-11-05).** A text's "animate changes" box (`swapanim=1`): when its text changes, the
+  old one plays the game's help bar Fade_Out while the new one plays Fade_In (both 320 ms, straight lines, from the
+  name / cash strings' scripts in the game's packages: size across 1 -> 0.5, down 1 -> -1/6 (gone at ~274 ms), alpha
+  1 -> 0; Fade_In backwards), about its alignment point across / middle down. Not on its first showing. With UniPad's
+  {bar.ticker} (the game's ticker: name 0.75 s, cash 5 s) it's the stock profile name / cash swap. Layout: Shared/Glyphs
+  Bar/Cash Block's Cash.
 - **Glyph bars (2026-11-05).** A menu's right-click menu has "Glyph bar: ...": pick a group (any menu group that isn't
   a page or a grid) to draw over that menu and every sub menu under it (a sub menu can pick its own; "its parent
   menu's" / "Off"). Saved per page as `glyphbar=<group>`; follows renames / moves. The bar's group isn't drawn as part

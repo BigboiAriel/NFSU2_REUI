@@ -470,6 +470,8 @@ struct Elem {
     std::string role;                     // menus: what it does in its row / page (uied_menu.inc)
     bool selOnly = false;                 // menus: shown on the selected row only
     bool wrap = false;                    // text: broken into lines to fit its box width (a game screen's long message)
+    bool swapAnim = false;                // text: a change of its text animates as the game's help bar ticker does (the
+                                          // name / cash: Fade_Out the old, Fade_In the new - SwapText)
     bool afterLabel = false;              // menus, a grid's piece: moves with the end of its tile's label text (a binding's icon)
     int tileKinds = 0;                    // menus, a grid's piece: the tiles it shows on (1 buttons, 2 sliders, 4 pickers, 8 bindings; 0 all)
     std::string kit;                      // (loading only: an older widget-kit template piece - left out)
@@ -1082,6 +1084,38 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
         dl->AddPolyline(q, 4, IM_COL32(255, 80, 200, 150), ImDrawFlags_Closed, 1.f);
     }
 }
+// A text's change animated as the game's help bar ticker swaps the profile name and the cash (UI_PC_Customize_Options /
+// the help bar strings' scripts Fade_Out and Fade_In, 320 ms, straight lines): the old text's size goes from 1 to half
+// across and to nothing (-1/6) down while it fades out; the new one's the other way while it fades in - both at once,
+// about the text's alignment point across and its middle down. true: drawn here (while a swap runs).
+static bool SwapText(ImDrawList* dl, const Elem& e, ImVec2 a, ImVec2 b, ImU32 col, const std::string& s) {
+    struct SwapSt { std::string cur, prev; double at = -100, seen = -100; };
+    static std::unordered_map<std::string, SwapSt> st;
+    SwapSt& w = st[e.group + '\x1f' + e.name + '\x1f' + e.text];
+    double now = ImGui::GetTime();
+    if (s != w.cur) {   // (not when it first shows, or comes back after a while: just there)
+        if (!w.cur.empty() && !s.empty() && now - w.seen < 0.5) { w.prev = w.cur; w.at = now; } else w.at = -100;
+        w.cur = s;
+    }
+    w.seen = now;
+    float f = (float)((now - w.at) / 0.32);
+    if (f >= 1.f) return false;
+    const Font& fo = g_fonts[e.fontIdx];
+    auto draw = [&](const std::string& txt, float sx, float sy, float al) {
+        if (txt.empty() || sy <= 0.001f || al <= 0.004f) return;
+        int v0 = dl->VtxBuffer.Size;
+        ImVec4 cv = ImGui::ColorConvertU32ToFloat4(col); cv.w *= al;
+        DrawText(dl, fo, a, e.scale * Unit(), ImGui::ColorConvertFloat4ToU32(cv), txt, e.align, b.x - a.x);
+        int v1 = dl->VtxBuffer.Size; if (v1 <= v0) return;
+        float x0 = 1e9f, x1 = -1e9f, y0 = 1e9f, y1 = -1e9f;
+        for (int i = v0; i < v1; ++i) { ImVec2 p = dl->VtxBuffer[i].pos; x0 = std::min(x0, p.x); x1 = std::max(x1, p.x); y0 = std::min(y0, p.y); y1 = std::max(y1, p.y); }
+        float cx = e.align == 0 ? x0 : e.align == 2 ? x1 : (x0 + x1) / 2, cy = (y0 + y1) / 2;
+        for (int i = v0; i < v1; ++i) { ImVec2& p = dl->VtxBuffer[i].pos; p.x = cx + (p.x - cx) * sx; p.y = cy + (p.y - cy) * sy; }
+    };
+    draw(w.prev, 1.f - 0.5f * f, 1.f - 7.f / 6.f * f, 1.f - f);   // Fade_Out
+    draw(s, 0.5f + 0.5f * f, -1.f / 6.f + 7.f / 6.f * f, f);      // Fade_In
+    return true;
+}
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
     if (!editing && !e.flags.empty() && FlagsHide(e)) return;
@@ -1263,6 +1297,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         std::string s = Expand(e.text, e.row);
         if (editing && s.empty()) s = e.text;   // show the template where there's no value yet
         if (e.fontIdx >= 0 && e.wrap && e.w > 0 && e.scale > 0) s = WrapText(g_fonts[e.fontIdx], s, e.w / e.scale);
+        if (e.fontIdx >= 0 && e.swapAnim && !editing && SwapText(dl, e, a, b, col, s)) return;
         if (e.fontIdx >= 0) DrawText(dl, g_fonts[e.fontIdx], a, e.scale * Unit(), col, s, e.align, b.x - a.x);
     }
 }
@@ -1882,6 +1917,7 @@ static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the lay
     if (e.tileKinds) fprintf(f, "tilekinds=%d\n", e.tileKinds);
     if (e.afterLabel) fprintf(f, "afterlabel=1\n");
     if (e.wrap) fprintf(f, "wrap=1\n");
+    if (e.swapAnim) fprintf(f, "swapanim=1\n");
     if (!e.showIf.empty()) fprintf(f, "showif=%s\n", e.showIf.c_str());
     if (e.bindKind) fprintf(f, "bind=%s\nbindkind=%d\nbindrange=%g %g\n", e.bind.c_str(), e.bindKind, e.bindMin, e.bindMax);
     if (e.bindKind == 3 || e.bindKind == 4) fprintf(f, "bindrot=%g %g\n", e.rotMin, e.rotMax);
@@ -1970,6 +2006,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "tilekinds") e.tileKinds = atoi(v.c_str()) & 15;
     else if (k == "afterlabel") e.afterLabel = atoi(v.c_str()) != 0;
     else if (k == "wrap") e.wrap = atoi(v.c_str()) != 0;
+    else if (k == "swapanim") e.swapAnim = atoi(v.c_str()) != 0;
     else if (k == "kit") e.kit = Unesc(v);
     else if (k == "showif") e.showIf = v;
     else if (k == "bind") e.bind = v;
@@ -2900,6 +2937,8 @@ static void Selected(Elem& e) {
         ImGui::SetNextItemWidth(160); if (ImGui::DragFloat("box width (for centre/right)", &e.w, 0.5f, 0.f, 2000.f, "%.0f")) g_dirty = true;
         ImGui::SameLine(); if (ImGui::Checkbox("wrap", &e.wrap)) g_dirty = true;
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Break the text into lines to fit the box width (a long message from the game).");
+        ImGui::SameLine(); if (ImGui::Checkbox("animate changes", &e.swapAnim)) g_dirty = true;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("When its text changes, the old text shrinks and fades out while the new one grows and fades in\n(0.32 s) - the game's help bar swapping the profile name and the cash ({bar.ticker}).");
         std::vector<const char*> fn; int cur = -1;
         for (size_t i = 0; i < g_fonts.size(); ++i) { fn.push_back(g_fonts[i].name.c_str()); if (g_fonts[i].name == e.font) cur = (int)i; }
         ImGui::SetNextItemWidth(220);
