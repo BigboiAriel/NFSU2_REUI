@@ -56,6 +56,8 @@ struct Widget {
     // comes the first. Its "left arrow" / "right arrow" pieces stay at their own places (light up when pressed); its
     // scroller tab moves across its track.
     bool centred = true, wrap = false;
+    bool selStill = true;                // carousel: the selected tile's highlight (its "selected tile only" pieces) stays in
+                                         // its slot while the tiles slide into it (as the game's pause menu); off: it rides the tile
 };
 static bool GridLike(const Widget& w) { return w.type == W_GRID || w.type == W_CAROUSEL; }   // (tiles, drawn per cell)
 // a tile's size (the grid's width / height less the spacing, shared out) and the step from one tile to the next
@@ -684,10 +686,14 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
     struct At { int idx; float ox, oy; };
     std::vector<At> at;
     bool car = w.type == W_CAROUSEL;
+    float lead = car && !preview && w.centred ? (cols - 1) * 0.5f : 0.f;
+    // the highlight staying put: the slot the selected tile comes to rest in (not where it is while sliding)
+    bool selStill = car && w.selStill && !preview;
+    float restOx = selStill ? ((w.centred ? 0.f : (float)(st.sel - st.top)) + lead) * px : 0.f;
+    bool selDrawn = false;
     if (car) {
         // centred: the tile scroll is on sits in the middle slot; otherwise scroll is the first slot's tile. Wrapping, the
         // ends meet (copies a row-length away fill the slots past them).
-        float lead = !preview && w.centred ? (cols - 1) * 0.5f : 0.f;
         for (int idx = 0; idx < n; ++idx)
             for (int k = (w.wrap && !preview ? -1 : 0); k <= (w.wrap && !preview ? 1 : 0); ++k) {
                 float pos = idx + k * n - scroll + lead;
@@ -695,6 +701,10 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 if (preview && idx == 0) continue;   // (the pieces themselves are the first slot)
                 at.push_back({idx, pos * px, 0.f});
             }
+        if (selStill) {   // (the selected tile off the row mid-slide: still its highlight, the tile itself out of sight)
+            bool any = false; for (auto& a : at) any |= a.idx == st.sel;
+            if (!any && st.sel >= 0 && st.sel < n) at.push_back({st.sel, -100000.f, 0.f});
+        }
         float pad = w.spX * 0.5f + 1.f;   // (tiles sliding in / out are cut half a gap past the end slots)
         dl->PushClipRect(ImVec2(ga.x - pad * (gb.x - ga.x) / std::max(1.f, w.gw), -10000), ImVec2(gb.x + pad * (gb.x - ga.x) / std::max(1.f, w.gw), 10000), true);
     } else {
@@ -737,9 +747,11 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
             // this tile's pieces, placed; drawn together after, so its shapes are cut by its own cutters (each tile its own
             // copies), as well as by cutters outside the grid
             std::vector<Elem> tileEls; std::vector<std::pair<int, bool>> tileSrc;
+            bool selHere = cur && !(selStill && selDrawn);   // (wrapping copies of the selected tile: one highlight)
+            if (cur && selStill) selDrawn = true;
             for (int i : order) {
                 Elem& src = els[i];
-                if (src.selOnly && !cur) continue;
+                if (src.selOnly && !selHere) continue;
                 if ((src.role == "on" && it.on != 1) || (src.role == "off" && it.on != 0)) continue;   // (a live list item's state)
                 if (kind >= 0 && !TileShows(src, TileBit(t))) continue;
                 if (cur && src.selOnly && src.anim) {   // the selection's animation (a pulsing glow): from the start on each move
@@ -751,7 +763,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 bool rowP = RowPiece(src);   // (slider / picker pieces: already laid out across the row)
                 bool wideP = e.type != E_TEXT && e.w > 3 * e.h;   // (a bar / box: stretches across a whole-row tile)
                 float kp = rowP ? 1.f : sxp;
-                e.x = w.gx + (e.x - w.gx) * kp + ox + (e.afterLabel ? afterDx : 0.f);
+                e.x = w.gx + (e.x - w.gx) * kp + (selStill && src.selOnly ? restOx : ox) + (e.afterLabel ? afterDx : 0.f);
                 e.y = w.gy + (e.y - w.gy) * sy + oy + scrollDy;
                 if (e.type != E_TEXT) { if (e.afterLabel) { e.w *= std::min(sx, sy); e.h *= std::min(sx, sy); } else if (!rowP) { e.w *= wideP ? sxp : sx; e.h *= sy; } }   // (icons after the text keep their shape)
                 else { if (e.w > 0 && !rowP) e.w *= sxp; }   // (text keeps its size)
@@ -1279,6 +1291,8 @@ static void CarouselTop(Widget& w) {
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Tiles it has in all; left / right scroll through them.");
     ImGui::SameLine(); if (ImGui::Checkbox("selected stays in the middle", &w.centred)) g_dirty = true;
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("On: the row slides under the middle slot, the selected tile always there (the game's pause menu).\nOff: the cursor moves along the slots and the row scrolls at the ends.");
+    ImGui::SameLine(); if (ImGui::Checkbox("highlight stays put", &w.selStill)) g_dirty = true;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("On: the selected tile's highlight (its \"selected tile only\" pieces) stays in its slot and the tiles\nslide into it (the game's pause menu). Off: the highlight rides along with the tile.");
     ImGui::SameLine(); if (ImGui::Checkbox("wraps around", &w.wrap)) g_dirty = true;
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Past the last tile comes the first (and the other way).");
     float gwv = w.gw, ghv = w.gh;
@@ -1802,7 +1816,7 @@ static void SaveWidgetProps(FILE* f, const Widget& w) {
     if (!w.choices.empty()) { std::string j; for (size_t i = 0; i < w.choices.size(); ++i) j += (i ? "|" : "") + w.choices[i]; fprintf(f, "choices=%s\n", Esc(j).c_str()); }
     if (GridLike(w)) {
         Widget c = w; GridOrigin(c);
-        if (w.type == W_CAROUSEL) fprintf(f, "carousel=%d %d\n", w.centred ? 1 : 0, w.wrap ? 1 : 0);
+        if (w.type == W_CAROUSEL) fprintf(f, "carousel=%d %d %d\n", w.centred ? 1 : 0, w.wrap ? 1 : 0, w.selStill ? 1 : 0);
         fprintf(f, "grid=%d %d %g %g %g %g %g %g %d %d %g %g %g %g %d %d\n", w.cols, w.rows, w.gw, w.gh, w.gx, w.gy, w.refW, w.refH, w.scalePieces ? 1 : 0, w.startAt, c.ox, c.oy, w.spX, w.spY, w.totalRows, w.rowSpace ? 1 : 0);
         // its tiles: "tile=<label>" starts one, the lines after it are its own
         for (int i = 0, n = std::min((int)w.tiles.size(), GridTileCount(w)); i < n; ++i) {
@@ -1846,7 +1860,7 @@ static bool LoadWidgetKey(Widget& w, const std::string& k, const std::string& v)
     else if (k == "choices") { w.choices.clear(); std::string s = Unesc(v), cur; for (size_t i = 0; i <= s.size(); ++i) { if (i == s.size() || s[i] == '|') { if (!cur.empty()) w.choices.push_back(cur); cur.clear(); } else cur += s[i]; } }
     else if (k == "grid") { int sp = 1, rs = 0; int got = sscanf(v.c_str(), "%d %d %f %f %f %f %f %f %d %d %f %f %f %f %d %d", &w.cols, &w.rows, &w.gw, &w.gh, &w.gx, &w.gy, &w.refW, &w.refH, &sp, &w.startAt, &w.ox, &w.oy, &w.spX, &w.spY, &w.totalRows, &rs); w.scalePieces = sp != 0; w.rowSpace = got >= 16 && rs != 0; w.hasOrigin = got >= 12; w.spX = std::max(0.f, w.spX); w.spY = std::max(0.f, w.spY); w.totalRows = std::max(0, w.totalRows); w.startAt = std::max(0, std::min(2, w.startAt)); w.cols = std::max(1, w.cols); w.rows = std::max(1, w.rows); }
     else if (k == "num") sscanf(v.c_str(), "%f %f %f %f", &w.min, &w.max, &w.step, &w.value);
-    else if (k == "carousel") { int c = 1, r = 0; sscanf(v.c_str(), "%d %d", &c, &r); w.centred = c != 0; w.wrap = r != 0; }
+    else if (k == "carousel") { int c = 1, r = 0, h = 1; sscanf(v.c_str(), "%d %d %d", &c, &r, &h); w.centred = c != 0; w.wrap = r != 0; w.selStill = h != 0; }
     else if (k == "tile") { Widget t; t.type = W_BUTTON; t.label = Unesc(v); w.tiles.push_back(t); }
     else if (k.size() > 1 && k[0] == 't' && !w.tiles.empty()) {   // the last tile's
         Widget& t = w.tiles.back(); std::string tk = k.substr(1);
