@@ -56,6 +56,17 @@ static void LinkRebuild(LinkSet& s, int src) {
     s.refOk = true;
     std::vector<int> owner(els.size(), -1);
     for (size_t i = 0; i < els.size(); ++i) for (size_t k = 0; k < s.m.size(); ++k) if ((int)k != src && InGroup(els[i].group, s.m[k].group)) owner[i] = (int)k;
+    {   // the same number of pieces everywhere (a value edited, a drag): written over in place, so nothing in the list
+        // moves - the element being edited stays the same object (the panel's fields are keyed on it: a drag goes on)
+        std::vector<std::vector<int>> idx(s.m.size());
+        for (size_t i = 0; i < els.size(); ++i) if (owner[i] >= 0) idx[owner[i]].push_back((int)i);
+        bool fits = true;
+        for (size_t k = 0; k < s.m.size(); ++k) if ((int)k != src && idx[k].size() != s.ref.size()) fits = false;
+        if (fits) {
+            for (size_t k = 0; k < s.m.size(); ++k) if ((int)k != src) for (size_t j = 0; j < s.ref.size(); ++j) els[idx[k][j]] = LinkAbs(s.ref[j].e, s.m[k]);
+            return;
+        }
+    }
     std::vector<Elem> out; out.reserve(els.size() + s.ref.size() * s.m.size());
     std::vector<int> map(els.size(), -1);
     std::vector<char> placed(s.m.size(), 0);
