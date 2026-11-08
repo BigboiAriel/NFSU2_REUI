@@ -1481,8 +1481,9 @@ static void AddGrid(Page& p) {
     g_selGroup = g; g_sel = -1;
     Log("ui editor: grid added as %s", g.c_str());
 }
+static void ElemKey(Elem& e, const std::string& k, const std::string& v);   // (a layout line: uied.cpp)
 // a new carousel: the game's pause menu row (UI_pause.fng) - 126 x 62 slots 159 apart (3 on screen) about the middle at
-// y -14.3, the icon backing + green frame on the selected one, 118 x 59 icons, white arrows (26 x 26, 150 / 255) at
+// y -14.3, the selected one's pulsing glow (select / halo / inner, as the user's pause menu has them), 118 x 59 icons, white arrows (26 x 26, 150 / 255) at
 // -250.3 / 259.1, and the scroller (562 x 8 backing at y -52, a 16 x 16 tab)
 static void AddCarousel(Page& p) {
     std::string g; for (int i = 1; ; ++i) { g = p.group + "/Carousel" + (i > 1 ? " " + std::to_string(i) : ""); if (!WidgetOf(g)) { bool used = false; for (auto& e : MenuElems()) if (InGroup(e.group, g)) used = true; if (!used) break; } }
@@ -1496,8 +1497,22 @@ static void AddCarousel(Page& p) {
         Elem e; e.type = E_IMAGE; e.name = name; e.group = g; e.anchor = 4; e.x = x; e.y = y; e.w = ww; e.h = hh; e.tex = tex; e.texIdx = -2;
         e.col[3] = a; e.layer = layer; MenuElems().push_back(e); return &MenuElems().back();
     };
-    Elem* bk = img("Icon backing", cx, cy, 126, 62, "U2_CARSELECT_ICON_BACKING", 80 / 255.f, 1); bk->selOnly = true;
-    Elem* hl = img("Icon highlight", cx, cy, 126, 62, "U2_ICON_HIGHLIGHT", 1, 3); hl->selOnly = true; hl->col[0] = 202 / 255.f; hl->col[1] = 244 / 255.f; hl->col[2] = 138 / 255.f;
+    // the selected tile (the user's pause menu look, 2026-11-08): its backing and border, a halo outside and a glow inside,
+    // all pulsing as the game's icon highlight does (833 ms: bright, down to 40 %, held, back up)
+    auto shape = [&](const char* name, std::initializer_list<const char*> kv) {
+        Elem e; e.type = E_SHAPE; e.name = name; e.group = g; e.anchor = 4; e.x = cx; e.y = cy; e.w = 125; e.h = 60; e.texIdx = -2;
+        e.selOnly = true;
+        for (const char* l : kv) { std::string t = l; size_t q = t.find('='); ElemKey(e, t.substr(0, q), t.substr(q + 1)); }
+        MenuElems().push_back(e);
+    };
+    const char* kPulse = "keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1";
+    shape("select", {"color=0.8824 0.8824 0.8824 1", "shape=7 7 7 7 3", "fill=0.21547 0.21547 0.21547 0.828729", "filltoken=hud.shade 1",
+                     "strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent",
+                     "anim=3", kPulse, "colortoken=hud.line 1"});
+    shape("select glow (halo)", {"color=1 1 1 1", "shape=7 7 7 7 3", "fill=0 0 0 0", "strokealign=2",
+                                 "strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent", "anim=3", kPulse});
+    shape("select glow (inner)", {"color=1 1 1 1", "layer=1", "shape=7 7 7 7 0", "fill=1 1 1 1",
+                                  "fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent", "anim=3", kPulse});
     Elem* ic = img("Icon", cx, cy, 118, 59, "", 1, 2); ic->role = "icon"; ic->tex.clear();
     float mid = w.gx + w.gw / 2;   // (the stock arrows sit 250.3 / 259.1 out from the middle)
     Elem* al = img("Arrow left", mid - 250.6f, -12.8f, 26, 26, "U2_MENU_ARROW_WHITE", 150 / 255.f, 4); al->role = "arrowL"; al->u0 = al->v0 = 1; al->u1 = al->v1 = 0;
