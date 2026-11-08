@@ -742,6 +742,11 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 if (src.selOnly && !cur) continue;
                 if ((src.role == "on" && it.on != 1) || (src.role == "off" && it.on != 0)) continue;   // (a live list item's state)
                 if (kind >= 0 && !TileShows(src, TileBit(t))) continue;
+                if (cur && src.selOnly && src.anim) {   // the selection's animation (a pulsing glow): from the start on each move
+                    static std::map<const Elem*, int> lastSel;
+                    auto ls = lastSel.find(&src);
+                    if (ls == lastSel.end() || ls->second != idx || src.shownSince < 0) { src.shownSince = ImGui::GetTime(); lastSel[&src] = idx; }
+                }
                 Elem e = src;
                 bool rowP = RowPiece(src);   // (slider / picker pieces: already laid out across the row)
                 bool wideP = e.type != E_TEXT && e.w > 3 * e.h;   // (a bar / box: stretches across a whole-row tile)
