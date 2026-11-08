@@ -1,3 +1,9 @@
+// a text's text as shown: its tokens ({page.title}: the menu's header text), or the menu's header text itself
+static std::string ElemText(const Elem& e) {
+    g_titleNow = TitleFor(e.group);
+    if (e.type == E_TEXT && e.role == "title" && !g_titleNow.empty()) return g_titleNow;
+    return Expand(e.text, e.row);
+}
 // ---------------------------------------------------------------- linked groups (2026-11-08)
 // Groups that are kept the same: the glyph bar's copies, a carousel's select pieces... on several menus. Each member
 // keeps its own place (and layer) - an offset - and everything else is shared: an edit to one of them (a colour, a

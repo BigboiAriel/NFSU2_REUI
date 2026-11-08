@@ -94,6 +94,7 @@ struct Page {
     bool carSelect = false;              // ... the garage's Car Select (UI_CareerCarSelect: the game keeps the controls)
     std::vector<std::pair<std::string, std::string>> feSwaps;   // out of the world (the garage, the front end): colour
                                          // tokens swapped on this menu and its sub menus (from -> to: hud.shade -> Menu.grey.1)
+    std::string title;                   // header text: what "page: header text" pieces and {page.title} show on it
     std::vector<std::string> shared;     // shared pieces (groups: the glyph bar, the performance bar...) drawn over this menu
                                          // and its sub menus, with what its parent menus show
 };
@@ -106,6 +107,17 @@ std::function<void()> menuChanged;
 
 static Widget* WidgetOf(const std::string& g) { for (auto& w : g_widgets) if (w.group == g) return &w; return nullptr; }
 static Page* PageOf(const std::string& g) { for (auto& p : g_pages) if (p.group == g) return &p; return nullptr; }
+// Header text (2026-11-08): a menu's title, typed in its right-click menu. A text with the role "page: header text"
+// shows the title of the menu on screen instead of its own text (its own when that menu has none); {page.title} puts it
+// into any text. Shared pieces show the menu they're drawn over; so a header in a linked group needs no change per menu.
+static const Page* g_titlePage = nullptr;   // the menu being drawn (its shared pieces too); null: the element's own menu
+static std::string OwnerPage(const std::string& g);
+static std::string TitleFor(const std::string& group) {
+    if (g_titlePage) return g_titlePage->title;
+    std::string pg = OwnerPage(group);
+    Page* p = pg.empty() ? nullptr : PageOf(pg);
+    return p ? p->title : std::string();
+}
 // The page a group belongs to: itself or the nearest group around it that's a page ("" = none). A custom menu can sit
 // inside another (a sub menu: "Pause 1/Unipad Options"); its pieces are its own, not the menu around it's.
 static std::string OwnerPage(const std::string& g) { for (std::string x = g; !x.empty(); x = GroupParent(x)) if (PageOf(x)) return x; return std::string(); }
@@ -1166,8 +1178,10 @@ static bool DrawMenu(ImDrawList* dl) {
         static std::vector<std::pair<std::string, std::string>> sw;   // (out of the world: its colour swaps, its shared pieces too)
         sw = OutOfWorld() ? PageSwaps(p.group) : std::vector<std::pair<std::string, std::string>>();
         g_tokSwap = sw.empty() ? nullptr : &sw;
+        g_titlePage = &p;   // (its header text: on its shared pieces too)
         DrawMenuPage(dl, p, sel);
         if (bar) DrawShared(dl, p);   // (the page on top: its shared pieces)
+        g_titlePage = nullptr;
         g_tokSwap = nullptr;
         if (a < 0.999f) for (int i = v0; i < dl->VtxBuffer.Size; ++i) {
             ImU32& c = dl->VtxBuffer[i].col;
@@ -1194,10 +1208,10 @@ static bool DrawMenu(ImDrawList* dl) {
 }
 
 // ---------------------------------------------------------------- authoring
-static const char* kRoleKey[] = { "", "label", "value", "fill", "tab", "arrowL", "arrowR", "desc", "bindicon", "icon", "gtab", "gtrack", "on", "off" };
+static const char* kRoleKey[] = { "", "label", "value", "fill", "tab", "arrowL", "arrowR", "desc", "bindicon", "icon", "gtab", "gtrack", "on", "off", "title" };
 static const char* kRoleName[] = { "(none)", "label", "value text", "slider fill bar", "slider tab", "left arrow", "right arrow",
                                    "page: description text", "binding icon (??? while waiting)", "item icon", "scroller tab", "scroller track",
-                                   "live list: item on (a tick)", "live list: item off (a cross)" };
+                                   "live list: item on (a tick)", "live list: item off (a cross)", "page: header text" };
 
 // ---------------------------------------------------------------- authoring panels
 static void ElemMenuProps(Elem& e) {
@@ -1210,7 +1224,9 @@ static void ElemMenuProps(Elem& e) {
         "label / value text: the tile's name / its setting; both take the page's selected colour.\n"
         "slider fill bar / tab: sized / moved by the value. Arrows: a picker's (light up when pressed); a carousel's ends.\n"
         "The label shows the item ({item} / {i} / {count} in any text), the item icon is its picture.\n"
-        "page: description text - on the page itself: the selected tile's description.");
+        "page: description text - on the page itself: the selected tile's description.\n"
+        "page: header text - the menu's title (its right-click menu: Header text); its own text where the menu has none.\n"
+        "  {page.title} puts the title into any text. In a shared / linked group it's the title of the menu on screen.");
     Widget* inGrid = WidgetFor(e.group); bool tile = inGrid && GridLike(*inGrid);
     if (tile) { ImGui::SameLine(); if (ImGui::Checkbox("selected tile only", &e.selOnly)) g_dirty = true; }
     if (tile && ImGui::IsItemHovered()) ImGui::SetTooltip("Drawn on the selected tile only (a highlight that follows the cursor, the picker arrows).");
@@ -1645,6 +1661,14 @@ static void SharedMenu(Page& p) {
 }
 // A menu's colour swaps out of the world (its right-click menu): in the garage / front end, elements using the "from"
 // token take the "to" one's colour - on this menu and its sub menus (and the shared pieces drawn over them)
+// the menu's header text, in its right-click menu
+static void TitleBox(Page& p) {
+    static char tb[96]; static std::string tbFor;
+    if (tbFor != p.group || ImGui::IsWindowAppearing()) { snprintf(tb, sizeof tb, "%s", p.title.c_str()); tbFor = p.group; }
+    ImGui::SetNextItemWidth(180);
+    if (ImGui::InputTextWithHint("header text##menutitle", "(none: headers keep their own)", tb, sizeof tb)) { p.title = tb; g_dirty = true; }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The menu's title: texts with the role \"page: header text\" show it (on this menu, and in the shared pieces over it),\nand {page.title} in any text. Empty: header pieces show their own text.");
+}
 static void SwapsMenu(Page& p) {
     auto all = PageSwaps(p.group);
     std::string label = "Out of the world (garage)" + (all.empty() ? std::string() : " (" + std::to_string(all.size()) + " swap" + (all.size() > 1 ? "s" : "") + ")") + "##feswaps";
@@ -1776,6 +1800,7 @@ static void MenuBar() {
             if (!moved) if (Page* pg = PageOf(g)) ReplacesCombo(*pg);
             if (!moved) if (Page* pg = PageOf(g)) SharedMenu(*pg);
             if (!moved) if (Page* pg = PageOf(g)) SwapsMenu(*pg);
+            if (!moved) if (Page* pg = PageOf(g)) TitleBox(*pg);
             ImGui::Separator();
             if (!moved && ImGui::BeginMenu("Move into")) {
                 std::string cur = ParentMenu(g);
@@ -1904,6 +1929,7 @@ static void SaveMenus(FILE* f) {
         if (p.raceDialogMp) fprintf(f, "racedlgmp=1\n");
         if (p.garage) fprintf(f, "garagemenu=1\n");
         if (p.carSelect) fprintf(f, "carselect=1\n");
+        if (!p.title.empty()) fprintf(f, "title=%s\n", Esc(p.title).c_str());
         for (auto& x : p.shared) fprintf(f, "shared=%s\n", Esc(x).c_str());
         for (auto& x : p.feSwaps) fprintf(f, "feswap=%s %s\n", x.first.c_str(), x.second.c_str());
     }
@@ -1953,6 +1979,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "racedlgmp") p.raceDialogMp = atoi(v.c_str()) != 0;
         else if (k == "garagemenu") p.garage = atoi(v.c_str()) != 0;
         else if (k == "carselect") p.carSelect = atoi(v.c_str()) != 0;
+        else if (k == "title") p.title = Unesc(v);
         else if (k == "shared" || k == "glyphbar") p.shared.push_back(Unesc(v));   // (glyphbar: the first builds)
         else if (k == "feswap") { char a[96] = {}, b[96] = {}; if (sscanf(v.c_str(), "%95s %95s", a, b) == 2) p.feSwaps.push_back({a, b}); }
         else if (k == "selcolor") { int u = 1; sscanf(v.c_str(), "%d %f %f %f %f", &u, &p.selCol[0], &p.selCol[1], &p.selCol[2], &p.selCol[3]); p.useSel = u != 0; }

@@ -425,6 +425,7 @@ static void DrawText(ImDrawList* dl, const Font& f, ImVec2 p, float k, ImU32 col
         start = e + 1;
     }
 }
+static std::string g_titleNow;   // {page.title}: the header text of the menu being drawn (ElemText sets it; "" = none)
 // {key} -> live value. In an element bound to leaderboard row N, {name} {pos} ... mean that row's ({rN.name} ...).
 static std::string Expand(const std::string& s, int row = 0) {
     std::string out;
@@ -433,7 +434,8 @@ static std::string Expand(const std::string& s, int row = 0) {
             size_t e = s.find('}', i);
             if (e != std::string::npos) {
                 std::string key = s.substr(i + 1, e - i - 1), v;
-                if (key == "clock") { time_t now = time(nullptr); tm* lt = localtime(&now); char b[16]; strftime(b, sizeof b, "%H:%M", lt); v = b; }
+                if (key == "page.title") v = g_titleNow;
+                else if (key == "clock") { time_t now = time(nullptr); tm* lt = localtime(&now); char b[16]; strftime(b, sizeof b, "%H:%M", lt); v = b; }
                 else if (row > 0 && key.find('.') == std::string::npos && tokens && tokens("r" + std::to_string(row) + "." + key, v)) {}
                 else if (!(tokens && tokens(key, v))) v = "{" + key + "}";
                 out += v; i = e; continue;
@@ -659,12 +661,13 @@ static bool g_panelOpen = false;          // the tab was drawn this frame
 static int g_dragging = -1, g_dragMode = 0; static ImVec2 g_dragStart, g_dragOrig, g_dragOrigWH; static float g_dragOrigScale = 1.f;
 
 static const char* kAnchors[] = { "top left", "top", "top right", "left", "centre", "right", "bottom left", "bottom", "bottom right" };
+struct Elem; static std::string ElemText(const Elem& e);   // (a text's text as shown: its tokens, a header's menu title)
 static float Unit() { ImVec2 ds = ImGui::GetIO().DisplaySize; return ds.y / 480.f; }   // 1 unit = 1/480 of the screen height
 static ImVec2 ElemSize(Elem& e) {
     if (e.type == E_TEXT) {
         if (e.fontIdx == -2) e.fontIdx = FindFont(e.font);
         if (e.fontIdx < 0) return ImVec2(40, 12);
-        const Font& f = g_fonts[e.fontIdx]; std::string s = Expand(e.text, e.row);
+        const Font& f = g_fonts[e.fontIdx]; std::string s = ElemText(e);
         if (e.wrap && e.w > 0 && e.scale > 0) s = WrapText(f, s, e.w / e.scale);
         return ImVec2(std::max(e.w, TextWidth(f, s) * e.scale), Lines(s) * f.line * e.scale);
     }
@@ -1314,7 +1317,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (tx && (e.additive || noAlpha)) dl->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
     } else {
         if (e.fontIdx == -2) e.fontIdx = FindFont(e.font);
-        std::string s = Expand(e.text, e.row);
+        std::string s = ElemText(e);
         if (editing && s.empty()) s = e.text;   // show the template where there's no value yet
         if (e.fontIdx >= 0 && e.wrap && e.w > 0 && e.scale > 0) s = WrapText(g_fonts[e.fontIdx], s, e.w / e.scale);
         if (e.fontIdx >= 0 && e.swapAnim && !editing && SwapText(dl, e, a, b, col, s)) return;
@@ -2517,7 +2520,7 @@ void DrawOverlay(int mode) {
         g_drawList = &lay;
         for (int i : DrawOrder(lay)) if (!(MenuWs() && GridPieceOff(lay[i]))) DrawElem(dl, lay[i], editing);
         // a custom menu being edited: the shared pieces it shows, as they will be over it (edited where they live)
-        if (MenuWs() && !g_menuEd.empty()) if (Page* pg = PageOf(g_menuEd)) DrawShared(dl, *pg, g_menuEd);
+        if (MenuWs() && !g_menuEd.empty()) if (Page* pg = PageOf(g_menuEd)) { g_titlePage = pg; DrawShared(dl, *pg, g_menuEd); g_titlePage = nullptr; }
         if ((editing || panel) && MenuWs())   // grids: the other cells faded, with sample items (the pieces are the first cell)
             for (auto& w : g_widgets) if (GridLike(w) && !MenuEdOff(w.group)) {
                 bool shown = false; for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.visible) { shown = true; break; }

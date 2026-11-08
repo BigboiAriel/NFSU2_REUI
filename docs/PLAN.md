@@ -264,6 +264,10 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   moves follow; a deleted or ungrouped member leaves its link. Undo covers links. Saved before the elements as
   `grouplink=<mode>|<dx> <dy> <layer> <group>|...`; on loading / undoing, if they differ the first one's look wins.
   Code: src/editor/uied_links.inc (LinksSync runs before each undo snapshot, when something was edited).
+- **Menu header text (2026-11-08).** A menu's right-click menu has "header text": its title (saved as `title=` on the
+  page). A text with the role "page: header text" shows the title of the menu on screen instead of its own text (its
+  own where the menu has none), and `{page.title}` puts it into any text. Shared pieces show the title of the menu
+  they're drawn over, so one header in a shared / linked group serves every menu unchanged.
 - **Linked groups page (2026-11-08).** "Save as linked group..." (next to the group panel's Link..., and in the list's
   right-click menu) names a group's link - a new one with just that group if it isn't linked yet - and lists it on the
   Linked groups page (between the minimap and prefabs): the list (named ones first, unnamed links greyed), a preview,
