@@ -2774,6 +2774,11 @@ static void GroupPanel() {
             if (!go.empty()) { LinkGoTo(go); return; }
         }
         if (ImGui::BeginPopup("##grplink")) { LinkMenuItems(g); ImGui::EndPopup(); }
+        ImGui::SameLine();
+        bool named = ls && !ls->name.empty();
+        if (ImGui::Button(named ? ("Linked group: " + ls->name + "##lgsave").c_str() : "Save as linked group...")) ImGui::OpenPopup("##grplgsave");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip(named ? "Listed on the Linked groups page. Click to rename it." : "Lists it (and what it's linked with) on the Linked groups page, under a name:\nadd more linked copies of it from there.");
+        if (ImGui::BeginPopup("##grplgsave")) { if (LinkSaveUI(g)) ImGui::CloseCurrentPopup(); ImGui::EndPopup(); }
         if (g_selGroup != g) return;   // (went to another, or the group changed)
     }
     // put it inside a larger group: an existing one (not itself or one inside it), or a new one by name
@@ -3608,6 +3613,7 @@ void Panel() {
                     if (ImGui::MenuItem("Visible", nullptr, vis)) { for (auto& e : Elems()) if (InGroup(e.group, child)) e.visible = !vis; g_dirty = true; }
                     ImGui::Separator();
                     LinkMenuItems(child);
+                    if (ImGui::BeginMenu("Save as linked group...")) { if (LinkSaveUI(child)) ImGui::CloseCurrentPopup(); ImGui::EndMenu(); }
                     ImGui::Separator();
                     static char pn[64]; static std::string pnFor;
                     if (pnFor != child) { pnFor = child; snprintf(pn, sizeof pn, "%s", GroupLeaf(child).c_str()); }
@@ -3735,6 +3741,7 @@ void Panel() {
     UndoCommit(false);
     TokensPanel();
     if (!menuMode) MinimapPage();
+    LinkedGroupsPage();
     // ---- prefabs: a list, a preview of the picked one, Add / Delete
     if (!menuMode && ImGui::CollapsingHeader("Prefabs")) {
         static std::string pick, cacheName; static std::vector<Elem> cache; static double cacheAt = -10;
@@ -3756,28 +3763,7 @@ void Panel() {
         if (have && (cacheName != pick || ImGui::GetTime() - cacheAt > 2.0)) {   // (re-read now and then: it may have been replaced)
             std::string root; LoadPrefab(pick, root, cache); cacheName = pick; cacheAt = ImGui::GetTime();
         }
-        ImVec2 box(std::max(200.f, ImGui::GetContentRegionAvail().x), h - ImGui::GetFrameHeightWithSpacing());
-        ImVec2 p0 = ImGui::GetCursorScreenPos(), p1(p0.x + box.x, p0.y + box.y);
-        ImDrawList* dl = ImGui::GetWindowDrawList();
-        dl->AddRectFilled(p0, p1, IM_COL32(28, 30, 36, 255), 4.f);
-        dl->AddRect(p0, p1, IM_COL32(80, 84, 96, 255), 4.f);
-        ImGui::Dummy(box);
-        if (have && !cache.empty()) {
-            // drawn as on the game screen, then fitted into the box (every vertex scaled about the pieces' bounds)
-            ImVec2 lo(1e9f, 1e9f), hi(-1e9f, -1e9f);
-            for (auto& e : cache) { if (!e.visible) continue; ImVec2 a, b; ElemRect(e, a, b); lo.x = std::min(lo.x, a.x); lo.y = std::min(lo.y, a.y); hi.x = std::max(hi.x, b.x); hi.y = std::max(hi.y, b.y); }
-            if (hi.x > lo.x && hi.y > lo.y) {
-                dl->PushClipRect(p0, p1, true);
-                int v0 = dl->VtxBuffer.Size;
-                g_drawList = &cache;
-                for (int i : DrawOrder(cache)) DrawElem(dl, cache[i], true);
-                g_drawList = nullptr;
-                float sc = std::min((box.x - 16) / (hi.x - lo.x), (box.y - 16) / (hi.y - lo.y));
-                ImVec2 off(p0.x + (box.x - (hi.x - lo.x) * sc) / 2, p0.y + (box.y - (hi.y - lo.y) * sc) / 2);
-                for (int i = v0; i < dl->VtxBuffer.Size; ++i) { ImVec2& v = dl->VtxBuffer[i].pos; v = ImVec2(off.x + (v.x - lo.x) * sc, off.y + (v.y - lo.y) * sc); }
-                dl->PopClipRect();
-            }
-        } else dl->AddText(ImVec2(p0.x + 10, p0.y + 10), IM_COL32(140, 140, 150, 255), have ? "(empty)" : "Pick a prefab to see it here");
+        { std::vector<Elem> none; ElemsPreview(have ? cache : none, ImVec2(std::max(200.f, ImGui::GetContentRegionAvail().x), h - ImGui::GetFrameHeightWithSpacing()), have ? "(empty)" : "Pick a prefab to see it here"); }
         ImGui::BeginDisabled(!have);
         if (ImGui::Button("Add")) AddPrefab(pick);
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("A copy in this game mode (%s), as a new group.", kModeName[g_editMode]);

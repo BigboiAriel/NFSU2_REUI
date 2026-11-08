@@ -264,6 +264,13 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   moves follow; a deleted or ungrouped member leaves its link. Undo covers links. Saved before the elements as
   `grouplink=<mode>|<dx> <dy> <layer> <group>|...`; on loading / undoing, if they differ the first one's look wins.
   Code: src/editor/uied_links.inc (LinksSync runs before each undo snapshot, when something was edited).
+- **Linked groups page (2026-11-08).** "Save as linked group..." (next to the group panel's Link..., and in the list's
+  right-click menu) names a group's link - a new one with just that group if it isn't linked yet - and lists it on the
+  Linked groups page (between the minimap and prefabs): the list (named ones first, unnamed links greyed), a preview,
+  Add (another linked copy as a new group on the menu being edited, where the first copy is on its menu; a grid /
+  carousel inside gets its settings copied once; double-click does the same), Unlink (every copy keeps its pieces and
+  goes its own way) and the copies (click to go to one). A named link stays with one copy; it goes when none are left.
+  Saved as `grouplink=<mode> <name>|...`.
 - **Shared pieces (2026-11-05/06).** A menu's right-click menu has "Shared pieces": tick groups to draw over that menu
   and every sub menu under it (the glyph bar, the performance bar...). The "Shared" menu's groups are listed first,
   any other group under "Other groups"; a sub menu shows its parent menus' (greyed: "from Garage") plus its own.
