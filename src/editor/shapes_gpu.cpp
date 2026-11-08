@@ -113,12 +113,13 @@ float4 main(float4 col : COLOR0, float2 uv : TEXCOORD0) : COLOR {
     float lo = P1.z, hi = P1.w, sw = P3.x;
     float d = SdRoundBox(p, b, P2);
     float cutEdge = 0;   // the nearest edge here is a cut's (no stroke of the shape's there)
-    float nc = P3.w;
+    float nc = P3.w, dcut = -1e9;
     [loop] for (int i = 0; i < 16; i++) {   // A minus B: max(dA, -dB), B grown by its gap
         if (i >= nc) break;
         float2 l = p - CA[i].xy;
         float2 rp = float2(l.x * CA[i].z - l.y * CA[i].w, l.x * CA[i].w + l.y * CA[i].z);
         float dc = -(SdRoundBox(rp, CB[i].xy, CR[i]) - CB[i].z);
+        dcut = max(dcut, dc);
         if (dc > d) { d = dc; cutEdge = 1; }
     }
     float4 o = 0;
@@ -126,7 +127,10 @@ float4 main(float4 col : COLOR0, float2 uv : TEXCOORD0) : COLOR {
         float cov = saturate((aa - d) * k);
         float4 c = float4(1, 1, 1, 1);
         if (P3.y > 0.5) {   // (one sample, its t by the gradient's mode: linear, radial, from the edge)
-            float t = P3.y < 1.5 ? (dot(p, P4.xy) / P4.z + 1) / 2 : P3.y < 2.5 ? length(p / max(b, 1e-3)) : (P4.w > 0 ? -d / P4.w : 1);
+            // (from the edge: measured from the outline with its corners rounded to 1.5x the depth at least, so the
+            // glow's lines bend round the corners instead of meeting in creases from them)
+            float dg = max(SdRoundBox(p, b, max(P2, 1.5 * P4.w)), dcut);
+            float t = P3.y < 1.5 ? (dot(p, P4.xy) / P4.z + 1) / 2 : P3.y < 2.5 ? length(p / max(b, 1e-3)) : (P4.w > 0 ? -dg / P4.w : 1);
             c = SampFill(saturate(t));
         }
         o = float4(c.rgb, c.a * cov);

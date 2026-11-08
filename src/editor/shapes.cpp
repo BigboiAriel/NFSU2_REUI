@@ -184,10 +184,12 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
             float d = SdRoundBox(px, py, bx, by, s.r);
             if (d > maxHi + 1.f) continue;
             bool cutEdge = false;   // the nearest edge here is a cut's (no stroke of the shape's there)
+            float dcut = -1e9f;
             for (auto& c : cs) {   // A minus B: max(dA, -dB), B grown by its gap
                 float lx = px - c.cx, ly = py - c.cy;
                 float rx = lx * c.cs - ly * c.sn, ry = lx * c.sn + ly * c.cs;
                 float dc = -(SdRoundBox(rx, ry, c.bx, c.by, c.r) - c.gap);
+                dcut = std::max(dcut, dc);
                 if (dc > d) { d = dc; cutEdge = true; }
             }
             float outer = Clamp01((aa - (d - hi)) * k);   // inside the band's outer side
@@ -201,7 +203,11 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
                     float t = 0;
                     if (fg.mode == 1) t = ((px * ldx + py * ldy) / lext + 1) / 2;
                     else if (fg.mode == 2) { float u = px / std::max(1e-3f, bx), v = py / std::max(1e-3f, by); t = sqrtf(u * u + v * v); }
-                    else t = fg.depth > 0 ? -d / fg.depth : 1;   // from the path inward
+                    else {   // from the path inward: its corners rounded to 1.5x the depth at least (no creases from them)
+                        float rg[4]; for (int q = 0; q < 4; ++q) rg[q] = std::max(s.r[q], 1.5f * fg.depth);
+                        float dg = std::max(SdRoundBox(px, py, bx, by, rg), dcut);
+                        t = fg.depth > 0 ? -dg / fg.depth : 1;
+                    }
                     Sample(fg, Clamp01(t), c);
                 }
                 fpx[i] = Argb(c, fillCov);
