@@ -732,6 +732,7 @@ static bool Token(const std::string& k, std::string& out) {
         // {race.map} (the route map's texture) comes from UniPad, which has the screen: "#<hash>" once it's loaded
     }
     if (k == "fps") { snprintf(b, sizeof b, "%.0f", g_fps); out = b; return true; }
+    if (k == "in_world") { out = *(int*)0x8654A4 == 6 ? "1" : ""; return true; }   // (the game state: 6 in the world, else the front end)
     if (k == "speed" || k == "mph") {
         uint8_t* p1 = *(uint8_t**)0x8900AC;
         uint8_t* car = p1 && Readable(p1 + 4, 4) ? *(uint8_t**)(p1 + 4) : nullptr;

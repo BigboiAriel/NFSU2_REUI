@@ -92,6 +92,8 @@ struct Page {
     bool raceDialogMp = false;           // ... in a multiplayer session (COOP / SOLO / race settings)
     bool garage = false;                 // opened instead of the garage menu ("The Garage": UI_CareerCrib)
     bool carSelect = false;              // ... the garage's Car Select (UI_CareerCarSelect: the game keeps the controls)
+    std::vector<std::pair<std::string, std::string>> feSwaps;   // out of the world (the garage, the front end): colour
+                                         // tokens swapped on this menu and its sub menus (from -> to: hud.shade -> Menu.grey.1)
     std::vector<std::string> shared;     // shared pieces (groups: the glyph bar, the performance bar...) drawn over this menu
                                          // and its sub menus, with what its parent menus show
 };
@@ -123,6 +125,17 @@ static std::vector<SharedUse> PageShared(const std::string& page) {
         }
     return v;
 }
+// the token swaps a page takes out of the world: its own and its parent menus' (a sub menu's own win)
+static std::vector<std::pair<std::string, std::string>> PageSwaps(const std::string& page) {
+    std::vector<std::pair<std::string, std::string>> v;
+    for (std::string x = page; !x.empty(); x = ParentMenu(x))
+        if (Page* p = PageOf(x)) for (auto& s : p->feSwaps) {
+            bool had = false; for (auto& o : v) had |= o.first == s.first;
+            if (!had) v.push_back(s);
+        }
+    return v;
+}
+static bool OutOfWorld() { std::string v; return tokens && tokens("in_world", v) && v.empty(); }   // (host: the game state isn't 6)
 static bool IsShared(const std::string& g) {   // (in a group some menu shows as a shared piece)
     for (auto& p : g_pages) for (auto& x : p.shared) if (!x.empty() && InGroup(g, x)) return true;
     return false;
@@ -1149,8 +1162,12 @@ static bool DrawMenu(ImDrawList* dl) {
     auto drawA = [&](const Page& p, int sel, float a, bool bar) {   // (bar: with its shared pieces)   // the page at an opacity: its vertices' alpha scaled
         if (a <= 0.003f) return;
         int v0 = dl->VtxBuffer.Size;
+        static std::vector<std::pair<std::string, std::string>> sw;   // (out of the world: its colour swaps, its shared pieces too)
+        sw = OutOfWorld() ? PageSwaps(p.group) : std::vector<std::pair<std::string, std::string>>();
+        g_tokSwap = sw.empty() ? nullptr : &sw;
         DrawMenuPage(dl, p, sel);
         if (bar) DrawShared(dl, p);   // (the page on top: its shared pieces)
+        g_tokSwap = nullptr;
         if (a < 0.999f) for (int i = v0; i < dl->VtxBuffer.Size; ++i) {
             ImU32& c = dl->VtxBuffer[i].col;
             c = (c & ~IM_COL32_A_MASK) | ((ImU32)(((c >> IM_COL32_A_SHIFT) & 0xFF) * a) << IM_COL32_A_SHIFT);
@@ -1625,6 +1642,44 @@ static void SharedMenu(Page& p) {
     }
     ImGui::EndMenu();
 }
+// A menu's colour swaps out of the world (its right-click menu): in the garage / front end, elements using the "from"
+// token take the "to" one's colour - on this menu and its sub menus (and the shared pieces drawn over them)
+static void SwapsMenu(Page& p) {
+    auto all = PageSwaps(p.group);
+    std::string label = "Out of the world (garage)" + (all.empty() ? std::string() : " (" + std::to_string(all.size()) + " swap" + (all.size() > 1 ? "s" : "") + ")") + "##feswaps";
+    if (!ImGui::BeginMenu(label.c_str())) {
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Colour tokens swapped while you're out of the world (the garage, car select, the main menu):\nelements using the first take the second's colour - on this menu and all of its sub menus, and the\nshared pieces over them. In the world (driving, paused, races) they keep their own.");
+        return;
+    }
+    for (auto& s : all) {
+        bool mine = false; for (auto& o : p.feSwaps) mine |= o.first == s.first && o.second == s.second;
+        std::string t = s.first + "  ->  " + s.second;
+        if (!mine) { ImGui::MenuItem((t + "  (from its parent menu)").c_str(), nullptr, false, false); continue; }
+        if (ImGui::MenuItem((t + "##sw" + s.first).c_str(), "remove")) {
+            p.feSwaps.erase(std::remove_if(p.feSwaps.begin(), p.feSwaps.end(), [&](const std::pair<std::string, std::string>& o) { return o.first == s.first; }), p.feSwaps.end());
+            g_dirty = true; break;
+        }
+    }
+    if (!all.empty()) ImGui::Separator();
+    static int from = 0, to = 0;
+    if (g_tokens.empty()) TokenBuiltIns();
+    std::vector<const char*> names; for (auto& t : g_tokens) names.push_back(t.name.c_str());
+    for (auto& t : g_gradTokens) names.push_back(t.name.c_str());
+    if (!names.empty()) {
+        from = std::max(0, std::min((int)names.size() - 1, from)); to = std::max(0, std::min((int)names.size() - 1, to));
+        ImGui::SetNextItemWidth(140); ImGui::Combo("##swfrom", &from, names.data(), (int)names.size());
+        ImGui::SameLine(); ImGui::TextUnformatted("->"); ImGui::SameLine();
+        ImGui::SetNextItemWidth(140); ImGui::Combo("##swto", &to, names.data(), (int)names.size());
+        ImGui::SameLine();
+        if (ImGui::Button("Add") && from != to) {
+            std::string f = names[from], t = names[to];
+            p.feSwaps.erase(std::remove_if(p.feSwaps.begin(), p.feSwaps.end(), [&](const std::pair<std::string, std::string>& o) { return o.first == f; }), p.feSwaps.end());
+            p.feSwaps.push_back({f, t}); g_dirty = true;
+            Log("ui editor: menu %s, out of the world: %s -> %s", p.group.c_str(), f.c_str(), t.c_str());
+        }
+    }
+    ImGui::EndMenu();
+}
 // The menu bar (Menus workspace, under Add image ... Undo): a button per custom menu and "+" to make another ("Add Menu +"
 // when there are none). Picking one edits it alone (picking it again shows everything); under the buttons: its name,
 // its page settings and Delete. Older pages - groups ticked "menu page" - aren't in it (deprecated, left as they are).
@@ -1719,6 +1774,7 @@ static void MenuBar() {
             if (!ParentMenu(g).empty()) ImGui::TextDisabled("in %s", ParentMenu(g).c_str());
             if (!moved) if (Page* pg = PageOf(g)) ReplacesCombo(*pg);
             if (!moved) if (Page* pg = PageOf(g)) SharedMenu(*pg);
+            if (!moved) if (Page* pg = PageOf(g)) SwapsMenu(*pg);
             ImGui::Separator();
             if (!moved && ImGui::BeginMenu("Move into")) {
                 std::string cur = ParentMenu(g);
@@ -1848,6 +1904,7 @@ static void SaveMenus(FILE* f) {
         if (p.garage) fprintf(f, "garagemenu=1\n");
         if (p.carSelect) fprintf(f, "carselect=1\n");
         for (auto& x : p.shared) fprintf(f, "shared=%s\n", Esc(x).c_str());
+        for (auto& x : p.feSwaps) fprintf(f, "feswap=%s %s\n", x.first.c_str(), x.second.c_str());
     }
     for (auto& w : g_widgets) { fprintf(f, "\n[widget]\ngroup=%s\n", Esc(w.group).c_str()); SaveWidgetProps(f, w); }
 }
@@ -1896,6 +1953,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "garagemenu") p.garage = atoi(v.c_str()) != 0;
         else if (k == "carselect") p.carSelect = atoi(v.c_str()) != 0;
         else if (k == "shared" || k == "glyphbar") p.shared.push_back(Unesc(v));   // (glyphbar: the first builds)
+        else if (k == "feswap") { char a[96] = {}, b[96] = {}; if (sscanf(v.c_str(), "%95s %95s", a, b) == 2) p.feSwaps.push_back({a, b}); }
         else if (k == "selcolor") { int u = 1; sscanf(v.c_str(), "%d %f %f %f %f", &u, &p.selCol[0], &p.selCol[1], &p.selCol[2], &p.selCol[3]); p.useSel = u != 0; }
         return true;
     }

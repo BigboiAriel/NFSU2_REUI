@@ -230,6 +230,14 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   (0xDE075B62); texture {race.map} (fe:0F365871, the race's TRACKMAP<n>). The layout's "Race Start" page was
   kitbashed from the World Map's box, legend bars and dark list panel, the Engage panel's icons and the Confirm Page's
   buttons.
+- **Out-of-the-world colour swaps (2026-11-08).** A menu's right-click menu has "Out of the world (garage)": colour
+  token swaps (from -> to) used while the game isn't in the world (game state [0x8654A4] != 6: the garage, car select,
+  the main menu; host token {in_world}). They apply to that menu, its sub menus and the shared pieces drawn over them
+  (a sub menu's own swap of a token wins); element colours, fills, gradient stops and gradient tokens. Saved per page as
+  `feswap=<from> <to>`. Drawn copies only; the editor shows the normal colours. Layout: Confirm Page, Garage and World
+  Map swap hud.shade -> Menu.grey.1 (the lighter garage look). Also (2026-11-08): carousels' "highlight stays put"
+  (`carousel=centred wrap still`), new carousels get the pulsing select / halo / inner glow, the from-the-edge fill
+  gradient measures from an outline rounded to 1.5x its depth, and a selected-tile-only piece's animation runs.
 - **Car select page and meters (2026-11-06, untested).** "replaces: the garage's car select" (`carselect=1`,
   REUI_CarSelectPage): UniPad shows the page over the game's Car Select, which keeps the pad (left / right, select,
   back, the camera) - the page only shows. Live values from UniPad: {car.accel} {car.topspeed} {car.handling} (0-100);

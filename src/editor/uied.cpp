@@ -1116,8 +1116,18 @@ static bool SwapText(ImDrawList* dl, const Elem& e, ImVec2 a, ImVec2 b, ImU32 co
     draw(s, 0.5f + 0.5f * f, -1.f / 6.f + 7.f / 6.f * f, f);      // Fade_In
     return true;
 }
+// Colour token swaps in force while a menu page is drawn (its "out of the world" swaps when you're in the garage / front
+// end: from -> to). Elements drawn then take the "to" token's colour where they name the "from" one (colour, fill,
+// gradient stops and gradient tokens). Only on the copies the menus draw (never the layout's own elements).
+static const std::vector<std::pair<std::string, std::string>>* g_tokSwap = nullptr;
+static const std::string& SwapTok(const std::string& n) {
+    if (g_tokSwap && !n.empty()) for (auto& s : *g_tokSwap) if (s.first == n) return s.second;
+    return n;
+}
+static void ApplyTokSwap(Elem& e);
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
+    if (g_tokSwap && !editing) ApplyTokSwap(e);
     if (!editing && !e.flags.empty() && FlagsHide(e)) return;
     struct AnimSave { Elem& e; bool on = false; float scale = 1, x = 0, y = 0; ~AnimSave() { if (on) { e.scale = scale; e.x = x; e.y = y; } } } animSave{ e };
     if (!ShowIfOk(e)) { e.shownSince = -1; if (!editing) return; }
@@ -1412,6 +1422,14 @@ static void ResolveTokens() {
     auto each = [&](Elem& e) { apply(e.colTok, e.colTokA, e.col); apply(e.hiTok, e.hiTokA, e.hiCol); apply(e.fillTok, e.fillTokA, e.fillCol); };
     for (auto& l : g_layout) for (auto& e : l) each(e);
 }
+static void ApplyTokSwap(Elem& e) {   // (see g_tokSwap)
+    auto one = [](const std::string& n, float a, float* out) {
+        const std::string& to = SwapTok(n);
+        if (&to == &n) return;
+        if (ColorToken* t = TokenOf(to)) { out[0] = t->now[0]; out[1] = t->now[1]; out[2] = t->now[2]; out[3] = std::min(1.f, t->now[3] * a); }
+    };
+    one(e.colTok, e.colTokA, e.col); one(e.hiTok, e.hiTokA, e.hiCol); one(e.fillTok, e.fillTokA, e.fillCol);
+}
 void AddColorToken(const std::string& name, const std::string& label, const float rgba[4]) {
     if (name.empty()) return;
     if (g_tokens.empty()) TokenBuiltIns();
@@ -1487,14 +1505,14 @@ static int GradTokenUses(const std::string& n) {
 // the gradient to draw: its stops (or its token's), colour tokens' colours now; false: no gradient
 static void StopColour(const UStop& st, float out[4]) {
     memcpy(out, st.c, sizeof st.c);
-    if (!st.tok.empty()) if (ColorToken* t = TokenOf(st.tok)) { out[0] = t->now[0]; out[1] = t->now[1]; out[2] = t->now[2]; out[3] = st.c[3] * t->now[3]; }
+    if (!st.tok.empty()) if (ColorToken* t = TokenOf(SwapTok(st.tok))) { out[0] = t->now[0]; out[1] = t->now[1]; out[2] = t->now[2]; out[3] = st.c[3] * t->now[3]; }
 }
 static bool ResolveGrad(const UGrad& g, float depthScale, shapes::Gradient& out) {
     out = shapes::Gradient();
     if (!g.mode) return false;
     if (g_gradTokens.empty()) GradBuiltIns();
     const std::vector<UStop>* st = &g.stops;
-    if (!g.tok.empty()) if (GradToken* t = GradTokenOf(g.tok)) st = &t->stops;
+    if (!g.tok.empty()) if (GradToken* t = GradTokenOf(SwapTok(g.tok))) st = &t->stops;
     if (st->empty()) return false;
     out.mode = g.mode; out.angle = g.angle; out.depth = g.depth * depthScale;
     for (auto& s2 : *st) { float c[4]; StopColour(s2, c); out.stops.push_back({s2.t, c[0], c[1], c[2], c[3]}); }
