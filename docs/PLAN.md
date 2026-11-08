@@ -253,6 +253,17 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   1 -> 0; Fade_In backwards), about its alignment point across / middle down. Not on its first showing. With UniPad's
   {bar.ticker} (the game's ticker: name 0.75 s, cash 5 s) it's the stock profile name / cash swap. Layout: Shared/Glyphs
   Bar/Cash Block's Cash.
+- **Linked groups (2026-11-08).** A group's right-click menu (and the group panel's Link... button) has "Link with...":
+  pick another group, then "Use its look here" (this group becomes a copy of that one's pieces) or "Use this group's
+  look there". Linked groups keep the same pieces - an edit to one (a colour, a text, a piece added / removed / moved
+  inside the group, a sub group renamed) goes to the others as it happens; each keeps its own place and layer (an
+  offset), so moving a whole group (dragging it, the group panel's move / layer) moves only that one. Only elements are
+  linked: a grid / carousel's own settings (tiles, rows) stay per group. Menus (and groups with a menu inside) can't be
+  linked, nor a group inside / around a linked one. The list tints linked groups ("[linked x3]"); the panel lists the
+  others (click one to go to it, on its menu) and "Unlink this group" (it keeps its pieces as they are). Renames and
+  moves follow; a deleted or ungrouped member leaves its link. Undo covers links. Saved before the elements as
+  `grouplink=<mode>|<dx> <dy> <layer> <group>|...`; on loading / undoing, if they differ the first one's look wins.
+  Code: src/editor/uied_links.inc (LinksSync runs before each undo snapshot, when something was edited).
 - **Shared pieces (2026-11-05/06).** A menu's right-click menu has "Shared pieces": tick groups to draw over that menu
   and every sub menu under it (the glyph bar, the performance bar...). The "Shared" menu's groups are listed first,
   any other group under "Other groups"; a sub menu shows its parent menus' (greyed: "from Garage") plus its own.

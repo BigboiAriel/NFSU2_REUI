@@ -149,6 +149,7 @@ static Widget* WidgetFor(const std::string& eg) {
 }
 // renames / copies / deletes follow the groups
 static void MenuRebase(const std::string& from, const std::string& to) {
+    LinksRebase(from, to);   // (linked groups follow theirs)
     for (auto& p : g_pages) for (auto& x : p.shared) if (!x.empty() && InGroup(x, from)) x = CleanGroup(to + x.substr(from.size()));   // (shared pieces follow their group)
     for (auto& w : g_widgets) if (InGroup(w.group, from)) w.group = CleanGroup(to + w.group.substr(from.size()));
     for (auto& p : g_pages) if (InGroup(p.group, from)) p.group = CleanGroup(to + p.group.substr(from.size()));

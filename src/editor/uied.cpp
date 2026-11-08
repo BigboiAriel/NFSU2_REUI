@@ -1328,6 +1328,9 @@ static std::string Unesc(const std::string& s) {
     std::string o; for (size_t i = 0; i < s.size(); ++i) { if (s[i] == '\\' && i + 1 < s.size()) { char n = s[++i]; o += n == 'n' ? '\n' : n; } else o += s[i]; } return o;
 }
 static void SaveMenus(FILE* f);
+static void SaveLinks(FILE* f);
+static void LoadLinkLine(const std::string& v, int intoMode);
+static void LinksReset();
 static void LoadMenusReset();
 static int LoadMenuSection(const std::string& s);
 static bool LoadMenuKey(int sect, const std::string& k, const std::string& v);
@@ -1915,55 +1918,62 @@ static void ShapeProps(Elem& e) {
 
     }
 }
-static void PutElem(FILE* f, int m, const Elem& e) {   // one element as the layout / prefab files keep it
-    fprintf(f, "\n[element]\nmode=%s\ntype=%s\nname=%s\nanchor=%d\nx=%g\ny=%g\nw=%g\nh=%g\nscale=%g\ncolor=%g %g %g %g\nvisible=%d\n",
+static void Pf(std::string& o, const char* fmt, ...) {   // printf onto a string
+    char buf[1024]; va_list ap; va_start(ap, fmt); int n = vsnprintf(buf, sizeof buf, fmt, ap); va_end(ap);
+    if (n < 0) return;
+    if (n < (int)sizeof buf) { o.append(buf, n); return; }
+    std::string big(n + 1, 0); va_start(ap, fmt); vsnprintf(&big[0], n + 1, fmt, ap); va_end(ap); o.append(big.c_str(), n);
+}
+static void PutElemS(std::string& o, int m, const Elem& e) {   // one element as the layout / prefab files keep it
+    Pf(o, "\n[element]\nmode=%s\ntype=%s\nname=%s\nanchor=%d\nx=%g\ny=%g\nw=%g\nh=%g\nscale=%g\ncolor=%g %g %g %g\nvisible=%d\n",
             kModeKey[m], TypeKey(e.type), Esc(e.name).c_str(), e.anchor, e.x, e.y, e.w, e.h, e.scale, e.col[0], e.col[1], e.col[2], e.col[3], e.visible ? 1 : 0);
-    if (e.row > 0) fprintf(f, "row=%d\n", e.row);
-    if (!e.group.empty()) fprintf(f, "group=%s\n", Esc(e.group).c_str());
-    if (e.hiMine) fprintf(f, "highlight=%g %g %g %g\n", e.hiCol[0], e.hiCol[1], e.hiCol[2], e.hiCol[3]);
-    if (e.layer != 0) fprintf(f, "layer=%d\n", e.layer);
+    if (e.row > 0) Pf(o, "row=%d\n", e.row);
+    if (!e.group.empty()) Pf(o, "group=%s\n", Esc(e.group).c_str());
+    if (e.hiMine) Pf(o, "highlight=%g %g %g %g\n", e.hiCol[0], e.hiCol[1], e.hiCol[2], e.hiCol[3]);
+    if (e.layer != 0) Pf(o, "layer=%d\n", e.layer);
     if (e.type == E_IMAGE) {
-        fprintf(f, "texture=%s\npack=%s\nuv=%g %g %g %g\n", e.tex.c_str(), e.pack.c_str(), e.u0, e.v0, e.u1, e.v1);
-        if (e.rot != 0) fprintf(f, "rot=%g\n", e.rot);
+        Pf(o, "texture=%s\npack=%s\nuv=%g %g %g %g\n", e.tex.c_str(), e.pack.c_str(), e.u0, e.v0, e.u1, e.v1);
+        if (e.rot != 0) Pf(o, "rot=%g\n", e.rot);
     } else if (e.type == E_SHAPE) {
-        fprintf(f, "shape=%g %g %g %g %g\nfill=%g %g %g %g\n", e.rad[0], e.rad[1], e.rad[2], e.rad[3], e.stroke, e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3]);
-        if (e.rot != 0) fprintf(f, "rot=%g\n", e.rot);
-        if (!e.fillTok.empty()) fprintf(f, "filltoken=%s %g\n", e.fillTok.c_str(), e.fillTokA);
-        if (e.cut) fprintf(f, "cut=%g;%s\n", e.cutGap, Esc(e.cutTarget).c_str());
-        if (e.strokeAlign) fprintf(f, "strokealign=%d\n", e.strokeAlign);
+        Pf(o, "shape=%g %g %g %g %g\nfill=%g %g %g %g\n", e.rad[0], e.rad[1], e.rad[2], e.rad[3], e.stroke, e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3]);
+        if (e.rot != 0) Pf(o, "rot=%g\n", e.rot);
+        if (!e.fillTok.empty()) Pf(o, "filltoken=%s %g\n", e.fillTok.c_str(), e.fillTokA);
+        if (e.cut) Pf(o, "cut=%g;%s\n", e.cutGap, Esc(e.cutTarget).c_str());
+        if (e.strokeAlign) Pf(o, "strokealign=%d\n", e.strokeAlign);
         auto grad = [&](const char* key, const UGrad& g) {   // "mode angle depth;t r g b a[@token];...", its gradient token on its own line
             if (!g.mode) return;
-            fprintf(f, "%s=%d %g %g", key, g.mode, g.angle, g.depth);
-            for (auto& st : g.stops) fprintf(f, ";%s", StopText(st).c_str());
-            fprintf(f, "\n");
-            if (!g.tok.empty()) fprintf(f, "%stoken=%s\n", key, g.tok.c_str());
+            Pf(o, "%s=%d %g %g", key, g.mode, g.angle, g.depth);
+            for (auto& st : g.stops) Pf(o, ";%s", StopText(st).c_str());
+            Pf(o, "\n");
+            if (!g.tok.empty()) Pf(o, "%stoken=%s\n", key, g.tok.c_str());
         };
         grad("strokegrad", e.strokeGrad); grad("fillgrad", e.fillGrad);
-    } else fprintf(f, "font=%s\ntext=%s\nalign=%d\n", e.font.c_str(), Esc(e.text).c_str(), e.align);
-    if (!e.role.empty()) fprintf(f, "role=%s\n", e.role.c_str());
-    if (e.selOnly) fprintf(f, "selonly=1\n");
-    if (e.tileKinds) fprintf(f, "tilekinds=%d\n", e.tileKinds);
-    if (e.afterLabel) fprintf(f, "afterlabel=1\n");
-    if (e.wrap) fprintf(f, "wrap=1\n");
-    if (e.swapAnim) fprintf(f, "swapanim=1\n");
-    if (!e.showIf.empty()) fprintf(f, "showif=%s\n", e.showIf.c_str());
-    if (e.bindKind) fprintf(f, "bind=%s\nbindkind=%d\nbindrange=%g %g\n", e.bind.c_str(), e.bindKind, e.bindMin, e.bindMax);
-    if (e.bindKind == 3 || e.bindKind == 4 || e.bindKind == 5) fprintf(f, "bindrot=%g %g\n", e.rotMin, e.rotMax);
-    if (e.cutLo != 0 || e.cutHi != 1) fprintf(f, "bindcut=%g %g\n", e.cutLo, e.cutHi);
-    if (e.pivX != 0 || e.pivY != 0) fprintf(f, "pivot=%g %g\n", e.pivX, e.pivY);
-    if (e.follow) fprintf(f, "follow=%08X\n", e.follow);
-    if (e.circle) fprintf(f, "circle=1\n");
-    if (e.minimap) fprintf(f, "minimap=1\nmapzoom=%g\nmapblip=%g\nmapplayer=%d\n", e.mapZoom, e.mapBlip, e.mapPlayer ? 1 : 0);
-    if (e.worldMap) fprintf(f, "worldmap=1\nmapblip=%g\nmapplayer=%d\n", e.mapBlip, e.mapPlayer ? 1 : 0);
-    if (e.additive) fprintf(f, "additive=1\n");
-    if (!e.tint.empty()) fprintf(f, "tint=%s\n", e.tint.c_str());
-    if (e.anim) fprintf(f, "anim=%d\n", e.anim);
-    if (!e.keys.empty()) fprintf(f, "keys=%s\n", e.keys.c_str());
-    if (!e.playOn.empty()) fprintf(f, "playon=%s\n", e.playOn.c_str());
-    if (!e.flags.empty()) { std::string l; for (auto& k : e.flags) { if (!l.empty()) l += ','; l += k; } fprintf(f, "flags=%s\n", l.c_str()); }
-    if (!e.colTok.empty()) fprintf(f, "colortoken=%s %g\n", e.colTok.c_str(), e.colTokA);
-    if (!e.hiTok.empty()) fprintf(f, "hitoken=%s %g\n", e.hiTok.c_str(), e.hiTokA);
+    } else Pf(o, "font=%s\ntext=%s\nalign=%d\n", e.font.c_str(), Esc(e.text).c_str(), e.align);
+    if (!e.role.empty()) Pf(o, "role=%s\n", e.role.c_str());
+    if (e.selOnly) Pf(o, "selonly=1\n");
+    if (e.tileKinds) Pf(o, "tilekinds=%d\n", e.tileKinds);
+    if (e.afterLabel) Pf(o, "afterlabel=1\n");
+    if (e.wrap) Pf(o, "wrap=1\n");
+    if (e.swapAnim) Pf(o, "swapanim=1\n");
+    if (!e.showIf.empty()) Pf(o, "showif=%s\n", e.showIf.c_str());
+    if (e.bindKind) Pf(o, "bind=%s\nbindkind=%d\nbindrange=%g %g\n", e.bind.c_str(), e.bindKind, e.bindMin, e.bindMax);
+    if (e.bindKind == 3 || e.bindKind == 4 || e.bindKind == 5) Pf(o, "bindrot=%g %g\n", e.rotMin, e.rotMax);
+    if (e.cutLo != 0 || e.cutHi != 1) Pf(o, "bindcut=%g %g\n", e.cutLo, e.cutHi);
+    if (e.pivX != 0 || e.pivY != 0) Pf(o, "pivot=%g %g\n", e.pivX, e.pivY);
+    if (e.follow) Pf(o, "follow=%08X\n", e.follow);
+    if (e.circle) Pf(o, "circle=1\n");
+    if (e.minimap) Pf(o, "minimap=1\nmapzoom=%g\nmapblip=%g\nmapplayer=%d\n", e.mapZoom, e.mapBlip, e.mapPlayer ? 1 : 0);
+    if (e.worldMap) Pf(o, "worldmap=1\nmapblip=%g\nmapplayer=%d\n", e.mapBlip, e.mapPlayer ? 1 : 0);
+    if (e.additive) Pf(o, "additive=1\n");
+    if (!e.tint.empty()) Pf(o, "tint=%s\n", e.tint.c_str());
+    if (e.anim) Pf(o, "anim=%d\n", e.anim);
+    if (!e.keys.empty()) Pf(o, "keys=%s\n", e.keys.c_str());
+    if (!e.playOn.empty()) Pf(o, "playon=%s\n", e.playOn.c_str());
+    if (!e.flags.empty()) { std::string l; for (auto& k : e.flags) { if (!l.empty()) l += ','; l += k; } Pf(o, "flags=%s\n", l.c_str()); }
+    if (!e.colTok.empty()) Pf(o, "colortoken=%s %g\n", e.colTok.c_str(), e.colTokA);
+    if (!e.hiTok.empty()) Pf(o, "hitoken=%s %g\n", e.hiTok.c_str(), e.hiTokA);
 }
+static void PutElem(FILE* f, int m, const Elem& e) { std::string o; PutElemS(o, m, e); fputs(o.c_str(), f); }
 // Written to <path>.tmp and swapped in only when the whole file was written: a crash or a full disk mid-save
 // never leaves a cut-off file. false: nothing was replaced.
 static FILE* BeginWrite(const std::string& path) { return fopen((path + ".tmp").c_str(), "w"); }
@@ -1982,6 +1992,7 @@ static void Save() {
     for (auto& t : g_tokens) if (!t.builtIn || TokenModified(t)) fprintf(f, "token=%s\n", TokenLine(t).c_str());
     for (auto& t : g_gradTokens) if (!t.builtIn || !SameStops(t.stops, t.def)) fprintf(f, "gradtoken=%s\n", GradTokenLine(t).c_str());
     for (auto& kv : g_mapArt) if (!kv.second.empty()) fprintf(f, "mapart=%s;%s\n", kv.first.c_str(), kv.second.c_str());
+    SaveLinks(f);
     int total = 0;
     auto put = [&](int m, const Elem& e) { ++total; PutElem(f, m, e); };
     for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
@@ -2064,7 +2075,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
 // intoMode >= 0: every element goes in that layout; merge: added to what's there (an import), not instead
 static bool LoadFile(const std::string& path, int intoMode, bool merge) {
     FILE* f = fopen(path.c_str(), "r"); if (!f) return false;
-    if (!merge) { for (auto& l : g_layout) l.clear(); LoadMenusReset(); TokensReset(); g_mapArt.clear(); }
+    if (!merge) { for (auto& l : g_layout) l.clear(); LoadMenusReset(); TokensReset(); g_mapArt.clear(); LinksReset(); }
     g_sel = -1; ClearMulti();
     std::vector<Elem> all;
     char line[2048]; Elem* cur = nullptr; int msect = 0;
@@ -2084,6 +2095,7 @@ static bool LoadFile(const std::string& path, int intoMode, bool merge) {
             else if (k == "highlightsel") g_hiSel = atoi(v.c_str()) != 0;
             else if (k == "boardrows") boardRows = std::max(1, std::min(22, atoi(v.c_str())));
             else if (k == "boardfollow") boardFollow = atoi(v.c_str()) != 0;
+            else if (k == "grouplink") LoadLinkLine(v, intoMode);
             else if (k == "mapart") { size_t sc = v.find(';'); if (sc != std::string::npos && sc > 0) g_mapArt[v.substr(0, sc)] = v.substr(sc + 1); }
             else if (k == "listheight") g_listH = std::max(80.f, std::min(1400.f, (float)atof(v.c_str())));
             else if (k == "menufade") menuFade = std::max(0.f, std::min(1.f, (float)atof(v.c_str())));
@@ -2308,22 +2320,25 @@ static void LayerRange(int& lo, int& hi) {
 
 static std::vector<std::string> GroupNames();
 static void RebaseGroup(const std::string& g, const std::string& to);
+static void LinksRebase(const std::string& from, const std::string& to);
 #include "uied_menu.inc"
+#include "uied_links.inc"
 
 // ---------------------------------------------------------------- undo
 // A snapshot of everything editable is kept at each settled point (no mouse button down, nothing being typed or
 // dragged); the first frame that settles after edits pushes the previous one. kUndoSteps of them.
 constexpr size_t kUndoSteps = 24;
-struct Snap { std::vector<Elem> lay[NMODES]; std::vector<Widget> widgets; std::vector<Page> pages; };
+struct Snap { std::vector<Elem> lay[NMODES]; std::vector<Widget> widgets; std::vector<Page> pages; std::vector<LinkSet> links; };
 static std::deque<Snap> g_undo, g_redo;
 static Snap g_base; static bool g_baseOk = false; static unsigned g_baseGen = 0;
 static Snap TakeSnap() {
     Snap s; for (int m = 0; m < NMODES; ++m) s.lay[m] = g_layout[m];
-    s.widgets = g_widgets; s.pages = g_pages; return s;
+    s.widgets = g_widgets; s.pages = g_pages; s.links = g_links; return s;
 }
 static void PutSnap(const Snap& s) {
     for (int m = 0; m < NMODES; ++m) g_layout[m] = s.lay[m];
     g_widgets = s.widgets; g_pages = s.pages;
+    g_links = s.links; for (auto& l : g_links) l.refOk = false;   // (the pieces are as they were: the look is read again)
     g_sel = -1; g_selGroup.clear(); ClearMulti(); g_dragging = -1;
 }
 static void UndoReset() { g_undo.clear(); g_redo.clear(); g_baseOk = false; }
@@ -2719,6 +2734,21 @@ static void GroupPanel() {
         RebaseGroup(g, (parent.empty() ? "" : parent + "/") + CleanGroup(nb)); nbFor = g_selGroup; return;
     }
     ImGui::SameLine(); ImGui::TextDisabled("(Enter to rename)");
+    {   // linked groups: the Link button (the same items as the list's right-click menu)
+        int k = -1; LinkSet* ls = LinkOf(g, g_editMode, &k);
+        if (ls) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.42f, 0.62f, 1.f));
+        if (ImGui::Button(ls ? "Linked..." : "Link...")) ImGui::OpenPopup("##grplink");
+        if (ls) ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Linked groups keep the same pieces (on several menus): an edit to one goes to the others.\nEach keeps its own place - moving a whole group moves only that one.");
+        if (ls) {
+            ImGui::SameLine(); ImGui::TextDisabled("with");
+            std::string go;
+            for (auto& m : ls->m) if (m.group != g) { ImGui::SameLine(); if (ImGui::SmallButton((m.group + "##lnk").c_str())) go = m.group; }
+            if (!go.empty()) { LinkGoTo(go); return; }
+        }
+        if (ImGui::BeginPopup("##grplink")) { LinkMenuItems(g); ImGui::EndPopup(); }
+        if (g_selGroup != g) return;   // (went to another, or the group changed)
+    }
     // put it inside a larger group: an existing one (not itself or one inside it), or a new one by name
     {
         ImGui::SetNextItemWidth(200);
@@ -3520,7 +3550,11 @@ void Panel() {
                 if (revealSel && ((g_sel >= 0 && g_sel < (int)Elems().size() && g_selGroup.empty() && InGroup(Elems()[g_sel].group, child)) ||
                                   (!g_selGroup.empty() && g_selGroup != child && InGroup(g_selGroup, child))))
                     ImGui::SetNextItemOpen(true);
-                bool open = ImGui::TreeNodeEx(("grp_" + child).c_str(), fl, "[G] %s (%d)", GroupLeaf(child).c_str(), n);
+                int lk = LinkCount(child);   // (linked: tinted, with how many share its pieces)
+                if (lk) ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.55f, 0.85f, 1.f, 1.f));
+                bool open = lk ? ImGui::TreeNodeEx(("grp_" + child).c_str(), fl, "[G] %s (%d)  [linked x%d]", GroupLeaf(child).c_str(), n, lk)
+                               : ImGui::TreeNodeEx(("grp_" + child).c_str(), fl, "[G] %s (%d)", GroupLeaf(child).c_str(), n);
+                if (lk) ImGui::PopStyleColor();
                 if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
                     ImGuiIO& io = ImGui::GetIO();
                     if (io.KeyShift && (g_sel >= 0 || !g_selGroup.empty())) { shiftToGroup = child; shiftFromGroup = g_selGroup; }
@@ -3542,9 +3576,11 @@ void Panel() {
                     if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("UIED_GROUP")) { drop.group = (const char*)pl->Data; drop.into = child; }
                     ImGui::EndDragDropTarget();
                 }
-                if (ImGui::BeginPopupContextItem(("gctx_" + child).c_str())) {   // right click: visible, save as prefab
+                if (ImGui::BeginPopupContextItem(("gctx_" + child).c_str())) {   // right click: visible, link, save as prefab
                     bool vis = true; for (auto& e : Elems()) if (InGroup(e.group, child)) vis &= e.visible;
                     if (ImGui::MenuItem("Visible", nullptr, vis)) { for (auto& e : Elems()) if (InGroup(e.group, child)) e.visible = !vis; g_dirty = true; }
+                    ImGui::Separator();
+                    LinkMenuItems(child);
                     ImGui::Separator();
                     static char pn[64]; static std::string pnFor;
                     if (pnFor != child) { pnFor = child; snprintf(pn, sizeof pn, "%s", GroupLeaf(child).c_str()); }
@@ -3668,6 +3704,7 @@ void Panel() {
             if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y, false)) Redo();
         }
     }
+    LinksSync();   // (linked groups take the edits made to one of them)
     UndoCommit(false);
     TokensPanel();
     if (!menuMode) MinimapPage();
