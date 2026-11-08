@@ -2339,7 +2339,34 @@ static void PutSnap(const Snap& s) {
     for (int m = 0; m < NMODES; ++m) g_layout[m] = s.lay[m];
     g_widgets = s.widgets; g_pages = s.pages;
     g_links = s.links; for (auto& l : g_links) l.refOk = false;   // (the pieces are as they were: the look is read again)
-    g_sel = -1; g_selGroup.clear(); ClearMulti(); g_dragging = -1;
+    g_dragging = -1;
+}
+// Undo / redo keep what's picked (2026-11-08): the same element - at its place in the list if it's still that one
+// (same group and name), else the one with that group and name, else at its place if only its name or its group
+// changed (the undone edit was a rename / a move to another group); the picked group if it's still there.
+struct PickMark { int i; std::string group, name; };
+static PickMark MarkOf(int i) { auto& els = Elems(); PickMark m{ i, "", "" }; if (i >= 0 && i < (int)els.size()) { m.group = els[i].group; m.name = els[i].name; } else m.i = -1; return m; }
+static int FindMark(const PickMark& m) {
+    auto& els = Elems(); int n = (int)els.size();
+    if (m.i < 0) return -1;
+    if (m.i < n && els[m.i].group == m.group && els[m.i].name == m.name) return m.i;
+    int best = -1;
+    for (int i = 0; i < n; ++i) if (els[i].group == m.group && els[i].name == m.name && (best < 0 || abs(i - m.i) < abs(best - m.i))) best = i;
+    if (best >= 0) return best;
+    if (m.i < n && (els[m.i].group == m.group || els[m.i].name == m.name)) return m.i;
+    return -1;
+}
+static void PutSnapKeepPick(const Snap& s) {
+    PickMark sel = MarkOf(g_sel);
+    std::vector<PickMark> multi; for (int i : g_multi) multi.push_back(MarkOf(i));
+    std::string grp = g_selGroup; std::vector<std::string> multiG = g_multiG;
+    PutSnap(s);
+    auto groupThere = [](const std::string& g) { for (auto& e : Elems()) if (InGroup(e.group, g)) return true; return false; };
+    g_sel = FindMark(sel);
+    g_selGroup = !grp.empty() && groupThere(grp) ? grp : std::string();
+    if (!g_selGroup.empty()) g_sel = -1;
+    g_multi.clear(); for (auto& m : multi) { int i = FindMark(m); if (i >= 0 && std::find(g_multi.begin(), g_multi.end(), i) == g_multi.end()) g_multi.push_back(i); }
+    g_multiG.clear(); for (auto& g : multiG) if (groupThere(g)) g_multiG.push_back(g);
 }
 static void UndoReset() { g_undo.clear(); g_redo.clear(); g_baseOk = false; }
 static void UndoCommit(bool evenIfBusy) {   // the edits since the last snapshot become one step
@@ -2355,13 +2382,13 @@ static void Undo() {
     UndoCommit(true);
     if (g_undo.empty()) return;
     g_redo.push_back(TakeSnap());
-    PutSnap(g_undo.back()); g_undo.pop_back();
+    PutSnapKeepPick(g_undo.back()); g_undo.pop_back();
     g_dirty = true; g_base = TakeSnap(); g_baseGen = g_dirty.gen;
 }
 static void Redo() {
     if (g_redo.empty()) return;
     g_undo.push_back(TakeSnap()); if (g_undo.size() > kUndoSteps) g_undo.pop_front();
-    PutSnap(g_redo.back()); g_redo.pop_back();
+    PutSnapKeepPick(g_redo.back()); g_redo.pop_back();
     g_dirty = true; g_base = TakeSnap(); g_baseGen = g_dirty.gen;
 }
 
