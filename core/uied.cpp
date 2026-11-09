@@ -157,7 +157,20 @@ static int Kern(const Font& f, const Glyph& g, uint16_t prev) {
     }
     return 0;
 }
+// A vector font's ImFont, loaded into the current ImGui context's atlas the first time it's needed (ImGui 1.92 draws
+// it at any size from the file; older ImGui at the size loaded, scaled).
+static ImFont* VecFont(const Font& f) {
+    if (f.file.empty()) return nullptr;
+    Font& m = const_cast<Font&>(f);
+    if (!m.im) {
+        ImFontConfig fc; fc.OversampleH = 2;
+        m.im = ImGui::GetIO().Fonts->AddFontFromFileTTF(f.file.c_str(), (float)std::max(8, f.line), &fc);
+        if (!m.im) { m.file.clear(); Log("ui editor: font %s couldn't be read", f.source.c_str()); }
+    }
+    return (ImFont*)m.im;
+}
 static float TextWidth(const Font& f, const std::string& s) {
+    if (ImFont* im = VecFont(f)) return im->CalcTextSizeA((float)f.line, FLT_MAX, 0.f, s.c_str()).x;
     float x = 0, best = 0;
     for (size_t i = 0; i < s.size(); ++i) {
         unsigned char c = (unsigned char)s[i];
@@ -187,6 +200,19 @@ static std::string WrapText(const Font& f, const std::string& s, float maxW) {
 }
 // draw s with its top-left at p, glyphs scaled by k (screen pixels per font pixel)
 static void DrawText(ImDrawList* dl, const Font& f, ImVec2 p, float k, ImU32 col, const std::string& s, int align, float boxW) {
+    if (ImFont* im = VecFont(f)) {   // a vector font: line by line at its size on screen
+        size_t start = 0; float y = p.y, size = f.line * k;
+        while (start <= s.size()) {
+            size_t e = s.find('\n', start); if (e == std::string::npos) e = s.size();
+            std::string line = s.substr(start, e - start);
+            float lw = TextWidth(f, line) * k;
+            float x = p.x + (align == 1 ? (boxW - lw) * 0.5f : align == 2 ? boxW - lw : 0.f);
+            dl->AddText(im, size, ImVec2(x, y), col, line.c_str());
+            y += size;
+            start = e + 1;
+        }
+        return;
+    }
     gfx::Tex tx = TexOf(f.tex); if (!tx) return;
     const Tex& t = g_tex[f.tex];
     float iw = 1.f / t.w, ih = 1.f / t.h;
@@ -3801,14 +3827,15 @@ void Panel() {
             Font& f = g_fonts[i];
             ImGui::PushID(i);
             if (ImGui::RadioButton("##sel", g_fontSel == i)) g_fontSel = i;
-            ImGui::SameLine(); ImGui::Text("%s  (%d chars, line %d px, %s)", f.name.c_str(), (int)f.g.size(), f.line, f.source.c_str());
+            if (!f.file.empty()) { ImGui::SameLine(); ImGui::Text("%s  (vector, %s)", f.name.c_str(), f.source.c_str()); }
+            else { ImGui::SameLine(); ImGui::Text("%s  (%d chars, line %d px, %s)", f.name.c_str(), (int)f.g.size(), f.line, f.source.c_str()); }
             if (g_sel >= 0 && g_sel < (int)Elems().size() && Elems()[g_sel].type == E_TEXT) {
                 ImGui::SameLine(); if (ImGui::SmallButton("use for the selected text")) { Elems()[g_sel].font = f.name; Elems()[g_sel].fontIdx = i; g_dirty = true; }
             }
             ImVec2 p = ImGui::GetCursorScreenPos();
             float hgt = f.line * g_fontScale + 6;
             ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + ImGui::GetContentRegionAvail().x, p.y + hgt), IM_COL32(60, 75, 95, 255));
-            if (f.tex >= 0) DrawText(ImGui::GetWindowDrawList(), f, ImVec2(p.x + 6, p.y + 3), g_fontScale, IM_COL32(255, 255, 255, 255), g_fontPreview, 0, 0);
+            if (f.tex >= 0 || !f.file.empty()) DrawText(ImGui::GetWindowDrawList(), f, ImVec2(p.x + 6, p.y + 3), g_fontScale, IM_COL32(255, 255, 255, 255), g_fontPreview, 0, 0);
             else ImGui::GetWindowDrawList()->AddText(ImVec2(p.x + 6, p.y + 3), IM_COL32(255, 120, 120, 255), "(texture not found)");
             ImGui::Dummy(ImVec2(10, hgt));
             ImGui::PopID();

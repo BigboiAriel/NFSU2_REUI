@@ -2,6 +2,7 @@
 // (shapes made on the CPU, SVG art, the ImGui fonts); Joy Ride's own textures, fonts and screens come next.
 #include "reui_joyride.h"
 
+#include "assets_joyride.h"
 #include "log.h"
 #include "rex_overlay.h"
 #include "uied.h"
@@ -83,6 +84,7 @@ bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::Gra
     if (!g_overlay) { REXLOG_ERROR("REUI: overlay could not be made"); return false; }
     ImGuiContext* prev = ImGui::GetCurrentContext();
     ImGui::SetCurrentContext(reui_rex::OverlayContext(g_overlay.get()));
+    assets_joyride::Install(data);   // vector fonts (REUI\fonts, Windows')
     uied::Init(data, data + "layout.txt", [](const char* line) { REXLOG_INFO("REUI: {}", line); });
     ImGui::SetCurrentContext(prev);
     REXLOG_INFO("REUI: ready ({}) - F6 opens the editor", data);

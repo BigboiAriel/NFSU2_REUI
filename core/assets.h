@@ -25,10 +25,14 @@ struct Tex {
 // A bitmap font: glyph rectangles in a texture. Kerning: the source's table (count, then 4-byte entries: u16 previous
 // char, s8 adjust, u8 char's low byte); a glyph's entries are kern[4 + (ks + j) * 4], kc of them.
 struct Glyph { uint16_t c; uint8_t w, h; uint16_t u, v; int8_t xo, yo; uint8_t kc; uint16_t ks; uint16_t adv; };
+// Or a vector font: `file` a TrueType / OpenType file, drawn by ImGui at the size on screen (sharp at any resolution;
+// `line` = its size in font pixels at scale 1, glyphs / kerning from the file).
 struct Font {
     std::string name, source; std::map<uint16_t, Glyph> g; int line = 20;
     std::vector<uint8_t> kern;
     int tex = -1;                // its texture in the index (by default the one named as the font in capitals)
+    std::string file;            // a vector font's file ("" = a bitmap font)
+    void* im = nullptr;          // (the editor's: its ImFont, loaded on first use)
 };
 struct Index { std::vector<Tex> tex; std::vector<Font> fonts; };
 
