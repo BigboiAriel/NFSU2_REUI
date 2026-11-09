@@ -1,4 +1,5 @@
 #include "shapes_gpu.h"
+#include "gfx_d3d9.h"
 #include "log.h"
 
 #include <windows.h>
@@ -220,7 +221,8 @@ void Set(Params& p, int r, float a, float b, float c, float d) { p.c[r][0] = a; 
 
 } // namespace
 
-bool GpuOn(IDirect3DDevice9* dev) {
+bool GpuOn() {
+    IDirect3DDevice9* dev = gfx::d3d9::Device();
     if (!dev) return false;
     if (g_state == 3 && dev == g_gdev) return true;
     if (g_state == 3 && dev != g_gdev) { GpuRelease(); g_state = 2; }   // (a new device: the shaders made again from the code)

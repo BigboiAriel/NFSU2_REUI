@@ -3,6 +3,7 @@
 
 #include "log.h"
 #include "uied.h"
+#include "gfx_d3d9.h"
 
 #include <windows.h>
 #include <string>
@@ -55,8 +56,8 @@ EXPORT void REUI_SetIcons(int families, const char* const* familyNames, int coun
     uied::iconFamilies.clear(); uied::iconKeys.clear();
     for (int i = 0; i < families; ++i) uied::iconFamilies.push_back(familyNames[i] ? familyNames[i] : "");
     for (int i = 0; i < count; ++i) uied::iconKeys.push_back(keys[i] ? keys[i] : "");
-    uied::iconTexture = tex ? std::function<IDirect3DTexture9*(int, int, int)>([tex](int f, int id, int px) { return tex(uied::Device(), f, id, px); })
-                            : std::function<IDirect3DTexture9*(int, int, int)>();
+    uied::iconTexture = tex ? std::function<gfx::Tex(int, int, int)>([tex](int f, int id, int px) { return gfx::d3d9::Wrap(tex(gfx::d3d9::Device(), f, id, px)); })
+                            : std::function<gfx::Tex(int, int, int)>();
     uied::iconLabel = label ? std::function<std::string(int, int)>([label](int f, int id) { const char* t = label(f, id); return std::string(t ? t : ""); })
                             : std::function<std::string(int, int)>();
     uied::iconForGameTexture = forGameTexture ? std::function<int(const std::string&)>([forGameTexture](const std::string& n) { return forGameTexture(n.c_str()); })

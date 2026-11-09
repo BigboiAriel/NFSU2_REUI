@@ -3,7 +3,7 @@
 // its own texture. Without a gradient a texture is white with alpha (coloured when drawn, so a colour change needs no
 // redraw); with one, its colours are in the texture. Cutters subtract from the shape as a real boolean (the stroke
 // follows the cut). Cached by geometry and gradients.
-#include <d3d9.h>
+#include "gfx.h"
 #include <array>
 #include <vector>
 
@@ -26,11 +26,11 @@ struct Box {                 // in the shape's own pixels: centre (from the shap
 };
 // fill / stroke: white with alpha (or the gradient's colours). A cut's edge has no stroke of the shape's: cutters are
 // drawn as shapes themselves (their own border outlines the cut).
-struct Result { IDirect3DTexture9* fill = nullptr; IDirect3DTexture9* stroke = nullptr; float margin = 0; int pw = 0, ph = 0; };
+struct Result { gfx::Tex fill = nullptr; gfx::Tex stroke = nullptr; float margin = 0; int pw = 0, ph = 0; };
 
 // The shape (w x h pixels, corner radii) minus the cutters, its stroke `stroke` pixels wide on the edge (align), with
 // optional gradients. Its textures cover the shape's box plus `margin` pixels on every side.
-bool Get(IDirect3DDevice9* dev, const Box& shape, float stroke, int align, const Gradient& strokeGrad, const Gradient& fillGrad,
+bool Get(const Box& shape, float stroke, int align, const Gradient& strokeGrad, const Gradient& fillGrad,
          const std::vector<Box>& cuts, Result& out);
 void Trim();                 // each frame: drops shapes not drawn for a while
 void Release();              // device going away

@@ -16,7 +16,7 @@
 //    Its texture is the pack texture with the font's name in capitals (LANGUAGES\LanguageTextures.bin).
 #include "uied.h"
 #include "vecart.h"
-#include "deferfree.h"
+#include "gfx.h"
 #include "shapes.h"
 #include "shapes_gpu.h"
 #include <windows.h>
@@ -41,14 +41,14 @@
 namespace uied {
 std::function<bool(const std::string&, std::string&)> tokens;
 int boardRows = 4; bool boardFollow = true; bool testMode = false; bool menuMode = false;
-std::function<IDirect3DTexture9*(const std::string&, float*, float*)> liveTexture;
-std::function<bool(IDirect3DTexture9*)> textureAlphaOk;
+std::function<gfx::Tex(const std::string&, float*, float*)> liveTexture;
+std::function<bool(gfx::Tex)> textureAlphaOk;
 std::function<bool(unsigned, GameObject&)> gameObject;
 std::function<bool(MapView&)> mapView;
 std::function<bool(MapView&)> worldView;
 std::function<std::vector<std::pair<int, std::string>>()> trackNames;
 std::vector<std::string> iconFamilies, iconKeys;
-std::function<IDirect3DTexture9*(int, int, int)> iconTexture;
+std::function<gfx::Tex(int, int, int)> iconTexture;
 std::function<std::string(int, int)> iconLabel;
 std::function<int(const std::string&)> iconForGameTexture;
 std::function<void()> iconReload;
@@ -77,7 +77,6 @@ static std::string IconName(int fam, int id) {   // what the list shows
 
 static std::string g_dir, g_layoutPath;
 static void (*g_log)(const char*) = nullptr;
-static IDirect3DDevice9* g_dev = nullptr;
 static void Log(const char* fmt, ...) {
     if (!g_log) return;
     char b[512]; va_list ap; va_start(ap, fmt); vsnprintf(b, sizeof b, fmt, ap); va_end(ap);
@@ -130,7 +129,7 @@ struct Tex {
     bool blob = false; uint32_t blobOff = 0, blobSize = 0;   // compressed texture (33310003)
     uint32_t dataOff = 0, palOff = 0, size = 0, palSize = 0, top = 0;
     uint16_t w = 0, h = 0; uint32_t fmt = 0;
-    IDirect3DTexture9* tex = nullptr; bool failed = false; DWORD usedAt = 0;
+    gfx::Tex tex = nullptr; bool failed = false; DWORD usedAt = 0;
 };
 struct Glyph { uint16_t c; uint8_t w, h; uint16_t u, v; int8_t xo, yo; uint8_t kc; uint16_t ks; uint16_t adv; };
 struct Font {
@@ -291,11 +290,11 @@ static bool BytesOf(Tex& t, std::vector<uint8_t>& data, std::vector<uint8_t>& pa
     if (t.fmt == 0x29) ReadPart(f.path, t.palOff, 1024, pal);
     return true;
 }
-static IDirect3DTexture9* TexOf(int i, bool mayLoad = true) {
+static gfx::Tex TexOf(int i, bool mayLoad = true) {
     if (i < 0 || i >= (int)g_tex.size()) return nullptr;
     Tex& t = g_tex[i];
     t.usedAt = GetTickCount();
-    if (t.tex || t.failed || !mayLoad || !g_dev) return t.tex;
+    if (t.tex || t.failed || !mayLoad || !gfx::Ready()) return t.tex;
     if (g_loadsThisFrame >= 12) return nullptr;   // spread the work over frames
     ++g_loadsThisFrame;
     std::vector<uint8_t> data, pal;
@@ -304,35 +303,28 @@ static IDirect3DTexture9* TexOf(int i, bool mayLoad = true) {
     // so they can be seen and used - the element's own opacity sets how see-through
     if (g_files[t.file].rel.compare(0, 7, "TRACKS\\") == 0 && t.fmt == MAKEFOURCC('D', 'X', 'T', '3'))
         for (size_t b = 0; b + 16 <= data.size(); b += 16) memset(data.data() + b, 0xFF, 8);
-    D3DFORMAT fmt; bool dxt = false, p8 = false; int bpb = 0;
-    if (t.fmt == MAKEFOURCC('D', 'X', 'T', '1')) { fmt = D3DFMT_DXT1; dxt = true; bpb = 8; }
-    else if (t.fmt == MAKEFOURCC('D', 'X', 'T', '3')) { fmt = D3DFMT_DXT3; dxt = true; bpb = 16; }
-    else if (t.fmt == MAKEFOURCC('D', 'X', 'T', '5')) { fmt = D3DFMT_DXT5; dxt = true; bpb = 16; }
-    else if (t.fmt == 0x15) fmt = D3DFMT_A8R8G8B8;
-    else if (t.fmt == 0x29) { fmt = D3DFMT_A8R8G8B8; p8 = true; }
+    gfx::Format fmt; bool dxt = false, p8 = false; int bpb = 0;
+    if (t.fmt == MAKEFOURCC('D', 'X', 'T', '1')) { fmt = gfx::DXT1; dxt = true; bpb = 8; }
+    else if (t.fmt == MAKEFOURCC('D', 'X', 'T', '3')) { fmt = gfx::DXT3; dxt = true; bpb = 16; }
+    else if (t.fmt == MAKEFOURCC('D', 'X', 'T', '5')) { fmt = gfx::DXT5; dxt = true; bpb = 16; }
+    else if (t.fmt == 0x15) fmt = gfx::BGRA8;
+    else if (t.fmt == 0x29) { fmt = gfx::BGRA8; p8 = true; }
     else { t.failed = true; return nullptr; }
-    IDirect3DTexture9* tx = nullptr;
-    if (FAILED(g_dev->CreateTexture(t.w, t.h, 1, 0, fmt, D3DPOOL_MANAGED, &tx, nullptr)) || !tx) { t.failed = true; return nullptr; }
-    D3DLOCKED_RECT lr;
-    if (FAILED(tx->LockRect(0, &lr, nullptr, 0))) { tx->Release(); t.failed = true; return nullptr; }
-    bool ok = true;
+    gfx::Tex tx = nullptr;
     if (dxt) {
         int bw = (t.w + 3) / 4, bh = (t.h + 3) / 4; size_t row = (size_t)bw * bpb;
-        if (data.size() < row * bh) ok = false;
-        else for (int y = 0; y < bh; ++y) memcpy((uint8_t*)lr.pBits + (size_t)y * lr.Pitch, &data[y * row], row);
+        if (data.size() >= row * bh) tx = gfx::Create(t.w, t.h, fmt, data.data(), (int)row);
     } else if (p8) {
-        if (data.size() < (size_t)t.w * t.h || pal.size() < 1024) ok = false;
-        else for (int y = 0; y < t.h; ++y) {
-            uint32_t* dst = (uint32_t*)((uint8_t*)lr.pBits + (size_t)y * lr.Pitch);
-            for (int x = 0; x < t.w; ++x) memcpy(&dst[x], &pal[data[(size_t)y * t.w + x] * 4], 4);
+        if (data.size() >= (size_t)t.w * t.h && pal.size() >= 1024) {
+            std::vector<uint32_t> px((size_t)t.w * t.h);
+            for (size_t k = 0; k < px.size(); ++k) memcpy(&px[k], &pal[data[k] * 4], 4);
+            tx = gfx::Create(t.w, t.h, fmt, px.data(), t.w * 4);
         }
     } else {
         size_t row = (size_t)t.w * 4;
-        if (data.size() < row * t.h) ok = false;
-        else for (int y = 0; y < t.h; ++y) memcpy((uint8_t*)lr.pBits + (size_t)y * lr.Pitch, &data[y * row], row);
+        if (data.size() >= row * t.h) tx = gfx::Create(t.w, t.h, fmt, data.data(), (int)row);
     }
-    tx->UnlockRect(0);
-    if (!ok) { tx->Release(); t.failed = true; return nullptr; }
+    if (!tx) { t.failed = true; return nullptr; }
     t.tex = tx;
     return tx;
 }
@@ -343,18 +335,18 @@ static int FindTex(const std::string& name, const std::string& pack) {
 }
 static int FindFont(const std::string& name) { for (size_t i = 0; i < g_fonts.size(); ++i) if (g_fonts[i].name == name) return (int)i; return -1; }
 void Release() {
-    for (auto& t : g_tex) if (t.tex) { t.tex->Release(); t.tex = nullptr; }
+    for (auto& t : g_tex) if (t.tex) { gfx::Release(t.tex); t.tex = nullptr; }
     vecart::Release();
     shapes::Release();
     shapes::GpuRelease();
-    deferfree::Flush();
+    gfx::ReleaseAll();
 }
 static void Trim() {   // keep at most ~400 textures made; drop the least recently used
     int made = 0; for (auto& t : g_tex) if (t.tex) ++made;
     if (made <= 400) return;
     std::vector<int> idx; for (size_t i = 0; i < g_tex.size(); ++i) if (g_tex[i].tex) idx.push_back((int)i);
     std::sort(idx.begin(), idx.end(), [](int a, int b) { return g_tex[a].usedAt < g_tex[b].usedAt; });
-    for (int k = 0; k < made - 300; ++k) { deferfree::Later(g_tex[idx[k]].tex); g_tex[idx[k]].tex = nullptr; }   // (may be drawn this frame)
+    for (int k = 0; k < made - 300; ++k) { gfx::ReleaseLater(g_tex[idx[k]].tex); g_tex[idx[k]].tex = nullptr; }   // (may be drawn this frame)
 }
 
 // ---------------------------------------------------------------- text
@@ -401,7 +393,7 @@ static std::string WrapText(const Font& f, const std::string& s, float maxW) {
 }
 // draw s with its top-left at p, glyphs scaled by k (screen pixels per font pixel)
 static void DrawText(ImDrawList* dl, const Font& f, ImVec2 p, float k, ImU32 col, const std::string& s, int align, float boxW) {
-    IDirect3DTexture9* tx = TexOf(f.tex); if (!tx) return;
+    gfx::Tex tx = TexOf(f.tex); if (!tx) return;
     const Tex& t = g_tex[f.tex];
     float iw = 1.f / t.w, ih = 1.f / t.h;
     size_t start = 0; float y = p.y;
@@ -417,7 +409,7 @@ static void DrawText(ImDrawList* dl, const Font& f, ImVec2 p, float k, ImU32 col
             if (i > 0) x += Kern(f, g, (unsigned char)line[i - 1]) * k;
             if (g.w && g.h) {
                 ImVec2 a(x + g.xo * k, y + g.yo * k), b(a.x + g.w * k, a.y + g.h * k);
-                dl->AddImage((ImTextureID)tx, a, b, ImVec2(g.u * iw, g.v * ih), ImVec2((g.u + g.w) * iw, (g.v + g.h) * ih), col);
+                dl->AddImage(gfx::Id(tx), a, b, ImVec2(g.u * iw, g.v * ih), ImVec2((g.u + g.w) * iw, (g.v + g.h) * ih), col);
             }
             x += g.adv * k;
         }
@@ -741,25 +733,22 @@ static float BindFrac(const Elem& e) {
     float f = d != 0 ? (v - e.bindMin) / d : 0.f;
     return f < 0 ? 0.f : f > 1 ? 1.f : f;
 }
-static void AdditiveOn(const ImDrawList*, const ImDrawCmd*) {   // the next draws add onto the screen
-    if (g_dev) { g_dev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA); g_dev->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_ONE); }
-}
 // ---- minimap
 static double g_mapDrawnAt = -1;   // a minimap element was drawn in game (ImGui time)
 bool MinimapShown(double within) { return g_mapDrawnAt >= 0 && ImGui::GetCurrentContext() && ImGui::GetTime() - g_mapDrawnAt <= within; }
 // a texture by name, as image elements take it: a button icon, "vec:" art, a file texture or the game's live one
-static IDirect3DTexture9* NamedTex(const std::string& name, int px, float& su, float& sv) {
+static gfx::Tex NamedTex(const std::string& name, int px, float& su, float& sv) {
     su = sv = 1;
     if (name.empty()) return nullptr;
     int fam, id;
     if (IconRef(name, fam, id)) return iconTexture ? iconTexture(fam, id, px) : nullptr;
-    if (vecart::IsRef(name)) return vecart::Texture(g_dev, vecart::RefName(name), px);
+    if (vecart::IsRef(name)) return vecart::Texture(vecart::RefName(name), px);
     static std::unordered_map<std::string, int> found;
     static size_t foundFor = 0;   // (indices into the texture list: forgotten when it's rescanned)
     if (foundFor != g_tex.size()) { found.clear(); foundFor = g_tex.size(); }
     auto it = found.find(name);
     int i = it != found.end() ? it->second : (found[name] = FindTex(name, ""));
-    if (IDirect3DTexture9* t = TexOf(i)) return t;
+    if (gfx::Tex t = TexOf(i)) return t;
     return liveTexture ? liveTexture(name, &su, &sv) : nullptr;
 }
 // ---- the Minimap page: what's drawn for each of the game's minimap textures. Per name (MINIMAP_ICON_CIRCUIT, the
@@ -786,41 +775,15 @@ static std::string MapKeyOf(const std::string& tex) {
     if (vecart::IsRef(k)) { k = vecart::RefName(k); if (k.compare(0, 8, "minimap/") != 0) return ""; k = k.substr(8); }
     return PlainName(k) && MinimapName(k) ? k : "";
 }
-// the map outside the texture is empty, not its edge pixels repeated: border addressing while the map is drawn
-// and the game's own mip settings (its last ones are still set) don't apply: level 0 down, linear between levels.
-// cb->UserCallbackData != null: the map's alpha is empty - the game lays it over the screen at the opacity of its
-// MINIMAP_MASK circle (about 72%, measured against stock over dark and light ground), ignoring the texture's alpha;
-// drawn the same way: the vertex (element) alpha only.
-static DWORD g_mapSamp[6], g_mapAlphaOp, g_mapBlend[2];
-static const D3DSAMPLERSTATETYPE kMapSamp[6] = {D3DSAMP_ADDRESSU, D3DSAMP_ADDRESSV, D3DSAMP_BORDERCOLOR, D3DSAMP_MIPFILTER, D3DSAMP_MAXMIPLEVEL, D3DSAMP_MIPMAPLODBIAS};
-static void NoAlphaOn(const ImDrawList*, const ImDrawCmd*) {   // the next draws: alpha from the vertices only (ALPHAARG2 = diffuse)
-    if (g_dev) g_dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
-}
-static void MapAddrOn(const ImDrawList*, const ImDrawCmd* cb) {
-    if (!g_dev) return;
-    for (int i = 0; i < 6; ++i) g_dev->GetSamplerState(0, kMapSamp[i], &g_mapSamp[i]);
-    g_dev->GetTextureStageState(0, D3DTSS_ALPHAOP, &g_mapAlphaOp);
-    float bias = 0;
-    const DWORD set[6] = {D3DTADDRESS_BORDER, D3DTADDRESS_BORDER, 0, D3DTEXF_LINEAR, 0, *(DWORD*)&bias};
-    for (int i = 0; i < 6; ++i) g_dev->SetSamplerState(0, kMapSamp[i], set[i]);
-    g_dev->GetRenderState(D3DRS_SRCBLEND, &g_mapBlend[0]); g_dev->GetRenderState(D3DRS_DESTBLEND, &g_mapBlend[1]);
-    if (cb && cb->UserCallbackData) g_dev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);   // (ALPHAARG2 = diffuse)
-}
-static void MapAddrOff(const ImDrawList*, const ImDrawCmd*) {
-    if (!g_dev) return;
-    for (int i = 0; i < 6; ++i) g_dev->SetSamplerState(0, kMapSamp[i], g_mapSamp[i]);
-    g_dev->SetTextureStageState(0, D3DTSS_ALPHAOP, g_mapAlphaOp);
-    g_dev->SetRenderState(D3DRS_SRCBLEND, g_mapBlend[0]); g_dev->SetRenderState(D3DRS_DESTBLEND, g_mapBlend[1]);
-}
 static ImU32 Mul(ImU32 a, const float c[4]) {
     ImVec4 v = ImGui::ColorConvertU32ToFloat4(a);
     return ImGui::ColorConvertFloat4ToU32(ImVec4(v.x * c[0], v.y * c[1], v.z * c[2], v.w * c[3]));
 }
 // a quad of size w x h centred on p, turned deg clockwise
-static void TurnedQuad(ImDrawList* dl, IDirect3DTexture9* tx, ImVec2 p, float w, float h, float deg, ImVec2 uv0, ImVec2 uv1, ImU32 col) {
+static void TurnedQuad(ImDrawList* dl, gfx::Tex tx, ImVec2 p, float w, float h, float deg, ImVec2 uv0, ImVec2 uv1, ImU32 col) {
     float r = deg * 3.14159265f / 180, cs = cosf(r), sn = sinf(r), hw = w / 2, hh = h / 2;
     auto at = [&](float x, float y) { return ImVec2(p.x + x * cs - y * sn, p.y + x * sn + y * cs); };
-    dl->AddImageQuad((ImTextureID)tx, at(-hw, -hh), at(hw, -hh), at(hw, hh), at(-hw, hh), uv0, ImVec2(uv1.x, uv0.y), uv1, ImVec2(uv0.x, uv1.y), col);
+    dl->AddImageQuad(gfx::Id(tx), at(-hw, -hh), at(hw, -hh), at(hw, hh), at(-hw, hh), uv0, ImVec2(uv1.x, uv0.y), uv1, ImVec2(uv0.x, uv1.y), col);
 }
 static void Arrow(ImDrawList* dl, ImVec2 p, float w, float h, float deg, ImU32 fill) {   // the multiplayer mod's look: a flat-backed triangle
     float r = deg * 3.14159265f / 180;
@@ -857,7 +820,7 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
         std::string r = MapArtNow(mv.mapName);
         float rsu = 1, rsv = 1;
         int px = (int)std::min(2048.f, 2 * R / std::max(0.01f, mv.span / e.mapZoom));
-        if (!r.empty()) if (IDirect3DTexture9* t = NamedTex(r, px, rsu, rsv)) { mv.tex = t; mv.su = rsu; mv.sv = rsv; mv.alphaOk = true; }
+        if (!r.empty()) if (gfx::Tex t = NamedTex(r, px, rsu, rsv)) { mv.tex = t; mv.su = rsu; mv.sv = rsv; mv.alphaOk = true; }
     }
     const float kPi = 3.14159265f;
     float span = mv.span / e.mapZoom;
@@ -876,8 +839,8 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
         }
         ImVec4 mc = ImGui::ColorConvertU32ToFloat4(col); mc.w *= maskA; mapCol = ImGui::ColorConvertFloat4ToU32(mc);
     }
-    dl->AddCallback(MapAddrOn, mv.alphaOk ? nullptr : (void*)1);
-    dl->PushTextureID((ImTextureID)mv.tex);
+    dl->AddCallback(gfx::CbMapSamplingOn, mv.alphaOk ? nullptr : (void*)1);
+    dl->PushTextureID(gfx::Id(mv.tex));
     dl->PrimReserve(N * 3, N + 1);
     ImDrawIdx base = (ImDrawIdx)dl->_VtxCurrentIdx;
     dl->PrimWriteVtx(c, ImVec2(pu * mv.su, pv * mv.sv), mapCol);
@@ -888,7 +851,7 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
     }
     for (int i = 0; i < N; ++i) { dl->PrimWriteIdx(base); dl->PrimWriteIdx((ImDrawIdx)(base + 1 + i)); dl->PrimWriteIdx((ImDrawIdx)(base + 1 + (i + 1) % N)); }
     dl->PopTextureID();
-    dl->AddCallback(MapAddrOff, nullptr);
+    dl->AddCallback(gfx::CbMapSamplingOff, nullptr);
     // icons and markers (the player's last)
     float k = 2 * R / 128 * e.mapBlip;   // game units on a 128-unit minimap -> pixels
     ImVec4 ec = ImGui::ColorConvertU32ToFloat4(col);
@@ -905,7 +868,7 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
             float bc[4] = {bl.col[0] * ec.x, bl.col[1] * ec.y, bl.col[2] * ec.z, bl.col[3] * ec.w};
             ImU32 bcol = Col(bc);
             float su = 1, sv = 1;
-            IDirect3DTexture9* tx = bl.tex;
+            gfx::Tex tx = bl.tex;
             ImVec2 uv0(bl.u0, bl.v0), uv1(bl.u1, bl.v1);
             // replaced on the Minimap page (automatic: REUI\vector\minimap\<the game texture's name>.svg) - the whole picture
             const std::string& gn = !bl.gameName.empty() ? bl.gameName : bl.texName;
@@ -913,7 +876,7 @@ static void DrawMinimap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, 
                 if (g_mapSeen.size() < 64) g_mapSeen.insert(gn);
                 std::string r = MapArtNow(gn);
                 float rsu = 1, rsv = 1;
-                if (!r.empty()) if (IDirect3DTexture9* vt = NamedTex(r, (int)ceilf(std::max(bl.w, bl.h) * k), rsu, rsv)) { tx = vt; uv0 = ImVec2(0, 0); uv1 = ImVec2(rsu, rsv); }
+                if (!r.empty()) if (gfx::Tex vt = NamedTex(r, (int)ceilf(std::max(bl.w, bl.h) * k), rsu, rsv)) { tx = vt; uv0 = ImVec2(0, 0); uv1 = ImVec2(rsu, rsv); }
             }
             if (!tx && !bl.texName.empty()) tx = NamedTex(bl.texName, (int)ceilf(std::max(bl.w, bl.h) * k), su, sv);
             if (tx) TurnedQuad(dl, tx, p, bl.w * k, bl.h * k, deg, ImVec2(uv0.x * su, uv0.y * sv), ImVec2(uv1.x * su, uv1.y * sv), bcol);
@@ -951,14 +914,14 @@ static void DrawWorldMap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col,
         if (g_mapSeen.size() < 64) g_mapSeen.insert(mv.mapName);
         std::string r = MapArtNow(mv.mapName);
         float rsu = 1, rsv = 1;
-        if (!r.empty()) if (IDirect3DTexture9* t = NamedTex(r, (int)std::min(2048.f, side / frac), rsu, rsv)) { mv.tex = t; mv.su = rsu; mv.sv = rsv; mv.alphaOk = true; }
+        if (!r.empty()) if (gfx::Tex t = NamedTex(r, (int)std::min(2048.f, side / frac), rsu, rsv)) { mv.tex = t; mv.su = rsu; mv.sv = rsv; mv.alphaOk = true; }
     }
     ImU32 mapCol = col;
     if (!mv.alphaOk) { ImVec4 mc = ImGui::ColorConvertU32ToFloat4(col); mc.w *= 0.72f; mapCol = ImGui::ColorConvertFloat4ToU32(mc); }
     dl->PushClipRect(A, B, true);
-    dl->AddCallback(MapAddrOn, mv.alphaOk ? nullptr : (void*)1);
-    dl->AddImage((ImTextureID)mv.tex, A, B, ImVec2(u0 * mv.su, v0 * mv.sv), ImVec2((u0 + frac) * mv.su, (v0 + frac) * mv.sv), mapCol);
-    dl->AddCallback(MapAddrOff, nullptr);
+    dl->AddCallback(gfx::CbMapSamplingOn, mv.alphaOk ? nullptr : (void*)1);
+    dl->AddImage(gfx::Id(mv.tex), A, B, ImVec2(u0 * mv.su, v0 * mv.sv), ImVec2((u0 + frac) * mv.su, (v0 + frac) * mv.sv), mapCol);
+    dl->AddCallback(gfx::CbMapSamplingOff, nullptr);
     auto at = [&](float wx, float wy) {
         float u = (wx - mv.x0) / mv.size, w = (mv.y0 - wy) / mv.size;
         return ImVec2(A.x + (u - u0) / frac * side, A.y + (w - v0) / frac * side);
@@ -972,14 +935,14 @@ static void DrawWorldMap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col,
         float bc[4] = {bl.col[0] * ec.x, bl.col[1] * ec.y, bl.col[2] * ec.z, bl.col[3] * ec.w};
         ImU32 bcol = Col(bc);
         float su = 1, sv = 1, w = bl.w * k * scale, h = bl.h * k * scale;
-        IDirect3DTexture9* tx = bl.tex;
+        gfx::Tex tx = bl.tex;
         ImVec2 uv0(bl.u0, bl.v0), uv1(bl.u1, bl.v1);
         const std::string& gn = !bl.gameName.empty() ? bl.gameName : bl.texName;
         if (PlainName(gn)) {
             if (g_mapSeen.size() < 64) g_mapSeen.insert(gn);
             std::string r = MapArtNow(gn);
             float rsu = 1, rsv = 1;
-            if (!r.empty()) if (IDirect3DTexture9* vt = NamedTex(r, (int)ceilf(std::max(w, h)), rsu, rsv)) { tx = vt; uv0 = ImVec2(0, 0); uv1 = ImVec2(rsu, rsv); }
+            if (!r.empty()) if (gfx::Tex vt = NamedTex(r, (int)ceilf(std::max(w, h)), rsu, rsv)) { tx = vt; uv0 = ImVec2(0, 0); uv1 = ImVec2(rsu, rsv); }
         }
         if (!tx && !bl.texName.empty()) tx = NamedTex(bl.texName, (int)ceilf(std::max(w, h)), su, sv);
         if (tx) TurnedQuad(dl, tx, p, w, h, deg, ImVec2(uv0.x * su, uv0.y * sv), ImVec2(uv1.x * su, uv1.y * sv), bcol);
@@ -1003,7 +966,7 @@ static void DrawWorldMap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col,
         float ph = (float)fmod(ImGui::GetTime() * 1000.0, 1600.0);
         float big = 70 * ku;
         std::string r = MapArtNow("MINIMAP_GPS_SELECTOR"); float su = 1, sv = 1;
-        IDirect3DTexture9* tx = r.empty() ? nullptr : NamedTex(r, (int)ceilf(big), su, sv);
+        gfx::Tex tx = r.empty() ? nullptr : NamedTex(r, (int)ceilf(big), su, sv);
         if (!tx) tx = NamedTex("MINIMAP_GPS_SELECTOR", (int)ceilf(big), su, sv);
         for (auto& ring : kRing) {
             float sz = ring[5][1], al = ring[5][2];
@@ -1015,7 +978,7 @@ static void DrawWorldMap(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col,
                 }
             if (al < 1) continue;
             float rr = sz * ku;
-            if (tx) dl->AddImage((ImTextureID)tx, ImVec2(p.x - rr / 2, p.y - rr / 2), ImVec2(p.x + rr / 2, p.y + rr / 2), ImVec2(0, 0), ImVec2(su, sv), Mul(IM_COL32(255, 255, 255, (int)al), e.col));
+            if (tx) dl->AddImage(gfx::Id(tx), ImVec2(p.x - rr / 2, p.y - rr / 2), ImVec2(p.x + rr / 2, p.y + rr / 2), ImVec2(0, 0), ImVec2(su, sv), Mul(IM_COL32(255, 255, 255, (int)al), e.col));
             else dl->AddCircle(p, rr / 2, Mul(IM_COL32(0, 128, 255, (int)al), e.col), 32, std::max(1.5f, rr * 0.08f));
         }
     }
@@ -1075,16 +1038,16 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
     if (sOn) { ImVec4 v = ImGui::ColorConvertU32ToFloat4(col); col = ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, v.w)); }
     auto quad = [&](float m, ImVec2* q) { q[0] = at(-pw / 2 - m, -ph / 2 - m); q[1] = at(pw / 2 + m, -ph / 2 - m); q[2] = at(pw / 2 + m, ph / 2 + m); q[3] = at(-pw / 2 - m, ph / 2 + m); };
     bool drawn = false;
-    if (shapes::GpuOn(g_dev)) {   // the graphics card works it out per pixel (nothing made, nothing kept)
+    if (shapes::GpuOn()) {   // the graphics card works it out per pixel (nothing made, nothing kept)
         float m = shapes::GpuMargin(sw, e.strokeAlign); ImVec2 q[4]; quad(m, q);
         drawn = shapes::GpuDraw(dl, box, sw, e.strokeAlign, sg, fg, cuts, m, q, fc[3] > 0.002f ? Col(fc) : 0u, col);
     }
     if (!drawn) {   // (no shaders, or more cuts / gradient stops than they take): a texture made on the CPU
         shapes::Result r;
-        if (!shapes::Get(g_dev, box, sw, e.strokeAlign, sg, fg, cuts, r)) return;
+        if (!shapes::Get(box, sw, e.strokeAlign, sg, fg, cuts, r)) return;
         ImVec2 q[4]; quad(r.margin, q);
-        if (r.fill && fc[3] > 0.002f) dl->AddImageQuad((ImTextureID)r.fill, q[0], q[1], q[2], q[3], ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), Col(fc));
-        if (r.stroke) dl->AddImageQuad((ImTextureID)r.stroke, q[0], q[1], q[2], q[3], ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), col);
+        if (r.fill && fc[3] > 0.002f) dl->AddImageQuad(gfx::Id(r.fill), q[0], q[1], q[2], q[3], ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), Col(fc));
+        if (r.stroke) dl->AddImageQuad(gfx::Id(r.stroke), q[0], q[1], q[2], q[3], ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), col);
     }
     if (e.cut && editing) {   // a cutter: marked as one while editing (an invisible one - opacity 0 - is still found)
         ImVec2 q[4] = {at(-pw / 2, -ph / 2), at(pw / 2, -ph / 2), at(pw / 2, ph / 2), at(-pw / 2, ph / 2)};
@@ -1245,8 +1208,8 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (e.texIdx == -2) e.texIdx = icon || vec ? -3 : texVal ? -1 : FindTex(e.tex, e.pack);
         // icons and vector art: drawn for their size on screen (an SVG is re-rasterised to it)
         int onScreen = (int)ceilf(std::max(b.x - a.x, b.y - a.y));
-        IDirect3DTexture9* tx = icon ? (iconTexture ? iconTexture(ifam, iid, onScreen) : nullptr)
-                              : vec ? vecart::Texture(g_dev, vecart::RefName(e.tex), onScreen) : TexOf(e.texIdx);
+        gfx::Tex tx = icon ? (iconTexture ? iconTexture(ifam, iid, onScreen) : nullptr)
+                              : vec ? vecart::Texture(vecart::RefName(e.tex), onScreen) : TexOf(e.texIdx);
         float su = 1, sv = 1;   // a live texture padded to a power of two: the picture is its top-left part
         bool noAlpha = false;   // a live texture with nothing in its alpha (a track map): drawn with the element's alpha only
         if (!tx && !icon && e.texIdx < 0 && liveTexture && !e.tex.empty()) {
@@ -1259,7 +1222,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             if (!key.empty()) {
                 std::string r = MapArtNow(key), want = r.empty() ? key : r;
                 float rsu = 1, rsv = 1;
-                if (want != e.tex) if (IDirect3DTexture9* rt = NamedTex(want, onScreen, rsu, rsv)) { tx = rt; su = rsu; sv = rsv; }
+                if (want != e.tex) if (gfx::Tex rt = NamedTex(want, onScreen, rsu, rsv)) { tx = rt; su = rsu; sv = rsv; }
             }
         }
         ImVec2 uv0(e.u0 * su, e.v0 * sv), uv1(e.u1 * su, e.v1 * sv);
@@ -1275,8 +1238,8 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (e.bindKind == 4 && bf < 0.f) tx = nullptr;   // reveal with no value: nothing
         struct Restore { Elem& e; float r; ~Restore() { e.rot = r; } } restore{ e, rotSave };
         if (tx && (bf == 0.f && (e.bindKind == 1 || e.bindKind == 2))) tx = nullptr;   // empty bar: nothing
-        if (tx && e.additive) dl->AddCallback(AdditiveOn, nullptr);
-        if (tx && noAlpha) dl->AddCallback(NoAlphaOn, nullptr);
+        if (tx && e.additive) dl->AddCallback(gfx::CbAdditive, nullptr);
+        if (tx && noAlpha) dl->AddCallback(gfx::CbNoAlpha, nullptr);
         if (tx && bf >= 0.f && e.bindKind == 4) {   // reveal: only the half on the "up" side of a line through the pivot, turned by the value
             float ku = Unit(), th = (e.rotMin + (e.rotMax - e.rotMin) * bf) * 3.14159265f / 180;
             ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), pv(c.x + e.pivX * ku, c.y + e.pivY * ku), up(sinf(th), -cosf(th));
@@ -1294,7 +1257,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
                 }
             }
             if (n >= 3) {
-                dl->PushTextureID((ImTextureID)tx);
+                dl->PushTextureID(gfx::Id(tx));
                 dl->PrimReserve((n - 2) * 3, n);
                 ImDrawIdx base = (ImDrawIdx)dl->_VtxCurrentIdx;
                 for (int i = 0; i < n; ++i) dl->PrimWriteVtx(o[i].p, o[i].uv, col);
@@ -1307,7 +1270,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2);
             float hw = (b.x - a.x) / 2, hh = (b.y - a.y) / 2, rad = std::min(hw, hh);
             const int N = 64;
-            dl->PushTextureID((ImTextureID)tx);
+            dl->PushTextureID(gfx::Id(tx));
             dl->PrimReserve(N * 3, N + 1);
             ImDrawIdx base = (ImDrawIdx)dl->_VtxCurrentIdx;
             ImVec2 uvc((uv0.x + uv1.x) / 2, (uv0.y + uv1.y) / 2);
@@ -1320,14 +1283,14 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             for (int i = 0; i < N; ++i) { dl->PrimWriteIdx(base); dl->PrimWriteIdx((ImDrawIdx)(base + 1 + i)); dl->PrimWriteIdx((ImDrawIdx)(base + 1 + (i + 1) % N)); }
             dl->PopTextureID();
         }
-        else if (tx && e.rot == 0) dl->AddImage((ImTextureID)tx, a, b, uv0, uv1, col);
+        else if (tx && e.rot == 0) dl->AddImage(gfx::Id(tx), a, b, uv0, uv1, col);
         else if (tx) {
             float r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
             float ku = Unit();
             ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), hw((b.x - a.x) / 2, (b.y - a.y) / 2);
             ImVec2 pv(c.x + e.pivX * ku, c.y + e.pivY * ku);   // turned about the pivot (corners relative to it)
             auto P = [&](float x, float y) { x += c.x - pv.x; y += c.y - pv.y; return ImVec2(pv.x + x * cs - y * sn, pv.y + x * sn + y * cs); };
-            dl->AddImageQuad((ImTextureID)tx, P(-hw.x, -hw.y), P(hw.x, -hw.y), P(hw.x, hw.y), P(-hw.x, hw.y),
+            dl->AddImageQuad(gfx::Id(tx), P(-hw.x, -hw.y), P(hw.x, -hw.y), P(hw.x, hw.y), P(-hw.x, hw.y),
                              uv0, ImVec2(uv1.x, uv0.y), uv1, ImVec2(uv0.x, uv1.y), col);
         }
         if (tx && (e.additive || noAlpha)) dl->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
@@ -2310,14 +2273,13 @@ void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)
     bool any = false; for (auto& l : g_layout) any |= !l.empty();
     if (any && g_state == 0) { g_state = 1; std::thread(Scan).detach(); }
 }
-void SetDevice(IDirect3DDevice9* dev) {   // the start of a frame: last frame's draw lists are rendered
-    g_dev = dev; g_loadsThisFrame = 0;
-    deferfree::Flush();
+void FrameStart() {   // the start of a frame: last frame's draw lists are rendered
+    g_loadsThisFrame = 0;
+    gfx::FrameStart();
     ResolveTokens();
     shapes::Trim();
     shapes::GpuFrameStart();
 }
-IDirect3DDevice9* Device() { return g_dev; }
 static bool MenuOpenNow();
 bool WantsFrames() {   // anything to draw while the host's panel is closed
     if (testMode || MenuOpenNow()) return true;
@@ -3361,16 +3323,16 @@ static void MapArtRow(const std::string& n, const std::string& note, float th) {
         for (int yy = 0; yy < 4; ++yy) for (int xx = 0; xx < 4; ++xx)
             dl->AddRectFilled(ImVec2(p.x + xx * cs, p.y + yy * cs), ImVec2(p.x + (xx + 1) * cs, p.y + (yy + 1) * cs), ((xx + yy) & 1) ? IM_COL32(90, 90, 90, 255) : IM_COL32(60, 60, 60, 255));
         float su = 1, sv = 1;
-        IDirect3DTexture9* tx = tex.empty() ? nullptr : NamedTex(tex, (int)th, su, sv);
+        gfx::Tex tx = tex.empty() ? nullptr : NamedTex(tex, (int)th, su, sv);
         if (tx) {
             float w = 1, h = 1;
             if (vecart::IsRef(tex)) { if (const vecart::Art* a = vecart::Find(vecart::RefName(tex))) { w = a->w > 0 ? a->w : 1; h = a->h > 0 ? a->h : 1; } }
             else { int i = FindTex(tex, ""); if (i >= 0) { w = (float)g_tex[i].w; h = (float)g_tex[i].h; } }
             float sc = (th - 4) / std::max(w, h); ImVec2 isz(w * sc, h * sc), off((th - isz.x) / 2, (th - isz.y) / 2);
-            dl->AddImage((ImTextureID)tx, ImVec2(p.x + off.x, p.y + off.y), ImVec2(p.x + off.x + isz.x, p.y + off.y + isz.y), ImVec2(0, 0), ImVec2(su, sv));
+            dl->AddImage(gfx::Id(tx), ImVec2(p.x + off.x, p.y + off.y), ImVec2(p.x + off.x + isz.x, p.y + off.y + isz.y), ImVec2(0, 0), ImVec2(su, sv));
         } else dl->AddText(ImVec2(p.x + 4, p.y + th / 2 - 7), IM_COL32(150, 150, 150, 255), tex.empty() ? "" : "?");
         ImGui::Dummy(ImVec2(th, th));
-        if (tx && ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::TextUnformatted(tex.c_str()); ImGui::Image((ImTextureID)tx, ImVec2(256, 256), ImVec2(0, 0), ImVec2(su, sv)); ImGui::EndTooltip(); }
+        if (tx && ImGui::IsItemHovered()) { ImGui::BeginTooltip(); ImGui::TextUnformatted(tex.c_str()); ImGui::Image(gfx::Id(tx), ImVec2(256, 256), ImVec2(0, 0), ImVec2(su, sv)); ImGui::EndTooltip(); }
     };
     ImGui::PushID(n.c_str());
     ImGui::TableNextRow(); ImGui::TableNextColumn();
@@ -3918,7 +3880,7 @@ void Panel() {
             ImVec2 p = ImGui::GetCursorScreenPos();
             ImDrawList* dl = ImGui::GetWindowDrawList();
             dl->AddRectFilled(p, ImVec2(p.x + th, p.y + th), IM_COL32(55, 55, 62, 255), 4.f);
-            if (IDirect3DTexture9* tx = iconTexture(f, id, (int)th - 8)) dl->AddImage((ImTextureID)tx, ImVec2(p.x + 4, p.y + 4), ImVec2(p.x + th - 4, p.y + th - 4));
+            if (gfx::Tex tx = iconTexture(f, id, (int)th - 8)) dl->AddImage(gfx::Id(tx), ImVec2(p.x + 4, p.y + 4), ImVec2(p.x + th - 4, p.y + th - 4));
             std::string tex = "icon:" + std::string(f < 0 ? "auto" : iconFamilies[f]) + ":" + iconKeys[id];
             if (ImGui::InvisibleButton("##ic", ImVec2(th, th))) {
                 bool onSel = ImGui::GetIO().KeyShift && g_sel >= 0 && g_sel < (int)Elems().size() && Elems()[g_sel].type == E_IMAGE;
@@ -3958,10 +3920,10 @@ void Panel() {
             float cs = th / 4;   // checkerboard so see-through art shows
             for (int yy = 0; yy < 4; ++yy) for (int xx = 0; xx < 4; ++xx)
                 dl->AddRectFilled(ImVec2(p.x + xx * cs, p.y + yy * cs), ImVec2(p.x + (xx + 1) * cs, p.y + (yy + 1) * cs), ((xx + yy) & 1) ? IM_COL32(90, 90, 90, 255) : IM_COL32(60, 60, 60, 255));
-            if (IDirect3DTexture9* tx = vecart::Texture(g_dev, art.name, (int)th - 8)) {
+            if (gfx::Tex tx = vecart::Texture(art.name, (int)th - 8)) {
                 float aw = art.w > 0 ? art.w : 1, ah = art.h > 0 ? art.h : 1, sc = (th - 8) / std::max(aw, ah);
                 ImVec2 isz(aw * sc, ah * sc), off((th - isz.x) / 2, (th - isz.y) / 2);
-                dl->AddImage((ImTextureID)tx, ImVec2(p.x + off.x, p.y + off.y), ImVec2(p.x + off.x + isz.x, p.y + off.y + isz.y));
+                dl->AddImage(gfx::Id(tx), ImVec2(p.x + off.x, p.y + off.y), ImVec2(p.x + off.x + isz.x, p.y + off.y + isz.y));
             } else dl->AddText(ImVec2(p.x + 4, p.y + 4), IM_COL32(255, 90, 90, 255), "?");
             if (ImGui::InvisibleButton("##va", ImVec2(th, th))) {
                 bool onSel = ImGui::GetIO().KeyShift && selImage;
@@ -4015,17 +3977,17 @@ void Panel() {
                 float cs = g_thumb / 4;
                 for (int yy = 0; yy < 4; ++yy) for (int xx = 0; xx < 4; ++xx)
                     dl->AddRectFilled(ImVec2(p.x + xx * cs, p.y + yy * cs), ImVec2(p.x + (xx + 1) * cs, p.y + (yy + 1) * cs), ((xx + yy) & 1) ? IM_COL32(90, 90, 90, 255) : IM_COL32(60, 60, 60, 255));
-                IDirect3DTexture9* tx = TexOf(i);
+                gfx::Tex tx = TexOf(i);
                 float sc = std::min(g_thumb / t.w, g_thumb / t.h);
                 ImVec2 isz(t.w * sc, t.h * sc), off((g_thumb - isz.x) / 2, (g_thumb - isz.y) / 2);
-                if (tx) dl->AddImage((ImTextureID)tx, ImVec2(p.x + off.x, p.y + off.y), ImVec2(p.x + off.x + isz.x, p.y + off.y + isz.y));
+                if (tx) dl->AddImage(gfx::Id(tx), ImVec2(p.x + off.x, p.y + off.y), ImVec2(p.x + off.x + isz.x, p.y + off.y + isz.y));
                 else if (t.failed) dl->AddText(ImVec2(p.x + 4, p.y + 4), IM_COL32(255, 90, 90, 255), "?");
                 if (ImGui::InvisibleButton("##t", ImVec2(g_thumb, g_thumb))) g_texSel = i;
                 if (i == g_texSel) dl->AddRect(p, ImVec2(p.x + g_thumb, p.y + g_thumb), IM_COL32(255, 210, 60, 255), 0, 0, 2.f);
                 if (ImGui::IsItemHovered()) {
                     ImGui::BeginTooltip();
                     ImGui::Text("%s\n%dx%d %s\n%s\n%s", t.name.c_str(), t.w, t.h, FmtName(t.fmt), t.pack.c_str(), g_files[t.file].rel.c_str());
-                    if (tx) { float s2 = std::min(1.f, std::min(256.f / t.w, 256.f / t.h)) * 1.5f; ImGui::Image((ImTextureID)tx, ImVec2(t.w * s2, t.h * s2)); }
+                    if (tx) { float s2 = std::min(1.f, std::min(256.f / t.w, 256.f / t.h)) * 1.5f; ImGui::Image(gfx::Id(tx), ImVec2(t.w * s2, t.h * s2)); }
                     ImGui::EndTooltip();
                 }
                 std::string nm = t.name; if (nm.size() > (size_t)(g_thumb / 6)) nm = nm.substr(0, (size_t)(g_thumb / 6)) + "..";

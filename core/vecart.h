@@ -2,7 +2,7 @@
 // Vector art: SVG files in <game>\REUI\vector (and its subfolders), drawn with nanosvg at the size they're
 // shown on screen, so they stay sharp at any scale. Elements use them as the texture "vec:<name>" (the file's path
 // in that folder, '/'-separated, without .svg). Separate from the controller button icons (UniPad's glyphs).
-#include <d3d9.h>
+#include "gfx.h"
 #include <string>
 #include <vector>
 
@@ -16,7 +16,7 @@ const std::vector<Art>& List();        // scanned on first use and by Rescan
 void Rescan();
 const Art* Find(const std::string& name);
 // the art drawn about px pixels on its longest side (cached; redrawn when the file changes); nullptr if missing
-IDirect3DTexture9* Texture(IDirect3DDevice9* dev, const std::string& name, int px);
+gfx::Tex Texture(const std::string& name, int px);
 void Release();                        // device going away: every texture made
 float Opacity(const std::string& name, float def);   // its first shape's opacity (times its fill's alpha); def if missing
 

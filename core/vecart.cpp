@@ -1,5 +1,4 @@
 #include "vecart.h"
-#include "deferfree.h"
 
 #include <windows.h>
 #include <algorithm>
@@ -20,7 +19,7 @@ std::string g_dir;
 std::vector<Art> g_list;
 bool g_scanned = false;
 
-struct Made { std::string name; int px; IDirect3DTexture9* tex; DWORD used; };
+struct Made { std::string name; int px; gfx::Tex tex; DWORD used; };
 std::vector<Made> g_made;
 struct Stamp { std::string name; FILETIME mt; DWORD checked; };
 std::vector<Stamp> g_stamps;
@@ -57,7 +56,7 @@ void Walk(const std::string& rel, int depth) {
 
 void Drop(const std::string& name) {   // every size made of one art
     for (size_t i = 0; i < g_made.size();)
-        if (g_made[i].name == name) { deferfree::Later(g_made[i].tex); g_made.erase(g_made.begin() + i); }
+        if (g_made[i].name == name) { gfx::ReleaseLater(g_made[i].tex); g_made.erase(g_made.begin() + i); }
         else ++i;
 }
 
@@ -80,10 +79,10 @@ void CheckFile(const std::string& name) {
     g_stamps.push_back(s);
 }
 
-IDirect3DTexture9* Rasterize(IDirect3DDevice9* dev, const std::string& name, int px) {
+gfx::Tex Rasterize(const std::string& name, int px) {
     NSVGimage* img = Parse(name);
     if (!img) return nullptr;
-    IDirect3DTexture9* tex = nullptr;
+    gfx::Tex tex = nullptr;
     if (img->width > 0 && img->height > 0) {
         float scale = px / std::max(img->width, img->height);
         int w = std::max(1, std::min(2048, (int)ceilf(img->width * scale)));
@@ -92,17 +91,8 @@ IDirect3DTexture9* Rasterize(IDirect3DDevice9* dev, const std::string& name, int
         if (NSVGrasterizer* r = nsvgCreateRasterizer()) {
             nsvgRasterize(r, img, 0, 0, scale, rgba.data(), w, h, w * 4);
             nsvgDeleteRasterizer(r);
-            if (SUCCEEDED(dev->CreateTexture(w, h, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &tex, nullptr))) {
-                D3DLOCKED_RECT lr;
-                if (SUCCEEDED(tex->LockRect(0, &lr, nullptr, 0))) {
-                    for (int y = 0; y < h; ++y) {
-                        const unsigned char* s = rgba.data() + (size_t)y * w * 4;
-                        unsigned char* d = (unsigned char*)lr.pBits + (size_t)y * lr.Pitch;
-                        for (int x = 0; x < w; ++x, s += 4, d += 4) { d[0] = s[2]; d[1] = s[1]; d[2] = s[0]; d[3] = s[3]; }
-                    }
-                    tex->UnlockRect(0);
-                } else { tex->Release(); tex = nullptr; }
-            }
+            for (size_t i = 0; i + 3 < rgba.size(); i += 4) std::swap(rgba[i], rgba[i + 2]);   // R G B A -> B G R A
+            tex = gfx::Create(w, h, gfx::BGRA8, rgba.data(), w * 4);
         }
     }
     nsvgDelete(img);
@@ -133,7 +123,7 @@ void Rescan() {
     g_list.clear();
     if (!g_dir.empty()) Walk("", 0);
     std::sort(g_list.begin(), g_list.end(), [](const Art& a, const Art& b) { return _stricmp(a.name.c_str(), b.name.c_str()) < 0; });
-    for (auto& m : g_made) deferfree::Later(m.tex);
+    for (auto& m : g_made) gfx::ReleaseLater(m.tex);
     g_made.clear(); g_stamps.clear();
     g_scanned = true;
 }
@@ -143,25 +133,25 @@ const Art* Find(const std::string& name) {
     return nullptr;
 }
 
-IDirect3DTexture9* Texture(IDirect3DDevice9* dev, const std::string& name, int px) {
-    if (!dev || name.empty()) return nullptr;
+gfx::Tex Texture(const std::string& name, int px) {
+    if (!gfx::Ready() || name.empty()) return nullptr;
     CheckFile(name);
     int bucket = std::max(32, std::min(2048, (px + 31) / 32 * 32));   // redrawn when the size changes by a step
     DWORD now = GetTickCount();
     for (auto& m : g_made) if (m.name == name && m.px == bucket) { m.used = now; return m.tex; }
-    Made m; m.name = name; m.px = bucket; m.used = now; m.tex = Rasterize(dev, name, bucket);
+    Made m; m.name = name; m.px = bucket; m.used = now; m.tex = Rasterize(name, bucket);
     g_made.push_back(m);   // (a failed one is kept as nullptr: not retried every frame until the file changes)
     // drop sizes not used for a while
     for (size_t i = 0; i < g_made.size();)
-        if (now - g_made[i].used > 10000) { deferfree::Later(g_made[i].tex); g_made.erase(g_made.begin() + i); }
+        if (now - g_made[i].used > 10000) { gfx::ReleaseLater(g_made[i].tex); g_made.erase(g_made.begin() + i); }
         else ++i;
     return m.tex;
 }
 
 void Release() {   // device going away: nothing is being drawn, released now
-    for (auto& m : g_made) if (m.tex) m.tex->Release();
+    for (auto& m : g_made) gfx::Release(m.tex);
     g_made.clear();
-    deferfree::Flush();
+    gfx::ReleaseAll();
 }
 
 } // namespace vecart

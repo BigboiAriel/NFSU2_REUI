@@ -1,5 +1,4 @@
 #include "shapes.h"
-#include "deferfree.h"
 
 #include <windows.h>
 #include <algorithm>
@@ -16,7 +15,7 @@ namespace shapes {
 
 namespace {
 
-struct Entry { IDirect3DTexture9* fill = nullptr; IDirect3DTexture9* stroke = nullptr; float margin = 0; int pw = 0, ph = 0; DWORD used = 0; size_t bytes = 0; };
+struct Entry { gfx::Tex fill = nullptr; gfx::Tex stroke = nullptr; float margin = 0; int pw = 0, ph = 0; DWORD used = 0; size_t bytes = 0; };
 std::unordered_map<std::string, Entry> g_cache;
 // A shape that animates (pulse, keyframes) or is being resized is a new size - a new entry - every frame: kept to a
 // budget, the least recently drawn let go first (code review, 2026-11-03: a pulsing 600x300 panel made ~260 MB).
@@ -26,7 +25,7 @@ constexpr size_t kMaxBytes = 128u << 20; constexpr size_t kMaxEntries = 192;
 constexpr DWORD kKeepMs = 10 * 60 * 1000;
 size_t g_bytes = 0;
 void Drop(std::unordered_map<std::string, Entry>::iterator it) {
-    deferfree::Later(it->second.fill); deferfree::Later(it->second.stroke);
+    gfx::ReleaseLater(it->second.fill); gfx::ReleaseLater(it->second.stroke);
     g_bytes -= std::min(g_bytes, it->second.bytes); g_cache.erase(it);
 }
 void MakeRoom(size_t need) {
@@ -126,21 +125,15 @@ std::string Key(const Box& s, float stroke, int align, const Gradient& sg, const
     return k;
 }
 
-IDirect3DTexture9* Upload(IDirect3DDevice9* dev, const std::vector<uint32_t>& px, int w, int h) {
-    IDirect3DTexture9* t = nullptr;
-    if (FAILED(dev->CreateTexture(w, h, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, &t, nullptr)) || !t) return nullptr;
-    D3DLOCKED_RECT lr;
-    if (FAILED(t->LockRect(0, &lr, nullptr, 0))) { t->Release(); return nullptr; }
-    for (int y = 0; y < h; ++y) memcpy((uint8_t*)lr.pBits + (size_t)y * lr.Pitch, &px[(size_t)y * w], (size_t)w * 4);
-    t->UnlockRect(0);
-    return t;
+gfx::Tex Upload(const std::vector<uint32_t>& px, int w, int h) {   // (0xAARRGGBB: B G R A in memory)
+    return gfx::Create(w, h, gfx::BGRA8, px.data(), w * 4);
 }
 
 } // namespace
 
-bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gradient& sg, const Gradient& fg, const std::vector<Box>& cuts, Result& out) {
+bool Get(const Box& s, float stroke, int align, const Gradient& sg, const Gradient& fg, const std::vector<Box>& cuts, Result& out) {
     // (not a number / infinite / absurd: "s.w < 1" lets NaN through and (int)ceilf(inf) wraps past the 2048 clamp)
-    if (!dev || !std::isfinite(s.w) || !std::isfinite(s.h) || !std::isfinite(stroke) || s.w < 1 || s.h < 1 || s.w > 1e5f || s.h > 1e5f) return false;
+    if (!gfx::Ready() || !std::isfinite(s.w) || !std::isfinite(s.h) || !std::isfinite(stroke) || s.w < 1 || s.h < 1 || s.w > 1e5f || s.h > 1e5f) return false;
     float sw = std::max(0.f, std::min(stroke, 1e4f));
     if (align < ALIGN_INSIDE || align > ALIGN_OUTSIDE) align = ALIGN_INSIDE;
     std::string key = Key(s, sw, align, sg, fg, cuts);
@@ -240,8 +233,8 @@ bool Get(IDirect3DDevice9* dev, const Box& s, float stroke, int align, const Gra
     Entry e; e.margin = margin; e.pw = pw; e.ph = ph; e.used = now;
     e.bytes = (size_t)pw * ph * 4 * (sw > 0 ? 2 : 1);
     MakeRoom(e.bytes);
-    e.fill = Upload(dev, fpx, pw, ph);
-    if (sw > 0) e.stroke = Upload(dev, spx, pw, ph);
+    e.fill = Upload(fpx, pw, ph);
+    if (sw > 0) e.stroke = Upload(spx, pw, ph);
     g_cache[key] = e; g_bytes += e.bytes;
     out.fill = e.fill; out.stroke = e.stroke; out.margin = margin; out.pw = pw; out.ph = ph;
     return out.fill || out.stroke;
@@ -256,7 +249,7 @@ void Trim() {
 }
 
 void Release() {
-    for (auto& kv : g_cache) { if (kv.second.fill) kv.second.fill->Release(); if (kv.second.stroke) kv.second.stroke->Release(); }
+    for (auto& kv : g_cache) { gfx::Release(kv.second.fill); gfx::Release(kv.second.stroke); }
     g_cache.clear(); g_bytes = 0;
 }
 

@@ -1,8 +1,8 @@
 #pragma once
 // Shapes drawn by the graphics card: the same rounded box, stroke, gradients and cuts as shapes.cpp's textures, worked
-// out per screen pixel by a pixel shader (compiled at start from d3dcompiler_47.dll) - nothing made on the CPU, nothing
-// kept, any size or animation at no cost. If the shaders can't be made (or a shape has more cuts / stops than the
-// shader takes) the textures are used as before.
+// out per screen pixel by a pixel shader - nothing made on the CPU, nothing kept, any size or animation at no cost. If
+// the shaders can't be made (or a shape has more cuts / stops than the shader takes) the textures are used as before.
+// Implemented by each render backend (render/d3d9/shapes_gpu_d3d9.cpp: compiled at start from d3dcompiler_47.dll).
 #include "shapes.h"
 #include "imgui.h"
 
@@ -10,7 +10,7 @@ namespace shapes {
 
 constexpr int kGpuMaxCuts = 16, kGpuMaxStops = 8;
 
-bool GpuOn(IDirect3DDevice9* dev);     // the shaders are ready (made on first ask)
+bool GpuOn();                          // the shaders are ready (made on first ask)
 void GpuFrameStart();                  // each frame, before anything's drawn (last frame's lists are rendered)
 void GpuRelease();                     // device going away
 

@@ -6,6 +6,7 @@
 #include "log.h"
 #include "panel.h"
 #include "uied.h"
+#include "gfx_d3d9.h"
 #include "game/feng.h"
 #include "reui_api.h"
 #include "game/car.h"
@@ -319,7 +320,7 @@ static void ObjWalk(uint8_t* obj, const Xf& parent, int depth) {
         if (uint8_t* ti = TexInfo(*(uint32_t*)(obj + 0x24))) {
             IDirect3DTexture9* tx = TexOfInfo(ti);
             if (tx) {
-                g.tex = tx;
+                g.tex = gfx::d3d9::Wrap(tx);
                 D3DSURFACE_DESC dd; int w = *(int16_t*)(ti + 0x44), h = *(int16_t*)(ti + 0x46);
                 if (SUCCEEDED(tx->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && w > 0 && h > 0) { g.su = (float)w / dd.Width; g.sv = (float)h / dd.Height; }
             }
@@ -581,12 +582,12 @@ static bool MapViewNow2(uied::MapView& out, bool world) {
     if (!(v.size > 1 && v.size < 1e6f) || !(v.span > 1e-4f && v.span < 10)) { g_mapWhy = "odd map size / zoom"; return false; }
     char tn[32]; snprintf(tn, sizeof tn, "TRACKMAP%d", track);
     uint8_t* tinfo = TexInfo(BHash(tn));
-    v.tex = TexOfInfo(tinfo);
+    v.tex = gfx::d3d9::Wrap(TexOfInfo(tinfo));
     v.mapName = tn;
     if (!v.tex) { g_mapWhy = tinfo ? "map texture not loaded" : "no map texture info"; return false; }
     D3DSURFACE_DESC dd; int tw = *(int16_t*)(tinfo + 0x44), th = *(int16_t*)(tinfo + 0x46);
-    if (SUCCEEDED(v.tex->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && tw > 0 && th > 0) { v.su = (float)tw / dd.Width; v.sv = (float)th / dd.Height; }
-    v.alphaOk = MapAlphaOk(v.tex);
+    if (SUCCEEDED(gfx::d3d9::Native(v.tex)->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && tw > 0 && th > 0) { v.su = (float)tw / dd.Width; v.sv = (float)th / dd.Height; }
+    v.alphaOk = MapAlphaOk(gfx::d3d9::Native(v.tex));
     bool freeRoam = *(int*)0x89E7B0 == 0;
     v.rotate = *(uint8_t*)(freeRoam ? 0x83AA1C : 0x83AA1B) == 2;
     // icons past 1 minimap width are dropped; in free roam 10 in some states (0x4CA840 at 0x4CACA5): the game state
@@ -626,10 +627,10 @@ static bool MapViewNow2(uied::MapView& out, bool world) {
             b.w = fabsf(f[0x38 / 4]); b.h = fabsf(f[0x3C / 4]);
             b.col[0] = c[2] / 255.f; b.col[1] = c[1] / 255.f; b.col[2] = c[0] / 255.f; b.col[3] = c[3] / 255.f;
             if (uint8_t* ii = TexInfo(*(uint32_t*)(obj + 0x24))) {
-                b.tex = TexOfInfo(ii);
+                b.tex = gfx::d3d9::Wrap(TexOfInfo(ii));
                 { char n[25] = {}; memcpy(n, ii + 0x0C, 24); b.gameName = n; }
                 int iw = *(int16_t*)(ii + 0x44), ih = *(int16_t*)(ii + 0x46);
-                if (b.tex && SUCCEEDED(b.tex->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && iw > 0 && ih > 0) {
+                if (b.tex && SUCCEEDED(gfx::d3d9::Native(b.tex)->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && iw > 0 && ih > 0) {
                     float su = (float)iw / dd.Width, sv = (float)ih / dd.Height; b.u0 *= su; b.u1 *= su; b.v0 *= sv; b.v1 *= sv;
                 }
             }
@@ -659,7 +660,7 @@ static bool MapViewNow2(uied::MapView& out, bool world) {
                 // one of the game's own minimap icons (MINIMAP_ICON_CAR): its size there, as on the game's icon
                 if (IDirect3DTexture9* gt = TexOfInfo(TexInfo(BHash(m[i].icon))))
                     for (size_t j = 0; j < v.blips.size(); ++j)
-                        if (v.blips[j].tex == gt) { b.tex = gt; b.texName.clear(); b.u0 = v.blips[j].u0; b.v0 = v.blips[j].v0; b.u1 = v.blips[j].u1; b.v1 = v.blips[j].v1;
+                        if (v.blips[j].tex == gfx::d3d9::Wrap(gt)) { b.tex = gfx::d3d9::Wrap(gt); b.texName.clear(); b.u0 = v.blips[j].u0; b.v0 = v.blips[j].v0; b.u1 = v.blips[j].u1; b.v1 = v.blips[j].v1;
                                                     b.w = v.blips[j].w * sz; b.h = v.blips[j].h * sz; break; }
             }
             else { b.w = 12.5f * sz; b.h = 16 * sz; }
@@ -873,12 +874,12 @@ void HostInit() {
     for (const HudPiece& p : kHudPieces) if (p.label) uied::AddReplaceTarget(p.id, p.label, p.tip);
     uied::AddReplaceTarget("rvm", "rear-view mirror", "The game's own rear-view mirror (also hidden by itself while an element shows {rvm}).");
     uied::AddFlag("hide_wreck", "hide in a wreck", "Hidden while the game shows a wreck: its crash camera, which slows the world to x0.33\n(World [0x890080] +0x108; the jump camera uses x0.4).", 0, false, [] { return InWreck(); });
-    uied::textureAlphaOk = TexAlphaOk;
-    uied::liveTexture = [](const std::string& name, float* su, float* sv) -> IDirect3DTexture9* {
+    uied::textureAlphaOk = [](gfx::Tex t) { return TexAlphaOk(gfx::d3d9::Native(t)); };
+    uied::liveTexture = [](const std::string& name, float* su, float* sv) -> gfx::Tex {
         if (name == "@rvm") {   // the live rear-view mirror ({rvm})
             IDirect3DTexture9* t = RvmTexture();
             if (t) g_rvmDrawnAt = GetTickCount();
-            return t;
+            return gfx::d3d9::Wrap(t);
         }
         if (name.size() == 11 && name.compare(0, 3, "fe:") == 0) {   // "fe:<8 hex>": the picture a FEng image object shows now
             uint8_t* obj = FeObject((uint32_t)strtoul(name.c_str() + 3, nullptr, 16));
@@ -900,7 +901,7 @@ void HostInit() {
             if (!ft) return nullptr;
             D3DSURFACE_DESC dd; int w = *(int16_t*)(fti + 0x44), h = *(int16_t*)(fti + 0x46);
             if (SUCCEEDED(ft->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && w > 0 && h > 0) { *su = (float)w / dd.Width; *sv = (float)h / dd.Height; }
-            return ft;
+            return gfx::d3d9::Wrap(ft);
         }
         uint8_t* ti = TexInfo(name.size() == 9 && name[0] == '#' ? (uint32_t)strtoul(name.c_str() + 1, nullptr, 16) : BHash(name.c_str()));   // "#HHHHHHHH": by hash
         if (name[0] == '#') {   // (diagnostics: each hash once)
@@ -915,7 +916,7 @@ void HostInit() {
         D3DSURFACE_DESC dd;
         int w = *(int16_t*)(ti + 0x44), h = *(int16_t*)(ti + 0x46);
         if (SUCCEEDED(tx->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && w > 0 && h > 0) { *su = (float)w / dd.Width; *sv = (float)h / dd.Height; }
-        return tx;
+        return gfx::d3d9::Wrap(tx);
     };
     uied::Init(gameDir, g_scriptsDir + "NFSU2_REUI_layout.txt", [](const char* line) { Log("%s", line); });
     g_ready = true;
@@ -945,7 +946,8 @@ void HostTick(bool focused) {
 bool HostWantsFrames() { return g_ready && (uied::WantsFrames() || uied::MenuIsOpen()); }
 void HostBeginFrame(IDirect3DDevice9* dev) {
     if (!g_ready) return;
-    uied::SetDevice(dev);
+    gfx::d3d9::SetDevice(dev);
+    uied::FrameStart();
     static LARGE_INTEGER f = {}, last = {};
     LARGE_INTEGER now; QueryPerformanceCounter(&now);
     if (!f.QuadPart) { QueryPerformanceFrequency(&f); last = now; }

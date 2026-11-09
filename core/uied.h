@@ -2,7 +2,7 @@
 // (the FEng fonts in LANGUAGES\English.bin / GLOBAL\GLOBALA.BUN), and build an overlay out of them.
 #pragma once
 #include <windows.h>
-#include <d3d9.h>
+#include "gfx.h"
 #include <string>
 #include <functional>
 #include <vector>
@@ -10,8 +10,7 @@
 namespace uied {
     // gameDir: the folder SPEED2.EXE is in; layoutPath: where the overlay is saved
     void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)(const char* line));
-    void SetDevice(IDirect3DDevice9* dev);   // every Present, before the ImGui frame is built
-    IDirect3DDevice9* Device();
+    void FrameStart();                       // every frame, before the ImGui frame is built (after the backend has the device)
     bool WantsFrames();                      // UniPad: something to draw even with the panel closed
     void Panel();                            // the "UI editor" tab
     bool Unsaved();                          // editor changes not saved yet
@@ -37,13 +36,13 @@ namespace uied {
     // UniPad: textures the editor's file scan doesn't have (made or loaded by the game) drawn from the game's
     // live copy, by name; nullptr when it isn't loaded right now. *su / *sv: the picture's share of the texture
     // (the game pads textures to powers of two)
-    extern std::function<IDirect3DTexture9*(const std::string& name, float* su, float* sv)> liveTexture;
+    extern std::function<gfx::Tex(const std::string& name, float* su, float* sv)> liveTexture;
     // whether a live texture's alpha says anything (the game's track maps have none: drawn with the element's alpha)
-    extern std::function<bool(IDirect3DTexture9*)> textureAlphaOk;
+    extern std::function<bool(gfx::Tex)> textureAlphaOk;
     // A game HUD object as it is on screen this frame, by its FEng name hash (the host walks the loaded packages):
     // centre x, y from the screen centre in 640x480 units (y down), size, turn (degrees clockwise), uv, colour, its
     // texture (su / sv: the picture's share of a padded texture). Not found / hidden: false.
-    struct GameObject { float x = 0, y = 0, w = 0, h = 0, rot = 0, u0 = 0, v0 = 0, u1 = 1, v1 = 1, col[4] = {1, 1, 1, 1}, su = 1, sv = 1; IDirect3DTexture9* tex = nullptr; };
+    struct GameObject { float x = 0, y = 0, w = 0, h = 0, rot = 0, u0 = 0, v0 = 0, u1 = 1, v1 = 1, col[4] = {1, 1, 1, 1}, su = 1, sv = 1; gfx::Tex tex = nullptr; };
     extern std::function<bool(unsigned nameHash, GameObject& out)> gameObject;
     // The minimap (an image with "minimap" on): the track map around the car, its icons and other mods' markers,
     // supplied by the host every frame. World = the game's x / y in metres (y north); the map texture covers
@@ -51,7 +50,7 @@ namespace uied {
     struct MapBlip {
         float x = 0, y = 0;                 // world
         float dirX = 0, dirY = 0;           // heading (world forward); 0, 0 = upright
-        IDirect3DTexture9* tex = nullptr;   // the game's icon, or
+        gfx::Tex tex = nullptr;   // the game's icon, or
         std::string texName;                // a texture by name (an icon / "vec:" / game texture), or neither = an arrow
         std::string gameName;               // the game texture's name (tex): a redrawn REUI\vector\minimap\<name>.svg replaces it
         float u0 = 0, v0 = 0, u1 = 1, v1 = 1;
@@ -64,7 +63,7 @@ namespace uied {
         int type = -1;                      // the game's icon type (its info +4: 3 racer, 4 player, 5..18 shops / events)
     };
     struct MapView {
-        IDirect3DTexture9* tex = nullptr; float su = 1, sv = 1;
+        gfx::Tex tex = nullptr; float su = 1, sv = 1;
         float x0 = 0, y0 = 0, size = 1;     // the map texture's world square
         float px = 0, py = 0, bearing = 0;  // the player: position, heading (degrees clockwise from north)
         float span = 0.2f;                  // uv across the minimap at the game's zoom
@@ -96,7 +95,7 @@ namespace uied {
     // UniPad: controller button icons, as image textures named "icon:<family>:<key>" ("icon:auto:South" = the
     // active controller's family, so it switches between Xbox / PlayStation / ... art). Families and keys by index.
     extern std::vector<std::string> iconFamilies, iconKeys;
-    extern std::function<IDirect3DTexture9*(int family, int id, int pixels)> iconTexture;   // family -1 = the active controller's; pixels = drawn size
+    extern std::function<gfx::Tex(int family, int id, int pixels)> iconTexture;   // family -1 = the active controller's; pixels = drawn size
     extern std::function<std::string(int family, int id)> iconLabel;           // the family's name for it ("Cross")
     extern std::function<int(const std::string& gameTexture)> iconForGameTexture;   // captured UniPad icon -> id
     extern std::function<void()> iconReload;
