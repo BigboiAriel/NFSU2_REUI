@@ -10,6 +10,11 @@
 #include <windows.h>
 #include <shellapi.h>
 #include "imgui.h"
+#if IMGUI_VERSION_NUM >= 19110   // (renamed in ImGui 1.91.1: NFSU2 builds with 1.90.4, Joy Ride's port with 1.92)
+#define REUI_CHILD_BORDERS ImGuiChildFlags_Borders
+#else
+#define REUI_CHILD_BORDERS ImGuiChildFlags_Border
+#endif
 #include <vector>
 #include <deque>
 #include <map>
@@ -3363,7 +3368,7 @@ void Panel() {
     MenuBar();   // (Menus: the custom menus)
     // element list + properties
     // element list + properties: one height for both, set with the bar under them; the list's width by its right edge
-    ImGui::BeginChild("##elems", ImVec2(220, g_listH), ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX);
+    ImGui::BeginChild("##elems", ImVec2(220, g_listH), REUI_CHILD_BORDERS | ImGuiChildFlags_ResizeX);
     static char search[64] = "";
     ImGui::SetNextItemWidth(-FLT_MIN);
     ImGui::InputTextWithHint("##search", "search names, text, textures...", search, sizeof search);
@@ -3568,7 +3573,7 @@ void Panel() {
         else if (!InGroup(drop.into, g) && GroupParent(g) != drop.into) RebaseGroup(g, drop.into + "/" + GroupLeaf(g));   // not into itself
     }
     ImGui::SameLine();
-    ImGui::BeginChild("##props", ImVec2(0, g_listH), ImGuiChildFlags_Border);
+    ImGui::BeginChild("##props", ImVec2(0, g_listH), REUI_CHILD_BORDERS);
     if (PickCount() == 1) {   // down to one: an ordinary selection
         if (!g_multiG.empty()) { g_selGroup = g_multiG[0]; g_sel = -1; } else { g_sel = g_multi[0]; g_selGroup.clear(); }
         ClearMulti();
@@ -3618,7 +3623,7 @@ void Panel() {
         auto list = PrefabList();
         ImGui::TextDisabled("Right-click a group in the element list to save it as a prefab (scripts\\NFSU2_REUI_prefabs).");
         float h = 230;
-        ImGui::BeginChild("##pflist", ImVec2(230, h), ImGuiChildFlags_Border);
+        ImGui::BeginChild("##pflist", ImVec2(230, h), REUI_CHILD_BORDERS);
         if (list.empty()) ImGui::TextDisabled("(no prefabs yet)");
         for (auto& n : list) {
             bool builtIn = PrefabBuiltIn(n), file = PrefabOnDisk(n);
@@ -3753,7 +3758,7 @@ void Panel() {
         }
         float avail = ImGui::GetContentRegionAvail().x;
         int cols = std::max(1, (int)(avail / (g_thumb + 10)));
-        ImGui::BeginChild("##grid", ImVec2(0, std::min(420.f, (g_thumb + 26) * 4)), ImGuiChildFlags_Border | ImGuiChildFlags_ResizeY);
+        ImGui::BeginChild("##grid", ImVec2(0, std::min(420.f, (g_thumb + 26) * 4)), REUI_CHILD_BORDERS | ImGuiChildFlags_ResizeY);
         int rows = ((int)list.size() + cols - 1) / cols;
         ImGuiListClipper clip; clip.Begin(rows, g_thumb + 26);
         while (clip.Step()) for (int r = clip.DisplayStart; r < clip.DisplayEnd; ++r) {

@@ -384,7 +384,7 @@ static void LinkedGroupsPage() {
     });
     float h = 230;
     LinkSet* cur = nullptr;
-    ImGui::BeginChild("##lglist", ImVec2(230, h), ImGuiChildFlags_Border);
+    ImGui::BeginChild("##lglist", ImVec2(230, h), REUI_CHILD_BORDERS);
     if (list.empty()) ImGui::TextDisabled("(no linked groups yet)");
     int addOf = -1;
     for (int i : list) {
