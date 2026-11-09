@@ -493,7 +493,9 @@ struct Elem {
     bool circle = false;
     bool additive = false;                // images: added onto what's under them (glows; black = nothing)
     std::string tint;                     // a value key giving "R G B" (0-255) that multiplies the colour (the car's HUD paints)
-    int anim = 0;                         // 1 pulse (grows and fades, ~1 s), 2 blink (on / off, ~0.5 s), 3 keyframes
+    int anim = 0;                         // 1 pulse (grows and fades, ~1 s), 2 blink (on / off, ~0.5 s), 3 keyframes, 4 bounce
+    float bounceScale = 1.2f, bounceMs = 300.f, bounceGlow = 0.18f;   // bounce: grows to this and back, once, over bounceMs;
+                                          // dimmed by bounceGlow at its ends, full at its peak (the stock menus' arrows)
     std::string keys;                     // anim 3: "period ms;t sx sy a;t sx sy a;..." - size and alpha multipliers, linear, looping
     double shownSince = -1;               // (running) when its show-only-while value last came on: animations start there
     std::string playOn;                   // a value key: its animation (re)starts each time it comes on (a button press: bindheld.<event>)
@@ -1165,13 +1167,22 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (e.anim && !editing) {   // pulse: up to 30% bigger and half faded; blink: hidden half the time
         double t = ImGui::GetTime() - (e.shownSince >= 0 ? e.shownSince : 0);   // from when it came on, like the game's scripts
         if (e.anim == 2 && fmod(t, 0.6) > 0.3) return;
-        if (e.anim == 3 && !e.keys.empty()) {   // the game's FEng script keys (looping): "t sx sy a [dx dy [r g b]]"
-            bool once = e.keys[0] == '!';   // "!600;...": plays once and holds its last key (else it loops)
-            float period = (float)atof(e.keys.c_str() + (once ? 1 : 0));
+        std::string bounceKeys;   // (bounce: its keys, made from its settings - plays once, then as it was)
+        if (e.anim == 4) {
+            float ms = std::max(20.f, e.bounceMs), d = 1.f - std::max(0.f, std::min(1.f, e.bounceGlow)), sc = e.bounceScale;
+            char kb[256];
+            snprintf(kb, sizeof kb, "!%g;0 1 1 1 0 0 %g %g %g;%g %g %g 1 0 0 1 1 1;%g 1 1 1 0 0 %g %g %g;%g 1 1 1 0 0 1 1 1",
+                     ms, d, d, d, ms / 2, sc, sc, ms - 1, d, d, d, ms);
+            bounceKeys = kb;
+        }
+        const std::string& keys = e.anim == 4 ? bounceKeys : e.keys;
+        if ((e.anim == 3 || e.anim == 4) && !keys.empty()) {   // the game's FEng script keys (looping): "t sx sy a [dx dy [r g b]]"
+            bool once = keys[0] == '!';   // "!600;...": plays once and holds its last key (else it loops)
+            float period = (float)atof(keys.c_str() + (once ? 1 : 0));
             std::vector<float> k;   // 9 per key: t sx sy a dx dy r g b
-            for (size_t p = e.keys.find(';'); p != std::string::npos; p = e.keys.find(';', p + 1)) {
+            for (size_t p = keys.find(';'); p != std::string::npos; p = keys.find(';', p + 1)) {
                 float v[9] = {0, 1, 1, 1, 0, 0, 1, 1, 1};
-                if (sscanf(e.keys.c_str() + p + 1, "%f %f %f %f %f %f %f %f %f", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8]) >= 4) k.insert(k.end(), v, v + 9);
+                if (sscanf(keys.c_str() + p + 1, "%f %f %f %f %f %f %f %f %f", &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &v[6], &v[7], &v[8]) >= 4) k.insert(k.end(), v, v + 9);
             }
             if (period > 0 && k.size() >= 18) {
                 float ph = once ? (float)std::min(t * 1000.0, (double)period) : (float)fmod(t * 1000.0, period), v[9];
@@ -1974,6 +1985,7 @@ static void PutElemS(std::string& o, int m, const Elem& e) {   // one element as
     if (e.additive) Pf(o, "additive=1\n");
     if (!e.tint.empty()) Pf(o, "tint=%s\n", e.tint.c_str());
     if (e.anim) Pf(o, "anim=%d\n", e.anim);
+    if (e.anim == 4) Pf(o, "bounce=%g %g %g\n", e.bounceScale, e.bounceMs, e.bounceGlow);
     if (!e.keys.empty()) Pf(o, "keys=%s\n", e.keys.c_str());
     if (!e.playOn.empty()) Pf(o, "playon=%s\n", e.playOn.c_str());
     if (!e.flags.empty()) { std::string l; for (auto& k : e.flags) { if (!l.empty()) l += ','; l += k; } Pf(o, "flags=%s\n", l.c_str()); }
@@ -2074,7 +2086,8 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     }
     else if (k == "additive") e.additive = atoi(v.c_str()) != 0;
     else if (k == "tint") e.tint = v;
-    else if (k == "anim") e.anim = std::max(0, std::min(3, atoi(v.c_str())));
+    else if (k == "anim") e.anim = std::max(0, std::min(4, atoi(v.c_str())));
+    else if (k == "bounce") sscanf(v.c_str(), "%f %f %f", &e.bounceScale, &e.bounceMs, &e.bounceGlow);
     else if (k == "keys") e.keys = v;
     else if (k == "playon") e.playOn = v;
     else if (k == "flags") { e.flags.clear(); size_t p = 0; while (p <= v.size()) { size_t q = v.find(',', p); if (q == std::string::npos) q = v.size(); if (q > p) e.flags.push_back(v.substr(p, q - p)); p = q + 1; } }
@@ -3139,7 +3152,15 @@ static void Selected(Elem& e) {
             if (ImGui::InputTextWithHint("tint from", "e.g. tach_paint_1", tb2, sizeof tb2)) { e.tint = tb2; g_dirty = true; }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("A live value giving \"R G B\" (0-255) that multiplies the colour - the car's custom HUD paints.");
         }
-        { const char* an[] = { "still", "pulse", "blink", "keyframes" }; ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::Combo("animation", &e.anim, an, 4)) g_dirty = true; }
+        { const char* an[] = { "still", "pulse", "blink", "keyframes", "bounce" }; ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::Combo("animation", &e.anim, an, 5)) g_dirty = true; }
+        if (e.anim == 4) {   // bounce: grows and back once (from when it shows, or each time its play-on value comes on)
+            ImGui::SetNextItemWidth(70); if (ImGui::DragFloat("##bsize", &e.bounceScale, 0.005f, 0.2f, 4.f, "x%.2f")) g_dirty = true;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("How big it gets at the top of the bounce (x1.20: a fifth bigger; under 1: it dips).");
+            ImGui::SameLine(); ImGui::SetNextItemWidth(70); if (ImGui::DragFloat("##bms", &e.bounceMs, 5.f, 20.f, 5000.f, "%.0f ms")) g_dirty = true;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("How long the bounce takes, up and back down.");
+            ImGui::SameLine(); ImGui::SetNextItemWidth(70); if (ImGui::DragFloat("bounce##bglow", &e.bounceGlow, 0.005f, 0.f, 1.f, "glow %.2f")) g_dirty = true;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("How much brighter it is at the top than at the start / end of the bounce (0: no change).\nPlays once from when it shows (or each time its play-on value comes on), then it's as it was.\nThe stock menus' arrows: x1.20, 300 ms, glow 0.18.");
+        }
         if (e.anim == 3) {
             static char kb[256]; snprintf(kb, sizeof kb, "%s", e.keys.c_str());
             ImGui::SetNextItemWidth(320);
