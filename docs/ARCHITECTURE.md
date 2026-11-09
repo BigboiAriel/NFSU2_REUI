@@ -10,13 +10,17 @@ core/               the editor, elements, layouts / prefabs, menus, animation, t
   assets.h          the game's own textures and fonts (a source the game connection supplies)
   shapes_gpu.h      GPU shapes, implemented per backend
 render/d3d9/        Direct3D 9 backend: gfx_d3d9.cpp (textures, states), shapes_gpu_d3d9.cpp (ps_3_0 shapes)
-render/d3d12/       Direct3D 12 backend (Joy Ride Turbo) - planned
+render/rex/          ReXGlue presenters (Joy Ride Turbo's PC port): rex_overlay (a UI drawer with its own ImGui context,
+                    ImGui 1.92 textures over an ImmediateDrawer, window input), gfx_rex (RGBA8 textures; BGRA8 / DXT
+                    converted), shapes_gpu_rex (off: shapes made on the CPU)
 games/nfsu2/        Need for Speed Underground 2: NFSU2_REUI.asi (build.sh)
   src/              dllmain, D3D9 hook, FEng, car data, host (the game's textures / objects / minimap), mod API,
                     assets_nfsu2.cpp (its texture packs and FEng fonts as the assets source)
   prefabs/          built-in prefabs (baked by tools/bake_prefabs.py into build/gen/baked_prefabs.inc)
   docs/             PLAN.md (the NFSU2 plan and feature log), RE_NOTES.md
-games/joyride/      Joy Ride Turbo (built into its PC port) - planned
+games/joyride/      Joy Ride Turbo (compiled into its PC port, vendored there under thirdparty/reui)
+  src/reui_joyride  Create / Destroy from the port's app; F6 = the editor; data in <user data>\REUI\
+  baked_prefabs.inc its built-in prefabs (tools/bake_prefabs.py games/joyride/prefabs games/joyride/baked_prefabs.inc)
 tools/              shared tools (bake_prefabs.py)
 ```
 
