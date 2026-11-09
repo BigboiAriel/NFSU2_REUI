@@ -2,7 +2,7 @@
 #include "reui_api.h"
 
 #include "log.h"
-#include "editor/uied.h"
+#include "uied.h"
 
 #include <windows.h>
 #include <string>

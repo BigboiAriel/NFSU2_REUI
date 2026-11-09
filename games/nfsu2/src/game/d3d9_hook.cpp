@@ -1,6 +1,6 @@
 #include "d3d9_hook.h"
 
-#include "../log.h"
+#include "log.h"
 #include "../panel.h"
 #include "addresses.h"
 

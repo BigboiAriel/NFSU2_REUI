@@ -1,5 +1,5 @@
 #include "shapes_gpu.h"
-#include "../log.h"
+#include "log.h"
 
 #include <windows.h>
 #include <d3dcompiler.h>

@@ -5,7 +5,7 @@
 #include "config.h"
 #include "log.h"
 #include "panel.h"
-#include "editor/uied.h"
+#include "uied.h"
 #include "game/feng.h"
 #include "reui_api.h"
 #include "game/car.h"

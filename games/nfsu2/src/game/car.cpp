@@ -15,7 +15,7 @@
 //   needle = t+0x9C (0..1, damped; resting about 0.55), updated by 0x5A0F30.
 //   Nitrous firing: 0x59FA30 thiscall(Car+0x40) (from the multiplayer mod). Throttle: [Car+0x30]+0x20C.
 #include "car.h"
-#include "../log.h"
+#include "log.h"
 
 #include <windows.h>
 #include <algorithm>

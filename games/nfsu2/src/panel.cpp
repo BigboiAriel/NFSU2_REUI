@@ -4,7 +4,7 @@
 #include "config.h"
 #include "host.h"
 #include "log.h"
-#include "editor/uied.h"
+#include "uied.h"
 
 #include "imgui.h"
 #include "imgui_impl_dx9.h"

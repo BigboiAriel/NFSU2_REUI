@@ -2,7 +2,7 @@
 // PackageWillUnload 0x51C8C0 (thiscall(owner, FEPackage*) -> bool) drops it. FEPackage +0x0C name, +0x4C first object.
 #include "feng.h"
 
-#include "../log.h"
+#include "log.h"
 
 #include <MinHook.h>
 #include <windows.h>
