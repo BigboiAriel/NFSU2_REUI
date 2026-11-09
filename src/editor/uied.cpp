@@ -494,8 +494,9 @@ struct Elem {
     bool additive = false;                // images: added onto what's under them (glows; black = nothing)
     std::string tint;                     // a value key giving "R G B" (0-255) that multiplies the colour (the car's HUD paints)
     int anim = 0;                         // 1 pulse (grows and fades, ~1 s), 2 blink (on / off, ~0.5 s), 3 keyframes, 4 bounce
-    float bounceScale = 1.2f, bounceMs = 300.f, bounceGlow = 0.18f;   // bounce: grows to this and back, once, over bounceMs;
-                                          // dimmed by bounceGlow at its ends, full at its peak (the stock menus' arrows)
+    float bounceScale = 1.2f, bounceMs = 300.f, bounceGlow = 0.18f, bounceAlpha = 1.f;   // bounce: grows to this and back,
+                                          // once, over bounceMs; dimmed by bounceGlow at its ends, full at its peak (the stock
+                                          // menus' arrows); its opacity times bounceAlpha at the peak (the map's LT / RT: 1.7)
     std::string keys;                     // anim 3: "period ms;t sx sy a;t sx sy a;..." - size and alpha multipliers, linear, looping
     double shownSince = -1;               // (running) when its show-only-while value last came on: animations start there
     std::string playOn;                   // a value key: its animation (re)starts each time it comes on (a button press: bindheld.<event>)
@@ -1171,8 +1172,8 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (e.anim == 4) {
             float ms = std::max(20.f, e.bounceMs), d = 1.f - std::max(0.f, std::min(1.f, e.bounceGlow)), sc = e.bounceScale;
             char kb[256];
-            snprintf(kb, sizeof kb, "!%g;0 1 1 1 0 0 %g %g %g;%g %g %g 1 0 0 1 1 1;%g 1 1 1 0 0 %g %g %g;%g 1 1 1 0 0 1 1 1",
-                     ms, d, d, d, ms / 2, sc, sc, ms - 1, d, d, d, ms);
+            snprintf(kb, sizeof kb, "!%g;0 1 1 1 0 0 %g %g %g;%g %g %g %g 0 0 1 1 1;%g 1 1 1 0 0 %g %g %g;%g 1 1 1 0 0 1 1 1",
+                     ms, d, d, d, ms / 2, sc, sc, std::max(0.f, e.bounceAlpha), ms - 1, d, d, d, ms);
             bounceKeys = kb;
         }
         const std::string& keys = e.anim == 4 ? bounceKeys : e.keys;
@@ -1985,7 +1986,7 @@ static void PutElemS(std::string& o, int m, const Elem& e) {   // one element as
     if (e.additive) Pf(o, "additive=1\n");
     if (!e.tint.empty()) Pf(o, "tint=%s\n", e.tint.c_str());
     if (e.anim) Pf(o, "anim=%d\n", e.anim);
-    if (e.anim == 4) Pf(o, "bounce=%g %g %g\n", e.bounceScale, e.bounceMs, e.bounceGlow);
+    if (e.anim == 4) Pf(o, "bounce=%g %g %g %g\n", e.bounceScale, e.bounceMs, e.bounceGlow, e.bounceAlpha);
     if (!e.keys.empty()) Pf(o, "keys=%s\n", e.keys.c_str());
     if (!e.playOn.empty()) Pf(o, "playon=%s\n", e.playOn.c_str());
     if (!e.flags.empty()) { std::string l; for (auto& k : e.flags) { if (!l.empty()) l += ','; l += k; } Pf(o, "flags=%s\n", l.c_str()); }
@@ -2087,7 +2088,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "additive") e.additive = atoi(v.c_str()) != 0;
     else if (k == "tint") e.tint = v;
     else if (k == "anim") e.anim = std::max(0, std::min(4, atoi(v.c_str())));
-    else if (k == "bounce") sscanf(v.c_str(), "%f %f %f", &e.bounceScale, &e.bounceMs, &e.bounceGlow);
+    else if (k == "bounce") sscanf(v.c_str(), "%f %f %f %f", &e.bounceScale, &e.bounceMs, &e.bounceGlow, &e.bounceAlpha);
     else if (k == "keys") e.keys = v;
     else if (k == "playon") e.playOn = v;
     else if (k == "flags") { e.flags.clear(); size_t p = 0; while (p <= v.size()) { size_t q = v.find(',', p); if (q == std::string::npos) q = v.size(); if (q > p) e.flags.push_back(v.substr(p, q - p)); p = q + 1; } }
@@ -3158,8 +3159,10 @@ static void Selected(Elem& e) {
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("How big it gets at the top of the bounce (x1.20: a fifth bigger; under 1: it dips).");
             ImGui::SameLine(); ImGui::SetNextItemWidth(70); if (ImGui::DragFloat("##bms", &e.bounceMs, 5.f, 20.f, 5000.f, "%.0f ms")) g_dirty = true;
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("How long the bounce takes, up and back down.");
-            ImGui::SameLine(); ImGui::SetNextItemWidth(70); if (ImGui::DragFloat("bounce##bglow", &e.bounceGlow, 0.005f, 0.f, 1.f, "glow %.2f")) g_dirty = true;
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("How much brighter it is at the top than at the start / end of the bounce (0: no change).\nPlays once from when it shows (or each time its play-on value comes on), then it's as it was.\nThe stock menus' arrows: x1.20, 300 ms, glow 0.18.");
+            ImGui::SameLine(); ImGui::SetNextItemWidth(70); if (ImGui::DragFloat("##bglow", &e.bounceGlow, 0.005f, 0.f, 1.f, "glow %.2f")) g_dirty = true;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("How much brighter it is at the top than at the start / end of the bounce (0: no change).\nPlays once from when it shows (or each time its play-on value comes on), then it's as it was.\nThe stock menus' arrows: x1.20, 300 ms, glow 0.18, opacity x1.");
+            ImGui::SameLine(); ImGui::SetNextItemWidth(80); if (ImGui::DragFloat("bounce##balpha", &e.bounceAlpha, 0.01f, 0.f, 4.f, "opacity x%.2f")) g_dirty = true;
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Its opacity at the top of the bounce, times this (x1: no change; it can't go past fully solid,\nso above x1 it only shows on something that's partly see-through). The map's LT / RT: x1.30, 400 ms, glow 0, opacity x1.70.");
         }
         if (e.anim == 3) {
             static char kb[256]; snprintf(kb, sizeof kb, "%s", e.keys.c_str());

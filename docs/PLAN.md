@@ -266,7 +266,8 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   Code: src/editor/uied_links.inc (LinksSync runs before each undo snapshot, when something was edited).
 - **Bounce animation (2026-11-08).** Animation "bounce": grows to a size and back once (x1.20 over 300 ms by default),
   brightest at the top (glow: how much dimmer its ends are), from when it shows or each time its play-on value comes on,
-  then as it was. Saved as `anim=4` + `bounce=<size> <ms> <glow>`. The stock menus' arrows (the car select's flash).
+  then as it was; its opacity times "opacity" at the top. Saved as `anim=4` + `bounce=<size> <ms> <glow> <opacity>`. The
+  stock menus' arrows (the car select's flash: x1.2, 300 ms, glow 0.18) and the map's LT / RT (x1.3, 400 ms, opacity x1.7).
 - **Copy / paste, save shortcut (2026-11-08).** Ctrl + C copies what's picked (an element, several, groups with what's
   in them - their grids' / carousels' settings and any menus inside); Ctrl + V pastes new, unlinked copies in the game
   mode being edited (a copied group gets a new name, "<name> copy"). On the same menu they land a little down-right
