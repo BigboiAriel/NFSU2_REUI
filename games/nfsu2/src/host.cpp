@@ -7,6 +7,7 @@
 #include "panel.h"
 #include "uied.h"
 #include "gfx_d3d9.h"
+#include "assets_nfsu2.h"
 #include "game/feng.h"
 #include "reui_api.h"
 #include "game/car.h"
@@ -918,6 +919,7 @@ void HostInit() {
         if (SUCCEEDED(tx->GetLevelDesc(0, &dd)) && dd.Width && dd.Height && w > 0 && h > 0) { *su = (float)w / dd.Width; *sv = (float)h / dd.Height; }
         return gfx::d3d9::Wrap(tx);
     };
+    assets_nfsu2::Install(gameDir);   // the game's texture packs and FEng fonts
     uied::Init(gameDir, g_scriptsDir + "NFSU2_REUI_layout.txt", [](const char* line) { Log("%s", line); });
     g_ready = true;
 }

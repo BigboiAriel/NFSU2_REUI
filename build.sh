@@ -31,7 +31,7 @@ done
 G=games/nfsu2/src
 SRC="$G/dllmain.cpp $G/log.cpp $G/config.cpp $G/panel.cpp $G/host.cpp
      $G/game/d3d9_hook.cpp $G/game/feng.cpp core/uied.cpp core/vecart.cpp core/shapes.cpp render/d3d9/shapes_gpu_d3d9.cpp render/d3d9/gfx_d3d9.cpp
-     $G/reui_api.cpp $G/game/car.cpp
+     $G/reui_api.cpp $G/game/car.cpp $G/assets_nfsu2.cpp
      $IMGUI/imgui.cpp $IMGUI/imgui_draw.cpp $IMGUI/imgui_tables.cpp $IMGUI/imgui_widgets.cpp
      $IMGUI/backends/imgui_impl_dx9.cpp $IMGUI/backends/imgui_impl_win32.cpp"
 

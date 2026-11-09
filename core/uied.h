@@ -10,6 +10,9 @@
 namespace uied {
     // gameDir: the folder SPEED2.EXE is in; layoutPath: where the overlay is saved
     void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)(const char* line));
+    // where REUI keeps its files, set before Init (with a trailing backslash; empty: the NFSU2 places,
+    // <game>\scripts\NFSU2_REUI_prefabs\ and <game>\REUI\ - vector art in its vector\)
+    extern std::string prefabDir, dataDir;
     void FrameStart();                       // every frame, before the ImGui frame is built (after the backend has the device)
     bool WantsFrames();                      // UniPad: something to draw even with the panel closed
     void Panel();                            // the "UI editor" tab
