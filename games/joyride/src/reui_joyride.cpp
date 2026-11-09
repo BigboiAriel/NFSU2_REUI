@@ -99,5 +99,6 @@ void Destroy() {
 }
 
 bool EditorOpen() { return g_open; }
+void SetEditorOpen(bool open) { g_open = open; }
 
 } // namespace reui_joyride

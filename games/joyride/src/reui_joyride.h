@@ -18,5 +18,6 @@ bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::Gra
             const std::filesystem::path& dataDir);
 void Destroy();
 bool EditorOpen();
+void SetEditorOpen(bool open);
 
 } // namespace reui_joyride
