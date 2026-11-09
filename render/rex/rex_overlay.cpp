@@ -217,12 +217,12 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
     std::deque<std::pair<uint64_t, std::unique_ptr<rex::ui::ImmediateTexture>>> dying_;
 };
 
-std::unique_ptr<Overlay> CreateOverlay(const OverlaySetup& setup) {
-    auto o = std::make_unique<Overlay>(setup);
+void OverlayDeleter::operator()(Overlay* o) const { delete o; }
+OverlayPtr CreateOverlay(const OverlaySetup& setup) {
+    OverlayPtr o(new Overlay(setup));
     if (!o->Init()) return nullptr;
     return o;
 }
-void DestroyOverlay(std::unique_ptr<Overlay>& overlay) { overlay.reset(); }
 ImGuiContext* OverlayContext(Overlay* overlay) { return overlay ? overlay->context() : nullptr; }
 
 } // namespace reui_rex

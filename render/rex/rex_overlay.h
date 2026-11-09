@@ -28,8 +28,9 @@ struct OverlaySetup {
 };
 
 class Overlay;
-std::unique_ptr<Overlay> CreateOverlay(const OverlaySetup& setup);   // nullptr on failure
-void DestroyOverlay(std::unique_ptr<Overlay>& overlay);
+struct OverlayDeleter { void operator()(Overlay* o) const; };
+using OverlayPtr = std::unique_ptr<Overlay, OverlayDeleter>;
+OverlayPtr CreateOverlay(const OverlaySetup& setup);   // nullptr on failure
 ImGuiContext* OverlayContext(Overlay* overlay);
 
 } // namespace reui_rex

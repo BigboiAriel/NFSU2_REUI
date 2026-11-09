@@ -28,7 +28,7 @@ void Log(const char* fmt, ...) {   // (core/log.h, for the backends)
 namespace reui_joyride {
 namespace {
 
-std::unique_ptr<reui_rex::Overlay> g_overlay;
+reui_rex::OverlayPtr g_overlay;
 bool g_open = false;   // the editor panel (F6)
 
 std::string Dir(const std::filesystem::path& p) {   // (the core's file calls are the ANSI ones)
@@ -95,7 +95,7 @@ void Destroy() {
     ImGui::SetCurrentContext(reui_rex::OverlayContext(g_overlay.get()));
     uied::Release();
     ImGui::SetCurrentContext(prev);
-    reui_rex::DestroyOverlay(g_overlay);
+    g_overlay.reset();
 }
 
 bool EditorOpen() { return g_open; }
