@@ -2413,6 +2413,87 @@ static void DeleteSelected() {
     } else return;
     g_dirty = true;
 }
+// ---------------------------------------------------------------- copy / paste (Ctrl + C / Ctrl + V, 2026-11-08)
+// Copies what's picked: an element, several, groups (with what's in them: their grids / carousels' settings and any
+// menus inside too). Pasting adds new copies - never linked: a copied group gets a new name ("<name> copy") - in the
+// game mode being edited. On the same menu they're pasted a little down-right of the originals (further each paste);
+// on another menu (or another game mode) where they were on theirs, in the same groups inside it.
+struct Clip { std::vector<Elem> els; std::vector<std::string> groups; std::vector<Widget> widgets; std::vector<Page> pages;
+              std::string base; int mode = -1; int pastes = 0; };
+static Clip g_clip;
+static std::string ClipBase() { return MenuWs() ? g_menuEd : std::string(); }   // (the menu the paths are relative to)
+static std::string ClipRel(const std::string& g, const std::string& base) {
+    if (base.empty()) return g;
+    if (g == base) return std::string();
+    return InGroup(g, base) ? g.substr(base.size() + 1) : g;
+}
+static std::string ClipAbs(const std::string& rel, const std::string& base) { return base.empty() ? rel : CleanGroup(base + "/" + rel); }
+static void CopyPicked() {
+    auto& els = Elems();
+    Clip c; c.base = ClipBase(); c.mode = g_editMode;
+    std::vector<std::string> gs = g_multiG;
+    if (!g_selGroup.empty()) gs.push_back(g_selGroup);
+    // (a group inside another copied group goes with that one)
+    std::vector<std::string> top;
+    for (auto& g : gs) { bool inner = false; for (auto& o : gs) if (o != g && InGroup(g, o)) inner = true; if (!inner && std::find(top.begin(), top.end(), g) == top.end()) top.push_back(g); }
+    std::vector<int> loose = g_multi; if (g_sel >= 0 && g_sel < (int)els.size() && g_selGroup.empty()) loose.push_back(g_sel);
+    for (int i = 0; i < (int)els.size(); ++i) {
+        bool inG = false; for (auto& g : top) inG |= InGroup(els[i].group, g);
+        bool lo = std::find(loose.begin(), loose.end(), i) != loose.end();
+        if (!inG && !lo) continue;
+        Elem e = els[i]; e.group = ClipRel(e.group, c.base);
+        if (e.cutTarget.compare(0, 6, "group:") == 0) e.cutTarget = "group:" + ClipRel(e.cutTarget.substr(6), c.base);
+        c.els.push_back(e);
+    }
+    if (c.els.empty()) return;
+    for (auto& g : top) {
+        c.groups.push_back(ClipRel(g, c.base));
+        for (auto& w : g_widgets) if (InGroup(w.group, g)) { Widget x = w; x.group = ClipRel(w.group, c.base); c.widgets.push_back(x); }
+        for (auto& p : g_pages) if (InGroup(p.group, g) && p.group != c.base) { Page x = p; x.group = ClipRel(p.group, c.base); c.pages.push_back(x); }
+    }
+    g_clip = c;
+    Log("ui editor: copied %d element(s)%s", (int)c.els.size(), top.empty() ? "" : (" in " + std::to_string(top.size()) + " group(s)").c_str());
+}
+static void PasteClip() {
+    if (g_clip.els.empty()) return;
+    std::string base = ClipBase();
+    bool here = base == g_clip.base && g_editMode == g_clip.mode;
+    float off = here ? 10.f * (g_clip.pastes + 1) : 0.f;
+    ++g_clip.pastes;
+    auto names = GroupNames();
+    auto taken = [&](const std::string& g) { return std::find(names.begin(), names.end(), g) != names.end() || PageOf(g); };
+    // copied groups: new names beside the originals
+    std::vector<std::pair<std::string, std::string>> ren;   // (rel group -> its new absolute path)
+    for (auto& rg : g_clip.groups) {
+        std::string abs = ClipAbs(rg, base), ng = abs;
+        if (taken(ng)) { ng = abs + " copy"; for (int k = 2; taken(ng); ++k) ng = abs + " copy " + std::to_string(k); }
+        names.push_back(ng);
+        ren.push_back({ rg, ng });
+    }
+    auto map = [&](const std::string& rel) {
+        for (auto& r : ren) if (rel == r.first || (r.first.empty() ? false : InGroup(rel, r.first))) return CleanGroup(r.second + rel.substr(r.first.size()));
+        return ClipAbs(rel, base);
+    };
+    auto& els = Elems();
+    int first = (int)els.size();
+    for (auto e : g_clip.els) {
+        e.group = map(e.group);
+        if (e.cutTarget.compare(0, 6, "group:") == 0) e.cutTarget = "group:" + map(e.cutTarget.substr(6));
+        e.x += off; e.y += off; e.mode = g_editMode;
+        els.push_back(e);
+    }
+    for (auto w : g_clip.widgets) { w.group = map(w.group); g_widgets.push_back(w); }
+    for (auto p : g_clip.pages) { p.group = map(p.group); p.start = false; g_pages.push_back(p); }
+    // pick what was pasted
+    g_sel = -1; g_selGroup.clear(); ClearMulti();
+    std::vector<int> loose;
+    for (int i = first; i < (int)els.size(); ++i) { bool inG = false; for (auto& r : ren) inG |= InGroup(els[i].group, r.second); if (!inG) loose.push_back(i); }
+    if (ren.size() == 1 && loose.empty()) g_selGroup = ren[0].second;
+    else if (ren.empty() && loose.size() == 1) g_sel = loose[0];
+    else { g_multi = loose; for (auto& r : ren) g_multiG.push_back(r.second); }
+    g_dirty = true;
+    Log("ui editor: pasted %d element(s)", (int)g_clip.els.size());
+}
 // the picked groups into `to` ("" = top level), as groups inside it; the picked loose elements straight into it
 static void PutPickedIn(const std::string& to) {
     auto& els = Elems();
@@ -3491,7 +3572,7 @@ void Panel() {
     ImGui::SameLine(); ImGui::BeginDisabled(g_undo.empty());
     if (ImGui::Button(("Undo (" + std::to_string(g_undo.size()) + ")").c_str())) Undo();
     ImGui::EndDisabled();
-    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Ctrl + Z. Up to %d steps (each finished change: a drag, a typed name...).", kUndoSteps);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Ctrl + Z (Ctrl + S saves, Ctrl + C / V copy / paste). Up to %d steps (each finished change: a drag, a typed name...).", kUndoSteps);
     ImGui::SameLine(); ImGui::BeginDisabled(g_redo.empty());
     if (ImGui::Button("Redo")) Redo();
     ImGui::EndDisabled();
@@ -3732,10 +3813,14 @@ void Panel() {
         ImGui::GetWindowDrawList()->AddLine(ImVec2(p.x, p.y + 4.f), ImVec2(p.x + w, p.y + 4.f), hot ? c : IM_COL32(90, 90, 100, 120), 1.f);
     }
 
-    {   // keys: Delete removes what's picked; Ctrl + Z / Ctrl + Y (or Ctrl + Shift + Z) undo / redo
+    {   // keys: Delete removes what's picked; Ctrl + Z / Ctrl + Y (or Ctrl + Shift + Z) undo / redo; Ctrl + C / V copy /
+        // paste what's picked; Ctrl + S saves (also while typing in a box)
         ImGuiIO& io = ImGui::GetIO();
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) Save();
         if (!io.WantTextInput) {
             if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) DeleteSelected();
+            if (io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_C, false)) CopyPicked();
+            if (io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_V, false)) PasteClip();
             if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false)) { if (io.KeyShift) Redo(); else Undo(); }
             if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Y, false)) Redo();
         }

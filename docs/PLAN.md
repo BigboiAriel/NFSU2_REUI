@@ -264,6 +264,11 @@ messages; new GitHub repo (user creates it; sessions can't create repos). Rename
   moves follow; a deleted or ungrouped member leaves its link. Undo covers links. Saved before the elements as
   `grouplink=<mode>|<dx> <dy> <layer> <group>|...`; on loading / undoing, if they differ the first one's look wins.
   Code: src/editor/uied_links.inc (LinksSync runs before each undo snapshot, when something was edited).
+- **Copy / paste, save shortcut (2026-11-08).** Ctrl + C copies what's picked (an element, several, groups with what's
+  in them - their grids' / carousels' settings and any menus inside); Ctrl + V pastes new, unlinked copies in the game
+  mode being edited (a copied group gets a new name, "<name> copy"). On the same menu they land a little down-right
+  (further each paste); on another menu where they were on theirs, in the same groups inside it. The pasted ones are
+  picked. Ctrl + S saves (also while typing in a box). Text boxes keep their own Ctrl + C / V.
 - **Menu header text (2026-11-08).** A menu's right-click menu has "header text": its title (saved as `title=` on the
   page). A text with the role "page: header text" shows the title of the menu on screen instead of its own text (its
   own where the menu has none), and `{page.title}` puts it into any text. Shared pieces show the title of the menu
