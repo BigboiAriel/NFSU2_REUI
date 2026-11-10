@@ -13,15 +13,18 @@
 //   | (expand: taller, with a big keys + curves graph)                       |
 //   +------------------------------------------------------------------------+
 //
-// The keys / curves are the planned animation model (clips of tracks of eased keys, times in ms) and edit for real;
-// they are kept for this session only and don't move the elements yet. Everything else on the animation page is a
-// placeholder for a planned feature, marked "planned".
+// Each element owns its clips (Elem::an): tracks of eased keys, times in ms, saved with the layout as "aclip=" /
+// "akey=" lines. Played: In from when the element shows, then Idle (looping); the other clips' triggers are planned.
+// In animation mode every element shows the clip being edited (by name) at the playhead, so a whole screen's In can
+// be scrubbed together. Everything else on the animation page is a placeholder for a planned feature, marked
+// "planned".
 
 namespace anim {
 
-enum Ease { EZ_LINEAR, EZ_IN, EZ_OUT, EZ_INOUT, EZ_BACK_IN, EZ_BACK_OUT, EZ_ELASTIC, EZ_BOUNCE, EZ_HOLD, EZ_BEZIER, EZ_NEASE };
+// (the soft ones: quadratic - Flash's own tween easing, which the game's menus use)
+enum Ease { EZ_LINEAR, EZ_IN, EZ_OUT, EZ_INOUT, EZ_BACK_IN, EZ_BACK_OUT, EZ_ELASTIC, EZ_BOUNCE, EZ_HOLD, EZ_BEZIER, EZ_QIN, EZ_QOUT, EZ_QINOUT, EZ_NEASE };
 static const char* kEase[EZ_NEASE] = { "Linear", "Ease in", "Ease out", "Ease in-out", "Back in (anticipate)",
-                                    "Back out (overshoot)", "Elastic out", "Bounce out", "Hold (step)", "Bezier (handles)" };
+                                    "Back out (overshoot)", "Elastic out", "Bounce out", "Hold (step)", "Bezier (handles)", "Soft in", "Soft out", "Soft in-out" };
 
 // A key: a value at a time; `ease` shapes the way to the next key (bezier: handles in 0..1 of that segment).
 struct Key { float t = 0, v = 0; int ease = EZ_LINEAR; float h1x = 0.33f, h1y = 0.f, h2x = 0.67f, h2y = 1.f; bool sel = false; };
@@ -93,6 +96,9 @@ static float Eased(const Key& k, float u) {
     case EZ_BOUNCE: return BounceOut(u);
     case EZ_HOLD: return u >= 1 ? 1.f : 0.f;
     case EZ_BEZIER: return BezierY(k, u);
+    case EZ_QIN: return u * u;
+    case EZ_QOUT: return 1 - (1 - u) * (1 - u);
+    case EZ_QINOUT: return u < 0.5f ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
     default: return u;
     }
 }
@@ -118,10 +124,13 @@ static int Keys(const Clip& c) { int n = 0; for (auto& tr : c.tracks) n += (int)
 static ElemAnim NewAnim() {
     ElemAnim a;
     for (auto& c : kClips) { Clip k; k.name = c[0]; k.trigger = c[1]; for (int p = 0; p < P_NPROP; ++p) k.tracks[p].prop = p; a.clips.push_back(k); }
-    a.clips[1].loop = PINGPONG; a.clips[1].length = 1200;
-    // an example to start from: the game's focus pop (its buttons scale 1.00 -> 1.10 in 4 Flash frames (30 fps) with a
-    // brightness flash, then settle at 1.02 as the flash fades; 8 and 18 frames at 60 fps)
-    Clip& f = a.clips[3];
+    a.clips[1].loop = LOOP; a.clips[1].length = 1200;
+    return a;
+}
+// an example to start from: the game's focus pop (its buttons scale 1.00 -> 1.10 in 4 Flash frames (30 fps) with a
+// brightness flash, then settle at 1.02 as the flash fades; 8 and 18 frames at 60 fps)
+static void ExampleFocusPop(Clip& f) {
+    for (auto& tr : f.tracks) tr.keys.clear();
     f.on = true; f.length = 300;
     for (int p : { P_SX, P_SY }) {
         Track& tr = f.tracks[p];
@@ -135,7 +144,6 @@ static ElemAnim NewAnim() {
         Key a1; a1.t = 133; a1.v = 0.5f; a1.ease = EZ_OUT; tr.keys.push_back(a1);
         Key a2; a2.t = 300; a2.v = 0.1f; tr.keys.push_back(a2);
     }
-    return a;
 }
 
 // ---------------------------------------------------------------- the workspace's state
@@ -154,7 +162,6 @@ struct State {
     int dragKey = -1, dragTrack = -1, dragHandle = 0; ImVec2 dragStart; float dragT = 0, dragV = 0;
 };
 static State g;
-static std::map<std::string, ElemAnim> g_data;   // by element key (session only for now)
 
 static std::string KeyOf(int mode, const Elem& e) { return std::to_string(mode) + "|" + e.group + "|" + e.name; }
 static int FocusedIndex() {
@@ -162,11 +169,12 @@ static int FocusedIndex() {
     for (int i = 0; i < (int)els.size(); ++i) if (KeyOf(g_editMode, els[i]) == g.elemKey) return i;
     return -1;
 }
-static ElemAnim* Focused() {
-    if (FocusedIndex() < 0) return nullptr;
-    auto it = g_data.find(g.elemKey);
-    if (it == g_data.end()) it = g_data.emplace(g.elemKey, NewAnim()).first;
-    return &it->second;
+static ElemAnim* Focused() {   // (made when first focused: every standard clip, empty)
+    const int i = FocusedIndex();
+    if (i < 0) return nullptr;
+    Elem& e = Elems()[i];
+    if (!e.an.p) e.an.p = new ElemAnim(NewAnim());
+    return e.an.p;
 }
 static Clip* CurClip() { ElemAnim* a = Focused(); if (!a || a->clips.empty()) return nullptr; g.clip = std::max(0, std::min(g.clip, (int)a->clips.size() - 1)); return &a->clips[g.clip]; }
 static float FrameMs() { return 1000.f / 60.f; }   // the timeline's frames: 60 fps (playback is continuous)
@@ -187,6 +195,109 @@ static std::vector<int> GraphTracks(Clip* c) {
     for (int p = 0; p < P_NPROP; ++p) if (!c->tracks[p].keys.empty()) out.push_back(p);
     return out;
 }
+
+// ---------------------------------------------------------------- playing (the engine)
+
+static const Clip* ClipNamed(const ElemAnim* a, const std::string& name) {
+    if (a) for (auto& c : a->clips) if (c.on && c.name == name && Keys(c)) return &c;
+    return nullptr;
+}
+static float ClipTime(const Clip& c, float t) {   // a time from the clip's start -> its own time (once: holds its end)
+    const float len = std::max(1.f, c.length);
+    if (t < 0) t = 0;
+    if (c.loop == LOOP) return fmodf(t, len);
+    if (c.loop == PINGPONG) { float u = fmodf(t, 2 * len); return u > len ? 2 * len - u : u; }
+    return std::min(t, len);
+}
+static void Sample(const Clip& c, float t, Pose& p) {
+    t = ClipTime(c, t);
+    auto v = [&](int prop) { return Value(c.tracks[prop], t); };
+    p.dx = v(P_X); p.dy = v(P_Y); p.sx = v(P_SX); p.sy = v(P_SY); p.rot = v(P_ROT); p.a = std::max(0.f, v(P_ALPHA));
+    p.mul[0] = v(P_MR); p.mul[1] = v(P_MG); p.mul[2] = v(P_MB);
+    p.add[0] = std::max(0.f, v(P_AR)); p.add[1] = std::max(0.f, v(P_AG)); p.add[2] = std::max(0.f, v(P_AB));
+}
+// the clip animation mode shows on every element: the one picked on the timeline (by name)
+static std::string PreviewName() { const Clip* c = CurClip(); return c ? c->name : std::string(kClips[std::max(0, std::min(8, g.clip))][0]); }
+static float PreviewLen() {   // the longest clip of that name in the layout (the timeline's range)
+    const std::string n = PreviewName();
+    float len = 0;
+    for (auto& e : Elems()) if (const Clip* c = ClipNamed(e.an.p, n)) len = std::max(len, c->length);
+    if (len <= 0) { const int i = FocusedIndex(); if (i >= 0 && Elems()[i].an.p) for (auto& c : Elems()[i].an.p->clips) if (c.name == n) len = c.length; }
+    return len > 0 ? len : 1000.f;
+}
+static bool Previewing() { return g.on; }
+static bool PoseOf(Elem& e, bool editing, Pose& p) {
+    const ElemAnim* a = e.an.p;
+    if (!a || editing) return false;
+    if (g.on) {   // animation mode: the clip being edited, at the playhead
+        const Clip* c = ClipNamed(a, PreviewName());
+        if (!c) return false;
+        Sample(*c, g.time, p); return true;
+    }
+    const float t = (float)((ImGui::GetTime() - (e.shownSince >= 0 ? e.shownSince : ImGui::GetTime())) * 1000.0);
+    const Clip* in = ClipNamed(a, "In"), *idle = ClipNamed(a, "Idle");
+    if (in && (!idle || t < in->length)) { Sample(*in, t, p); return true; }
+    if (idle) { Sample(*idle, t - (in ? in->length : 0.f), p); return true; }
+    return false;
+}
+
+// ---------------------------------------------------------------- saving: "aclip=<clip>;<ms>;<once|loop|pingpong>"
+// and "akey=<clip>;<track>;<ms> <value> <ease>[ <h1x> <h1y> <h2x> <h2y>];..." (a line per keyed track)
+
+static const char* kPropKey[P_NPROP] = { "x", "y", "sx", "sy", "rot", "alpha", "mr", "mg", "mb", "ar", "ag", "ab" };
+static const char* kEaseKey[EZ_NEASE] = { "linear", "in", "out", "inout", "backin", "backout", "elastic", "bounce", "hold", "bezier", "qin", "qout", "qinout" };
+static const char* kLoopKey[3] = { "once", "loop", "pingpong" };
+static void PutAnim(std::string& o, const ElemAnim& a) {
+    for (auto& c : a.clips) {
+        if (!Keys(c)) continue;
+        Pf(o, "aclip=%s;%g;%s%s\n", c.name.c_str(), c.length, kLoopKey[std::max(0, std::min(2, c.loop))], c.on ? "" : ";off");
+        for (auto& tr : c.tracks) {
+            if (tr.keys.empty()) continue;
+            Pf(o, "akey=%s;%s", c.name.c_str(), kPropKey[tr.prop]);
+            for (auto& k : tr.keys) {
+                Pf(o, ";%g %g %s", k.t, k.v, kEaseKey[std::max(0, std::min((int)EZ_NEASE - 1, k.ease))]);
+                if (k.ease == EZ_BEZIER) Pf(o, " %g %g %g %g", k.h1x, k.h1y, k.h2x, k.h2y);
+            }
+            Pf(o, "\n");
+        }
+    }
+}
+static std::vector<std::string> SplitSemi(const std::string& v) {
+    std::vector<std::string> out; size_t p = 0;
+    while (p <= v.size()) { size_t q = v.find(';', p); if (q == std::string::npos) q = v.size(); out.push_back(v.substr(p, q - p)); p = q + 1; }
+    return out;
+}
+static Clip& ClipFor(Elem& e, const std::string& name) {   // (a name that isn't a standard clip: a custom one)
+    if (!e.an.p) e.an.p = new ElemAnim(NewAnim());
+    for (auto& c : e.an.p->clips) if (c.name == name) return c;
+    Clip k; k.name = name; k.trigger = "(custom)"; for (int p = 0; p < P_NPROP; ++p) k.tracks[p].prop = p;
+    e.an.p->clips.push_back(k);
+    return e.an.p->clips.back();
+}
+static void AnimKey(Elem& e, const std::string& k, const std::string& v) {
+    std::vector<std::string> f = SplitSemi(v);
+    if (f.empty() || f[0].empty()) return;
+    Clip& c = ClipFor(e, f[0]);
+    if (k == "aclip") {
+        if (f.size() > 1) c.length = std::max(1.f, (float)atof(f[1].c_str()));
+        if (f.size() > 2) for (int i = 0; i < 3; ++i) if (f[2] == kLoopKey[i]) c.loop = i;
+        c.on = !(f.size() > 3 && f[3] == "off");
+        return;
+    }
+    if (f.size() < 2) return;
+    int prop = -1; for (int i = 0; i < P_NPROP; ++i) if (f[1] == kPropKey[i]) prop = i;
+    if (prop < 0) return;
+    Track& tr = c.tracks[prop]; tr.keys.clear();
+    for (size_t i = 2; i < f.size(); ++i) {
+        Key key; char ez[16] = "linear";
+        if (sscanf(f[i].c_str(), "%f %f %15s %f %f %f %f", &key.t, &key.v, ez, &key.h1x, &key.h1y, &key.h2x, &key.h2y) < 2) continue;
+        for (int j = 0; j < EZ_NEASE; ++j) if (!strcmp(ez, kEaseKey[j])) key.ease = j;
+        tr.keys.push_back(key);
+    }
+    SortKeys(tr);
+    c.on = true;
+}
+static std::string AnimText(const ElemAnim* a) { std::string o; if (a) PutAnim(o, *a); return o; }
 
 // ---------------------------------------------------------------- keys + curves graph
 
@@ -397,8 +508,7 @@ static void ElementsPanel(ImVec2 pos, ImVec2 size) {
             if (!e.group.empty()) ImGui::TextColored(ImVec4(1.f, 0.65f, 0.3f, 1), "%s", e.group.c_str());
         }
         const std::string key = KeyOf(g_editMode, e);
-        auto it = g_data.find(key);
-        int nk = 0; if (it != g_data.end()) for (auto& c : it->second.clips) nk += Keys(c);
+        int nk = 0; if (e.an.p) for (auto& c : e.an.p->clips) nk += Keys(c);
         char label[256];
         snprintf(label, sizeof label, "%s[%s] %s%s##ae%d", e.group.empty() ? "" : "   ", TypeKey(e.type), e.name.c_str(), nk ? "  *" : "", i);
         if (ImGui::Selectable(label, key == g.elemKey)) {
@@ -421,7 +531,7 @@ static void AnimPage(ImVec2 pos, ImVec2 size) {
     ImGui::SetNextWindowPos(pos); ImGui::SetNextWindowSize(size);
     ImGui::Begin("Animation##anim", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings);
     ImGui::Text("%s", e.name.c_str()); ImGui::SameLine(); ImGui::TextDisabled("%s%s%s", TypeKey(e.type), e.group.empty() ? "" : "  in ", e.group.c_str());
-    ImGui::TextDisabled("Keys edit for real (this session only - not saved, not played on the element yet).");
+    ImGui::TextDisabled("Saved with the layout. In plays when it shows, then Idle loops.");
     Clip* cur = CurClip();
     // ---- states
     ImGui::SetNextItemOpen(true, ImGuiCond_Once);
@@ -436,7 +546,7 @@ static void AnimPage(ImVec2 pos, ImVec2 size) {
                 ImGui::TableNextColumn();
                 ImGui::Checkbox("##on", &c.on); ImGui::SameLine();
                 if (ImGui::Selectable(c.name.c_str(), g.clip == i)) { g.clip = i; g.focus = State::F_CLIP; g.graph.fit = g.big.fit = true; g.tl1 = c.length * 1.08f; g.tl0 = -c.length * 0.08f; }
-                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Plays %s (planned: the trigger)", c.trigger.c_str());
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Plays %s%s", c.trigger.c_str(), i <= 1 ? "" : " (planned: the trigger)");
                 ImGui::TableNextColumn(); ImGui::SetNextItemWidth(70);
                 if (ImGui::DragFloat("##len", &c.length, 5, 33, 20000, "%.0f ms")) { g.clip = i; }
                 ImGui::TableNextColumn(); ImGui::SetNextItemWidth(90);
@@ -447,7 +557,7 @@ static void AnimPage(ImVec2 pos, ImVec2 size) {
             ImGui::EndTable();
         }
         ImGui::BeginDisabled(); ImGui::Button("+ Custom clip"); ImGui::EndDisabled(); PlannedTag();
-        ImGui::TextDisabled("Triggers, blending between clips and playing on the element: planned.");
+        ImGui::TextDisabled("Playing: In and Idle. The other triggers and blending between clips: planned.");
     }
     // ---- tracks
     ImGui::SetNextItemOpen(true, ImGuiCond_Once);
@@ -474,7 +584,9 @@ static void AnimPage(ImVec2 pos, ImVec2 size) {
             }
             ImGui::EndTable();
         }
-        ImGui::TextDisabled("Rotation and the colour tracks don't draw on elements yet (planned with the engine).");
+        ImGui::TextDisabled("Rotation: images and shapes. Colour +: images. Scale: about the pivot.");
+        if (ImGui::SmallButton("Example: the game's focus pop")) { ExampleFocusPop(*cur); g.graph.fit = g.big.fit = true; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Replaces this clip's keys with the game's button focus (scale 1 -> 1.1 -> 1.02 and a brightness flash).");
     }
     // ---- easing of the picked keys
     if (cur && ImGui::CollapsingHeader("Easing (picked keys)")) {
@@ -572,7 +684,7 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
     ImGui::Begin("Timeline##anim", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
     Clip* c = CurClip();
     ElemAnim* an = Focused();
-    const float len = c ? c->length : 1000;
+    const float len = PreviewLen();
     // ---- header: transport, time, clip, options
     auto keyTimes = [&]() { std::vector<float> ts; if (c) for (auto& tr : c->tracks) for (auto& k : tr.keys) ts.push_back(k.t); std::sort(ts.begin(), ts.end()); return ts; };
     if (ImGui::Button("|<")) g.time = 0;
@@ -734,9 +846,15 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
 static void Frame() {
     ImGuiIO& io = ImGui::GetIO();
     // playback
+    {   // a change to the focused element's clips: the layout has unsaved changes
+        static std::string lastKey, lastText;
+        const int fi = FocusedIndex();
+        std::string text = fi >= 0 ? AnimText(Elems()[fi].an.p) : std::string();
+        if (fi >= 0 && g.elemKey == lastKey && text != lastText) g_dirty = true;
+        lastKey = fi >= 0 ? g.elemKey : std::string(); lastText.swap(text);
+    }
     if (g.playing) {
-        Clip* c = CurClip();
-        const float len = c ? c->length : 1000;
+        const float len = PreviewLen();
         g.time += io.DeltaTime * 1000.f;
         if (g.time > len) { if (g.loop) g.time = fmodf(g.time, std::max(1.f, len)); else { g.time = len; g.playing = false; } }
     }
@@ -756,6 +874,11 @@ static void Frame() {
 }
 
 } // namespace anim
+
+AnimBox::AnimBox(const AnimBox& o) : p(o.p ? new anim::ElemAnim(*o.p) : nullptr) {}
+AnimBox& AnimBox::operator=(const AnimBox& o) { if (this != &o) { delete p; p = o.p ? new anim::ElemAnim(*o.p) : nullptr; } return *this; }
+AnimBox& AnimBox::operator=(AnimBox&& o) noexcept { if (this != &o) { delete p; p = o.p; o.p = nullptr; } return *this; }
+AnimBox::~AnimBox() { delete p; }
 
 bool AnimModeOn() { return anim::g.on; }
 void SetAnimMode(bool on) {

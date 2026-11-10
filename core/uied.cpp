@@ -271,6 +271,18 @@ struct UGrad { int mode = 0; float angle = 0, depth = 0; std::vector<UStop> stop
 // A cut gap of 0 cuts 0.1 units inside the cutter (closes the hairline seam an exact cut leaves); the gap shown / saved
 // is counted from there.
 constexpr float kCutZero = -0.1f;
+// An element's animation clips (uied_anim.inc: clips of tracks of eased keys), owned by it and copied with it
+// (duplicates, prefabs, undo snapshots). Null: none.
+namespace anim { struct ElemAnim; }
+struct AnimBox {
+    anim::ElemAnim* p = nullptr;
+    AnimBox() = default;
+    AnimBox(const AnimBox& o);
+    AnimBox(AnimBox&& o) noexcept : p(o.p) { o.p = nullptr; }
+    AnimBox& operator=(const AnimBox& o);
+    AnimBox& operator=(AnimBox&& o) noexcept;
+    ~AnimBox();
+};
 struct Elem {
     int type = E_IMAGE; std::string name = "element", tex, pack, font, text = "Text";
     int anchor = 0;                       // 0..8: top-left, top, top-right, left, centre, right, bottom-left, bottom, bottom-right
@@ -314,6 +326,7 @@ struct Elem {
                                           // once, over bounceMs; dimmed by bounceGlow at its ends, full at its peak (the stock
                                           // menus' arrows); its opacity times bounceAlpha at the peak (the map's LT / RT: 1.7)
     std::string keys;                     // anim 3: "period ms;t sx sy a;t sx sy a;..." - size and alpha multipliers, linear, looping
+    AnimBox an;                           // animation mode's clips (In plays when it shows, then Idle; the rest: planned)
     double shownSince = -1;               // (running) when its show-only-while value last came on: animations start there
     std::string playOn;                   // a value key: its animation (re)starts each time it comes on (a button press: bindheld.<event>)
     bool playWas = false;                 // (running) that value last frame
@@ -968,13 +981,18 @@ static const std::string& SwapTok(const std::string& n) {
     return n;
 }
 static void ApplyTokSwap(Elem& e);
+namespace anim {   // (uied_anim.inc) an element's clips now: the change they make to it this frame
+struct Pose { float dx = 0, dy = 0, sx = 1, sy = 1, rot = 0, a = 1, mul[3] = { 1, 1, 1 }, add[3] = { 0, 0, 0 }; };
+static bool PoseOf(Elem& e, bool editing, Pose& p);   // false: nothing playing on it
+static bool Previewing();   // animation mode is on: every element shows (its show-only-while rule waits)
+}
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
     if (g_tokSwap && !editing) ApplyTokSwap(e);
     g_tokGroup = e.group;
     if (!editing && !e.flags.empty() && FlagsHide(e)) return;
     struct AnimSave { Elem& e; bool on = false; float scale = 1, x = 0, y = 0; ~AnimSave() { if (on) { e.scale = scale; e.x = x; e.y = y; } } } animSave{ e };
-    if (!ShowIfOk(e)) { e.shownSince = -1; if (!editing) return; }
+    if (!ShowIfOk(e)) { e.shownSince = -1; if (!editing && !anim::Previewing()) return; }
     else if (e.shownSince < 0 && e.playOn.empty()) e.shownSince = ImGui::GetTime();   // (play on: only when its value comes on)
     if (!e.playOn.empty() && !editing) {   // replays from its start when its value comes on (pressed)
         std::string v; bool on = tokens && tokens(e.playOn, v) && !v.empty() && v != "0";
@@ -1056,6 +1074,38 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             a = ImVec2(c.x - h.x, c.y - h.y); b = ImVec2(c.x + h.x, c.y + h.y);
             ImVec4 cv = ImGui::ColorConvertU32ToFloat4(col); cv.w *= 1 - 0.5f * s; col = ImGui::ColorConvertFloat4ToU32(cv);
         }
+    }
+    // animation mode's clips (uied_anim.inc): moved (units), scaled about its pivot (images / shapes: the centre unless a
+    // pivot is set; text: its box's centre), turned (images / shapes), faded and coloured (x: times, +: added - images)
+    struct PoseKeep { Elem& e; float rot, px, py, fill[4]; bool on = false;
+        ~PoseKeep() { if (on) { e.rot = rot; e.pivX = px; e.pivY = py; for (int i = 0; i < 4; ++i) e.fillCol[i] = fill[i]; } } }
+        poseKeep{ e, e.rot, e.pivX, e.pivY, { e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3] } };
+    anim::Pose pose;
+    const bool posed = anim::PoseOf(e, editing, pose);
+    const bool poseAdd = posed && e.type == E_IMAGE && pose.add[0] + pose.add[1] + pose.add[2] > 0.004f;
+    if (posed) {
+        if (pose.a <= 0.004f) return;
+        poseKeep.on = true;
+        const float k = Unit();
+        if (e.type == E_TEXT) {
+            const ImVec2 c0((a.x + b.x) / 2, (a.y + b.y) / 2);
+            if (!animSave.on) { animSave.on = true; animSave.scale = e.scale; animSave.x = e.x; animSave.y = e.y; }
+            e.scale *= pose.sx;
+            ImVec2 a1, b1; ElemRect(e, a1, b1);
+            e.x += (c0.x - (a1.x + b1.x) / 2) / k + pose.dx; e.y += (c0.y - (a1.y + b1.y) / 2) / k + pose.dy;
+            ElemRect(e, a, b);
+        } else {
+            const ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), pv(c.x + e.pivX * k, c.y + e.pivY * k);
+            a = ImVec2(pv.x + (a.x - pv.x) * pose.sx + pose.dx * k, pv.y + (a.y - pv.y) * pose.sy + pose.dy * k);
+            b = ImVec2(pv.x + (b.x - pv.x) * pose.sx + pose.dx * k, pv.y + (b.y - pv.y) * pose.sy + pose.dy * k);
+            e.pivX *= pose.sx; e.pivY *= pose.sy;   // (the same point of it, from its new centre)
+            e.rot += pose.rot;
+        }
+        ImVec4 cv = ImGui::ColorConvertU32ToFloat4(col);
+        cv.x = std::min(1.f, cv.x * pose.mul[0]); cv.y = std::min(1.f, cv.y * pose.mul[1]); cv.z = std::min(1.f, cv.z * pose.mul[2]); cv.w *= std::min(1.f, pose.a);
+        col = ImGui::ColorConvertFloat4ToU32(cv);
+        for (int i = 0; i < 3; ++i) e.fillCol[i] = std::min(1.f, e.fillCol[i] * pose.mul[i]);
+        e.fillCol[3] *= std::min(1.f, pose.a);
     }
     GameObject go; bool following = false;
     if ((e.type == E_IMAGE || e.type == E_SHAPE) && e.follow) {   // (a shape: the game object's box, its fill tinted by the game's colour)
@@ -1168,15 +1218,25 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             for (int i = 0; i < N; ++i) { dl->PrimWriteIdx(base); dl->PrimWriteIdx((ImDrawIdx)(base + 1 + i)); dl->PrimWriteIdx((ImDrawIdx)(base + 1 + (i + 1) % N)); }
             dl->PopTextureID();
         }
-        else if (tx && e.rot == 0) dl->AddImage(gfx::Id(tx), a, b, uv0, uv1, col);
         else if (tx) {
-            float r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
-            float ku = Unit();
-            ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), hw((b.x - a.x) / 2, (b.y - a.y) / 2);
-            ImVec2 pv(c.x + e.pivX * ku, c.y + e.pivY * ku);   // turned about the pivot (corners relative to it)
-            auto P = [&](float x, float y) { x += c.x - pv.x; y += c.y - pv.y; return ImVec2(pv.x + x * cs - y * sn, pv.y + x * sn + y * cs); };
-            dl->AddImageQuad(gfx::Id(tx), P(-hw.x, -hw.y), P(hw.x, -hw.y), P(hw.x, hw.y), P(-hw.x, hw.y),
-                             uv0, ImVec2(uv1.x, uv0.y), uv1, ImVec2(uv0.x, uv1.y), col);
+            auto quad = [&](ImU32 c4) {
+                if (e.rot == 0) { dl->AddImage(gfx::Id(tx), a, b, uv0, uv1, c4); return; }
+                float r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
+                float ku = Unit();
+                ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), hw((b.x - a.x) / 2, (b.y - a.y) / 2);
+                ImVec2 pv(c.x + e.pivX * ku, c.y + e.pivY * ku);   // turned about the pivot (corners relative to it)
+                auto P = [&](float x, float y) { x += c.x - pv.x; y += c.y - pv.y; return ImVec2(pv.x + x * cs - y * sn, pv.y + x * sn + y * cs); };
+                dl->AddImageQuad(gfx::Id(tx), P(-hw.x, -hw.y), P(hw.x, -hw.y), P(hw.x, hw.y), P(-hw.x, hw.y),
+                                 uv0, ImVec2(uv1.x, uv0.y), uv1, ImVec2(uv0.x, uv1.y), c4);
+            };
+            quad(col);
+            if (poseAdd) {   // a clip's colour +: the picture again, added on (brightens where it is, its own shape)
+                const float al = ImGui::ColorConvertU32ToFloat4(col).w;
+                const float ca[4] = { std::min(1.f, pose.add[0]), std::min(1.f, pose.add[1]), std::min(1.f, pose.add[2]), al };
+                if (!e.additive) dl->AddCallback(gfx::CbAdditive, nullptr);
+                quad(Col(ca));
+                if (!e.additive && !noAlpha) dl->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+            }
         }
         if (tx && (e.additive || noAlpha)) dl->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
     } else {
@@ -1797,6 +1857,10 @@ static void Pf(std::string& o, const char* fmt, ...) {   // printf onto a string
     if (n < (int)sizeof buf) { o.append(buf, n); return; }
     std::string big(n + 1, 0); va_start(ap, fmt); vsnprintf(&big[0], n + 1, fmt, ap); va_end(ap); o.append(big.c_str(), n);
 }
+namespace anim {   // (uied_anim.inc) its clips as "aclip=" / "akey=" lines, and reading them back
+static void PutAnim(std::string& o, const ElemAnim& a);
+static void AnimKey(Elem& e, const std::string& k, const std::string& v);
+}
 static void PutElemS(std::string& o, int m, const Elem& e) {   // one element as the layout / prefab files keep it
     Pf(o, "\n[element]\nmode=%s\ntype=%s\nname=%s\nanchor=%d\nx=%g\ny=%g\nw=%g\nh=%g\nscale=%g\ncolor=%g %g %g %g\nvisible=%d\n",
             ModeKey(m), TypeKey(e.type), Esc(e.name).c_str(), e.anchor, e.x, e.y, e.w, e.h, e.scale, e.col[0], e.col[1], e.col[2], e.col[3], e.visible ? 1 : 0);
@@ -1847,6 +1911,7 @@ static void PutElemS(std::string& o, int m, const Elem& e) {   // one element as
     if (!e.flags.empty()) { std::string l; for (auto& k : e.flags) { if (!l.empty()) l += ','; l += k; } Pf(o, "flags=%s\n", l.c_str()); }
     if (!e.colTok.empty()) Pf(o, "colortoken=%s %g\n", e.colTok.c_str(), e.colTokA);
     if (!e.hiTok.empty()) Pf(o, "hitoken=%s %g\n", e.hiTok.c_str(), e.hiTokA);
+    if (e.an.p) anim::PutAnim(o, *e.an.p);
 }
 static void PutElem(FILE* f, int m, const Elem& e) { std::string o; PutElemS(o, m, e); fputs(o.c_str(), f); }
 // Written to <path>.tmp and swapped in only when the whole file was written: a crash or a full disk mid-save
@@ -1946,6 +2011,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "anim") e.anim = std::max(0, std::min(4, atoi(v.c_str())));
     else if (k == "bounce") sscanf(v.c_str(), "%f %f %f %f", &e.bounceScale, &e.bounceMs, &e.bounceGlow, &e.bounceAlpha);
     else if (k == "keys") e.keys = v;
+    else if (k == "aclip" || k == "akey") anim::AnimKey(e, k, v);
     else if (k == "playon") e.playOn = v;
     else if (k == "flags") { e.flags.clear(); size_t p = 0; while (p <= v.size()) { size_t q = v.find(',', p); if (q == std::string::npos) q = v.size(); if (q > p) e.flags.push_back(v.substr(p, q - p)); p = q + 1; } }
 }
