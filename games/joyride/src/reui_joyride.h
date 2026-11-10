@@ -1,8 +1,11 @@
 #pragma once
 // REUI in Joy Ride Turbo's PC port (ReXGlue): the editor (F6) and the layouts it draws, on the window's presenter.
 // The port calls Create from its app's OnCreateDialogs (the UI thread, presenter made) and Destroy on shutdown.
+#include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <string>
+#include <vector>
 
 namespace rex {
 namespace ui {
@@ -28,9 +31,23 @@ void SetEditorOpen(bool open);
 //   timetrial  Time trial  (TimeTrialGameMode)
 //   stunt      Stunt park  (StuntPark / OnlineStuntPark GameMode)
 //   tutorial   Tutorial    (TutorialGameMode)
+//   frontend   Front end   (no event: the menus; elements pick screens with showif=screen:<key>)
 //   menus      Menus       (the menu pages' workspace)
 // The port says which one is being played (any thread); "" = none (front end / loading): only the editor's
 // Test or on-screen editing shows a layout then.
 void SetMode(const std::string& key);
+
+// The Flash menus, from the port (fe_screens.cpp): the screens in the root movie's levels, the calls between the pages
+// and the game, and sending calls (fe_debug.cpp: layout tokens, the F7 debug page).
+struct FeScreen { int level; std::string path; };
+struct FeCall { double t; int dir; bool sent; std::string method, args; };   // dir 0 page -> game, 1 game -> page
+struct FeBridge {
+    std::function<std::vector<FeScreen>()> screens;
+    std::function<std::vector<FeCall>(uint64_t since, uint64_t& next)> calls;   // after call number `since`
+    std::function<void(int dir, const std::string& method, const std::vector<std::string>& args)> send;
+};
+void SetFeBridge(const FeBridge& bridge);
+bool FeDebugOpen();
+void SetFeDebugOpen(bool open);
 
 } // namespace reui_joyride

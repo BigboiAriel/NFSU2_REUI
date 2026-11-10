@@ -1,8 +1,10 @@
 // See reui_joyride.h. REUI's editor and layouts drawn over the game at the window's resolution (shapes made on the
-// CPU, SVG art, vector fonts, the menus' pictures from data.bpk); Joy Ride's screens come next.
+// CPU, SVG art, vector fonts, the menus' pictures from data.bpk), the Flash menus' screens as layout tokens and the
+// F7 debug page of their calls (fe_debug.cpp).
 #include "reui_joyride.h"
 
 #include "assets_joyride.h"
+#include "fe_debug.h"
 #include "log.h"
 #include "rex_overlay.h"
 #include "uied.h"
@@ -32,6 +34,7 @@ namespace {
 
 reui_rex::OverlayPtr g_overlay;
 bool g_open = false;   // the editor panel (F6)
+bool g_feOpen = false; // the menus / Flash commands page (F7)
 std::mutex g_modeLock;
 std::string g_modeKey;  // what the port says is being played ("" none)
 
@@ -54,7 +57,9 @@ void Frame() {
     uied::FrameStart();
     ImGuiIO& io = ImGui::GetIO();
     ImGui::GetStyle().FontScaleMain = std::max(1.f, io.DisplaySize.y / 1080.f);   // (the editor readable at 4K)
+    FeFrame();
     uied::DrawOverlay(ModeIndex());
+    if (g_feOpen) FeDebugWindow(&g_feOpen);
     if (g_open) {
         ImGui::SetNextWindowPos(ImVec2(40, 40), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(std::min(900.f, io.DisplaySize.x - 80), std::min(1000.f, io.DisplaySize.y - 80)), ImGuiCond_FirstUseEver);
@@ -73,9 +78,12 @@ bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::Gra
     uied::dataDir = data;
     uied::prefabDir = data + "prefabs\\";
     uied::modes = { {"freeroam", "Free roam"}, {"race", "Racing"}, {"timetrial", "Time trial"},
-                    {"stunt", "Stunt park"},   {"tutorial", "Tutorial"}, {"menus", "Menus"} };
-    uied::menusMode = 5;
+                    {"stunt", "Stunt park"},   {"tutorial", "Tutorial"}, {"frontend", "Front end"},
+                    {"menus", "Menus"} };
+    uied::menusMode = 6;
     uied::nfsu2Tools = false;
+    uied::tokens = [](const std::string& key, std::string& out) { return FeToken(key, out); };
+    FeInit(data);
     reui_rex::OverlaySetup s;
     s.window = window;
     s.presenter = presenter;
@@ -83,12 +91,13 @@ bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::Gra
     s.zOrder = 0;
     s.frame = Frame;
     s.keyDown = [](int vk) {
+        if (vk == 0x76) { g_feOpen = !g_feOpen; return true; }   // F7: menus / Flash commands
         if (vk != 0x75) return false;   // F6: the editor
         g_open = !g_open;
         REXLOG_INFO("REUI: editor {}", g_open ? "open" : "closed");
         return true;
     };
-    s.wantsInput = [] { return g_open; };
+    s.wantsInput = [] { return g_open || g_feOpen; };
     s.fonts = [] {
         ImGuiIO& io = ImGui::GetIO();
         // the system's Segoe UI for the editor (not shipped: Windows' own); ImGui's default if it isn't there
@@ -102,7 +111,7 @@ bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::Gra
     assets_joyride::Install(data, gameData.empty() ? std::filesystem::path() : gameData / "data.bpk");
     uied::Init(data, data + "layout.txt", [](const char* line) { REXLOG_INFO("REUI: {}", line); });
     ImGui::SetCurrentContext(prev);
-    REXLOG_INFO("REUI: ready ({}) - F6 opens the editor", data);
+    REXLOG_INFO("REUI: ready ({}) - F6 opens the editor, F7 the menus / Flash commands page", data);
     return true;
 }
 
@@ -124,5 +133,7 @@ void SetMode(const std::string& key) {
     g_modeKey = key;
 }
 void SetEditorOpen(bool open) { g_open = open; }
+bool FeDebugOpen() { return g_feOpen; }
+void SetFeDebugOpen(bool open) { g_feOpen = open; }
 
 } // namespace reui_joyride
