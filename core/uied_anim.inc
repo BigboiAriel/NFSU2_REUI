@@ -682,6 +682,7 @@ static void GraphPanel(ImVec2 pos, ImVec2 size) {
 
 static void Timeline(ImVec2 pos, ImVec2 size) {
     ImGui::SetNextWindowPos(pos); ImGui::SetNextWindowSize(size);
+    if (g.bare) ImGui::SetNextWindowBgAlpha(0.35f);   // (hidden panels: the timeline is see-through and short)
     ImGui::Begin("Timeline##anim", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
     Clip* c = CurClip();
     ElemAnim* an = Focused();
@@ -730,11 +731,11 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
     ImGuiIO& io = ImGui::GetIO();
     auto X = [&](float t) { return ra.x + (t - g.tl0) / (g.tl1 - g.tl0) * (rb.x - ra.x); };
     auto T = [&](float x) { return g.tl0 + (x - ra.x) / (rb.x - ra.x) * (g.tl1 - g.tl0); };
-    dl->AddRectFilled(o, ImVec2(ra.x, rb.y), IM_COL32(34, 36, 42, 255));
-    dl->AddRectFilled(ra, rb, IM_COL32(26, 28, 33, 255));
+    dl->AddRectFilled(o, ImVec2(ra.x, rb.y), IM_COL32(34, 36, 42, g.bare ? 90 : 255));
+    dl->AddRectFilled(ra, rb, IM_COL32(26, 28, 33, g.bare ? 90 : 255));
     dl->AddRectFilled(ImVec2(X(0), ra.y), ImVec2(X(len), rb.y), IM_COL32(255, 255, 255, 10));
     // ruler
-    dl->AddRectFilled(ra, ImVec2(rb.x, ra.y + rulerH), IM_COL32(44, 46, 54, 255));
+    dl->AddRectFilled(ra, ImVec2(rb.x, ra.y + rulerH), IM_COL32(44, 46, 54, g.bare ? 90 : 255));
     {
         float st = NiceStep(g.tl1 - g.tl0, rb.x - ra.x, 60);
         if (g.frames) st = std::max(1.f, roundf(st / FrameMs())) * FrameMs();
@@ -867,7 +868,7 @@ static void Frame() {
         g.elemKey = KeyOf(g_editMode, Elems()[g_sel]); g.focus = State::F_ELEMENT;
     }
     const float W = io.DisplaySize.x, H = io.DisplaySize.y, u = ImGui::GetFontSize() / 13.f;
-    const float tlH = g.expanded ? H * 0.5f : std::min(H * 0.3f, 170 * u);
+    const float tlH = g.expanded ? H * 0.5f : std::min(H * 0.3f, (g.bare ? 96 : 170) * u);
     if (g.bare) { Timeline(ImVec2(0, H - tlH), ImVec2(W, tlH)); return; }
     const float graphH = g.expanded ? 0.f : std::min(H * 0.32f, 280 * u);
     const float listW = std::min(W * 0.22f, 300 * u), pageW = std::min(W * 0.28f, 400 * u);
