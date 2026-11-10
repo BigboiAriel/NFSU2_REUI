@@ -16,6 +16,9 @@ namespace uied {
     void FrameStart();                       // every frame, before the ImGui frame is built (after the backend has the device)
     bool WantsFrames();                      // UniPad: something to draw even with the panel closed
     void Panel();                            // the "UI editor" tab
+    bool AnimModeOn();                       // animation mode (uied_anim.inc): its own panels over the game; the editor greyed out
+    void SetAnimMode(bool on);               // (on: an empty layout being edited switches to the one being played)
+    void AnimFocus(int elementIndex);        // (tests) focus an element of the layout being edited
     bool Unsaved();                          // editor changes not saved yet
     // Game modes, each with its own overlay layout: the game connection's list, set before Init (NFSU2's by default:
     // the Mode numbering below). key: how layout files name it (an unknown key loads into mode 0); name: shown.

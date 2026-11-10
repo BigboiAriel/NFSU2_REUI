@@ -92,13 +92,14 @@ bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::Gra
     s.frame = Frame;
     s.keyDown = [](int vk) {
         if (vk == 0x76) { g_feOpen = !g_feOpen; return true; }   // F7: menus / Flash commands
+        if (vk == 0x77) { uied::SetAnimMode(!uied::AnimModeOn()); return true; }   // F8: animation mode
         if (vk != 0x75) return false;   // F6: the editor
         g_open = !g_open;
         REXLOG_INFO("REUI: editor {}", g_open ? "open" : "closed");
         return true;
     };
-    s.wantsInput = [] { return g_open || g_feOpen; };
-    s.shareKeys = [] { return !g_open && g_feOpen; };   // the F7 page alone: the game keeps the keyboard (not while typing)
+    s.wantsInput = [] { return g_open || g_feOpen || uied::AnimModeOn(); };
+    s.shareKeys = [] { return !g_open && !uied::AnimModeOn() && g_feOpen; };   // the F7 page alone: the game keeps the keyboard (not while typing)
     s.fonts = [] {
         ImGuiIO& io = ImGui::GetIO();
         // the system's Segoe UI for the editor (not shipped: Windows' own); ImGui's default if it isn't there
@@ -112,7 +113,7 @@ bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::Gra
     assets_joyride::Install(data, gameData.empty() ? std::filesystem::path() : gameData / "data.bpk");
     uied::Init(data, data + "layout.txt", [](const char* line) { REXLOG_INFO("REUI: {}", line); });
     ImGui::SetCurrentContext(prev);
-    REXLOG_INFO("REUI: ready ({}) - F6 opens the editor, F7 the menus / Flash commands page", data);
+    REXLOG_INFO("REUI: ready ({}) - F6 opens the editor, F7 the menus / Flash commands page, F8 animation mode", data);
     return true;
 }
 
@@ -134,6 +135,10 @@ void SetMode(const std::string& key) {
     g_modeKey = key;
 }
 void SetEditorOpen(bool open) { g_open = open; }
+void StartAnimMode(bool focusFirst) {
+    uied::SetAnimMode(true);
+    if (focusFirst) uied::AnimFocus(0);
+}
 bool FeDebugOpen() { return g_feOpen; }
 void SetFeDebugOpen(bool open) { g_feOpen = open; }
 

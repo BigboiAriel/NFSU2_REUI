@@ -2202,6 +2202,7 @@ static void RebaseGroup(const std::string& g, const std::string& to);
 static void LinksRebase(const std::string& from, const std::string& to);
 #include "uied_menu.inc"
 #include "uied_links.inc"
+#include "uied_anim.inc"
 
 // ---------------------------------------------------------------- undo
 // A snapshot of everything editable is kept at each settled point (no mouse button down, nothing being typed or
@@ -2461,10 +2462,13 @@ static void MultiPanel() {
 }
 
 void DrawOverlay(int mode) {
-    bool editing = g_edit && g_panelOpen;
-    bool panel = g_panelOpen;
+    const bool am = anim::g.on;           // animation mode: the layout being edited is shown (no on-screen editing)
+    bool editing = g_edit && g_panelOpen && !am;
+    bool panel = g_panelOpen || am;
+    const bool testMode = uied::testMode || am;
     g_panelOpen = false;
     g_nowMode = mode;
+    if (am) anim::Frame();
     if (g_state != 2) return;
     Trim();
     if (DrawMenu(ImGui::GetBackgroundDrawList())) { g_dragging = -1; return; }   // the menu, when it's open, is all that's drawn
@@ -3362,10 +3366,25 @@ static void MinimapPage() {
 }
 
 bool Unsaved() { return g_dirty; }
+static void PanelBody();
 void Panel() {
     g_panelOpen = true;
     if (g_state == 0) { g_state = 1; std::thread(Scan).detach(); }
     if (g_state == 1) { ImGui::TextUnformatted("Reading the game's UI textures and fonts..."); return; }
+    // animation mode: the editor is greyed out until it's left
+    {
+        const bool am = anim::g.on;
+        if (am) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.45f, 0.1f, 1.f));
+        if (ImGui::Button(am ? "Exit animation mode" : "Animation mode")) SetAnimMode(!am);
+        if (am) ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("A workspace for animating elements: the elements on the right, their animation page, a keys + curves\ngraph and a timeline. Adding and changing elements here is greyed out until you leave it.");
+        if (am) { ImGui::SameLine(); ImGui::TextDisabled("(editing is off while animating)"); }
+        if (am) ImGui::BeginDisabled();
+        PanelBody();
+        if (am) ImGui::EndDisabled();
+    }
+}
+static void PanelBody() {
     ResolvePending();
     ImGui::TextDisabled("Game files: %s", g_scanMsg.c_str());
     if (menuMode) {
