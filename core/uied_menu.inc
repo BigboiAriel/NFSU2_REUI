@@ -21,8 +21,8 @@ static std::string RowName(std::string label) {
 static bool MenuWs() { return menuMode || IsMenus(g_editMode); }
 
 // (button / slider / picker: the kinds of tile; highlight: an older one-row widget, only so its layouts still read)
-enum WType { W_NONE = 0, W_BUTTON, W_SLIDER, W_PICKER, W_HIGHLIGHT, W_GRID, W_CAROUSEL, W_NTYPES };
-static const char* kWKey[] = { "none", "button", "slider", "picker", "highlight", "grid", "carousel" };
+enum WType { W_NONE = 0, W_BUTTON, W_SLIDER, W_PICKER, W_HIGHLIGHT, W_GRID, W_CAROUSEL, W_LISTBOX, W_NTYPES };
+static const char* kWKey[] = { "none", "button", "slider", "picker", "highlight", "grid", "carousel", "listbox" };
 
 struct Widget {
     std::string group;
@@ -62,7 +62,10 @@ struct Widget {
                                          // (the game's Body Parts list)
 };
 static int CarSlots(const Widget& w) { return std::max(1, w.vertical ? w.rows : w.cols); }   // (a carousel's slots on screen)
-static bool GridLike(const Widget& w) { return w.type == W_GRID || w.type == W_CAROUSEL; }   // (tiles, drawn per cell)
+static bool GridLike(const Widget& w) { return w.type == W_GRID || w.type == W_CAROUSEL || w.type == W_LISTBOX; }   // (tiles, drawn per cell)
+// A list box: a grid of one column whose rows scroll up / down (the game's performance parts list) - its rows on screen,
+// all its items below; up / down arrows (roles arrowU / arrowD, always shown; arrowUon / arrowDon: only lit) light as
+// the cursor pushes the list past that end.
 // a tile's size (the grid's width / height less the spacing, shared out) and the step from one tile to the next
 static float GCellW(const Widget& w) { int c = std::max(1, w.cols); return std::max(1.f, (w.gw - (c - 1) * w.spX) / c); }
 static float GCellH(const Widget& w) { int r = std::max(1, w.rows); return std::max(1.f, (w.gh - (r - 1) * w.spY) / r); }
@@ -98,6 +101,7 @@ struct Page {
     bool parts = false;                  // ... the garage's Change Parts menu (UI_ChooseCustomizeCategory, from the garage)
     bool perfParts = false;              // ... its Performance Parts menu (UI_ChoosePerformanceCategory)
     bool specialties = false;            // ... its Specialties menu (UI_ICEMAIN)
+    bool perfUpgrade = false;            // ... a performance category's upgrade menu (UI_ChoosePerformancePackage + its parts list)
     bool rimBrands = false;              // ... Body Parts' Rims: its rim brand menu (UI_ChooseRimBrand)
     bool bodyParts = false;              // ... Body Parts' browser at its categories (UI_GenericParts_Browser: the game keeps the controls)
     std::vector<std::pair<std::string, std::string>> feSwaps;   // out of the world (the garage, the front end): colour
@@ -148,10 +152,12 @@ static bool PageToken(const std::string& key, std::string& v) {
     return true;
 }
 static std::string TitleFor(const std::string& group) {
-    if (g_titlePage) return g_titlePage->title;
     std::string pg = OwnerPage(group);
-    Page* p = pg.empty() ? nullptr : PageOf(pg);
-    return p ? p->title : std::string();
+    const Page* p = g_titlePage ? g_titlePage : pg.empty() ? nullptr : PageOf(pg);
+    std::string t = p ? p->title : std::string();
+    // a title with values in it ({gm.upgrade.title}: the category picked)
+    if (t.find('{') != std::string::npos && t.find("{page.") == std::string::npos) t = Expand(t);
+    return t;
 }
 // The page a group belongs to: itself or the nearest group around it that's a page ("" = none). A custom menu can sit
 // inside another (a sub menu: "Pause 1/Unipad Options"); its pieces are its own, not the menu around it's.
@@ -310,7 +316,8 @@ static struct MenuState {
     std::vector<bool> over;              // each: opened over the one under it (drawn on top of it, which stays shown)
     int sel = 0;                         // the selected row (grid / carousel)
     bool was[6] = {}; double held[6] = {}, next[6] = {};
-    double flashL = 0, flashR = 0, t = 0;
+    double flashL = 0, flashR = 0, flashU = 0, flashD = 0, t = 0;
+    std::map<std::string, int> lastDir;   // each list box: the cursor's last move (-1 up, 1 down)
     std::string capturing;   // the binding row (its group) waiting for an input; looked up each time, as the widget
                              // list can be replaced (undo, reload, duplicate...) while it waits
     struct GridSt { int sel = -1, top = 0; float scroll = 0; bool locked = false; int wantCol = -1; };   // each grid's cursor (item), top row,
@@ -336,7 +343,7 @@ static void FadeOutNow() {
 // (a live list's item: <key>.N.color "r g b" tints its icon piece, <key>.N.on "1" / "0" shows its "item on" / "item
 // off" pieces - neither when it has none)
 static const float kOffAlpha = 60 / 255.f;   // an "off" live list item's icon and label (the game's World Map legend: 0x496920)
-struct GItem { std::string label, icon, action; int tile = -1; float tint[3] = {1, 1, 1}; bool hasTint = false; int on = -1; };
+struct GItem { std::string label, icon, action, value; int tile = -1; float tint[3] = {1, 1, 1}; bool hasTint = false; int on = -1; };
 // a piece only for slider / picker tiles: laid out across the grid's whole row (those tiles take a row of their own), so
 // changing the columns doesn't squeeze it
 static bool RowPiece(const Elem& e) { return e.tileKinds && !(e.tileKinds & ~6); }
@@ -374,7 +381,7 @@ static std::vector<GItem> GridItemsAll(const Widget& w) {
         for (int i = 1; i <= std::min(n, 1000); ++i) {
             GItem it; std::string k = key + "." + std::to_string(i);
             if (tokens) {
-                tokens(k, it.label); tokens(k + ".icon", it.icon);
+                tokens(k, it.label); tokens(k + ".icon", it.icon); tokens(k + ".value", it.value);
                 std::string c, o; int r, g, b;
                 if (tokens(k + ".color", c) && sscanf(c.c_str(), "%d %d %d", &r, &g, &b) == 3) { it.tint[0] = r / 255.f; it.tint[1] = g / 255.f; it.tint[2] = b / 255.f; it.hasTint = true; }
                 if (tokens(k + ".on", o) && !o.empty()) it.on = o != "0";
@@ -467,7 +474,10 @@ static MenuState::GridSt& GridState(const Widget& w, int count) {
     std::string sv;   // a live list whose selection another mod keeps: <key>.sel
     if (w.bind.compare(0, 5, "list:") == 0 && tokens && tokens(w.bind.substr(5) + ".sel", sv) && !sv.empty()) {
         int s2 = atoi(sv.c_str());
-        if (s2 != st.sel || first) { st.sel = s2; GridKeepVisible(w, st, count); if (first) st.scroll = (float)st.top; }
+        if (s2 != st.sel || first) {
+            if (!first && w.type == W_LISTBOX) { int d = s2 < st.sel ? -1 : 1; g_menu.lastDir[w.group] = d; (d < 0 ? g_menu.flashU : g_menu.flashD) = g_menu.t; }
+            st.sel = s2; GridKeepVisible(w, st, count); if (first) st.scroll = (float)st.top;
+        }
     }
     st.sel = std::max(0, std::min(std::max(0, count - 1), st.sel));
     if (first) { GridKeepVisible(w, st, count); st.scroll = (float)st.top; }
@@ -522,6 +532,7 @@ static bool GridMove(Widget& w, int dx, int dy) {
     }
     if (dy) {
         int nr = cs.row + dy; if (nr < 0 || nr >= GridRowsOf(L)) return false;
+        if (w.type == W_LISTBOX) { g_menu.lastDir[w.group] = dy < 0 ? -1 : 1; (dy < 0 ? g_menu.flashU : g_menu.flashD) = g_menu.t; }
         // the same column on screen (short rows can be moved across; a whole-row tile keeps the column you came from)
         float vis = cs.span > 1 ? (st.wantCol >= 0 ? (float)st.wantCol : 0.f) : cs.col + GridRowShift(w, L, cs.row);
         if (cs.span == 1) st.wantCol = (int)lroundf(vis);
@@ -567,6 +578,7 @@ static void GridAccept(Widget& w) {
 static bool GridPiece(const Elem& e) {
     if (e.role == "gtab" || e.role == "gtrack") return false;
     if (e.role == "arrowL" || e.role == "arrowR") { Widget* w = WidgetFor(e.group); if (w && w->type == W_CAROUSEL) return false; }
+    if (e.role == "arrowU" || e.role == "arrowD" || e.role == "arrowUon" || e.role == "arrowDon") { Widget* w = WidgetFor(e.group); if (w && w->type == W_LISTBOX) return false; }
     return true;
 }
 // ---- tile kinds: 1 button, 2 slider, 4 picker, 8 binding (a button changing a binding setting)
@@ -872,6 +884,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                     auto put = [&](const char* tok, const std::string& v) { for (size_t k; (k = e.text.find(tok)) != std::string::npos;) e.text.replace(k, strlen(tok), v); };
                     if (e.role == "label" && e.text.find('{') == std::string::npos) e.text = it.label;
                     if (e.role == "value" && kind >= 0 && e.text.find('{') == std::string::npos) e.text = val;
+                    if (e.role == "value" && kind < 0 && e.text.find('{') == std::string::npos) e.text = it.value;   // (a live list item's <key>.N.value)
                     put("{item}", it.label); put("{value}", val); put("{i}", std::to_string(idx + 1)); put("{count}", std::to_string(n));
                     if (bs) { put("{binding}", bs->label); put("{input}", waiting ? std::string("???") : bs->current ? bs->current() : std::string()); }
                     if (cur && p && p->useSel && (e.role == "label" || e.role == "value")) memcpy(e.col, p->selCol, sizeof e.col);
@@ -995,6 +1008,18 @@ static bool GridScroller(Widget& w, Elem& e) {
         return true;
     }
     int rows = std::max(1, w.rows), total = GridRowsOf(GridLayout(w, n));
+    if (w.type == W_LISTBOX && (e.role == "arrowU" || e.role == "arrowD" || e.role == "arrowUon" || e.role == "arrowDon")) {
+        bool up = e.role[5] == 'U';
+        auto& st = GridState(w, n);
+        auto ld = g_menu.lastDir.find(w.group);
+        int dir = ld == g_menu.lastDir.end() ? 0 : ld->second;
+        // lit: the cursor at that end of the rows on screen, got there going that way (the next press scrolls the list)
+        int r = st.sel - st.top;
+        bool lit = n > 0 && (up ? (dir < 0 && r == 0) : (dir > 0 && (r == rows - 1 || st.sel == n - 1)));
+        if (e.role.size() > 6) return lit;   // (the lit ones)
+        if (g_menu.t - (up ? g_menu.flashU : g_menu.flashD) < 0.15) e.col[3] = 1.f;   // (lights up as it's pressed)
+        return true;
+    }
     if (e.role == "gtrack") return total > rows;
     if (total <= rows) return false;
     float trTop = 0, trBot = 0; bool track = false;
@@ -1033,6 +1058,7 @@ std::string MenuGaragePage() { if (customMenus) for (auto& p : g_pages) if (p.ga
 std::string MenuCarSelectPage() { if (customMenus) for (auto& p : g_pages) if (p.carSelect) return p.group; return std::string(); }
 std::string MenuPartsPage() { if (customMenus) for (auto& p : g_pages) if (p.parts) return p.group; return std::string(); }
 std::string MenuPerfPartsPage() { if (customMenus) for (auto& p : g_pages) if (p.perfParts) return p.group; return std::string(); }
+std::string MenuPerfUpgradePage() { if (customMenus) for (auto& p : g_pages) if (p.perfUpgrade) return p.group; return std::string(); }
 std::string MenuRimBrandsPage() { if (customMenus) for (auto& p : g_pages) if (p.rimBrands) return p.group; return std::string(); }
 std::string MenuBodyPartsPage() { if (customMenus) for (auto& p : g_pages) if (p.bodyParts) return p.group; return std::string(); }
 std::string MenuSpecialtiesPage() { if (customMenus) for (auto& p : g_pages) if (p.specialties) return p.group; return std::string(); }
@@ -1453,7 +1479,9 @@ static void GridPanel(Widget& w) {
     if (w.type == W_CAROUSEL) CarouselTop(w); else {
     // columns | visible rows | total rows
     int cols = w.cols, rows = w.rows, total = tiles ? (w.totalRows > 0 ? w.totalRows : w.rows) : w.totalRows;
-    ImGui::SetNextItemWidth(100); if (ImGui::InputInt("columns", &cols)) { GridResize(w, w.gw, w.gh, cols, rows, w.spX, w.spY); GridFitTiles(w); }
+    if (w.type == W_LISTBOX) {   // (one column; up / down arrows: roles arrowU / arrowD, their lit copies arrowUon / arrowDon)
+        ImGui::TextDisabled("list box"); if (ImGui::IsItemHovered()) ImGui::SetTooltip("One column of rows; the cursor moves down them and the list scrolls once it reaches the last row on\nscreen. Its scroller: a track (role gtrack) and a tab (gtab). Up / down arrows: roles arrowU / arrowD (light\nup as they're pressed); arrowUon / arrowDon show only while lit - the cursor at that end, the next press\nscrolls the list. Live lists: <key>.N its text (label pieces), <key>.N.value its second column (value pieces).");
+    } else { ImGui::SetNextItemWidth(100); if (ImGui::InputInt("columns", &cols)) { GridResize(w, w.gw, w.gh, cols, rows, w.spX, w.spY); GridFitTiles(w); } }
     ImGui::SameLine(); ImGui::SetNextItemWidth(100); if (ImGui::InputInt("visible rows", &rows)) { GridResize(w, w.gw, w.gh, w.cols, rows, w.spX, w.spY); GridFitTiles(w); }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rows on screen at once (the grid's height is these); the rest scroll up and down.");
     ImGui::SameLine(); ImGui::SetNextItemWidth(100);
@@ -1587,18 +1615,19 @@ static void GridPanel(Widget& w) {
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Tiles from another mod's live list instead: <key>.count items, each <key>.N (its text) and <key>.N.icon (its picture).");
     }
 }
-static const char* kWMake[] = { "(not a widget)", "Grid (rows x columns)", "Carousel (scrolls left / right)" };
-static const int kWMakeType[] = { W_NONE, W_GRID, W_CAROUSEL };
+static const char* kWMake[] = { "(not a widget)", "Grid (rows x columns)", "Carousel (scrolls left / right)", "List box (rows scroll up / down)" };
+static const int kWMakeType[] = { W_NONE, W_GRID, W_CAROUSEL, W_LISTBOX };
 // a group made a grid / carousel: its pieces are the first tile
 static void MakeGridLike(Widget& w, int t) {
     w.type = t; w.bind.clear();
     if (t == W_CAROUSEL) { w.cols = std::max(1, w.cols); w.rows = 1; w.totalRows = std::max(w.cols, w.totalRows); }
+    if (t == W_LISTBOX) { w.cols = 1; w.rows = std::max(2, w.rows); w.totalRows = 0; }   // (all its items, rows of them on screen)
     GridFromPieces(w); GridFitTiles(w); g_dirty = true;
 }
 static void WidgetPanel(Widget& w, Page* page) {
-    int t = w.type == W_CAROUSEL ? 2 : 1;
+    int t = w.type == W_CAROUSEL ? 2 : w.type == W_LISTBOX ? 3 : 1;
     ImGui::SetNextItemWidth(220);
-    if (ImGui::Combo("widget", &t, kWMake, 3) && kWMakeType[t] != w.type) {
+    if (ImGui::Combo("widget", &t, kWMake, 4) && kWMakeType[t] != w.type) {
         if (t == 0) { std::string g = w.group; MenuForget(g); g_dirty = true; return; }
         MakeGridLike(w, kWMakeType[t]);
     }
@@ -1682,17 +1711,17 @@ static void ReplacesCombo(Page& p) {
     static const char* kRep[] = { "nothing", "the pause menu", "the pause Options menu", "Yes / No confirm dialogs", "the World Map", "the race start dialog",
                                   "the race start dialog (multiplayer)", "the garage menu", "the garage's car select",
                                   "the garage's Change Parts menu", "Change Parts: Performance Parts", "Change Parts: Specialties",
-                                  "Change Parts: Body Parts", "Body Parts: Rim Brands" };
-    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : p.confirm ? 3 : p.worldMap ? 4 : p.raceDialog ? 5 : p.raceDialogMp ? 6 : p.garage ? 7 : p.carSelect ? 8 : p.parts ? 9 : p.perfParts ? 10 : p.specialties ? 11 : p.bodyParts ? 12 : p.rimBrands ? 13 : 0;
+                                  "Change Parts: Body Parts", "Body Parts: Rim Brands", "Performance Parts: upgrade menu" };
+    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : p.confirm ? 3 : p.worldMap ? 4 : p.raceDialog ? 5 : p.raceDialogMp ? 6 : p.garage ? 7 : p.carSelect ? 8 : p.parts ? 9 : p.perfParts ? 10 : p.specialties ? 11 : p.bodyParts ? 12 : p.rimBrands ? 13 : p.perfUpgrade ? 14 : 0;
     ImGui::SetNextItemWidth(180);
     if (ImGui::BeginCombo("replaces", kRep[cur])) {
-        for (int i = 0; i < 14; ++i) {
+        for (int i = 0; i < 15; ++i) {
             std::string taken;   // (another page has it: picking it here moves it)
-            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions) || (i == 3 && o.confirm) || (i == 4 && o.worldMap) || (i == 5 && o.raceDialog) || (i == 6 && o.raceDialogMp) || (i == 7 && o.garage) || (i == 8 && o.carSelect) || (i == 9 && o.parts) || (i == 10 && o.perfParts) || (i == 11 && o.specialties) || (i == 12 && o.bodyParts) || (i == 13 && o.rimBrands))) taken = o.group;
+            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions) || (i == 3 && o.confirm) || (i == 4 && o.worldMap) || (i == 5 && o.raceDialog) || (i == 6 && o.raceDialogMp) || (i == 7 && o.garage) || (i == 8 && o.carSelect) || (i == 9 && o.parts) || (i == 10 && o.perfParts) || (i == 11 && o.specialties) || (i == 12 && o.bodyParts) || (i == 13 && o.rimBrands) || (i == 14 && o.perfUpgrade))) taken = o.group;
             std::string lb = std::string(kRep[i]) + (taken.empty() ? "" : "  (now " + taken + ")");
             if (ImGui::Selectable(lb.c_str(), i == cur) && i != cur) {
-                p.pauseMenu = i == 1; p.pauseOptions = i == 2; p.confirm = i == 3; p.worldMap = i == 4; p.raceDialog = i == 5; p.raceDialogMp = i == 6; p.garage = i == 7; p.carSelect = i == 8; p.parts = i == 9; p.perfParts = i == 10; p.specialties = i == 11; p.bodyParts = i == 12; p.rimBrands = i == 13;
-                for (auto& o : g_pages) if (&o != &p) { if (i == 12) o.bodyParts = false; if (i == 13) o.rimBrands = false; if (i == 9) o.parts = false; if (i == 10) o.perfParts = false; if (i == 11) o.specialties = false; if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; if (i == 3) o.confirm = false; if (i == 4) o.worldMap = false; if (i == 5) o.raceDialog = false; if (i == 6) o.raceDialogMp = false; if (i == 7) o.garage = false; if (i == 8) o.carSelect = false; }
+                p.pauseMenu = i == 1; p.pauseOptions = i == 2; p.confirm = i == 3; p.worldMap = i == 4; p.raceDialog = i == 5; p.raceDialogMp = i == 6; p.garage = i == 7; p.carSelect = i == 8; p.parts = i == 9; p.perfParts = i == 10; p.specialties = i == 11; p.bodyParts = i == 12; p.rimBrands = i == 13; p.perfUpgrade = i == 14;
+                for (auto& o : g_pages) if (&o != &p) { if (i == 12) o.bodyParts = false; if (i == 13) o.rimBrands = false; if (i == 14) o.perfUpgrade = false; if (i == 9) o.parts = false; if (i == 10) o.perfParts = false; if (i == 11) o.specialties = false; if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; if (i == 3) o.confirm = false; if (i == 4) o.worldMap = false; if (i == 5) o.raceDialog = false; if (i == 6) o.raceDialogMp = false; if (i == 7) o.garage = false; if (i == 8) o.carSelect = false; }
                 g_dirty = true;
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip(i == 1 ? "Opens instead of the game's pause menu (Start / Esc in the world; needs UniPad). Back closes it and\nresumes; give tiles the \"Pause: ...\" actions (Resume, Restart race, Jump to Garage, Options, Quit,\nFree Cam...) under changes."
@@ -1702,6 +1731,7 @@ static void ReplacesCombo(Page& p) {
                                                    : i == 5 ? "Opens instead of the race start dialog (driving into a race's start: Accept / Decline; needs UniPad).\nGive tiles the \"Race: Accept\" / \"Race: Decline\" actions (Back declines). The game's own texts:\n{race.from} {race.subject} {race.type} {race.distance} {race.purse} {race.message}; an image with the\ntexture {race.map} shows the race's route map."
                                                    : i == 6 ? "The race start dialog's page while you're in a multiplayer session (needs UniPad and NFSU2 Multiplayer;\nout of a session the race start dialog's own page shows). Tiles: \"Race: COOP (everyone)\" starts it for every player with\nyour race settings (you run the AI racers), \"Race: Accept\" is SOLO (just you), \"Race: Decline\". Race settings rows:\nrace.ai / race.traffic / race.aicount / race.difficulty / race.rubberband / race.collision."
                                                    : i == 7 ? "Opens instead of the garage menu (\"The Garage\" in your safehouse; needs UniPad). Give tiles the\n\"Garage: ...\" actions (Return to Explore Mode, World Map, Car Select, Change Parts, Performance Tuning,\nView Rewards, Save, Back to Main Menu); Back asks to return to explore mode, as the game's own Back does.\nThe game's icons: textures #A230CD88 (explore) #22F2CEAB (map) #A964095B (car select) #511F9D75 (parts)\n#7A9B397A (tuning) #49D2E3DE (rewards) #8ADA6FD4 (save) #FC39853F (main menu); {cash} your bank."
+                                                   : i == 14 ? "Shown over a performance category's upgrade menu (Engine, Turbo...: Choose Individual Parts / Return To Stock and\nits parts list; needs UniPad). The game keeps the controls. gm.items: its two choices (a carousel follows the\ngame's); gm.upgrade: its parts (a list box: <N> the name, .value Installed / Owned / the price, .on installed),\ngm.upgrade.shown 1 while the list is up (not on Return To Stock), {gm.upgrade.title} the category."
                                                    : i == 13 ? "Opens instead of Body Parts' rim brand menu (Rims, from the garage; needs UniPad): the brands as the\ngame lists them. A carousel / grid with the live list gm.items shows them (their logos, names); its pick\nopens that brand's rims. Back goes back to the Body Parts categories."
                                                    : i == 12 ? "Shown over Change Parts' Body Parts browser while it shows its categories (Front Bumpers, Rear Bumpers... Wide Body\nKits; from the garage; needs UniPad). The game keeps the controls - left / right the category, select opens its\nparts (the game's own screen then), back leaves - so the page only shows: give a carousel the live list gm.items\n(the categories, their pictures and names) and it follows the game's current one."
                                                    : i == 10 || i == 11 ? (i == 10 ? "Opens instead of Change Parts' Performance Parts menu (from the garage; needs UniPad): Engine, ECU, Transmission,\nSuspension, Nitrous Oxide, Tires, Brakes, Weight Reduction, Turbo. Give a grid / carousel the live list gm.items -\nthe menu's items as the game has them (their pictures, names; a locked one \"off\") - and picking one picks it\nin the game, which opens its parts. Back goes back to Change Parts. The car stays on its pedestal behind."
@@ -2084,6 +2114,7 @@ static void SaveMenus(FILE* f) {
         if (p.specialties) fprintf(f, "specialtiesmenu=1\n");
         if (p.bodyParts) fprintf(f, "bodypartsmenu=1\n");
         if (p.rimBrands) fprintf(f, "rimbrandmenu=1\n");
+        if (p.perfUpgrade) fprintf(f, "perfupgrademenu=1\n");
         if (!p.title.empty()) fprintf(f, "title=%s\n", Esc(p.title).c_str());
         for (auto& pr : p.prompts) fprintf(f, "prompt=%s;%s\n", pr.first.c_str(), Esc(pr.second).c_str());
         for (auto& x : p.shared) fprintf(f, "shared=%s\n", Esc(x).c_str());
@@ -2140,6 +2171,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "specialtiesmenu") p.specialties = atoi(v.c_str()) != 0;
         else if (k == "bodypartsmenu") p.bodyParts = atoi(v.c_str()) != 0;
         else if (k == "rimbrandmenu") p.rimBrands = atoi(v.c_str()) != 0;
+        else if (k == "perfupgrademenu") p.perfUpgrade = atoi(v.c_str()) != 0;
         else if (k == "title") p.title = Unesc(v);
         else if (k == "prompt") { size_t c = v.find(';'); if (c != std::string::npos) p.prompts.push_back({v.substr(0, c), Unesc(v.substr(c + 1))}); }
         else if (k == "shared" || k == "glyphbar") p.shared.push_back(Unesc(v));   // (glyphbar: the first builds)

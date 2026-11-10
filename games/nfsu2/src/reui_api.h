@@ -68,7 +68,7 @@ typedef const char* (*PFN_REUI_RaceDialogMpPage)(void);   // ... for it in a mul
 typedef const char* (*PFN_REUI_GaragePage)(void);         // ... for the garage menu ("The Garage", UI_CareerCrib) ("" none; optional export)
 typedef const char* (*PFN_REUI_CarSelectPage)(void);      // ... for the garage's car select ("" none; optional export)
 typedef const char* (*PFN_REUI_PartsPage)(void);          // ... for the garage's Change Parts menu ("" none; optional export)
-// REUI_PerfPartsPage / REUI_SpecialtiesPage / REUI_BodyPartsPage / REUI_RimBrandsPage (the same type): its Performance Parts / Specialties
+// REUI_PerfPartsPage / REUI_SpecialtiesPage / REUI_BodyPartsPage / REUI_RimBrandsPage / REUI_PerfUpgradePage (the same type): its Performance Parts / Specialties
 // menus, Body Parts' browser, its rim brand menu
 // An element flag (a checkbox on every element while your mod is loaded): hideNow(ctx) returns 1 while flagged elements
 // are to be hidden. hiddenWhenMissing: what flagged elements do when your mod isn't installed. group > 0: only one flag

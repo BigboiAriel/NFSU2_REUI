@@ -79,6 +79,7 @@ EXPORT const char* REUI_GaragePage() { static std::string s; s = uied::MenuGarag
 EXPORT const char* REUI_CarSelectPage() { static std::string s; s = uied::MenuCarSelectPage(); return s.c_str(); }
 EXPORT const char* REUI_PartsPage() { static std::string s; s = uied::MenuPartsPage(); return s.c_str(); }
 EXPORT const char* REUI_PerfPartsPage() { static std::string s; s = uied::MenuPerfPartsPage(); return s.c_str(); }
+EXPORT const char* REUI_PerfUpgradePage() { static std::string s; s = uied::MenuPerfUpgradePage(); return s.c_str(); }
 EXPORT const char* REUI_RimBrandsPage() { static std::string s; s = uied::MenuRimBrandsPage(); return s.c_str(); }
 EXPORT const char* REUI_BodyPartsPage() { static std::string s; s = uied::MenuBodyPartsPage(); return s.c_str(); }
 EXPORT const char* REUI_SpecialtiesPage() { static std::string s; s = uied::MenuSpecialtiesPage(); return s.c_str(); }
