@@ -26,12 +26,18 @@ struct Box {                 // in the shape's own pixels: centre (from the shap
 };
 // fill / stroke: white with alpha (or the gradient's colours). A cut's edge has no stroke of the shape's: cutters are
 // drawn as shapes themselves (their own border outlines the cut).
-struct Result { gfx::Tex fill = nullptr; gfx::Tex stroke = nullptr; float margin = 0; int pw = 0, ph = 0; };
+// ox / oy, hw / hh: the box the textures cover (before the margin) - the shape's own, or with merged shapes the box
+// around them all: its centre from the shape's centre (shape frame) and its half size, in shape pixels
+struct Result { gfx::Tex fill = nullptr; gfx::Tex stroke = nullptr; float margin = 0; int pw = 0, ph = 0; float ox = 0, oy = 0, hw = 0, hh = 0; };
 
 // The shape (w x h pixels, corner radii) minus the cutters, its stroke `stroke` pixels wide on the edge (align), with
 // optional gradients. Its textures cover the shape's box plus `margin` pixels on every side.
 bool Get(const Box& shape, float stroke, int align, const Gradient& strokeGrad, const Gradient& fillGrad,
          const std::vector<Box>& cuts, Result& out);
+// ... with other shapes merged into it (a union: one outline, one stroke around them all, the gradients across the
+// whole), each grown by its gap. (2026-11-09)
+bool Get(const Box& shape, float stroke, int align, const Gradient& strokeGrad, const Gradient& fillGrad,
+         const std::vector<Box>& cuts, const std::vector<Box>& merges, Result& out);
 void Trim();                 // each frame: drops shapes not drawn for a while
 void Release();              // device going away
 

@@ -15,7 +15,7 @@ namespace shapes {
 
 namespace {
 
-struct Entry { gfx::Tex fill = nullptr; gfx::Tex stroke = nullptr; float margin = 0; int pw = 0, ph = 0; DWORD used = 0; size_t bytes = 0; };
+struct Entry { gfx::Tex fill = nullptr; gfx::Tex stroke = nullptr; float margin = 0; int pw = 0, ph = 0; float ox = 0, oy = 0, hw = 0, hh = 0; DWORD used = 0; size_t bytes = 0; };
 std::unordered_map<std::string, Entry> g_cache;
 // A shape that animates (pulse, keyframes) or is being resized is a new size - a new entry - every frame: kept to a
 // budget, the least recently drawn let go first (code review, 2026-11-03: a pulsing 600x300 panel made ~260 MB).
@@ -108,7 +108,7 @@ inline uint32_t Argb(const float c[4], float cover) {
     return (b(c[3] * cover) << 24) | (b(c[0]) << 16) | (b(c[1]) << 8) | b(c[2]);
 }
 
-std::string Key(const Box& s, float stroke, int align, const Gradient& sg, const Gradient& fg, const std::vector<Box>& cuts) {
+std::string Key(const Box& s, float stroke, int align, const Gradient& sg, const Gradient& fg, const std::vector<Box>& cuts, const std::vector<Box>& merges) {
     char b[160]; std::string k;
     auto put = [&](const Box& x) {
         snprintf(b, sizeof b, "%.2f %.2f %.2f %.2f %.4f %.2f %.2f %.2f %.2f %.2f|", x.cx, x.cy, x.w, x.h, x.rot, x.r[0], x.r[1], x.r[2], x.r[3], x.gap);
@@ -122,6 +122,7 @@ std::string Key(const Box& s, float stroke, int align, const Gradient& sg, const
     snprintf(b, sizeof b, "%.2f %d|", stroke, align); k += b;
     grad(sg); grad(fg);
     put(s); for (auto& c : cuts) put(c);
+    if (!merges.empty()) { k += 'm'; for (auto& m : merges) put(m); }
     return k;
 }
 
@@ -132,18 +133,34 @@ gfx::Tex Upload(const std::vector<uint32_t>& px, int w, int h) {   // (0xAARRGGB
 } // namespace
 
 bool Get(const Box& s, float stroke, int align, const Gradient& sg, const Gradient& fg, const std::vector<Box>& cuts, Result& out) {
+    static const std::vector<Box> none;
+    return Get(s, stroke, align, sg, fg, cuts, none, out);
+}
+bool Get(const Box& s, float stroke, int align, const Gradient& sg, const Gradient& fg, const std::vector<Box>& cuts, const std::vector<Box>& merges, Result& out) {
     // (not a number / infinite / absurd: "s.w < 1" lets NaN through and (int)ceilf(inf) wraps past the 2048 clamp)
     if (!gfx::Ready() || !std::isfinite(s.w) || !std::isfinite(s.h) || !std::isfinite(stroke) || s.w < 1 || s.h < 1 || s.w > 1e5f || s.h > 1e5f) return false;
     float sw = std::max(0.f, std::min(stroke, 1e4f));
     if (align < ALIGN_INSIDE || align > ALIGN_OUTSIDE) align = ALIGN_INSIDE;
-    std::string key = Key(s, sw, align, sg, fg, cuts);
+    std::string key = Key(s, sw, align, sg, fg, cuts, merges);
     DWORD now = GetTickCount();
     auto it = g_cache.find(key);
     if (it != g_cache.end()) {
         it->second.used = now;
         out.fill = it->second.fill; out.stroke = it->second.stroke; out.margin = it->second.margin; out.pw = it->second.pw; out.ph = it->second.ph;
+        out.ox = it->second.ox; out.oy = it->second.oy; out.hw = it->second.hw; out.hh = it->second.hh;
         return out.fill || out.stroke;
     }
+    // the box around the shape and what's merged into it (shape frame): the textures cover it
+    float bx = s.w / 2, by = s.h / 2;
+    float x0 = -bx, x1 = bx, y0 = -by, y1 = by;
+    for (auto& m : merges) {
+        if (!std::isfinite(m.w) || !std::isfinite(m.h) || !std::isfinite(m.cx) || !std::isfinite(m.cy)) continue;
+        float c = fabsf(cosf(m.rot)), sn = fabsf(sinf(m.rot)), g = std::max(0.f, m.gap);
+        float ex = c * m.w / 2 + sn * m.h / 2 + g, ey = sn * m.w / 2 + c * m.h / 2 + g;
+        x0 = std::min(x0, m.cx - ex); x1 = std::max(x1, m.cx + ex); y0 = std::min(y0, m.cy - ey); y1 = std::max(y1, m.cy + ey);
+    }
+    float ox = (x0 + x1) / 2, oy = (y0 + y1) / 2, hw = (x1 - x0) / 2, hh = (y1 - y0) / 2;
+    if (hw > 5e4f || hh > 5e4f) return false;
     // the stroke band, in distance from the edge (negative inside): inside [-sw, 0], centre [-sw/2, sw/2], outside [0, sw];
     // the fill goes all the way to the path (the edge itself), under the stroke - as drawing programs do
     float lo = align == ALIGN_INSIDE ? -sw : align == ALIGN_CENTRE ? -sw / 2 : 0.f;
@@ -151,37 +168,42 @@ bool Get(const Box& s, float stroke, int align, const Gradient& sg, const Gradie
     float maxHi = std::max(0.f, hi);
     // the shape's box plus what sticks out (the stroke past the edge) and a pixel for the soft edge; at most 2048 a side
     float margin = 1.5f + maxHi;
-    int pw = (int)ceilf(s.w + 2 * margin), ph = (int)ceilf(s.h + 2 * margin);
+    int pw = (int)ceilf(2 * hw + 2 * margin), ph = (int)ceilf(2 * hh + 2 * margin);
     float k = 1.f;
     if (pw > 2048 || ph > 2048) { k = 2048.f / std::max(pw, ph); pw = std::min(2048, (int)ceilf(pw * k)); ph = std::min(2048, (int)ceilf(ph * k)); }
     std::vector<uint32_t> fpx((size_t)pw * ph, 0x00FFFFFF), spx((size_t)pw * ph, 0x00FFFFFF);
-    float bx = s.w / 2, by = s.h / 2;
     struct C { float cx, cy, cs, sn, bx, by, gap; float r[4]; };
-    std::vector<C> cs;
-    for (auto& c : cuts) {
+    std::vector<C> cs, ms;
+    auto prep = [](const Box& c) {
         C x; x.cx = c.cx; x.cy = c.cy; x.cs = cosf(-c.rot); x.sn = sinf(-c.rot); x.bx = c.w / 2; x.by = c.h / 2; x.gap = c.gap;
         memcpy(x.r, c.r, sizeof x.r);
-        cs.push_back(x);
-    }
+        return x;
+    };
+    for (auto& c : cuts) cs.push_back(prep(c));
+    for (auto& m : merges) ms.push_back(prep(m));
+    auto sdOf = [](const C& c, float px, float py, const float* rr) {   // (a cutter's / merged shape's distance, grown by its gap)
+        float lx = px - c.cx, ly = py - c.cy;
+        float rx = lx * c.cs - ly * c.sn, ry = lx * c.sn + ly * c.cs;
+        return SdRoundBox(rx, ry, c.bx, c.by, rr ? rr : c.r) - c.gap;
+    };
     Outline outline(bx, by, s.r);
     bool sGrad = sg.mode && !sg.stops.empty(), fGrad = fg.mode && !fg.stops.empty();
     float la = fg.angle * kPi / 180, ldx = cosf(la), ldy = sinf(la);
-    float lext = std::max(1e-3f, fabsf(ldx) * bx + fabsf(ldy) * by);   // the shape's half length along the linear gradient
+    float lext = std::max(1e-3f, fabsf(ldx) * hw + fabsf(ldy) * hh);   // the shape's half length along the linear gradient (merged: all of it)
     const float white[4] = {1, 1, 1, 1};
     float aa = 0.5f / k;   // a pixel is 1/k shape pixels: the soft edge is one screen pixel wide
     // rows split over the CPU's cores (each pixel is its own; a big panel at 1440p is over a million of them)
     auto rows = [&](int y0, int y1) {
     for (int y = y0; y < y1; ++y)
         for (int x = 0; x < pw; ++x) {
-            float px = (x + 0.5f) / k - margin - bx, py = (y + 0.5f) / k - margin - by;   // from the centre, shape pixels
+            float px = (x + 0.5f) / k - margin - hw + ox, py = (y + 0.5f) / k - margin - hh + oy;   // from the centre, shape pixels
             float d = SdRoundBox(px, py, bx, by, s.r);
+            for (auto& m : ms) d = std::min(d, sdOf(m, px, py, nullptr));   // A + B: min(dA, dB)
             if (d > maxHi + 1.f) continue;
             bool cutEdge = false;   // the nearest edge here is a cut's (no stroke of the shape's there)
             float dcut = -1e9f;
             for (auto& c : cs) {   // A minus B: max(dA, -dB), B grown by its gap
-                float lx = px - c.cx, ly = py - c.cy;
-                float rx = lx * c.cs - ly * c.sn, ry = lx * c.sn + ly * c.cs;
-                float dc = -(SdRoundBox(rx, ry, c.bx, c.by, c.r) - c.gap);
+                float dc = -sdOf(c, px, py, nullptr);
                 dcut = std::max(dcut, dc);
                 if (dc > d) { d = dc; cutEdge = true; }
             }
@@ -194,11 +216,14 @@ bool Get(const Box& s, float stroke, int align, const Gradient& sg, const Gradie
                 if (!fGrad) memcpy(c, white, sizeof c);
                 else {
                     float t = 0;
-                    if (fg.mode == 1) t = ((px * ldx + py * ldy) / lext + 1) / 2;
-                    else if (fg.mode == 2) { float u = px / std::max(1e-3f, bx), v = py / std::max(1e-3f, by); t = sqrtf(u * u + v * v); }
+                    float gx = px - ox, gy = py - oy;   // (from the middle of it all: the shape's own, or with what's merged)
+                    if (fg.mode == 1) t = ((gx * ldx + gy * ldy) / lext + 1) / 2;
+                    else if (fg.mode == 2) { float u = gx / std::max(1e-3f, hw), v = gy / std::max(1e-3f, hh); t = sqrtf(u * u + v * v); }
                     else {   // from the path inward: its corners rounded to 1.5x the depth at least (no creases from them)
                         float rg[4]; for (int q = 0; q < 4; ++q) rg[q] = std::max(s.r[q], 1.5f * fg.depth);
-                        float dg = std::max(SdRoundBox(px, py, bx, by, rg), dcut);
+                        float du = SdRoundBox(px, py, bx, by, rg);
+                        for (auto& m : ms) { float mr[4]; for (int q = 0; q < 4; ++q) mr[q] = std::max(m.r[q], 1.5f * fg.depth); du = std::min(du, sdOf(m, px, py, mr)); }
+                        float dg = std::max(du, dcut);
                         t = fg.depth > 0 ? -dg / fg.depth : 1;
                     }
                     Sample(fg, Clamp01(t), c);
@@ -230,13 +255,14 @@ bool Get(const Box& s, float stroke, int align, const Gradient& sg, const Gradie
         rows(0, std::min(ph, per));
         for (auto& t : th) t.join();
     }
-    Entry e; e.margin = margin; e.pw = pw; e.ph = ph; e.used = now;
+    Entry e; e.margin = margin; e.pw = pw; e.ph = ph; e.used = now; e.ox = ox; e.oy = oy; e.hw = hw; e.hh = hh;
     e.bytes = (size_t)pw * ph * 4 * (sw > 0 ? 2 : 1);
     MakeRoom(e.bytes);
     e.fill = Upload(fpx, pw, ph);
     if (sw > 0) e.stroke = Upload(spx, pw, ph);
     g_cache[key] = e; g_bytes += e.bytes;
     out.fill = e.fill; out.stroke = e.stroke; out.margin = margin; out.pw = pw; out.ph = ph;
+    out.ox = ox; out.oy = oy; out.hw = hw; out.hh = hh;
     return out.fill || out.stroke;
 }
 

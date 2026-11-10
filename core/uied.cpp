@@ -336,6 +336,8 @@ struct Elem {
     float fillCol[4] = {0, 0, 0, 1};
     std::string fillTok; float fillTokA = 1;
     bool cut = false; float cutGap = 0; std::string cutTarget;
+    bool merge = false;                   // merge: draws nothing itself and is added to cutTarget (the same choices), grown by
+                                          // cutGap - one outline, one stroke, its target's fill / gradients over them all
 
     int strokeAlign = 0;                  // 0 inside the edge, 1 centred on it, 2 outside
     UGrad strokeGrad, fillGrad;           // gradients (shapes.h modes): with one, its colours replace the colour (alpha still fades)
@@ -842,6 +844,20 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
     float rot = e.rot * 3.14159265f / 180, cs = cosf(rot), sn = sinf(rot);
     ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2);
     auto at = [&](float x, float y) { return ImVec2(c.x + x * cs - y * sn, c.y + x * sn + y * cs); };
+    if (e.merge) {   // merged into another shape: drawn as a part of it (marked with a dashed cyan outline while editing)
+        if (editing) {
+            ImVec2 q[4] = {at(-pw / 2, -ph / 2), at(pw / 2, -ph / 2), at(pw / 2, ph / 2), at(-pw / 2, ph / 2)};
+            for (int i = 0; i < 4; ++i) {
+                ImVec2 p0 = q[i], p1 = q[(i + 1) % 4];
+                float len = sqrtf((p1.x - p0.x) * (p1.x - p0.x) + (p1.y - p0.y) * (p1.y - p0.y));
+                for (float t = 0; t < len; t += 8) {
+                    float t1 = std::min(len, t + 4);
+                    dl->AddLine(ImVec2(p0.x + (p1.x - p0.x) * t / len, p0.y + (p1.y - p0.y) * t / len), ImVec2(p0.x + (p1.x - p0.x) * t1 / len, p0.y + (p1.y - p0.y) * t1 / len), IM_COL32(80, 220, 255, 170), 1.f);
+                }
+            }
+        }
+        return;
+    }
     float k = e.w > 0 ? pw / e.w : 1;   // units -> pixels (scale and animation included)
     shapes::Box box; box.w = pw; box.h = ph;
     for (int i = 0; i < 4; ++i) box.r[i] = std::max(0.f, e.rad[i]) * k;
@@ -864,6 +880,23 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
             for (int i = 0; i < 4; ++i) x.r[i] = std::max(0.f, o.rad[i]) * ok;
             cuts.push_back(x);
         }
+    std::vector<shapes::Box> merges;   // shapes merged into it (a union): in its frame, grown by their gaps
+    if (g_drawList && !e.cut)
+        for (auto& o : *g_drawList) {
+            if (o.type != E_SHAPE || !o.merge || &o == &e || !o.visible || !ShowIfOk(o)) continue;
+            if (!CutHits(o, e)) continue;
+            if (OwnerPage(o.group) != OwnerPage(e.group)) continue;
+            ImVec2 oa, ob; ElemRect(o, oa, ob);
+            float ow = ob.x - oa.x, oh = ob.y - oa.y, ok = o.w > 0 ? ow / o.w : 1;
+            if (ow < 0.5f || oh < 0.5f) continue;
+            ImVec2 oc((oa.x + ob.x) / 2, (oa.y + ob.y) / 2);
+            float dx = oc.x - c.x, dy = oc.y - c.y;
+            shapes::Box x;
+            x.cx = dx * cs + dy * sn; x.cy = -dx * sn + dy * cs;
+            x.w = ow; x.h = oh; x.rot = (o.rot - e.rot) * 3.14159265f / 180; x.gap = std::max(-1000.f, std::min(1000.f, o.cutGap)) * ok;
+            for (int i = 0; i < 4; ++i) x.r[i] = std::max(0.f, o.rad[i]) * ok;
+            merges.push_back(x);
+        }
     shapes::Gradient sg, fg;   // (tokens resolved now: a token's change redraws the shape)
     bool sOn = ResolveGrad(e.strokeGrad, 1, sg), fOn = ResolveGrad(e.fillGrad, k, fg);
     float sw = std::max(0.f, e.stroke) * k;
@@ -874,14 +907,19 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
     if (sOn) { ImVec4 v = ImGui::ColorConvertU32ToFloat4(col); col = ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, v.w)); }
     auto quad = [&](float m, ImVec2* q) { q[0] = at(-pw / 2 - m, -ph / 2 - m); q[1] = at(pw / 2 + m, -ph / 2 - m); q[2] = at(pw / 2 + m, ph / 2 + m); q[3] = at(-pw / 2 - m, ph / 2 + m); };
     bool drawn = false;
-    if (shapes::GpuOn()) {   // the graphics card works it out per pixel (nothing made, nothing kept)
+    if (shapes::GpuOn() && merges.empty()) {   // the graphics card works it out per pixel (nothing made, nothing kept; merged shapes: the CPU's)
         float m = shapes::GpuMargin(sw, e.strokeAlign); ImVec2 q[4]; quad(m, q);
         drawn = shapes::GpuDraw(dl, box, sw, e.strokeAlign, sg, fg, cuts, m, q, fc[3] > 0.002f ? Col(fc) : 0u, col);
     }
     if (!drawn) {   // (no shaders, or more cuts / gradient stops than they take): a texture made on the CPU
         shapes::Result r;
-        if (!shapes::Get(box, sw, e.strokeAlign, sg, fg, cuts, r)) return;
-        ImVec2 q[4]; quad(r.margin, q);
+        if (!shapes::Get(box, sw, e.strokeAlign, sg, fg, cuts, merges, r)) return;
+        ImVec2 q[4];
+        if (merges.empty()) quad(r.margin, q);
+        else {   // (the box around it and what's merged into it)
+            float m = r.margin, l = r.ox - r.hw - m, rt = r.ox + r.hw + m, t = r.oy - r.hh - m, bt = r.oy + r.hh + m;
+            q[0] = at(l, t); q[1] = at(rt, t); q[2] = at(rt, bt); q[3] = at(l, bt);
+        }
         if (r.fill && fc[3] > 0.002f) dl->AddImageQuad(gfx::Id(r.fill), q[0], q[1], q[2], q[3], ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), Col(fc));
         if (r.stroke) dl->AddImageQuad(gfx::Id(r.stroke), q[0], q[1], q[2], q[3], ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), col);
     }
@@ -1709,17 +1747,21 @@ static void ShapeProps(Elem& e) {
             if (e.fillGrad.mode == 3) { ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("depth", &e.fillGrad.depth, 0.1f, 0.5f, 500.f, "%.1f")) g_dirty = true; }
             if (e.fillGrad.mode) { float fc[4] = {e.fillCol[0], e.fillCol[1], e.fillCol[2], 1}; GradientEdit("fgrad", e.fillGrad, fc, e.fillTok.empty() ? nullptr : e.fillTok.c_str()); }
         }
-        int cutters = 0;
-        if (!e.cut) for (auto& o : Elems()) if (o.type == E_SHAPE && o.cut && CutHits(o, e)) ++cutters;
+        int cutters = 0, mergers = 0;
+        if (!e.cut && !e.merge) for (auto& o : Elems()) if (o.type == E_SHAPE && &o != &e && (o.cut || o.merge) && CutHits(o, e)) ++(o.cut ? cutters : mergers);
         if (cutters) { ImGui::SameLine(); ImGui::TextDisabled("(%d cutter%s on it)", cutters, cutters == 1 ? "" : "s"); }
+        if (mergers) { ImGui::SameLine(); ImGui::TextDisabled("(%d shape%s merged in)", mergers, mergers == 1 ? "" : "s"); }
     }
-    if (ImGui::Checkbox("cut", &e.cut)) g_dirty = true;
+    if (ImGui::Checkbox("cut", &e.cut)) { if (e.cut) e.merge = false; g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("A boolean: this shape is cut out of another shape (a notch, a window, a panel or button sitting\nin a frame) and drawn itself over the hole, with its own fill and border - its border outlines the cut.\nFor an empty cut, set its fill and stroke opacity to 0. Cutters keep a pink outline while editing.");
-    if (e.cut) {
+    ImGui::SameLine();
+    if (ImGui::Checkbox("merge", &e.merge)) { if (e.merge) e.cut = false; g_dirty = true; }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A boolean: this shape is merged into another shape (a union) - it draws nothing itself; the shape it\nmerges into takes in its outline, so they're one: one fill, one border around the both of them, the gradients\nacross the whole. Several can merge into the same shape. Merged shapes keep a dashed cyan outline while editing.");
+    if (e.cut || e.merge) {
         ImGui::SameLine(); ImGui::SetNextItemWidth(220);
         bool grpT = e.cutTarget.compare(0, 6, "group:") == 0;
         std::string shown = e.cutTarget.empty() ? "every shape in its group" : grpT ? "group: " + RelGroup(e.cutTarget.substr(6)) : e.cutTarget;
-        if (ImGui::BeginCombo("cuts into", shown.c_str())) {
+        if (ImGui::BeginCombo(e.merge ? "merges into" : "cuts into", shown.c_str())) {
             if (ImGui::Selectable("every shape in its group", e.cutTarget.empty())) { e.cutTarget.clear(); g_dirty = true; }
             ImGui::SeparatorText("a whole group");
             for (auto& n : GroupNames()) {   // (not its own - that's the first choice; not hidden by the menu being edited)
@@ -1728,13 +1770,15 @@ static void ShapeProps(Elem& e) {
                 if (ImGui::Selectable(lb.c_str(), e.cutTarget == "group:" + n)) { e.cutTarget = "group:" + n; g_dirty = true; }
             }
             ImGui::SeparatorText("one shape");
-            for (auto& o : Elems()) if (o.type == E_SHAPE && !o.cut && !MenuEdOff(o.group) && ImGui::Selectable(o.name.c_str(), e.cutTarget == o.name)) { e.cutTarget = o.name; g_dirty = true; }
+            for (auto& o : Elems()) if (o.type == E_SHAPE && !o.cut && !o.merge && &o != &e && !MenuEdOff(o.group) && ImGui::Selectable(o.name.c_str(), e.cutTarget == o.name)) { e.cutTarget = o.name; g_dirty = true; }
             ImGui::EndCombo();
         }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("What it cuts: every shape in its own group, every shape in another group (and the groups inside it),\nor one shape by name.\nOnly shapes on its layer or lower: a shape on a higher layer sits over the cutter and isn't cut.");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip(e.merge ? "What it merges into: every shape in its own group, every shape in another group (and the groups inside it),\nor one shape by name (usually: one shape - with several, each draws it as a part of itself)."
+                                                              : "What it cuts: every shape in its own group, every shape in another group (and the groups inside it),\nor one shape by name.\nOnly shapes on its layer or lower: a shape on a higher layer sits over the cutter and isn't cut.");
         ImGui::SameLine(); ImGui::SetNextItemWidth(110);
         if (ImGui::DragFloat("gap", &e.cutGap, 0.05f, -200.f, 200.f, "%.1f")) { e.cutGap = std::max(-200.f, std::min(200.f, e.cutGap)); g_dirty = true; }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Cuts this much wider than the cutter itself (units): room around what sits in the cut-out.\n0 is 0.1 inside the cutter (no seam).\nNegative: the cut is that much smaller than the cutter (the cutter overlaps the shape).\nCtrl + click to type a value.");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip(e.merge ? "Merged in this much bigger than the shape itself (units; negative: smaller).\nCtrl + click to type a value."
+                                                              : "Cuts this much wider than the cutter itself (units): room around what sits in the cut-out.\n0 is 0.1 inside the cutter (no seam).\nNegative: the cut is that much smaller than the cutter (the cutter overlaps the shape).\nCtrl + click to type a value.");
 
     }
 }
@@ -1759,6 +1803,7 @@ static void PutElemS(std::string& o, int m, const Elem& e) {   // one element as
         if (e.rot != 0) Pf(o, "rot=%g\n", e.rot);
         if (!e.fillTok.empty()) Pf(o, "filltoken=%s %g\n", e.fillTok.c_str(), e.fillTokA);
         if (e.cut) Pf(o, "cut=%g;%s\n", e.cutGap, Esc(e.cutTarget).c_str());
+        else if (e.merge) Pf(o, "merge=%g;%s\n", e.cutGap, Esc(e.cutTarget).c_str());
         if (e.strokeAlign) Pf(o, "strokealign=%d\n", e.strokeAlign);
         auto grad = [&](const char* key, const UGrad& g) {   // "mode angle depth;t r g b a[@token];...", its gradient token on its own line
             if (!g.mode) return;
@@ -1845,6 +1890,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "strokegradtoken") e.strokeGrad.tok = v;
     else if (k == "fillgradtoken") e.fillGrad.tok = v;
     else if (k == "cut") { e.cut = true; size_t sc = v.find(';'); e.cutGap = (float)atof(v.c_str()); e.cutTarget = sc == std::string::npos ? "" : Unesc(v.substr(sc + 1)); }
+    else if (k == "merge") { e.merge = true; size_t sc = v.find(';'); e.cutGap = (float)atof(v.c_str()); e.cutTarget = sc == std::string::npos ? "" : Unesc(v.substr(sc + 1)); }
     else if (k == "name") e.name = Unesc(v);
     else if (k == "anchor") e.anchor = std::max(0, std::min(8, atoi(v.c_str())));
     else if (k == "x") e.x = (float)atof(v.c_str()); else if (k == "y") e.y = (float)atof(v.c_str());
@@ -3442,7 +3488,7 @@ void Panel() {
     };
     auto item = [&](int i) {
         ImGui::PushID(i);
-        std::string label = std::string(Elems()[i].type == E_TEXT ? "[T] " : Elems()[i].type == E_SHAPE ? (Elems()[i].cut ? "[C] " : "[S] ") : "[I] ") + Elems()[i].name + (Elems()[i].visible ? "" : " (hidden)") +
+        std::string label = std::string(Elems()[i].type == E_TEXT ? "[T] " : Elems()[i].type == E_SHAPE ? (Elems()[i].cut ? "[C] " : Elems()[i].merge ? "[M] " : "[S] ") : "[I] ") + Elems()[i].name + (Elems()[i].visible ? "" : " (hidden)") +
                             (Elems()[i].layer ? "  L" + std::to_string(Elems()[i].layer) : "");
         if (!q.empty() && !RelGroup(Elems()[i].group).empty()) label += "   in " + RelGroup(Elems()[i].group);
         if (ImGui::Selectable(label.c_str(), (g_sel == i && g_selGroup.empty()) || InMulti(i))) {
