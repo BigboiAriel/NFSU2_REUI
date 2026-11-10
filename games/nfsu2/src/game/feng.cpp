@@ -31,6 +31,7 @@ static void __fastcall InitHook(void* self, void* edx, void* pkg) {
     Drop(pkg);   // re-init, or a new package at a freed one's address
     const char* name = pkg ? *(const char**)((uint8_t*)pkg + 0x0C) : nullptr;
     g_pkgs.push_back({pkg, name && !IsBadReadPtr(name, 1) ? std::string(name) : std::string()});
+    Log("feng: package %s", g_pkgs.back().name.c_str());   // (which screens a menu leads to: the factory table 0x7F7F14..)
     g_origInit(self, edx, pkg);
 }
 static bool __fastcall UnloadHook(void* self, void* edx, void* pkg) {

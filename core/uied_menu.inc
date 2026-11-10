@@ -96,6 +96,8 @@ struct Page {
     std::vector<std::pair<std::string, std::string>> feSwaps;   // out of the world (the garage, the front end): colour
                                          // tokens swapped on this menu and its sub menus (from -> to: hud.shade -> Menu.grey.1)
     std::string title;                   // header text: what "page: header text" pieces and {page.title} show on it
+    std::vector<std::pair<std::string, std::string>> prompts;   // its button prompts (button key, label): the glyph bar's
+                                         // {page.prompt.N} / list:page.prompt; none: its parent menu's
     std::vector<std::string> shared;     // shared pieces (groups: the glyph bar, the performance bar...) drawn over this menu
                                          // and its sub menus, with what its parent menus show
 };
@@ -113,6 +115,31 @@ static Page* PageOf(const std::string& g) { for (auto& p : g_pages) if (p.group 
 // into any text. Shared pieces show the menu they're drawn over; so a header in a linked group needs no change per menu.
 static const Page* g_titlePage = nullptr;   // the menu being drawn (its shared pieces too); null: the element's own menu
 static std::string OwnerPage(const std::string& g);
+// Button prompts (2026-11-09): a menu's (its right-click menu) - "South: Select", "East: Back"... - for the glyph bar:
+// {page.prompt.count}, {page.prompt.N} its label, {page.prompt.N.icon} the button's icon (icon:auto:<button>, as an
+// image's texture), {page.prompt.N.button}; a grid's live list "page.prompt". A menu with none has its parent menu's.
+// Shared pieces show the prompts of the menu on screen.
+static std::string ParentMenu(const std::string& page);
+static const Page* PromptPage(const std::string& group) {
+    const Page* p = g_titlePage;
+    if (!p) { std::string pg = OwnerPage(group); p = pg.empty() ? nullptr : PageOf(pg); }
+    while (p && p->prompts.empty()) { std::string up = ParentMenu(p->group); p = up.empty() ? nullptr : PageOf(up); }
+    return p;
+}
+static bool PageToken(const std::string& key, std::string& v) {
+    const Page* p = PromptPage(g_tokGroup);
+    int n = p ? (int)p->prompts.size() : 0;
+    if (key == "page.prompt.count") { v = std::to_string(n); return true; }
+    if (key.compare(0, 12, "page.prompt.") != 0) return false;
+    int i = atoi(key.c_str() + 12);
+    size_t dot = key.find('.', 12);
+    std::string what = dot == std::string::npos ? std::string() : key.substr(dot + 1);
+    v.clear();
+    if (i < 1 || i > n) return true;   // (no such prompt: blank - "show only while page.prompt.N" hides its pieces)
+    const auto& pr = p->prompts[i - 1];
+    v = what.empty() ? pr.second : what == "icon" ? "icon:auto:" + pr.first : what == "button" ? pr.first : std::string();
+    return true;
+}
 static std::string TitleFor(const std::string& group) {
     if (g_titlePage) return g_titlePage->title;
     std::string pg = OwnerPage(group);
@@ -329,6 +356,11 @@ static std::vector<GItem> GridItems(const Widget& w) {   // the items the grid h
 }
 static std::vector<GItem> GridItemsAll(const Widget& w) {
     std::vector<GItem> v;
+    if (w.bind == "list:page.prompt") {   // the menu's button prompts (the one on screen's, for a shared piece)
+        if (const Page* p = PromptPage(w.group))
+            for (auto& pr : p->prompts) { GItem it; it.label = pr.second; it.icon = "icon:auto:" + pr.first; v.push_back(it); }
+        return v;
+    }
     if (w.bind.compare(0, 5, "list:") == 0) {   // another mod's / REUI's values
         std::string key = w.bind.substr(5), s;
         int n = tokens && tokens(key + ".count", s) ? atoi(s.c_str()) : 0;
@@ -1673,6 +1705,44 @@ static void TitleBox(Page& p) {
     if (ImGui::InputTextWithHint("header text##menutitle", "(none: headers keep their own)", tb, sizeof tb)) { p.title = tb; g_dirty = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The menu's title: texts with the role \"page: header text\" show it (on this menu, and in the shared pieces over it),\nand {page.title} in any text. Empty: header pieces show their own text.");
 }
+// the menu's button prompts, in its right-click menu (the glyph bar's)
+static void PromptsMenu(Page& p) {
+    const Page* from = PromptPage(p.group);
+    std::string label = "Button prompts" + (p.prompts.empty() ? (from && from != &p ? " (" + from->group + "'s)" : std::string(" (none)"))
+                                                              : " (" + std::to_string(p.prompts.size()) + ")") + "##prompts";
+    if (!ImGui::BeginMenu(label.c_str())) {
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The buttons this menu offers, for the glyph bar: {page.prompt.N} (its label), {page.prompt.N.icon} (the button's icon,\nas an image's texture), {page.prompt.count}; or a grid with the live list page.prompt. Shown only while page.prompt.N:\nthe pieces of a prompt this menu hasn't. None here: its parent menu's. Shared pieces show the menu on screen's.");
+        return;
+    }
+    if (p.prompts.empty() && from && from != &p) ImGui::TextDisabled("now: %s's (add one to give this menu its own)", from->group.c_str());
+    int del = -1, up = -1;
+    for (int i = 0; i < (int)p.prompts.size(); ++i) {
+        auto& pr = p.prompts[i];
+        ImGui::PushID(i);
+        ImGui::Text("%d", i + 1); ImGui::SameLine();
+        ImGui::SetNextItemWidth(110);
+        if (ImGui::BeginCombo("##btn", pr.first.c_str())) {
+            for (auto& k : iconKeys) if (ImGui::Selectable(k.c_str(), k == pr.first)) { pr.first = k; g_dirty = true; }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
+        char lb[64]; snprintf(lb, sizeof lb, "%s", pr.second.c_str());
+        ImGui::SetNextItemWidth(130);
+        if (ImGui::InputText("##lbl", lb, sizeof lb)) { pr.second = lb; g_dirty = true; }
+        ImGui::SameLine(); if (ImGui::SmallButton("^") && i > 0) up = i;
+        ImGui::SameLine(); if (ImGui::SmallButton("x")) del = i;
+        ImGui::PopID();
+    }
+    if (up > 0) { std::swap(p.prompts[up], p.prompts[up - 1]); g_dirty = true; }
+    if (del >= 0) { p.prompts.erase(p.prompts.begin() + del); g_dirty = true; }
+    if (ImGui::MenuItem("Add a prompt", nullptr, false, true)) {
+        if (p.prompts.empty() && from && from != &p) p.prompts = from->prompts;   // (starting from what it showed)
+        else p.prompts.push_back({iconKeys.empty() ? std::string("South") : iconKeys[0], "Select"});
+        g_dirty = true;
+    }
+    if (!p.prompts.empty() && ImGui::MenuItem("Clear (use its parent menu's)")) { p.prompts.clear(); g_dirty = true; }
+    ImGui::EndMenu();
+}
 static void SwapsMenu(Page& p) {
     auto all = PageSwaps(p.group);
     std::string label = "Out of the world (garage)" + (all.empty() ? std::string() : " (" + std::to_string(all.size()) + " swap" + (all.size() > 1 ? "s" : "") + ")") + "##feswaps";
@@ -1805,6 +1875,7 @@ static void MenuBar() {
             if (!moved) if (Page* pg = PageOf(g)) SharedMenu(*pg);
             if (!moved) if (Page* pg = PageOf(g)) SwapsMenu(*pg);
             if (!moved) if (Page* pg = PageOf(g)) TitleBox(*pg);
+            if (!moved) if (Page* pg = PageOf(g)) PromptsMenu(*pg);
             ImGui::Separator();
             if (!moved && ImGui::BeginMenu("Move into")) {
                 std::string cur = ParentMenu(g);
@@ -1935,6 +2006,7 @@ static void SaveMenus(FILE* f) {
         if (p.carSelect) fprintf(f, "carselect=1\n");
         if (p.parts) fprintf(f, "partsmenu=1\n");
         if (!p.title.empty()) fprintf(f, "title=%s\n", Esc(p.title).c_str());
+        for (auto& pr : p.prompts) fprintf(f, "prompt=%s;%s\n", pr.first.c_str(), Esc(pr.second).c_str());
         for (auto& x : p.shared) fprintf(f, "shared=%s\n", Esc(x).c_str());
         for (auto& x : p.feSwaps) fprintf(f, "feswap=%s %s\n", x.first.c_str(), x.second.c_str());
     }
@@ -1986,6 +2058,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "carselect") p.carSelect = atoi(v.c_str()) != 0;
         else if (k == "partsmenu") p.parts = atoi(v.c_str()) != 0;
         else if (k == "title") p.title = Unesc(v);
+        else if (k == "prompt") { size_t c = v.find(';'); if (c != std::string::npos) p.prompts.push_back({v.substr(0, c), Unesc(v.substr(c + 1))}); }
         else if (k == "shared" || k == "glyphbar") p.shared.push_back(Unesc(v));   // (glyphbar: the first builds)
         else if (k == "feswap") { char a[96] = {}, b[96] = {}; if (sscanf(v.c_str(), "%95s %95s", a, b) == 2) p.feSwaps.push_back({a, b}); }
         else if (k == "selcolor") { int u = 1; sscanf(v.c_str(), "%d %f %f %f %f", &u, &p.selCol[0], &p.selCol[1], &p.selCol[2], &p.selCol[3]); p.useSel = u != 0; }

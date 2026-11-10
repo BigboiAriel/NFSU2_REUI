@@ -238,6 +238,9 @@ static void DrawText(ImDrawList* dl, const Font& f, ImVec2 p, float k, ImU32 col
     }
 }
 static std::string g_titleNow;   // {page.title}: the header text of the menu being drawn (ElemText sets it; "" = none)
+static std::string g_tokGroup;   // the group of the element being drawn (the menu {page.prompt...} values are of)
+static bool PageToken(const std::string& key, std::string& v);   // {page.prompt...}: the menu's button prompts
+static std::string TitleFor(const std::string& group);           // {page.title}: the header text of a group's menu
 // {key} -> live value. In an element bound to leaderboard row N, {name} {pos} ... mean that row's ({rN.name} ...).
 static std::string Expand(const std::string& s, int row = 0) {
     std::string out;
@@ -247,6 +250,7 @@ static std::string Expand(const std::string& s, int row = 0) {
             if (e != std::string::npos) {
                 std::string key = s.substr(i + 1, e - i - 1), v;
                 if (key == "page.title") v = g_titleNow;
+                else if (key.compare(0, 11, "page.prompt") == 0) PageToken(key, v);
                 else if (key == "clock") { time_t now = time(nullptr); tm* lt = localtime(&now); char b[16]; strftime(b, sizeof b, "%H:%M", lt); v = b; }
                 else if (row > 0 && key.find('.') == std::string::npos && tokens && tokens("r" + std::to_string(row) + "." + key, v)) {}
                 else if (!(tokens && tokens(key, v))) v = "{" + key + "}";
@@ -548,6 +552,12 @@ static bool ShowIfOk(const Elem& e) {
     if (e.showIf.empty()) return true;
     bool neg = e.showIf[0] == '!';
     std::string v, key = neg ? e.showIf.substr(1) : e.showIf;
+    if (key.compare(0, 11, "page.prompt") == 0 || key == "page.title") {   // (REUI's own: the menu's prompts / header text)
+        g_tokGroup = e.group;
+        if (key == "page.title") v = g_titleNow = TitleFor(e.group); else PageToken(key, v);
+        bool set = !v.empty() && v != "0";
+        return neg ? !set : set;
+    }
     bool set = tokens && tokens(key, v) && !v.empty() && v != "0";
     return neg ? !set : set;
 }
@@ -924,6 +934,7 @@ static void ApplyTokSwap(Elem& e);
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
     if (g_tokSwap && !editing) ApplyTokSwap(e);
+    g_tokGroup = e.group;
     if (!editing && !e.flags.empty() && FlagsHide(e)) return;
     struct AnimSave { Elem& e; bool on = false; float scale = 1, x = 0, y = 0; ~AnimSave() { if (on) { e.scale = scale; e.x = x; e.y = y; } } } animSave{ e };
     if (!ShowIfOk(e)) { e.shownSince = -1; if (!editing) return; }
@@ -1031,6 +1042,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         bool icon = IconRef(e.tex, ifam, iid);   // a controller button icon (its own textures)
         bool vec = !icon && vecart::IsRef(e.tex);   // "vec:<name>": vector art (REUI\vector)
         bool texVal = !icon && !vec && e.tex.find('{') != std::string::npos;   // "{tach_fill}": the texture a live value names
+        if (texVal) { std::string x = Expand(e.tex); if (IconRef(x, ifam, iid)) icon = true; }   // ({page.prompt.1.icon}: a controller icon)
         if (e.texIdx == -2) e.texIdx = icon || vec ? -3 : texVal ? -1 : FindTex(e.tex, e.pack);
         // icons and vector art: drawn for their size on screen (an SVG is re-rasterised to it)
         int onScreen = (int)ceilf(std::max(b.x - a.x, b.y - a.y));

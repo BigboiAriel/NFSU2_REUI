@@ -1,6 +1,7 @@
 // a text's text as shown: its tokens ({page.title}: the menu's header text), or the menu's header text itself
 static std::string ElemText(const Elem& e) {
     g_titleNow = TitleFor(e.group);
+    g_tokGroup = e.group;
     if (e.type == E_TEXT && e.role == "title" && !g_titleNow.empty()) return g_titleNow;
     return Expand(e.text, e.row);
 }
