@@ -151,6 +151,8 @@ namespace uied {
     std::string MenuGaragePage();                      // ... the garage menu (UI_CareerCrib, "The Garage") ("" none)
     std::string MenuCarSelectPage();                   // ... the garage's car select (UI_CareerCarSelect) ("" none)
     std::string MenuPartsPage();                       // ... the garage's Change Parts menu (UI_ChooseCustomizeCategory) ("" none)
+    std::string MenuPerfPartsPage();                   // ... its Performance Parts menu (UI_ChoosePerformanceCategory) ("" none)
+    std::string MenuSpecialtiesPage();                 // ... its Specialties menu (UI_ICEMAIN) ("" none)
     extern float menuFade;                             // menus fade in / out / cross-fade over this (seconds; 0 = off)
     extern bool customMenus;                           // false: no page stands in for the game's menus
 }
