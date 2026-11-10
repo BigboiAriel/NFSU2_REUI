@@ -110,8 +110,9 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
     void OnKeyUp(rex::ui::KeyEvent& e) override { Key(e, false); }
     void OnKeyChar(rex::ui::KeyEvent& e) override {
         if (!Wants()) return;
-        With([&](ImGuiIO& io) { io.AddInputCharacter((unsigned)e.virtual_key()); });
-        e.set_handled(true);
+        bool take = true;
+        With([&](ImGuiIO& io) { io.AddInputCharacter((unsigned)e.virtual_key()); take = Takes(io); });
+        if (take) e.set_handled(true);
     }
     void OnMouseDown(rex::ui::MouseEvent& e) override { Button(e, true); }
     void OnMouseUp(rex::ui::MouseEvent& e) override { Button(e, false); }
@@ -129,18 +130,21 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
         ImGui::SetCurrentContext(prev);
     }
     bool Wants() const { return s_.wantsInput && s_.wantsInput(); }
+    bool Takes(const ImGuiIO& io) const { return !(s_.shareKeys && s_.shareKeys()) || io.WantTextInput; }
     void Key(rex::ui::KeyEvent& e, bool down) {
         int vk = (int)e.virtual_key();
         if (down && s_.keyDown && s_.keyDown(vk)) { e.set_handled(true); return; }
         if (!Wants()) return;
+        bool take = true;
         With([&](ImGuiIO& io) {
             io.AddKeyEvent(ImGuiMod_Ctrl, e.is_ctrl_pressed());
             io.AddKeyEvent(ImGuiMod_Shift, e.is_shift_pressed());
             io.AddKeyEvent(ImGuiMod_Alt, e.is_alt_pressed());
             ImGuiKey k = KeyOf(vk);
             if (k != ImGuiKey_None) io.AddKeyEvent(k, down);
+            take = Takes(io);
         });
-        e.set_handled(true);
+        if (take) e.set_handled(true);
     }
     void Button(rex::ui::MouseEvent& e, bool down) {
         int b = -1;

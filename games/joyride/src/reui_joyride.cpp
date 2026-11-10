@@ -98,6 +98,7 @@ bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::Gra
         return true;
     };
     s.wantsInput = [] { return g_open || g_feOpen; };
+    s.shareKeys = [] { return !g_open && g_feOpen; };   // the F7 page alone: the game keeps the keyboard (not while typing)
     s.fonts = [] {
         ImGuiIO& io = ImGui::GetIO();
         // the system's Segoe UI for the editor (not shipped: Windows' own); ImGui's default if it isn't there

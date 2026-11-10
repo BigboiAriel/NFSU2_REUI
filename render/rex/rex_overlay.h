@@ -24,6 +24,9 @@ struct OverlaySetup {
     std::function<void()> frame;               // between ImGui::NewFrame and Render (REUI's drawing)
     std::function<bool(int vk)> keyDown;       // a key pressed (Windows virtual-key code): true = taken
     std::function<bool()> wantsInput;          // mouse / keyboard go to REUI (else they're only watched)
+    // While REUI wants input: true = the keys still go to the game too, unless REUI is typing in a text box (a
+    // debug page next to the game). Empty / false: REUI takes the keys.
+    std::function<bool()> shareKeys;
     std::function<void()> fonts;               // the context's fonts (io.Fonts), once
 };
 

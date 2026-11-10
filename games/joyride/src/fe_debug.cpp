@@ -124,7 +124,7 @@ void Sender() {
 }
 
 void ScreensTab() {
-    ImGui::Text("Up now (root movie levels):");
+    ImGui::Text("Up now (the current screen, then the root movie's levels):");
     if (g_screens.empty()) ImGui::TextDisabled("  none (the game has not loaded a screen yet)");
     if (ImGui::BeginTable("##levels", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
         ImGui::TableSetupColumn("Level");
@@ -134,7 +134,8 @@ void ScreensTab() {
         for (auto& s : g_screens) {
             const std::string k = ScreenKey(s.path);
             ImGui::TableNextRow();
-            ImGui::TableNextColumn(); ImGui::Text("%d", s.level);
+            ImGui::TableNextColumn();
+            if (s.level < 0) ImGui::TextUnformatted("screen"); else ImGui::Text("%d", s.level);
             ImGui::TableNextColumn();
             ImGui::TextColored(k == g_top ? ImVec4(1, .85f, .3f, 1) : ImVec4(1, 1, 1, 1), "screen:%s", k.c_str());
             ImGui::TableNextColumn(); ImGui::TextUnformatted(s.path.c_str());
@@ -308,7 +309,8 @@ void FeFrame() {
     if (g_bridge.screens) {
         g_screens = g_bridge.screens();
         g_top.clear();
-        for (auto it = g_screens.rbegin(); it != g_screens.rend(); ++it) {   // highest level that is a screen
+        if (!g_screens.empty() && g_screens.front().level < 0) g_top = ScreenKey(g_screens.front().path);   // the current one
+        for (auto it = g_screens.rbegin(); g_top.empty() && it != g_screens.rend(); ++it) {   // else the highest level
             const std::string k = ScreenKey(it->path);
             if (k.rfind("controls/", 0) == 0 || k.rfind("asclasses/", 0) == 0 || k.empty()) continue;
             g_top = k;
