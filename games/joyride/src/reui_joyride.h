@@ -47,7 +47,8 @@ struct FeBridge {
     std::function<void(int dir, const std::string& method, const std::vector<std::string>& args)> send;
 };
 void SetFeBridge(const FeBridge& bridge);
-void StartAnimMode(bool focusFirst);   // animation mode (F8); focusFirst: its first element (tests)
+void StartAnimMode(bool focusFirst, float ms = 0, bool play = false, bool bare = false);   // animation mode (F8);
+    // focusFirst: its first element; the playhead at ms, playing; bare: only the timeline (tests)
 bool FeDebugOpen();
 void SetFeDebugOpen(bool open);
 

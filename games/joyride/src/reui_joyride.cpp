@@ -135,9 +135,11 @@ void SetMode(const std::string& key) {
     g_modeKey = key;
 }
 void SetEditorOpen(bool open) { g_open = open; }
-void StartAnimMode(bool focusFirst) {
+void StartAnimMode(bool focusFirst, float ms, bool play, bool bare) {
     uied::SetAnimMode(true);
     if (focusFirst) uied::AnimFocus(0);
+    uied::AnimPlayhead(ms, play);
+    uied::AnimBare(bare);
 }
 bool FeDebugOpen() { return g_feOpen; }
 void SetFeDebugOpen(bool open) { g_feOpen = open; }

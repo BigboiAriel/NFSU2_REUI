@@ -157,6 +157,7 @@ struct State {
     int track = -1;               // focus == F_TRACK
     std::string planned;          // focus == F_PLANNED: which placeholder
     float time = 0; bool playing = false, loop = true, frames = true, autoKey = false, expanded = false;
+    bool bare = false;            // the side panels and graph hidden (H): the whole screen to watch
     View graph, big; float tl0 = -50, tl1 = 650;
     char filter[64] = "";
     int dragKey = -1, dragTrack = -1, dragHandle = 0; ImVec2 dragStart; float dragT = 0, dragV = 0;
@@ -709,8 +710,10 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
         if (ImGui::Combo("clip", &g.clip, names.data(), (int)names.size())) { g.focus = State::F_CLIP; g.graph.fit = g.big.fit = true; }
     }
     const float bw = ImGui::CalcTextSize("Exit animation mode").x + 20;
-    ImGui::SameLine(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - bw - ImGui::CalcTextSize(" Collapse ").x - 34));
-    if (ImGui::Button(g.expanded ? " Collapse " : " Expand ")) { g.expanded = !g.expanded; g.big.fit = true; }
+    ImGui::SameLine(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - bw - ImGui::CalcTextSize(" Collapse ").x - ImGui::CalcTextSize(" Hide panels ").x - 52));
+    if (ImGui::Button(g.bare ? " Panels " : " Hide panels ")) g.bare = !g.bare;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Hide / show the element list, animation page and graph (H): the whole screen to watch.");
+    ImGui::SameLine(); if (ImGui::Button(g.expanded ? " Collapse " : " Expand ")) { g.expanded = !g.expanded; g.big.fit = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("A taller timeline with a big keys + curves graph.");
     ImGui::SameLine(); if (ImGui::Button("Exit animation mode")) g.on = false;
     // ---- rows: names | ruler + keys
@@ -859,11 +862,13 @@ static void Frame() {
         if (g.time > len) { if (g.loop) g.time = fmodf(g.time, std::max(1.f, len)); else { g.time = len; g.playing = false; } }
     }
     if (ImGui::IsKeyPressed(ImGuiKey_Space, false) && !io.WantTextInput && ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) g.playing = !g.playing;
+    if (ImGui::IsKeyPressed(ImGuiKey_H, false) && !io.WantTextInput && ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) g.bare = !g.bare;
     if (g.focus == State::F_NONE && FocusedIndex() < 0 && g_sel >= 0 && g_sel < (int)Elems().size()) {   // start on the editor's pick
         g.elemKey = KeyOf(g_editMode, Elems()[g_sel]); g.focus = State::F_ELEMENT;
     }
     const float W = io.DisplaySize.x, H = io.DisplaySize.y, u = ImGui::GetFontSize() / 13.f;
     const float tlH = g.expanded ? H * 0.5f : std::min(H * 0.3f, 170 * u);
+    if (g.bare) { Timeline(ImVec2(0, H - tlH), ImVec2(W, tlH)); return; }
     const float graphH = g.expanded ? 0.f : std::min(H * 0.32f, 280 * u);
     const float listW = std::min(W * 0.22f, 300 * u), pageW = std::min(W * 0.28f, 400 * u);
     const float topH = H - tlH - graphH;
@@ -887,6 +892,8 @@ void SetAnimMode(bool on) {
     anim::g.graph.fit = anim::g.big.fit = true;
     if (Elems().empty() && g_nowMode >= 0 && g_nowMode < NumModes() && !g_layout[g_nowMode].empty()) { g_editMode = g_nowMode; g_sel = -1; }
 }
+void AnimBare(bool bare) { anim::g.bare = bare; }
+void AnimPlayhead(float ms, bool play) { anim::g.time = std::max(0.f, ms); anim::g.playing = play; anim::g.loop = true; }
 void AnimFocus(int index) {
     if (index < 0 || index >= (int)Elems().size()) return;
     anim::g.elemKey = anim::KeyOf(g_editMode, Elems()[index]); g_sel = index; anim::g.focus = anim::State::F_ELEMENT;

@@ -19,6 +19,8 @@ namespace uied {
     bool AnimModeOn();                       // animation mode (uied_anim.inc): its own panels over the game; the editor greyed out
     void SetAnimMode(bool on);               // (on: an empty layout being edited switches to the one being played)
     void AnimFocus(int elementIndex);        // (tests) focus an element of the layout being edited
+    void AnimPlayhead(float ms, bool play);  // (tests) the timeline's playhead, playing (looping) or not
+    void AnimBare(bool bare);                // the side panels and graph hidden (only the timeline)
     bool Unsaved();                          // editor changes not saved yet
     // Game modes, each with its own overlay layout: the game connection's list, set before Init (NFSU2's by default:
     // the Mode numbering below). key: how layout files name it (an unknown key loads into mode 0); name: shown.
