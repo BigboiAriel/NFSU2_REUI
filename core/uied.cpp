@@ -515,7 +515,7 @@ static bool FollowBox(const Elem& e, GameObject& g, ImVec2& a, ImVec2& b) {
     return true;
 }
 static void ElemRect(Elem& e, ImVec2& a, ImVec2& b) {
-    if (e.follow && e.type == E_IMAGE) { GameObject g; if (FollowBox(e, g, a, b)) return; }
+    if (e.follow && (e.type == E_IMAGE || e.type == E_SHAPE)) { GameObject g; if (FollowBox(e, g, a, b)) return; }
     ImVec2 ds = ImGui::GetIO().DisplaySize; float k = Unit();
     float ax = (e.anchor % 3) * 0.5f, ay = (e.anchor / 3) * 0.5f;
     ImVec2 sz = ElemSize(e);
@@ -1058,7 +1058,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         }
     }
     GameObject go; bool following = false;
-    if (e.type == E_IMAGE && e.follow) {
+    if ((e.type == E_IMAGE || e.type == E_SHAPE) && e.follow) {   // (a shape: the game object's box, its fill tinted by the game's colour)
         following = FollowBox(e, go, a, b);
         if (!following && !editing) return;   // the game isn't showing it
         if (following) {
@@ -1072,11 +1072,12 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (bf >= 0.f) bf = e.cutLo + (e.cutHi - e.cutLo) * bf;
         if (bf >= 0.f && e.bindKind == 1) { if (bf <= 0.001f && !editing) return; b.x = a.x + (b.x - a.x) * std::max(bf, editing ? 0.02f : 0.f); }
         if (bf >= 0.f && e.bindKind == 2) { if (bf <= 0.001f && !editing) return; a.y = b.y - (b.y - a.y) * std::max(bf, editing ? 0.02f : 0.f); }
-        if (tinted) {   // (its fill too: for the call only)
-            float keep[3] = {e.fillCol[0], e.fillCol[1], e.fillCol[2]};
-            for (int i = 0; i < 3; ++i) e.fillCol[i] *= tintK[i];
+        if (tinted || following) {   // (its fill too: for the call only)
+            float keep[4] = {e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3]};
+            for (int i = 0; i < 3; ++i) e.fillCol[i] *= (tinted ? tintK[i] : 1.f) * (following ? go.col[i] : 1.f);
+            if (following) e.fillCol[3] *= go.col[3];
             DrawShape(dl, e, a, b, col, editing);
-            for (int i = 0; i < 3; ++i) e.fillCol[i] = keep[i];
+            for (int i = 0; i < 4; ++i) e.fillCol[i] = keep[i];
             return;
         }
         DrawShape(dl, e, a, b, col, editing); return;
@@ -2970,6 +2971,13 @@ static void Selected(Elem& e) {
         if (g_texSel >= 0) { ImGui::SameLine(); if (ImGui::SmallButton("use the selected texture")) { e.tex = g_tex[g_texSel].name; e.pack = g_tex[g_texSel].pack; e.texIdx = g_texSel; g_dirty = true; } }
     } else if (e.type == E_SHAPE) {
         ShapeProps(e);
+        {   // (a bar the game draws: this shape takes its box and colour - the performance parts' Torque / Power meters)
+            static char fb[16]; snprintf(fb, sizeof fb, e.follow ? "%08X" : "", e.follow);
+            ImGui::SetNextItemWidth(90);
+            if (ImGui::InputTextWithHint("follows game object##shape", "name hash", fb, sizeof fb, ImGuiInputTextFlags_CharsHexadecimal)) { e.follow = (unsigned)strtoul(fb, nullptr, 16); g_dirty = true; }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("A game FEng object's name hash (from the dump): this shape takes where the game puts it and its size every\nframe (its x / y: an offset from there), its fill tinted by the game's colour; hidden while the game hides it.");
+            if (e.follow) { GameObject g; ImGui::SameLine(); ImGui::TextDisabled(gameObject && gameObject(e.follow, g) ? "(on screen)" : "(not shown now)"); }
+        }
     } else {
         static char tb[512];
         snprintf(tb, sizeof tb, "%s", e.text.c_str());
