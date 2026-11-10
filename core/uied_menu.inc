@@ -1164,7 +1164,7 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel) {
     if (sel >= n) sel = n - 1;
     std::map<const Widget*, int> rowIdx; for (int i = 0; i < n; ++i) rowIdx[rows[i].w] = i;
     std::string desc = sel >= 0 && n ? rows[sel].w->desc : "";
-    if (sel >= 0 && n && GridHasTiles(*rows[sel].w)) {   // its selected tile's
+    if (sel >= 0 && n && (GridHasTiles(*rows[sel].w) || rows[sel].w->bind.compare(0, 5, "list:") == 0)) {   // its selected tile's (a live list's: its item's name)
         Widget& g = *rows[sel].w; auto items = GridItems(g);
         if (!items.empty()) {
             const GItem& cur = items[GridState(g, (int)items.size()).sel];
