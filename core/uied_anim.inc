@@ -371,11 +371,12 @@ static void ElementsPanel(ImVec2 pos, ImVec2 size) {
     ImGui::SetNextWindowPos(pos); ImGui::SetNextWindowSize(size);
     ImGui::Begin("Elements##anim", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings);
     ImGui::TextDisabled("%s layout - %d elements", ModeName(g_editMode), (int)Elems().size());
-    if (ImGui::BeginTabBar("##amodes", ImGuiTabBarFlags_FittingPolicyScroll)) {
-        for (int mm = 0; mm < NumModes(); ++mm) {
-            if (ImGui::BeginTabItem(ModeName(mm))) { if (g_editMode != mm) { g_editMode = mm; g_sel = -1; } ImGui::EndTabItem(); }
-        }
-        ImGui::EndTabBar();
+    {   // which layout (a dropdown: it follows the editor's pick, tabs would pick their first one)
+        std::vector<const char*> names;
+        for (int mm = 0; mm < NumModes(); ++mm) names.push_back(ModeName(mm));
+        int cur = g_editMode;
+        ImGui::SetNextItemWidth(-1);
+        if (ImGui::Combo("##amode", &cur, names.data(), (int)names.size()) && cur != g_editMode) { g_editMode = cur; g_sel = -1; }
     }
     ImGui::SetNextItemWidth(-1);
     ImGui::InputTextWithHint("##afilter", "filter", g.filter, sizeof g.filter);
