@@ -451,6 +451,11 @@ static bool GridGameSel(const Widget& w) {
     std::string sv;
     return w.bind.compare(0, 5, "list:") == 0 && tokens && tokens(w.bind.substr(5) + ".sel", sv) && !sv.empty();
 }
+// a live list another mod says isn't in use now (<key>.focus "0": the game's controls are on another list): no cursor
+static bool GridFocusOff(const Widget& w) {
+    std::string sv;
+    return w.bind.compare(0, 5, "list:") == 0 && tokens && tokens(w.bind.substr(5) + ".focus", sv) && sv == "0";
+}
 static MenuState::GridSt& GridState(const Widget& w, int count) {
     auto& st = g_menu.grids[w.group];
     bool first = st.sel < 0;
@@ -738,6 +743,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
     if (!n) return;
     MenuState::GridSt dummy; dummy.sel = 0;
     MenuState::GridSt& st = preview ? dummy : GridState(w, n);
+    if (on && !preview && GridFocusOff(w)) on = false;
     float px = GPitchX(w), py = GPitchY(w);   // (tile to tile: a tile plus the spacing)
     float sx = w.scalePieces && w.refW > 0.5f ? GCellW(w) / w.refW : 1.f, sy = w.scalePieces && w.refH > 0.5f ? GCellH(w) / w.refH : 1.f;
     auto& els = MenuElems();
@@ -836,10 +842,11 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 if (src.selOnly && !selHere) continue;
                 if ((src.role == "on" && it.on != 1) || (src.role == "off" && it.on != 0)) continue;   // (a live list item's state)
                 if (kind >= 0 && !TileShows(src, TileBit(t))) continue;
-                if (cur && src.selOnly && src.anim) {   // the selection's animation (a pulsing glow): from the start on each move
-                    static std::map<const Elem*, int> lastSel;
+                if (cur && src.selOnly && src.anim) {   // the selection's animation (a pulsing glow): from the start on each move -
+                    static std::map<const Elem*, int> lastSel;   // unless the highlight stays put (it loops on, unbroken)
                     auto ls = lastSel.find(&src);
-                    if (ls == lastSel.end() || ls->second != idx || src.shownSince < 0) { src.shownSince = ImGui::GetTime(); lastSel[&src] = idx; }
+                    if (ls == lastSel.end() || (ls->second != idx && !selStill) || src.shownSince < 0) src.shownSince = ImGui::GetTime();
+                    lastSel[&src] = idx;
                 }
                 Elem e = src;
                 bool rowP = RowPiece(src);   // (slider / picker pieces: already laid out across the row)
@@ -1239,6 +1246,7 @@ static void DrawShared(ImDrawList* dl, const Page& p, const std::string& skipIn 
         Widget* w = WidgetFor(src.group);
         if (w && GridLike(*w) && GridPiece(src)) { if (gridsDrawn.insert(w).second) DrawGrid(dl, &p, *w, GridGameSel(*w), 0, false); continue; }
         Elem e = src;
+        if (w && GridLike(*w) && !GridScroller(*w, e)) continue;   // (its scroller: the tab along the track; its arrows)
         DrawElem(dl, e, false);
         src.texIdx = e.texIdx; src.fontIdx = e.fontIdx; src.shownSince = e.shownSince; src.playWas = e.playWas;
     }
