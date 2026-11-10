@@ -9866,6 +9866,50 @@ colortoken=hud.line 1
 [element]
 mode=menus
 type=shape
+name=Meter gain
+anchor=4
+x=194
+y=73
+w=162
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque meter
+layer=1
+shape=1.5 1.5 1.5 1.5 0
+fill=0.8118 0.502 0.1882 1
+bind=car.torque
+bindkind=1
+bindrange=0 100
+colortoken=hud.line 1
+showif=gm.upgrade.shown
+
+[element]
+mode=menus
+type=shape
+name=Meter loss
+anchor=4
+x=194
+y=73
+w=162
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque meter
+layer=2
+shape=1.5 1.5 1.5 1.5 0
+fill=0.588 0 0 1
+bind=car.torque.installed
+bindkind=1
+bindrange=0 100
+colortoken=hud.line 1
+showif=gm.upgrade.shown
+
+[element]
+mode=menus
+type=shape
 name=Meter
 anchor=4
 x=194
@@ -9876,40 +9920,14 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque meter
+layer=3
 shape=1.5 1.5 1.5 1.5 0
 fill=0.3882 0.698 0.1333 1
 filltoken=hud.bright_green 1
-bind=car.torque
+bind=car.torque.base
 bindkind=1
 bindrange=0 100
 colortoken=hud.line 1
-showif=gm.upgrade.shown
-
-[element]
-mode=menus
-type=shape
-name=Handle
-anchor=4
-x=273
-y=73
-w=7
-h=7
-scale=1
-color=0.171271 0.171271 0.171271 1
-visible=1
-group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque meter
-shape=30 30 30 30 2.6
-fill=0.678431 0.678431 0.678431 1
-filltoken=Scroll.1 1
-strokealign=1
-strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
-strokegradtoken=handle.1
-fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
-fillgradtoken=handle.2
-bind=car.torque.installed
-bindkind=5
-bindrange=0 100
-bindrot=-160 2
 showif=gm.upgrade.shown
 
 [element]
@@ -9936,6 +9954,50 @@ colortoken=hud.line 1
 [element]
 mode=menus
 type=shape
+name=Meter gain
+anchor=4
+x=194
+y=99
+w=162
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power meter
+layer=1
+shape=1.5 1.5 1.5 1.5 0
+fill=0.8118 0.502 0.1882 1
+bind=car.power
+bindkind=1
+bindrange=0 100
+colortoken=hud.line 1
+showif=gm.upgrade.shown
+
+[element]
+mode=menus
+type=shape
+name=Meter loss
+anchor=4
+x=194
+y=99
+w=162
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power meter
+layer=2
+shape=1.5 1.5 1.5 1.5 0
+fill=0.588 0 0 1
+bind=car.power.installed
+bindkind=1
+bindrange=0 100
+colortoken=hud.line 1
+showif=gm.upgrade.shown
+
+[element]
+mode=menus
+type=shape
 name=Meter
 anchor=4
 x=194
@@ -9946,40 +10008,14 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power meter
+layer=3
 shape=1.5 1.5 1.5 1.5 0
 fill=0.3882 0.698 0.1333 1
 filltoken=hud.bright_green 1
-bind=car.power
+bind=car.power.base
 bindkind=1
 bindrange=0 100
 colortoken=hud.line 1
-showif=gm.upgrade.shown
-
-[element]
-mode=menus
-type=shape
-name=Handle
-anchor=4
-x=273
-y=99
-w=7
-h=7
-scale=1
-color=0.171271 0.171271 0.171271 1
-visible=1
-group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power meter
-shape=30 30 30 30 2.6
-fill=0.678431 0.678431 0.678431 1
-filltoken=Scroll.1 1
-strokealign=1
-strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
-strokegradtoken=handle.1
-fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
-fillgradtoken=handle.2
-bind=car.power.installed
-bindkind=5
-bindrange=0 100
-bindrot=-160 2
 showif=gm.upgrade.shown
 
 [element]
