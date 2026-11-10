@@ -1,0 +1,111 @@
+# NFSU2_REUI prefab
+# The in-race stunt medal (bronze): pops up with the stunt's name when you do a trick. Its motion is copied
+# from hud/stuntdisplay by tools/fe/stunt_medal_example.py in the Joy Ride port. Scrub it in animation mode (F8).
+root=stunt medal
+
+[element]
+mode=race
+type=image
+name=medal burst
+anchor=4
+group=stunt medal
+x=12.3144
+y=130.7401
+w=168.991
+h=170.1358
+scale=1
+color=1 1 1 1
+visible=1
+texture=hudstuntdisplay_i1
+pack=hud/stuntdisplay/hudstuntdisplay
+uv=0 0 1 1
+rot=-4.9983
+layer=2
+additive=1
+aclip=In;566.6667;once
+akey=In;x;0 3.4339 in;400 0.9684 qout;533.3333 0 linear
+akey=In;y;0 0.9748 in;300 1.7929 qout;533.3333 0 linear
+akey=In;sx;0 0.6813 linear;200 0.6813 linear;433.3333 0.9481 qout;533.3333 1 linear
+akey=In;sy;0 0.6813 linear;200 0.6813 linear;433.3333 0.9481 qout;533.3333 1 linear
+akey=In;rot;0 -90.0003 linear;200 -90.0003 linear;300 -39.8913 linear;366.6667 -17.7758 out;533.3333 0 linear
+akey=In;alpha;0 0 hold;200 1 linear;266.6667 0.6055 linear;333.3333 0.3086 out;533.3333 0 linear
+akey=In;ar;0 0.8733 backin;400 0.9765 out;533.3333 1 linear
+akey=In;ag;0 0.8733 backin;400 0.9765 out;533.3333 1 linear
+akey=In;ab;0 0.8733 backin;400 0.9765 out;533.3333 1 linear
+
+[element]
+mode=race
+type=image
+name=medal
+anchor=4
+group=stunt medal
+x=13.1039
+y=130.1342
+w=98.7052
+h=99.3721
+scale=1
+color=1 1 1 1
+visible=1
+texture=hudstuntdisplay_i1
+pack=hud/stuntdisplay/hudstuntdisplay
+uv=0 0 1 1
+rot=-5.0008
+layer=1
+aclip=In;566.6667;once
+akey=In;x;0 2.375 qin;133.3333 -1.2924 qout;266.6667 1.3988 qin;533.3333 0 linear
+akey=In;y;0 1.6913 qin;133.3333 -0.4364 out;266.6667 1.4135 out;533.3333 0 linear
+akey=In;sx;0 0.8233 hold;66.6667 0.8943 linear;100 1.0167 linear;133.3333 1.1969 out;200 1.1664 linear;266.6667 1.0204 linear;333.3333 0.8162 qin;466.6667 0.9244 qout;533.3333 1 linear
+akey=In;sy;0 0.8233 hold;66.6667 0.8943 linear;100 1.0167 linear;133.3333 1.1969 out;200 1.1664 linear;266.6667 1.0204 linear;333.3333 0.8162 qin;466.6667 0.9244 qout;533.3333 1 linear
+akey=In;rot;0 -0.7712 qin;200 -30.0004 qin;333.3333 15.0004 qin;433.3333 9.5304 qout;533.3333 0 linear
+akey=In;alpha;0 0 qin;133.3333 1 linear;533.3333 1 linear
+akey=In;ar;0 0.0848 hold;66.6667 0.3186 linear;133.3333 1 backout;200 0.8733 linear;366.6667 0.7686 linear;433.3333 0.5137 linear;500 0 linear;533.3333 0 linear
+akey=In;ag;0 0.0848 hold;66.6667 0.3186 linear;133.3333 1 backout;200 0.8733 linear;366.6667 0.7686 linear;433.3333 0.5137 linear;500 0 linear;533.3333 0 linear
+akey=In;ab;0 0.0848 hold;66.6667 0.3186 linear;133.3333 1 backout;200 0.8733 linear;366.6667 0.7686 linear;433.3333 0.5137 linear;500 0 linear;533.3333 0 linear
+
+[element]
+mode=race
+type=text
+name=stunt name shadow
+anchor=4
+group=stunt medal
+x=15.942
+y=155.1909
+w=0
+h=0
+scale=0.3335
+color=0 0.06 0.08 0.8
+visible=1
+font=Segoe UI Black
+text=HEAD OVER HEELS
+align=1
+layer=2
+aclip=In;566.6667;once
+akey=In;x;0 3.0654 in;133.3333 0.4048 linear;300 1.1138 qin;533.3333 0 linear
+akey=In;y;0 17.2193 qin;133.3333 18.4888 linear;233.3333 -2.728 qinout;533.3333 0 linear
+akey=In;sx;0 0.8821 hold;100 0.9865 linear;133.3333 1.1359 linear;166.6667 1.0804 linear;200 1.0434 linear;366.6667 0.9163 linear;533.3333 1 linear
+akey=In;sy;0 0.8821 hold;100 0.9865 linear;133.3333 1.1359 linear;166.6667 1.0804 linear;200 1.0434 linear;366.6667 0.9163 linear;533.3333 1 linear
+akey=In;alpha;0 0 in;100 0.1033 linear;200 0.7344 linear;233.3333 1 linear;533.3333 1 linear
+
+[element]
+mode=race
+type=text
+name=stunt name
+anchor=4
+group=stunt medal
+x=15.142
+y=154.1909
+w=0
+h=0
+scale=0.3335
+color=1 1 1 1
+visible=1
+font=Segoe UI Black
+text=HEAD OVER HEELS
+align=1
+layer=3
+aclip=In;566.6667;once
+akey=In;x;0 3.0654 in;133.3333 0.4048 linear;300 1.1138 qin;533.3333 0 linear
+akey=In;y;0 17.2193 qin;133.3333 18.4888 linear;233.3333 -2.728 qinout;533.3333 0 linear
+akey=In;sx;0 0.8821 hold;100 0.9865 linear;133.3333 1.1359 linear;166.6667 1.0804 linear;200 1.0434 linear;366.6667 0.9163 linear;533.3333 1 linear
+akey=In;sy;0 0.8821 hold;100 0.9865 linear;133.3333 1.1359 linear;166.6667 1.0804 linear;200 1.0434 linear;366.6667 0.9163 linear;533.3333 1 linear
+akey=In;alpha;0 0 in;100 0.1033 linear;200 0.7344 linear;233.3333 1 linear;533.3333 1 linear
