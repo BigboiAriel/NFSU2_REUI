@@ -994,12 +994,14 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         }
     }
     ImU32 col = Col(mine && e.hiMine ? e.hiCol : e.col);
+    float tintK[3] = {1, 1, 1}; bool tinted = false;   // (a shape's fill takes it too)
     if (!e.tint.empty()) {   // colour times a value's "R G B"
         std::string v; int r, g, b2;
         if (tokens && tokens(e.tint, v) && sscanf(v.c_str(), "%d %d %d", &r, &g, &b2) == 3) {
             const float* c0 = mine && e.hiMine ? e.hiCol : e.col;
             float c[4] = {c0[0] * r / 255.f, c0[1] * g / 255.f, c0[2] * b2 / 255.f, c0[3]};
             col = Col(c);
+            tintK[0] = r / 255.f; tintK[1] = g / 255.f; tintK[2] = b2 / 255.f; tinted = true;
         }
     }
     if (e.anim && !editing) {   // pulse: up to 30% bigger and half faded; blink: hidden half the time
@@ -1070,6 +1072,13 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (bf >= 0.f) bf = e.cutLo + (e.cutHi - e.cutLo) * bf;
         if (bf >= 0.f && e.bindKind == 1) { if (bf <= 0.001f && !editing) return; b.x = a.x + (b.x - a.x) * std::max(bf, editing ? 0.02f : 0.f); }
         if (bf >= 0.f && e.bindKind == 2) { if (bf <= 0.001f && !editing) return; a.y = b.y - (b.y - a.y) * std::max(bf, editing ? 0.02f : 0.f); }
+        if (tinted) {   // (its fill too: for the call only)
+            float keep[3] = {e.fillCol[0], e.fillCol[1], e.fillCol[2]};
+            for (int i = 0; i < 3; ++i) e.fillCol[i] *= tintK[i];
+            DrawShape(dl, e, a, b, col, editing);
+            for (int i = 0; i < 3; ++i) e.fillCol[i] = keep[i];
+            return;
+        }
         DrawShape(dl, e, a, b, col, editing); return;
     }
     if (e.type == E_IMAGE && e.minimap) { DrawMinimap(dl, e, a, b, col, editing); return; }
