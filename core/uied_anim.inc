@@ -637,8 +637,13 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
         ImVec2 q[4] = { ImVec2(p.x, p.y - r), ImVec2(p.x + r, p.y), ImVec2(p.x, p.y + r), ImVec2(p.x - r, p.y) };
         dl->AddConvexPolyFilled(q, 4, col); dl->AddPolyline(q, 4, IM_COL32(0, 0, 0, 200), ImDrawFlags_Closed, 1.f);
     };
-    float y = ra.y + rulerH;
-    dl->PushClipRect(o, rb, true);
+    static float rowScroll = 0;   // the rows scroll (wheel over the names) when they don't fit
+    {
+        const float rowsH = rowH * (rows.size() + 1), roomH = sheetH - rulerH;
+        rowScroll = std::max(0.f, std::min(rowScroll, std::max(0.f, rowsH - roomH)));
+    }
+    float y = ra.y + rulerH - rowScroll;
+    dl->PushClipRect(ImVec2(o.x, ra.y + rulerH), rb, true);
     if (!c) dl->AddText(ImVec2(o.x + 8, y + 6), IM_COL32(150, 150, 150, 255), "Pick an element on the right.");
     else {
         // summary: every key of the clip
@@ -659,12 +664,14 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
                 // the way to the next key: a line, dashed for hold
                 if (i + 1 < (int)tr.keys.size()) dl->AddLine(kp, ImVec2(X(tr.keys[i + 1].t), kp.y), k.ease == EZ_HOLD ? IM_COL32(255, 255, 255, 40) : (kProp[p].col & 0x00FFFFFF) | 0x70000000, 2.f);
                 diamond(kp, 5, k.sel ? IM_COL32(255, 200, 60, 255) : IM_COL32(235, 235, 235, 255));
-                if (hov && fabsf(m.x - kp.x) <= 6 && fabsf(m.y - kp.y) <= rowH * 0.5f) { hitRow = p; hitKey = i; }
+                if (hov && m.y >= ra.y + rulerH && fabsf(m.x - kp.x) <= 6 && fabsf(m.y - kp.y) <= rowH * 0.5f) { hitRow = p; hitKey = i; }
             }
             if (hov && hitRow == -2 && m.y >= y && m.y < y + rowH) hitRow = -1 - 100 - p;   // a row, no key
             y += rowH;
         }
     }
+    dl->PopClipRect();
+    dl->PushClipRect(o, rb, true);
     // playhead
     dl->AddLine(ImVec2(X(g.time), ra.y), ImVec2(X(g.time), rb.y), IM_COL32(80, 150, 255, 255), 2.f);
     {
@@ -675,7 +682,8 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
     dl->PopClipRect();
     // input: scrub on the ruler (or empty space), drag keys, wheel zoom, middle pan
     static bool scrubbing = false; static int dRow = -1, dKey = -1; static float dStartX = 0; static std::vector<float> dOrig;
-    if (hov && io.MouseWheel != 0) { const float f = io.MouseWheel > 0 ? 0.85f : 1.f / 0.85f, mt = T(m.x); g.tl0 = mt + (g.tl0 - mt) * f; g.tl1 = mt + (g.tl1 - mt) * f; }
+    if (hov && io.MouseWheel != 0 && m.x < ra.x) rowScroll -= io.MouseWheel * rowH * 2;   // over the names: scroll the rows
+    else if (hov && io.MouseWheel != 0) { const float f = io.MouseWheel > 0 ? 0.85f : 1.f / 0.85f, mt = T(m.x); g.tl0 = mt + (g.tl0 - mt) * f; g.tl1 = mt + (g.tl1 - mt) * f; }
     if (hov && ImGui::IsMouseDragging(ImGuiMouseButton_Middle)) { const float dt = -io.MouseDelta.x / (rb.x - ra.x) * (g.tl1 - g.tl0); g.tl0 += dt; g.tl1 += dt; }
     if (hov && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && m.x >= ra.x) {
         if (c && hitKey >= 0) {
@@ -691,9 +699,9 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
         }
     }
     if (hov && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && m.x < ra.x && c) {   // a row's name: focus that track
-        float yy = ra.y + rulerH + rowH;
-        for (int p : rows) { if (m.y >= yy && m.y < yy + rowH) { g.focus = State::F_TRACK; g.track = p; g.graph.fit = g.big.fit = true; } yy += rowH; }
-        if (m.y >= ra.y + rulerH && m.y < ra.y + rulerH + rowH) { g.focus = State::F_CLIP; g.graph.fit = g.big.fit = true; }
+        float yy = ra.y + rulerH + rowH - rowScroll;
+        for (int p : rows) { if (m.y >= yy && m.y < yy + rowH && m.y >= ra.y + rulerH) { g.focus = State::F_TRACK; g.track = p; g.graph.fit = g.big.fit = true; } yy += rowH; }
+        if (m.y >= ra.y + rulerH - rowScroll && m.y < ra.y + rulerH + rowH - rowScroll && m.y >= ra.y + rulerH) { g.focus = State::F_CLIP; g.graph.fit = g.big.fit = true; }
     }
     if (scrubbing) {
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) { g.time = std::max(0.f, Snap(T(m.x))); g.playing = false; }
@@ -709,6 +717,7 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
     if (hov && c && (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_X)) && !io.WantTextInput)
         for (auto& tr : c->tracks) tr.keys.erase(std::remove_if(tr.keys.begin(), tr.keys.end(), [](const Key& k) { return k.sel; }), tr.keys.end());
     if (hov && m.x >= ra.x) ImGui::SetTooltip("Click / drag: move the playhead. Drag keys (Shift: pick several), Delete removes. Wheel: zoom, middle drag: pan.");
+    if (hov && m.x < ra.x) ImGui::SetTooltip("Click a track: graph it (the top row: the whole clip). Wheel: scroll the rows.");
     // ---- expanded: the big graph under the rows
     if (g.expanded) {
         ImGui::Spacing();
