@@ -67,6 +67,7 @@ typedef const char* (*PFN_REUI_RaceDialogPage)(void);     // ... for the race st
 typedef const char* (*PFN_REUI_RaceDialogMpPage)(void);   // ... for it in a multiplayer session ("" none; optional export)
 typedef const char* (*PFN_REUI_GaragePage)(void);         // ... for the garage menu ("The Garage", UI_CareerCrib) ("" none; optional export)
 typedef const char* (*PFN_REUI_CarSelectPage)(void);      // ... for the garage's car select ("" none; optional export)
+typedef const char* (*PFN_REUI_PartsPage)(void);          // ... for the garage's Change Parts menu ("" none; optional export)
 // An element flag (a checkbox on every element while your mod is loaded): hideNow(ctx) returns 1 while flagged elements
 // are to be hidden. hiddenWhenMissing: what flagged elements do when your mod isn't installed. group > 0: only one flag
 // of the group per element (e.g. "hide online" / "online only").
