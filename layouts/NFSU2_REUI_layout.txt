@@ -1,0 +1,11089 @@
+# NFSU2 overlay (UI editor): one layout per game mode
+show=0
+boardrows=4
+boardfollow=1
+listheight=536
+highlightsel=0
+menufade=0.15
+custommenus=1
+flagdef=hide_until_green 0
+flagdef=hide_wreck 0
+flagdef=hide_online 0
+flagdef=online_only 1
+token=hud.text;1 1 1 1;;HUD text grey (192 192 192)
+token=hud.shade;0.21547 0.21547 0.21547 0.828729;;dark panels (black, elements give the opacity)
+token=hud.black;0 0 0 0.883978;;
+token=hud.grey;1 1 1 1;;
+token=Highlight_dark;1 1 1 1;;
+token=hud.shade2;0.143646 0.143646 0.143646 0.901961;;
+token=button.dark;0 0 0 0.480663;;
+token=dark.select;0 0 0 0.482353;;
+token=Menu.black.1;0 0 0 0.52549;;
+token=Menu.grey.1;0.396078 0.396078 0.396078 0.882353;;
+token=Scroll.1;0.678431 0.678431 0.678431 1;;
+token=Scroll.2;0.917647 0.917647 0.917647 1;;
+token=scroll.3;0.172549 0.172549 0.172549 1;;
+gradtoken=hud.glow;clear -> HUD green -> clear (a soft line across a wide stroke);0 1 1 1 0@hud.accent|0.35 1 1 1 1@hud.accent|0.65 1 1 1 1@hud.accent|1 1 1 1 0@hud.accent
+gradtoken=Scroller;;0.0233333 0.172549 0.172549 0.172549 1@Scroll.1|0.16 0.172549 0.172549 0.172549 1@Scroll.1|1 0.172549 0.172549 0.172549 1@Scroll.2
+gradtoken=handle.1;;0 0.172549 0.172549 0.172549 0.44@scroll.3|0.34 0.172549 0.172549 0.172549 1@scroll.3|0.52 0.172549 0.172549 0.172549 1@scroll.3|1 0.172549 0.172549 0.172549 0@scroll.3
+gradtoken=handle.2;;0 0.678431 0.678431 0.678431 1@Scroll.1|0.08 0.678431 0.678431 0.678431 1@Scroll.1|0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+gradtoken=Scrollerdark;;0 0.172549 0.172549 0.172549 0.7@scroll.3|0.17 0.172549 0.172549 0.172549 0.7@scroll.3|1 0.172549 0.172549 0.172549 0.5@scroll.3
+gradtoken=scroller_dark;;0 0.172549 0.172549 0.172549 0.7@scroll.3|0.17 0.172549 0.172549 0.172549 0.7@scroll.3|1 0.172549 0.172549 0.172549 0.5@scroll.3
+mapart=MINIMAP_GPS_SELECTOR;-
+grouplink=5 menu panel 1|0 0 0 Pause 1/menu panel 1|0 0 0 Pause 1/Pause Options/menu panel 1
+grouplink=5 Garage Screen|0 0 0 Garage/Pause Screen
+grouplink=5 Change Parts|0 0 0 Garage/Change Parts/Change Parts|0 0 0 Garage/Change Parts/Performance Parts/Change Parts|0 0 0 Garage/Change Parts/Specialties/Change Parts|0 0 0 Garage/Change Parts/Body Parts/Change Parts|0 0 0 Garage/Change Parts/Performance Parts/Performance Upgrade/Change Parts|0 0 0 Garage/Change Parts/Rim Brands/Change Parts
+
+[element]
+mode=freeroam
+type=image
+name=Dial
+anchor=2
+x=97
+y=321
+w=256
+h=256
+scale=1
+color=1 1 1 1
+visible=1
+group=Tachometer
+texture={tach_fill}
+pack=
+uv=0 0 1 1
+tint=tach_paint_1
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Redline
+anchor=2
+x=-39
+y=326
+w=128
+h=32
+scale=1
+color=0.4588 0.0431 0.0431 0.7843
+visible=1
+group=Tachometer
+layer=1
+texture={tach_redline}
+pack=
+uv=0 0 1 1
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=RPM numbers
+anchor=2
+x=-28
+y=326
+w=128
+h=128
+scale=1
+color=1 1 1 1
+visible=1
+group=Tachometer
+layer=2
+texture={tach_lines}
+pack=
+uv=0 0 1 1
+tint=tach_paint_3
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=N2O backing
+anchor=2
+x=71
+y=277
+w=256
+h=128
+scale=1
+color=1 1 1 0.3922
+visible=1
+group=Tachometer
+layer=3
+texture=TACH_NOS_BACKING
+pack=
+uv=0 0 1 1
+showif=nos_installed
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=N2O
+anchor=2
+x=71
+y=275
+w=256
+h=128
+scale=1
+color=0 0.502 0.7529 0.5882
+visible=1
+group=Tachometer
+layer=4
+texture=TACH_NOS
+pack=
+uv=0 0 1 1
+showif=nos_installed
+bind=nos_tank
+bindkind=4
+bindrange=0 100
+bindrot=-180 -28
+pivot=-31 52
+additive=1
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=N2O extra
+anchor=2
+x=71
+y=275
+w=256
+h=128
+scale=1
+color=0.549 0.8627 1 0.7843
+visible=1
+group=Tachometer
+layer=4
+texture=TACH_NOS_ALPHA
+pack=
+uv=0 0 1 1
+showif=nos_extra
+bind=nos_extra
+bindkind=4
+bindrange=0 100
+bindrot=-180 -28
+pivot=-31 52
+additive=1
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Needle
+anchor=2
+x=-82
+y=327
+w=16
+h=128
+scale=1
+color=1 1 1 1
+visible=1
+group=Tachometer
+layer=5
+texture={tach_needle}
+pack=
+uv=0 0 1 1
+bind=tach_angle
+bindkind=3
+bindrange=0 235
+bindrot=0 235
+tint=tach_paint_2
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Shift light
+anchor=2
+x=-58
+y=373
+w=16
+h=16
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Tachometer
+layer=7
+texture=SHIFT_UP_ICON
+pack=
+uv=0 0 1 1
+showif=shift_light
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=text
+name=Speed
+anchor=2
+x=-37
+y=389
+w=0
+h=12
+scale=0.8
+color=0.7529 0.7529 0.7529 1
+visible=1
+group=Tachometer
+layer=6
+font=font_conduitmditctt38bi
+text={speedo}
+align=2
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=text
+name=Speed units
+anchor=2
+x=-40
+y=417
+w=0
+h=12
+scale=0.75
+color=0.7529 0.7529 0.7529 1
+visible=1
+group=Tachometer
+layer=6
+font=conduitmditc_tt14i
+text={speed_unit_hud}
+align=2
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=text
+name=Gear
+anchor=2
+x=-39
+y=368
+w=0
+h=12
+scale=0.6
+color=1 0.502 0.251 1
+visible=1
+group=Tachometer
+layer=6
+font=font_conduitmditctt38bi
+text={gear}
+align=2
+showif=!gear_grey
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=text
+name=Gear (grey)
+anchor=2
+x=-39
+y=368
+w=0
+h=12
+scale=0.6
+color=0.7647 0.7647 0.7647 1
+visible=1
+group=Tachometer
+layer=6
+font=font_conduitmditctt38bi
+text={gear}
+align=2
+showif=gear_grey
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Boost dial
+anchor=2
+x=-93
+y=388
+w=128
+h=128
+scale=1
+color=1 1 1 1
+visible=1
+group=Tachometer/Boost
+texture={turbo_fill}
+pack=
+uv=0 0 1 1
+showif=turbo
+tint=tach_paint_1
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Boost red 1
+anchor=2
+x=-154
+y=386
+w=32
+h=32
+scale=1
+color=0.4588 0.0431 0.0431 0.7843
+visible=1
+group=Tachometer/Boost
+layer=1
+texture=3RDPERSON_TURBORED_1
+pack=
+uv=0 0 1 1
+showif=turbo
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Boost red 2
+anchor=2
+x=-181
+y=432
+w=32
+h=32
+scale=1
+color=0.4588 0.0431 0.0431 0.7843
+visible=1
+group=Tachometer/Boost
+layer=1
+texture=3RDPERSON_TURBORED_1
+pack=
+uv=0 0 1 1
+rot=171.5
+showif=turbo
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Boost numbers
+anchor=2
+x=-93
+y=388
+w=128
+h=128
+scale=1
+color=1 1 1 1
+visible=1
+group=Tachometer/Boost
+layer=2
+texture={turbo_lines}
+pack=
+uv=0 0 1 1
+showif=turbo
+tint=tach_paint_3
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Boost needle
+anchor=2
+x=-177
+y=392
+w=16
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+group=Tachometer/Boost
+layer=5
+texture={turbo_needle}
+pack=
+uv=0 0 1 1
+showif=turbo
+bind=boost
+bindkind=3
+bindrange=0 100
+bindrot=104 222
+tint=tach_paint_2
+flags=replace:tachometer,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Backing
+anchor=0
+x=24
+y=37.4
+w=128
+h=128
+scale=1
+color=1 1 1 0.3922
+visible=1
+group=Engage panel
+texture=ENGAGE_BACKING
+pack=
+uv=0 0 1 1
+flags=replace:engage,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=D-pad backing
+anchor=0
+x=33
+y=96.4
+w=64
+h=64
+scale=1
+color=1 1 1 0.7843
+visible=1
+group=Engage panel
+layer=1
+texture=ENGAGE_DPAD_BACKING
+pack=
+uv=0 0 1 1
+flags=replace:engage,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=D-pad up
+anchor=0
+x=57.1
+y=99
+w=16
+h=8
+scale=1
+color=1 1 1 0.3137
+visible=1
+group=Engage panel
+layer=2
+texture=ENGAGE_DPAD_HIGHLIGHT
+pack=
+uv=0 0 1 1
+flags=replace:engage,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=D-pad right
+anchor=0
+x=82.1
+y=124
+w=16
+h=8
+scale=1
+color=1 1 1 0.3137
+visible=1
+group=Engage panel
+layer=2
+texture=ENGAGE_DPAD_HIGHLIGHT
+pack=
+uv=0 0 1 1
+rot=90
+flags=replace:engage,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=D-pad up (event)
+anchor=0
+x=57.1
+y=99
+w=16
+h=8
+scale=1
+color=0.8118 0.502 0.1882 1
+visible=1
+group=Engage panel
+layer=3
+texture=ENGAGE_DPAD_HIGHLIGHT
+pack=
+uv=0 0 1 1
+showif=engage_event
+anim=3
+keys=800;0 1 1 1;400 1.625 1.75 1;800 1 1 1
+flags=replace:engage,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=D-pad right (new message)
+anchor=0
+x=82.1
+y=124
+w=16
+h=8
+scale=1
+color=0.8118 0.502 0.1882 1
+visible=1
+group=Engage panel
+layer=3
+texture=ENGAGE_DPAD_HIGHLIGHT
+pack=
+uv=0 0 1 1
+rot=90
+showif=sms_new
+anim=3
+keys=800;0 1 1 1;400 1.625 1.75 1;800 1 1 1
+flags=replace:engage,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=D-pad right (messages)
+anchor=0
+x=82.1
+y=124
+w=16
+h=8
+scale=1
+color=0.8118 0.502 0.1882 1
+visible=1
+group=Engage panel
+layer=3
+texture=ENGAGE_DPAD_HIGHLIGHT
+pack=
+uv=0 0 1 1
+rot=90
+showif=sms_waiting
+flags=replace:engage,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Cingular logo
+anchor=0
+x=49
+y=113.4
+w=32
+h=32
+scale=1
+color=0.8118 0.502 0.1882 1
+visible=1
+group=Engage panel
+layer=4
+texture=ENGAGE_CINGULAR_ICON
+pack=
+uv=0 0 1 1
+showif=!engage_phone
+flags=replace:engage,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Phone
+anchor=0
+x=49
+y=113.4
+w=32
+h=32
+scale=1
+color=0.8118 0.502 0.1882 1
+visible=1
+group=Engage panel
+layer=4
+texture=ENGAGE_PHONE_ICON
+pack=
+uv=0 0 1 1
+showif=engage_phone
+anim=3
+keys=800;0 1 1 1;380 1 1 1;400 0.875 0.875 0.588;800 0.875 0.875 0.588
+flags=replace:engage,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Event icon
+anchor=0
+x=31
+y=41.9
+w=114
+h=57
+scale=1
+color=1 1 1 0.8157
+visible=1
+group=Engage panel
+layer=4
+texture={engage_icon}
+pack=
+uv=0 0 1 1
+showif=engage_event
+anim=3
+keys=800;0 1 1 1;400 0.7895 0.7895 0.7059;800 1 1 1
+flags=replace:engage,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Envelope (new)
+anchor=0
+x=91.1
+y=112
+w=64
+h=32
+scale=1
+color=1 1 1 1
+visible=1
+group=Engage panel
+layer=4
+texture={sms_icon}
+pack=
+uv=0 0 1 1
+showif=sms_new
+tint=sms_color
+anim=3
+keys=800;0 1 1 1;220 1 1 1;240 1 1 0;520 1 1 0;540 1 1 1;800 1 1 1
+flags=replace:engage,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Envelope
+anchor=0
+x=91.1
+y=112
+w=64
+h=32
+scale=1
+color=0.8118 0.502 0.1882 0.6275
+visible=1
+group=Engage panel
+layer=4
+texture=ENGAGE_SMS_MAIL
+pack=
+uv=0 0 1 1
+showif=sms_waiting
+flags=replace:engage,hide_wreck
+
+[element]
+mode=freeroam
+type=text
+name=Message count
+anchor=0
+x=151.1
+y=115
+w=0
+h=12
+scale=0.7
+color=0.8118 0.502 0.1882 0.6275
+visible=0
+group=Engage panel
+layer=5
+font=font_conduitmditctt38bi
+text=x{sms_count}
+align=1
+showif=sms_waiting
+flags=replace:engage,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Backing
+anchor=2
+x=80
+y=50
+w=280
+h=28
+scale=1
+color=1 1 1 1
+visible=1
+group=Bank/backing
+texture=3RDPERSON_BOXTIME
+pack=?
+uv=0 0 1 1
+flags=replace:bank,hide_wreck
+
+[element]
+mode=freeroam
+type=image
+name=Backing copy
+anchor=2
+x=80
+y=36
+w=280
+h=28
+scale=1
+color=1 1 1 1
+visible=1
+group=Bank/backing
+texture=3RDPERSON_BOXTIME
+pack=?
+uv=0 1 1 0
+flags=replace:bank,hide_wreck
+
+[element]
+mode=freeroam
+type=text
+name=Bank label
+anchor=2
+x=-183
+y=47
+w=0
+h=12
+scale=0.9
+color=0.7529 0.7529 0.7529 1
+visible=1
+group=Bank
+layer=2
+font=conduitmditc_tt14i
+text=Bank:
+align=0
+flags=replace:bank,hide_wreck
+
+[element]
+mode=freeroam
+type=text
+name=Bank
+anchor=2
+x=-26
+y=46
+w=0
+h=12
+scale=0.6
+color=0.7529 0.7529 0.7529 1
+visible=1
+group=Bank
+layer=1
+font=font_conduitmditctt38bi
+text={cash}
+align=2
+flags=replace:bank,hide_wreck
+
+[element]
+mode=freeroam
+type=text
+name=Bank (green flash)
+anchor=2
+x=-38
+y=46
+w=0
+h=12
+scale=0.6
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Bank
+layer=2
+font=font_conduitmditctt38bi
+text={cash}
+align=2
+showif=bank_reward_on
+anim=3
+keys=2700;0 1 1 0;60 1 1 1;240 1 1 1;300 1 1 0;2700 1 1 0
+flags=replace:bank,hide_wreck
+
+[element]
+mode=freeroam
+type=text
+name=Bank Reward
+anchor=2
+x=-37
+y=77
+w=0
+h=12
+scale=0.85
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Bank
+layer=3
+font=font_conduitmditctt38bi
+text=Bank Reward: {bank_reward}
+align=2
+showif=bank_reward_on
+anim=3
+keys=2700;0 0.321 0.321 0 11 1;280 1 1 1 0 0;360 1.176 1.176 1 -4 0;440 1 1 1 0 0;2500 1 1 1 0 0;2600 0.529 0.529 0 0 -26;2700 0.529 0.529 0 0 -26
+flags=replace:bank,hide_wreck
+
+[element]
+mode=freeroam
+type=text
+name=Region
+anchor=1
+x=0
+y=72
+w=0
+h=12
+scale=0.65
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Region popup
+layer=5
+font=font_conduitmditctt38bi
+text={region}
+align=1
+showif=region_new
+anim=3
+keys=1800;0 0.231 0.231 0 0 9;300 1 1 1 0 0;1720 1 1 1 0 0;1800 1 1 0 0 0
+
+[element]
+mode=freeroam
+type=text
+name=Trick
+anchor=2
+x=-36
+y=225
+w=0
+h=12
+scale=0.9
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Style points
+layer=5
+font=conduitmditc_tt14i
+text={trick_name}
+align=2
+showif=trick_on
+anim=3
+keys=!600;0 1.111 1.111 0 30 0;400 1.333 1.333 1 -10 0;600 1 1 1 0 0
+
+[element]
+mode=freeroam
+type=text
+name=Trick (fading)
+anchor=2
+x=-36
+y=225
+w=0
+h=12
+scale=0.9
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Style points
+layer=5
+font=conduitmditc_tt14i
+text={trick_name}
+align=2
+showif=trick_fading
+anim=3
+keys=!900;0 1 1 1 0 0;400 1 1 1 0 0;600 1.222 1.222 1 -10 0;900 0.333 0.333 0 80 0
+
+[element]
+mode=freeroam
+type=text
+name=Points
+anchor=2
+x=-36
+y=238
+w=0
+h=12
+scale=0.9
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Style points
+layer=5
+font=font_conduitmditctt38bi
+text={trick_points}
+align=2
+showif=trick_on
+anim=3
+keys=!600;0 1.111 1.111 0 30 0;400 1.333 1.333 1 -10 0;600 1 1 1 0 0
+
+[element]
+mode=freeroam
+type=text
+name=Points (fading)
+anchor=2
+x=-36
+y=238
+w=0
+h=12
+scale=0.9
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Style points
+layer=5
+font=font_conduitmditctt38bi
+text={trick_points}
+align=2
+showif=trick_fading
+anim=3
+keys=!900;0 1 1 1 0 0;400 1 1 1 0 0;600 1.222 1.222 1 -10 0;900 0.333 0.333 0 80 0
+
+[element]
+mode=freeroam
+type=image
+name=Mirror
+anchor=1
+x=0
+y=15
+w=240
+h=80
+scale=1
+color=1 1 1 1
+visible=1
+group=Rear-view mirror
+texture={rvm}
+pack=
+uv=0 0 1 1
+showif=rvm_on
+
+[element]
+mode=freeroam
+type=image
+name=Map
+anchor=6
+x=30
+y=-34
+w=128
+h=128
+scale=1
+color=1 1 1 1
+visible=1
+group=Minimap
+texture=
+pack=
+uv=0 0 1 1
+minimap=1
+mapzoom=1
+mapblip=1
+mapplayer=1
+flags=replace:minimap
+
+[element]
+mode=freeroam
+type=image
+name=Frame
+anchor=6
+x=14
+y=-18
+w=160
+h=160
+scale=1
+color=1 1 1 0.39779
+visible=1
+group=Minimap
+layer=-2
+texture=vec:minimap/MINIMAP_BORDER
+pack=
+uv=0 0 1 1
+showif=map_on
+flags=replace:minimap
+
+[element]
+mode=freeroam
+type=image
+name=North
+anchor=6
+x=78
+y=-162
+w=32
+h=16
+scale=1
+color=0.8118 0.502 0.1882 0.784
+visible=1
+group=Minimap
+layer=1
+texture=vec:minimap/MINIMAP_NORTH_INDICATOR
+pack=
+uv=0 0 1 1
+showif=map_on
+bind=map_north
+bindkind=3
+bindrange=-360 360
+bindrot=-360 360
+pivot=0 72
+flags=replace:minimap
+colortoken=hud.orange 0.784
+
+[element]
+mode=race
+type=image
+name=Position backing
+anchor=2
+x=65
+y=26
+w=256
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+group=Race HUD Online/Position
+texture=3RDPERSON_BOXCORNER
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Position
+anchor=2
+x=-147
+y=39.9
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Position
+font=font_conduitmditctt38bi
+text={pos}
+align=2
+
+[element]
+mode=race
+type=text
+name=Position suffix
+anchor=2
+x=-145
+y=46.7
+w=0
+h=64
+scale=0.7
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Position
+font=font_conduitmditctt38bi
+text={pos_suffix}
+align=0
+
+[element]
+mode=race
+type=image
+name=Lap backing
+anchor=2
+x=61
+y=59
+w=256
+h=64
+scale=1
+color=0 0 0 1
+visible=1
+group=Race HUD Online/Laps
+texture=3RDPERSON_BOXLAPS
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Lap label
+anchor=2
+x=-180.5
+y=77.8
+w=0
+h=64
+scale=0.6
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Laps
+font=font_conduitmditctt38bi
+text=Lap
+align=0
+
+[element]
+mode=race
+type=text
+name=Lap
+anchor=2
+x=-97.5
+y=78.8
+w=0
+h=64
+scale=0.6
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Laps
+font=font_conduitmditctt38bi
+text={lap}
+align=0
+
+[element]
+mode=race
+type=text
+name=Laps
+anchor=2
+x=-74.5
+y=78.8
+w=0
+h=64
+scale=0.6
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Laps
+font=font_conduitmditctt38bi
+text=/{laps}
+align=0
+
+[element]
+mode=race
+type=image
+name=Row 1 number box
+anchor=2
+x=-166.75
+y=106
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=1
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 1 bar
+anchor=2
+x=-32.5
+y=106
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=1
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 1 position
+anchor=2
+x=-185.5
+y=105
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=1
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 1 name
+anchor=2
+x=-35
+y=105
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=1
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 2 number box
+anchor=2
+x=-166.75
+y=126
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=2
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 2 bar
+anchor=2
+x=-32.5
+y=126
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=2
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 2 position
+anchor=2
+x=-185.5
+y=125
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=2
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 2 name
+anchor=2
+x=-35
+y=125
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=2
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 3 number box
+anchor=2
+x=-166.75
+y=146
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=3
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 3 bar
+anchor=2
+x=-32.5
+y=146
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=3
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 3 position
+anchor=2
+x=-185.5
+y=145
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=3
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 3 name
+anchor=2
+x=-35
+y=145
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=3
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 4 number box
+anchor=2
+x=-166.75
+y=166
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=4
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 4 bar
+anchor=2
+x=-32.5
+y=166
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=4
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 4 position
+anchor=2
+x=-185.5
+y=165
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=4
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 4 name
+anchor=2
+x=-35
+y=165
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=4
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 5 number box
+anchor=2
+x=-166.75
+y=186
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=5
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 5 bar
+anchor=2
+x=-32.5
+y=186
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=5
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 5 position
+anchor=2
+x=-185.5
+y=185
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=5
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 5 name
+anchor=2
+x=-35
+y=185
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=5
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 6 number box
+anchor=2
+x=-166.75
+y=206
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=6
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 6 bar
+anchor=2
+x=-32.5
+y=206
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=6
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 6 position
+anchor=2
+x=-185.5
+y=205
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=6
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 6 name
+anchor=2
+x=-35
+y=205
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=6
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 7 number box
+anchor=2
+x=-166.75
+y=226
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=7
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 7 bar
+anchor=2
+x=-32.5
+y=226
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=7
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 7 position
+anchor=2
+x=-185.5
+y=225
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=7
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 7 name
+anchor=2
+x=-35
+y=225
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=7
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 8 number box
+anchor=2
+x=-166.75
+y=246
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=8
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 8 bar
+anchor=2
+x=-32.5
+y=246
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=8
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 8 position
+anchor=2
+x=-185.5
+y=245
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=8
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 8 name
+anchor=2
+x=-35
+y=245
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=8
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 9 number box
+anchor=2
+x=-166.75
+y=266
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=9
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 9 bar
+anchor=2
+x=-32.5
+y=266
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=9
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 9 position
+anchor=2
+x=-185.5
+y=265
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=9
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 9 name
+anchor=2
+x=-35
+y=265
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=9
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 10 number box
+anchor=2
+x=-166.75
+y=286
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=10
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 10 bar
+anchor=2
+x=-32.5
+y=286
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=10
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 10 position
+anchor=2
+x=-185.5
+y=285
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=10
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 10 name
+anchor=2
+x=-35
+y=285
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=10
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 11 number box
+anchor=2
+x=-166.75
+y=306
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=11
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 11 bar
+anchor=2
+x=-32.5
+y=306
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=11
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 11 position
+anchor=2
+x=-185.5
+y=305
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=11
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 11 name
+anchor=2
+x=-35
+y=305
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=11
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 12 number box
+anchor=2
+x=-166.75
+y=326
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=12
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 12 bar
+anchor=2
+x=-32.5
+y=326
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=12
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 12 position
+anchor=2
+x=-185.5
+y=325
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=12
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 12 name
+anchor=2
+x=-35
+y=325
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=12
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Time backing
+anchor=2
+x=58
+y=178
+w=256
+h=32
+scale=1
+color=0 0 0 0.745098
+visible=1
+group=Race HUD Online/Time
+texture=3RDPERSON_BOXTIME
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Time label
+anchor=2
+x=-182
+y=185
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Time
+font=conduitmditc_tt14i
+text=Time:
+align=0
+
+[element]
+mode=race
+type=text
+name=Time
+anchor=2
+x=-35
+y=185
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+group=Race HUD Online/Time
+font=conduitmditc_tt14i
+text={race_time}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 13 number box
+anchor=2
+x=-166.75
+y=346
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=13
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 13 bar
+anchor=2
+x=-32.5
+y=346
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=13
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 13 position
+anchor=2
+x=-185.5
+y=345
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=13
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 13 name
+anchor=2
+x=-35
+y=345
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=13
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 14 number box
+anchor=2
+x=-166.75
+y=366
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=14
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 14 bar
+anchor=2
+x=-32.5
+y=366
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=14
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 14 position
+anchor=2
+x=-185.5
+y=365
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=14
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 14 name
+anchor=2
+x=-35
+y=365
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=14
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 15 number box
+anchor=2
+x=-166.75
+y=386
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=15
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 15 bar
+anchor=2
+x=-32.5
+y=386
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=15
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 15 position
+anchor=2
+x=-185.5
+y=385
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=15
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 15 name
+anchor=2
+x=-35
+y=385
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=15
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 16 number box
+anchor=2
+x=-166.75
+y=406
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=16
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 16 bar
+anchor=2
+x=-32.5
+y=406
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=16
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 16 position
+anchor=2
+x=-185.5
+y=405
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=16
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 16 name
+anchor=2
+x=-35
+y=405
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=16
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 17 number box
+anchor=2
+x=-166.75
+y=426
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=17
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 17 bar
+anchor=2
+x=-32.5
+y=426
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=17
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 17 position
+anchor=2
+x=-185.5
+y=425
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=17
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 17 name
+anchor=2
+x=-35
+y=425
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=17
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 18 number box
+anchor=2
+x=-166.75
+y=446
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=18
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 18 bar
+anchor=2
+x=-32.5
+y=446
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=18
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 18 position
+anchor=2
+x=-185.5
+y=445
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=18
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 18 name
+anchor=2
+x=-35
+y=445
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=18
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Row 19 number box
+anchor=2
+x=-166.75
+y=466
+w=20.5
+h=18
+scale=1
+color=0 0 0 0.745098
+visible=1
+row=19
+group=Race HUD Online/Leaderboard
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=image
+name=Row 19 bar
+anchor=2
+x=-32.5
+y=466
+w=134
+h=18
+scale=1
+color=0 0 0 0.470588
+visible=1
+row=19
+group=Race HUD Online/Leaderboard
+highlight=0 0 0 0.627451
+texture=WHITE16X16_PURE_WHITE
+pack=
+uv=0 0 1 1
+
+[element]
+mode=race
+type=text
+name=Row 19 position
+anchor=2
+x=-185.5
+y=465
+w=0
+h=64
+scale=0.5
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=19
+group=Race HUD Online/Leaderboard
+font=font_conduitmditctt38bi
+text={pos} :
+align=0
+
+[element]
+mode=race
+type=text
+name=Row 19 name
+anchor=2
+x=-35
+y=465
+w=0
+h=64
+scale=0.9
+color=0.752941 0.752941 0.752941 1
+visible=1
+row=19
+group=Race HUD Online/Leaderboard
+highlight=0.792157 0.956863 0.541176 1
+font=conduitmditc_tt14i
+text={gap_name}
+align=2
+
+[element]
+mode=race
+type=image
+name=Mirror
+anchor=1
+x=0
+y=15
+w=240
+h=80
+scale=1
+color=1 1 1 1
+visible=1
+group=Rear-view mirror
+texture={rvm}
+pack=
+uv=0 0 1 1
+showif=rvm_on
+
+[element]
+mode=menus
+type=shape
+name=shape 125
+anchor=4
+x=0
+y=0
+w=600
+h=437
+scale=1
+color=0 0 0 0.883978
+visible=1
+group=Pause 1/Pause Options/Unipad Options/menu_big
+shape=5 5 5 5 3
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+strokealign=1
+strokegrad=1 0 0;0 0.8824 0.8824 0.8824 0.6@hud.line;1 0.8824 0.8824 0.8824 0@hud.line
+strokegradtoken=hud.glow
+colortoken=hud.black 1
+
+[element]
+mode=menus
+type=shape
+name=shape 125 copy
+anchor=4
+x=0
+y=6
+w=579
+h=364
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/menu_big
+shape=5 5 5 5 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+cut=0;
+colortoken=hud.grey 1
+
+[element]
+mode=menus
+type=text
+name=Controls
+anchor=4
+x=288.326
+y=-196.29
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/menu_big
+layer=2
+font=conduitmditc_tt21i
+text=Controls
+align=2
+
+[element]
+mode=menus
+type=text
+name=UniPad Options
+anchor=4
+x=-287.714
+y=-196.286
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/menu_big
+layer=2
+font=conduitmditc_tt21i
+text=UniPad Options
+align=0
+role=title
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=-270
+y=161
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/menu_big
+layer=2
+font=conduitmditc_tt21i
+text=Description
+align=0
+role=desc
+
+[element]
+mode=menus
+type=text
+name=Back copy
+anchor=4
+x=197
+y=203
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/menu_big
+layer=6
+font=conduitmditc_tt21i
+text=Back
+align=0
+
+[element]
+mode=menus
+type=image
+name=icon East (follows the controller)
+anchor=4
+x=185
+y=203
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/menu_big
+layer=9
+texture=icon:auto:East
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=Cell
+anchor=4
+x=-16
+y=-131.95
+w=517
+h=27.75
+scale=1
+color=0.21547 0.21547 0.21547 0.455801
+visible=0
+group=Pause 1/Pause Options/Unipad Options/Grid
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+colortoken=hud.shade 0.55
+
+[element]
+mode=menus
+type=image
+name=Cell selected
+anchor=4
+x=-16
+y=-131.95
+w=517
+h=27.75
+scale=1
+color=0.7922 0.9569 0.5412 0.3
+visible=0
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=1
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+selonly=1
+colortoken=hud.accent 0.3
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-16
+y=-135.7
+w=198
+h=13.5
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+tilekinds=9
+
+[element]
+mode=menus
+type=text
+name=Item text
+anchor=4
+x=-269
+y=-132
+w=0
+h=64
+scale=0.75
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=3
+font=conduitmditc_tt21i
+text={item}
+align=0
+role=label
+tilekinds=9
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=Scroller track
+anchor=4
+x=269
+y=0
+w=4
+h=293.9
+scale=1
+color=0.8824 0.8824 0.8824 0.3
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+role=gtrack
+colortoken=hud.line 0.3
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=269
+y=-126.95
+w=8
+h=40
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=1
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+role=gtab
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Picker: Arrow
+anchor=4
+x=225.629
+y=-131.95
+w=24
+h=24
+scale=1
+color=1 1 1 0.588235
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=2
+texture=U2_MENU_ARROW
+pack=?
+uv=0 0 1 1
+role=arrowR
+selonly=1
+tilekinds=4
+
+[element]
+mode=menus
+type=image
+name=Picker: Arrow
+anchor=4
+x=-15.9315
+y=-131.95
+w=24
+h=24
+scale=1
+color=1 1 1 0.588235
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=2
+texture=U2_MENU_ARROW
+pack=?
+uv=1 1 0 0
+role=arrowL
+selonly=1
+tilekinds=4
+
+[element]
+mode=menus
+type=text
+name=Picker: Steam Controller
+anchor=4
+x=104.969
+y=-131.89
+w=0
+h=64
+scale=0.75
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=2
+font=conduitmditc_tt21i
+text=Steam Controller
+align=1
+role=value
+tilekinds=4
+
+[element]
+mode=menus
+type=text
+name=Picker: Active Gamepad
+anchor=4
+x=-269
+y=-131.95
+w=0
+h=64
+scale=0.75
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=4
+font=conduitmditc_tt21i
+text=Active Gamepad
+align=0
+role=label
+tilekinds=4
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=Slider: 0% bar
+anchor=4
+x=121.297
+y=-132.009
+w=143.416
+h=5.75
+scale=1
+color=0.388235 0.698039 0.133333 1
+visible=0
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=6
+texture=WHITE16X16_PURE_WHITE
+pack=?
+uv=0 0 1 1
+role=fill
+tilekinds=2
+
+[element]
+mode=menus
+type=image
+name=Slider: 0% slider
+anchor=4
+x=49.589
+y=-129.009
+w=16
+h=16
+scale=1
+color=1 1 1 1
+visible=0
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=9
+texture=U2_SLIDERBAR_TAB
+pack=?
+uv=0 0 1 1
+role=tab
+tilekinds=2
+
+[element]
+mode=menus
+type=text
+name=Slider: Steering Deadzone
+anchor=4
+x=-269
+y=-131.95
+w=0
+h=64
+scale=0.75
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=2
+font=conduitmditc_tt21i
+text=Active Gamepad
+align=0
+role=label
+tilekinds=2
+
+[element]
+mode=menus
+type=image
+name=Slider: bar outline
+anchor=4
+x=121.297
+y=-127.944
+w=231.407
+h=32
+scale=1
+color=1 1 1 0.882353
+visible=0
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=2
+texture=U2_TEMP_SLIDERBG
+pack=?
+uv=0 0 1 1
+tilekinds=2
+
+[element]
+mode=menus
+type=text
+name=Slider: 0% text
+anchor=4
+x=28.7017
+y=-132.009
+w=0
+h=64
+scale=0.75
+color=0.753 0.753 0.753 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=1
+font=conduitmditc_tt14i
+text=0%
+align=1
+role=value
+tilekinds=2
+
+[element]
+mode=menus
+type=shape
+name=Highlight
+anchor=4
+x=-13
+y=-132
+w=516
+h=29
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+shape=1.25 1.25 1.25 1.25 0
+fill=1 1 1 0.2
+filltoken=Highlight_dark 0.2
+role=hl
+selonly=1
+colortoken=Highlight_dark 1
+
+[element]
+mode=menus
+type=shape
+name=Vector slider: track
+anchor=4
+x=121.297
+y=-132.009
+w=152
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=2
+shape=12 12 12 12 2.4
+fill=0.917647 0.917647 0.917647 1
+filltoken=Scroll.2 1
+strokegrad=1 0 0;0 0.678431 0.678431 0.678431 1@Scroll.1;0.0866667 0.678431 0.678431 0.678431 1@Scroll.1;1 0.917647 0.917647 0.917647 1@Scroll.2
+strokegradtoken=Scroller
+tilekinds=2
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Vector slider: bar
+anchor=4
+x=121.297
+y=-132.009
+w=145
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=6
+shape=1.5 1.5 1.5 1.5 0
+fill=0.3882 0.698 0.1333 1
+filltoken=hud.bright_green 1
+role=fill
+tilekinds=2
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Vector slider: knob
+anchor=4
+x=192.297
+y=-132.009
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Grid
+layer=9
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+role=tab
+tilekinds=2
+
+[element]
+mode=menus
+type=shape
+name=shape 125
+anchor=4
+x=0
+y=0
+w=600
+h=437
+scale=1
+color=0 0 0 0.883978
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/menu_big
+shape=5 5 5 5 3
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+strokealign=1
+strokegrad=1 0 0;0 0.8824 0.8824 0.8824 0.6@hud.line;1 0.8824 0.8824 0.8824 0@hud.line
+strokegradtoken=hud.glow
+colortoken=hud.black 1
+
+[element]
+mode=menus
+type=shape
+name=shape 125 copy
+anchor=4
+x=0
+y=6
+w=579
+h=364
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/menu_big
+shape=5 5 5 5 0
+fill=0.21547 0.21547 0.21547 0.745856
+filltoken=hud.shade 0.9
+cut=0;
+colortoken=hud.grey 1
+
+[element]
+mode=menus
+type=text
+name=Controls
+anchor=4
+x=288.326
+y=-196.29
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/menu_big
+layer=2
+font=conduitmditc_tt21i
+text=Controls
+align=2
+
+[element]
+mode=menus
+type=text
+name=Rumble Options
+anchor=4
+x=-287.714
+y=-196.286
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/menu_big
+layer=2
+font=conduitmditc_tt21i
+text=Rumble Options
+align=0
+role=title
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=-270
+y=161
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/menu_big
+layer=2
+font=conduitmditc_tt21i
+text=Description
+align=0
+role=desc
+
+[element]
+mode=menus
+type=text
+name=Back copy
+anchor=4
+x=197
+y=203
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/menu_big
+layer=6
+font=conduitmditc_tt21i
+text=Back
+align=0
+
+[element]
+mode=menus
+type=image
+name=icon East (follows the controller)
+anchor=4
+x=185
+y=203
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/menu_big
+layer=9
+texture=icon:auto:East
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=Cell
+anchor=4
+x=-16
+y=-131.95
+w=517
+h=27.75
+scale=1
+color=0.21547 0.21547 0.21547 0.455801
+visible=0
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+colortoken=hud.shade 0.55
+
+[element]
+mode=menus
+type=image
+name=Cell selected
+anchor=4
+x=-16
+y=-131.95
+w=517
+h=27.75
+scale=1
+color=0.7922 0.9569 0.5412 0.3
+visible=0
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=1
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+selonly=1
+colortoken=hud.accent 0.3
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-16
+y=-135.7
+w=198
+h=13.5
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+tilekinds=9
+
+[element]
+mode=menus
+type=text
+name=Item text
+anchor=4
+x=-269
+y=-132
+w=0
+h=64
+scale=0.75
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=3
+font=conduitmditc_tt21i
+text={item}
+align=0
+role=label
+tilekinds=9
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=Scroller track
+anchor=4
+x=269
+y=0
+w=4
+h=293.9
+scale=1
+color=0.8824 0.8824 0.8824 0.3
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+role=gtrack
+colortoken=hud.line 0.3
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=269
+y=-126.95
+w=8
+h=40
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=1
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+role=gtab
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Picker: Arrow
+anchor=4
+x=225.629
+y=-131.95
+w=24
+h=24
+scale=1
+color=1 1 1 0.588235
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=2
+texture=U2_MENU_ARROW
+pack=?
+uv=0 0 1 1
+role=arrowR
+selonly=1
+tilekinds=4
+
+[element]
+mode=menus
+type=image
+name=Picker: Arrow
+anchor=4
+x=-15.9315
+y=-131.95
+w=24
+h=24
+scale=1
+color=1 1 1 0.588235
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=2
+texture=U2_MENU_ARROW
+pack=?
+uv=1 1 0 0
+role=arrowL
+selonly=1
+tilekinds=4
+
+[element]
+mode=menus
+type=text
+name=Picker: Steam Controller
+anchor=4
+x=104.969
+y=-131.89
+w=0
+h=64
+scale=0.75
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=2
+font=conduitmditc_tt21i
+text=Steam Controller
+align=1
+role=value
+tilekinds=4
+
+[element]
+mode=menus
+type=text
+name=Picker: Active Gamepad
+anchor=4
+x=-269
+y=-131.95
+w=0
+h=64
+scale=0.75
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=4
+font=conduitmditc_tt21i
+text=Active Gamepad
+align=0
+role=label
+tilekinds=4
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=Slider: 0% bar
+anchor=4
+x=121.297
+y=-132.009
+w=143.416
+h=5.75
+scale=1
+color=0.388235 0.698039 0.133333 1
+visible=0
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=6
+texture=WHITE16X16_PURE_WHITE
+pack=?
+uv=0 0 1 1
+role=fill
+tilekinds=2
+
+[element]
+mode=menus
+type=image
+name=Slider: 0% slider
+anchor=4
+x=49.589
+y=-129.009
+w=16
+h=16
+scale=1
+color=1 1 1 1
+visible=0
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=9
+texture=U2_SLIDERBAR_TAB
+pack=?
+uv=0 0 1 1
+role=tab
+tilekinds=2
+
+[element]
+mode=menus
+type=text
+name=Slider: Steering Deadzone
+anchor=4
+x=-269
+y=-131.95
+w=0
+h=64
+scale=0.75
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=2
+font=conduitmditc_tt21i
+text=Active Gamepad
+align=0
+role=label
+tilekinds=2
+
+[element]
+mode=menus
+type=image
+name=Slider: bar outline
+anchor=4
+x=121.297
+y=-127.944
+w=231.407
+h=32
+scale=1
+color=1 1 1 0.882353
+visible=0
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=2
+texture=U2_TEMP_SLIDERBG
+pack=?
+uv=0 0 1 1
+tilekinds=2
+
+[element]
+mode=menus
+type=text
+name=Slider: 0% text
+anchor=4
+x=28.7017
+y=-132.009
+w=0
+h=64
+scale=0.75
+color=0.753 0.753 0.753 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=1
+font=conduitmditc_tt14i
+text=0%
+align=1
+role=value
+tilekinds=2
+
+[element]
+mode=menus
+type=shape
+name=Highlight
+anchor=4
+x=-13
+y=-132
+w=516
+h=29
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+shape=1.25 1.25 1.25 1.25 0
+fill=1 1 1 0.2
+filltoken=Highlight_dark 0.2
+role=hl
+selonly=1
+colortoken=Highlight_dark 1
+
+[element]
+mode=menus
+type=shape
+name=Vector slider: track
+anchor=4
+x=121.297
+y=-132.009
+w=152
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=2
+shape=12 12 12 12 2.4
+fill=0.917647 0.917647 0.917647 1
+filltoken=Scroll.2 1
+strokegrad=1 0 0;0 0.678431 0.678431 0.678431 1@Scroll.1;0.0866667 0.678431 0.678431 0.678431 1@Scroll.1;1 0.917647 0.917647 0.917647 1@Scroll.2
+strokegradtoken=Scroller
+tilekinds=2
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Vector slider: bar
+anchor=4
+x=121.297
+y=-132.009
+w=145
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=6
+shape=1.5 1.5 1.5 1.5 0
+fill=0.3882 0.698 0.1333 1
+filltoken=hud.bright_green 1
+role=fill
+tilekinds=2
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Vector slider: knob
+anchor=4
+x=192.297
+y=-132.009
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+layer=9
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+role=tab
+tilekinds=2
+
+[element]
+mode=menus
+type=shape
+name=shape 125
+anchor=4
+x=0
+y=0
+w=600
+h=437
+scale=1
+color=0 0 0 0.883978
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/menu_big
+shape=5 5 5 5 3
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+strokealign=1
+strokegrad=1 0 0;0 0.8824 0.8824 0.8824 0.6@hud.line;1 0.8824 0.8824 0.8824 0@hud.line
+strokegradtoken=hud.glow
+colortoken=hud.black 1
+
+[element]
+mode=menus
+type=shape
+name=shape 125 copy
+anchor=4
+x=0
+y=6
+w=579
+h=364
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/menu_big
+shape=5 5 5 5 0
+fill=0.21547 0.21547 0.21547 0.745856
+filltoken=hud.shade 0.9
+cut=0;
+colortoken=hud.grey 1
+
+[element]
+mode=menus
+type=text
+name=Controls
+anchor=4
+x=288.326
+y=-196.29
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/menu_big
+layer=2
+font=conduitmditc_tt21i
+text=Controls
+align=2
+
+[element]
+mode=menus
+type=text
+name=UniPad Options
+anchor=4
+x=-287.714
+y=-196.286
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/menu_big
+layer=2
+font=conduitmditc_tt21i
+text=UniPad Options
+align=0
+role=title
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=-270
+y=161
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/menu_big
+layer=2
+font=conduitmditc_tt21i
+text=Description
+align=0
+role=desc
+
+[element]
+mode=menus
+type=text
+name=Back copy
+anchor=4
+x=197
+y=203
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/menu_big
+layer=6
+font=conduitmditc_tt21i
+text=Back
+align=0
+
+[element]
+mode=menus
+type=image
+name=icon East (follows the controller)
+anchor=4
+x=185
+y=203
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/menu_big
+layer=9
+texture=icon:auto:East
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=Cell
+anchor=4
+x=-118
+y=-127
+w=220.5
+h=27.75
+scale=1
+color=0.21547 0.21547 0.21547 0.455801
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/Grid
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+colortoken=hud.shade 0.55
+
+[element]
+mode=menus
+type=image
+name=Cell selected
+anchor=4
+x=-118
+y=-127
+w=220.5
+h=27.75
+scale=1
+color=0.7922 0.9569 0.5412 0.3
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/Grid
+layer=1
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+selonly=1
+colortoken=hud.accent 0.3
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-118
+y=-130.75
+w=85.3
+h=13.5
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/Grid
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+tilekinds=7
+
+[element]
+mode=menus
+type=text
+name=Item text
+anchor=4
+x=-118
+y=-121.75
+w=0
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/Grid
+layer=3
+font=conduitmditc_tt14i
+text={item}
+align=1
+role=label
+tilekinds=7
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=Scroller track
+anchor=4
+x=257.5
+y=-1
+w=4
+h=282
+scale=1
+color=0.8824 0.8824 0.8824 0.3
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/Grid
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+role=gtrack
+colortoken=hud.line 0.3
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=257.5
+y=-122
+w=8
+h=40
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/Grid
+layer=1
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+role=gtab
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Binding: Steering
+anchor=4
+x=-214
+y=-127
+w=0
+h=64
+scale=0.75
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/Grid
+layer=2
+font=conduitmditc_tt21i
+text=Steering
+align=0
+role=label
+tilekinds=8
+
+[element]
+mode=menus
+type=image
+name=Binding: icon LeftStick (follows the controller)
+anchor=4
+x=-35
+y=-127
+w=32
+h=32
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/Grid
+layer=9
+texture=icon:auto:LeftStick
+pack=
+uv=0 0 1 1
+role=bindicon
+tilekinds=8
+
+[element]
+mode=menus
+type=shape
+name=panel 1
+anchor=4
+x=0
+y=-3
+w=598
+h=170
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/menu panel 1
+shape=5 5 5 5 2
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+strokegrad=1 0 0;0 0.8824 0.8824 0.8824 1@hud.line;1 0.8824 0.8824 0.8824 0@hud.line
+strokegradtoken=hud.glow
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Header text
+anchor=4
+x=-285
+y=-70
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Pause 1/menu panel 1
+font=conduitmditc_tt21i
+text={page.title}
+align=0
+role=title
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=carousel window
+anchor=4
+x=0
+y=-14
+w=580
+h=62
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/menu panel 1
+shape=7 7 0 0 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+cut=0;Pause Box
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Description winodw
+anchor=4
+x=0
+y=32
+w=580
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/menu panel 1
+shape=0 0 7 7 0
+fill=0.143646 0.143646 0.143646 0.901961
+filltoken=hud.shade2 1
+cut=0;Pause Box
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Select
+anchor=4
+x=196
+y=62
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Pause 1/menu panel 1/button 1
+font=conduitmditc_tt21i
+text=Select
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=icon South (follows the controller)
+anchor=4
+x=184
+y=62
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/menu panel 1/button 1
+layer=9
+texture=icon:auto:South
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-52
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/Carousel
+shape=3 3 3 3 0
+fill=0.21547 0.21547 0.21547 0.920246
+filltoken=hud.shade 1.11043
+cut=0;Pause Box
+role=gtrack
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158.7
+y=-14.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/Carousel
+shape=7 7 7 7 3
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-14.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-14.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-14.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-12.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Pause 1/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-12.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Pause 1/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-280
+y=-52.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Pause 1/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=text
+name=Back
+anchor=4
+x=91
+y=62
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Pause 1/menu panel 1/button 2
+font=conduitmditc_tt21i
+text=Back
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=icon East (follows the controller)
+anchor=4
+x=79
+y=62
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/menu panel 1/button 2
+layer=9
+texture=icon:auto:East
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=0
+y=31
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Pause 1/menu panel 1
+font=conduitmditc_tt21i
+text=Return to Explore Mode
+align=1
+role=desc
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=panel 1
+anchor=4
+x=0
+y=-3
+w=598
+h=170
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/Pause Options/menu panel 1
+shape=5 5 5 5 2
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+strokegrad=1 0 0;0 0.8824 0.8824 0.8824 1@hud.line;1 0.8824 0.8824 0.8824 0@hud.line
+strokegradtoken=hud.glow
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Header text
+anchor=4
+x=-285
+y=-70
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/menu panel 1
+font=conduitmditc_tt21i
+text={page.title}
+align=0
+role=title
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=carousel window
+anchor=4
+x=0
+y=-14
+w=580
+h=62
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/Pause Options/menu panel 1
+shape=7 7 0 0 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+cut=0;Pause Box
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Description winodw
+anchor=4
+x=0
+y=32
+w=580
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/Pause Options/menu panel 1
+shape=0 0 7 7 0
+fill=0.143646 0.143646 0.143646 0.901961
+filltoken=hud.shade2 1
+cut=0;Pause Box
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Select
+anchor=4
+x=196
+y=62
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/menu panel 1/button 1
+font=conduitmditc_tt21i
+text=Select
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=icon South (follows the controller)
+anchor=4
+x=184
+y=62
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/menu panel 1/button 1
+layer=9
+texture=icon:auto:South
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=text
+name=Back
+anchor=4
+x=91
+y=62
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/menu panel 1/button 2
+font=conduitmditc_tt21i
+text=Back
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=icon East (follows the controller)
+anchor=4
+x=79
+y=62
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/menu panel 1/button 2
+layer=9
+texture=icon:auto:East
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=0
+y=31
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Pause 1/Pause Options/menu panel 1
+font=conduitmditc_tt21i
+text=Return to Explore Mode
+align=1
+role=desc
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-149
+w=592
+h=150
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Pause Screen
+shape=7 7 7 7 0
+fill=0 0 0 0.524862
+filltoken=Menu.black.1 0.998804
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Carousel Box
+anchor=4
+x=0
+y=-134
+w=580
+h=62
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Pause Screen
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.883977
+filltoken=Menu.grey.1 1.00184
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Description Box
+anchor=4
+x=0
+y=-88
+w=580
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Pause Screen
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-172
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Carousel
+shape=3 3 3 3 0
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
+role=gtrack
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Confirm Box
+anchor=4
+x=0
+y=8
+w=598
+h=201
+scale=1
+color=0.21547 0.21547 0.21547 0.828729
+visible=1
+group=Confirm Page
+shape=7 7 7 7 2
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+strokegrad=1 0 0;0 0.8824 0.8824 0.8824 1@hud.line;1 0.8824 0.8824 0.8824 0@hud.line
+strokegradtoken=hud.glow
+colortoken=hud.shade 1
+
+[element]
+mode=menus
+type=shape
+name=Confirm Box Window
+anchor=4
+x=0
+y=25
+w=580
+h=148
+scale=1
+color=0.21547 0.21547 0.21547 0.828729
+visible=1
+group=Confirm Page
+shape=7 7 7 7 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+cut=0;
+colortoken=hud.shade 1
+
+[element]
+mode=menus
+type=text
+name=text 105
+anchor=4
+x=0
+y=1
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Confirm Page
+font=conduitmditc_tt21i
+text={dialog.text}
+align=1
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-151
+y=68.25
+w=103.68
+h=20.7
+scale=1
+color=1 1 1 1
+visible=1
+group=Confirm Page/Grid
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=text
+name=Item text
+anchor=4
+x=-158
+y=75
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Confirm Page/Grid
+layer=3
+font=conduitmditc_tt21i
+text={item}
+align=1
+role=label
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=Scroller track
+anchor=4
+x=305.202
+y=74
+w=4
+h=46
+scale=1
+color=0.8824 0.8824 0.8824 0.3
+visible=1
+group=Confirm Page/Grid
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+role=gtrack
+colortoken=hud.line 0.3
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=305.202
+y=54.1303
+w=8
+h=40
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Confirm Page/Grid
+layer=1
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+role=gtab
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Cell selected
+anchor=4
+x=-151
+y=74
+w=268
+h=41
+scale=1
+color=0.21547 0.21547 0.21547 0.920246
+visible=1
+group=Confirm Page/Grid
+shape=10 10 10 10 0
+fill=0 0 0 0.482353
+filltoken=dark.select 1
+selonly=1
+colortoken=hud.shade 1.11043
+
+[element]
+mode=menus
+type=shape
+name=Cell
+anchor=4
+x=-151
+y=74
+w=268
+h=41
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Confirm Page/Grid
+shape=10 10 10 10 0
+fill=0 0 0 0.480663
+filltoken=button.dark 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Map box
+anchor=4
+x=0
+y=5
+w=597
+h=428
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=World Map/Map menu
+shape=7 7 7 7 3
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+strokealign=1
+strokegrad=1 0 0;0 0.7922 0.9569 0.5412 1@hud.accent;1 0.7922 0.9569 0.5412 0@hud.accent
+strokegradtoken=hud.glow
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=World Map
+anchor=0
+x=138
+y=40
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=World Map/Map menu
+font=conduitmditc_tt21i
+text=World Map
+align=0
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Full Map
+anchor=0
+x=511
+y=42
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=World Map/Map menu
+font=conduitmditc_tt21i
+text={map.view}
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Hide on World Map
+anchor=0
+x=182
+y=429
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=World Map/Map menu
+font=conduitmditc_tt21i
+text=Hide on World Map
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Activate GPS
+anchor=0
+x=437
+y=429
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=World Map/Map menu
+font=conduitmditc_tt21i
+text={map.gps.action}
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Back
+anchor=0
+x=661
+y=429
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=World Map/Map menu
+font=conduitmditc_tt21i
+text=Back
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Legend
+anchor=4
+x=-178
+y=-149
+w=231
+h=41
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=World Map/Map menu
+shape=7 0 0 0 0
+fill=0.21547 0.21547 0.21547 0.920246
+filltoken=hud.shade 1.11043
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Legend/select
+anchor=4
+x=-178
+y=30
+w=231
+h=305
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=World Map/Map menu
+shape=0 0 0 7 0
+fill=0.143646 0.143646 0.143646 0.900553
+filltoken=hud.shade2 0.998439
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=image
+name=Map (world map)
+anchor=4
+x=116
+y=6
+w=353
+h=353
+scale=1
+color=1 1 1 1
+visible=1
+group=World Map
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+worldmap=1
+mapblip=1
+mapplayer=1
+
+[element]
+mode=menus
+type=shape
+name=Outline
+anchor=4
+x=-178
+y=-112
+w=232
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=0
+group=World Map/Legend
+layer=1
+shape=0 0 0 0 2
+fill=0.21547 0.21547 0.21547 0
+filltoken=hud.shade 0
+strokealign=1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Outline
+anchor=4
+x=-282
+y=-112
+w=25
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=0
+group=World Map/Legend
+layer=1
+shape=0 0 0 0 2
+fill=0.21547 0.21547 0.21547 0
+filltoken=hud.shade 0
+strokealign=1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=image
+name=Cell selected
+anchor=4
+x=-178
+y=-111
+w=232
+h=21.5385
+scale=1
+color=0.7922 0.9569 0.5412 0.3
+visible=1
+group=World Map/Legend
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+selonly=1
+colortoken=hud.accent 0.3
+
+[element]
+mode=menus
+type=image
+name=Tick
+anchor=4
+x=-282
+y=-112
+w=15
+h=15
+scale=1
+color=0.302 0.851 0.251 1
+visible=1
+group=World Map/Legend
+layer=3
+texture=MINIMAP_ICON_TICK
+pack=
+uv=0 0 1 1
+role=on
+
+[element]
+mode=menus
+type=image
+name=Cross
+anchor=4
+x=-281.5
+y=-112
+w=15
+h=15
+scale=1
+color=0.902 0.2 0.149 1
+visible=1
+group=World Map/Legend
+layer=3
+texture=MINIMAP_ICON_CROSS
+pack=
+uv=0 0 1 1
+role=off
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-256
+y=-112
+w=16
+h=16
+scale=1
+color=1 1 1 1
+visible=1
+group=World Map/Legend
+layer=3
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=text
+name=Item text
+anchor=4
+x=-243.5
+y=-112
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=World Map/Legend
+layer=3
+font=conduitmditc_tt21i
+text={item}
+align=0
+role=label
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=LINE
+anchor=4
+x=-179
+y=-100
+w=234
+h=2
+scale=1
+color=0 0 0 0
+visible=1
+group=World Map/Legend/outline box
+layer=11
+shape=0 0 0 0 0
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+colortoken=hud.black 0
+
+[element]
+mode=menus
+type=shape
+name=LINE
+anchor=4
+x=-179
+y=-123
+w=234
+h=2
+scale=1
+color=0 0 0 0.883978
+visible=1
+group=World Map/Legend/outline box
+layer=11
+shape=0 0 0 0 0
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+colortoken=hud.black 1
+
+[element]
+mode=menus
+type=shape
+name=LINE
+anchor=4
+x=-295
+y=-112
+w=2
+h=22
+scale=1
+color=0 0 0 0.883978
+visible=1
+group=World Map/Legend/outline box
+layer=11
+shape=0 0 0 0 0
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+colortoken=hud.black 1
+
+[element]
+mode=menus
+type=shape
+name=LINE
+anchor=4
+x=-269
+y=-112
+w=2
+h=22
+scale=1
+color=0 0 0 0.883978
+visible=1
+group=World Map/Legend/outline box
+layer=11
+shape=0 0 0 0 0
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+colortoken=hud.black 1
+
+[element]
+mode=menus
+type=shape
+name=LINE
+anchor=4
+x=-63
+y=-112
+w=2
+h=22
+scale=1
+color=0 0 0 0.883978
+visible=1
+group=World Map/Legend/outline box
+layer=11
+shape=0 0 0 0 0
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+colortoken=hud.black 1
+
+[element]
+mode=menus
+type=image
+name=Your Car icon
+anchor=4
+x=-259.5
+y=-159.25
+w=15
+h=15
+scale=1
+color=0.188 0.812 0.188 1
+visible=1
+group=World Map/Key
+layer=3
+texture=MINIMAP_ICON_CAR
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=text
+name=Your Car
+anchor=4
+x=-243.5
+y=-159.25
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=World Map/Key
+layer=3
+font=conduitmditc_tt21i
+text=Your Car
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=Opponent Car icon
+anchor=4
+x=-259.5
+y=-138.75
+w=15
+h=15
+scale=1
+color=0.812 0.502 0.188 1
+visible=1
+group=World Map/Key
+layer=3
+texture=MINIMAP_ICON_CAR
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=text
+name=Opponent Car
+anchor=4
+x=-243.5
+y=-138.75
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=World Map/Key
+layer=3
+font=conduitmditc_tt21i
+text=Opponent Car
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=icon West (follows the controller)
+anchor=4
+x=-263.5
+y=201
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=World Map/Map menu
+layer=9
+texture=icon:auto:West
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=icon South (follows the controller)
+anchor=4
+x=-8.5
+y=201
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=World Map/Map menu
+layer=9
+texture=icon:auto:South
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=icon East (follows the controller)
+anchor=4
+x=215.5
+y=201
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=World Map/Map menu
+layer=9
+texture=icon:auto:East
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=icon LT (follows the controller)
+anchor=4
+x=-13.7
+y=-189.3
+w=25
+h=25
+scale=1
+color=1 1 1 0.588
+visible=1
+group=World Map/Map menu
+layer=9
+texture=icon:bind:FENG_LTRIGGER
+pack=
+uv=0 0 1 1
+anim=4
+bounce=1.3 400 0 1.7
+playon=bindheld.FENG_LTRIGGER
+
+[element]
+mode=menus
+type=image
+name=icon RT (follows the controller)
+anchor=4
+x=254.7
+y=-189.3
+w=25
+h=25
+scale=1
+color=1 1 1 0.588
+visible=1
+group=World Map/Map menu
+layer=9
+texture=icon:bind:FENG_RTRIGGER
+pack=
+uv=0 0 1 1
+anim=4
+bounce=1.3 400 0 1.7
+playon=bindheld.FENG_RTRIGGER
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-2
+w=597
+h=433
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Race Start Regular
+shape=7 7 7 7 3
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+strokealign=1
+strokegrad=1 0 0;0 0.7922 0.9569 0.5412 1@hud.accent;1 0.7922 0.9569 0.5412 0@hud.accent
+strokegradtoken=hud.glow
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Cingular icon
+anchor=4
+x=-271
+y=-188
+w=28
+h=28
+scale=1
+color=0.8118 0.502 0.1882 1
+visible=1
+group=Race Start Regular
+layer=3
+texture=ENGAGE_CINGULAR_ICON
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=Phone icon
+anchor=4
+x=-44
+y=-182
+w=26
+h=26
+scale=1
+color=1 1 1 1
+visible=1
+group=Race Start Regular
+layer=3
+texture=ENGAGE_PHONE_ICON
+pack=
+uv=0 0 1 1
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Title
+anchor=4
+x=-26
+y=-182
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Race Start Regular
+layer=3
+font=conduitmditc_tt21i
+text=Incoming Mobile Message
+align=0
+role=title
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=From bar
+anchor=4
+x=0
+y=-152
+w=572
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Regular
+layer=1
+shape=7 7 7 7 0
+fill=0.21547 0.21547 0.21547 0.920246
+filltoken=hud.shade 1.11043
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=From
+anchor=4
+x=-279
+y=-152
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Race Start Regular
+layer=3
+font=conduitmditc_tt21i
+text={race.from}
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Subject bar
+anchor=4
+x=0
+y=-124
+w=572
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Regular
+layer=1
+shape=7 7 7 7 0
+fill=0.21547 0.21547 0.21547 0.920246
+filltoken=hud.shade 1.11043
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Subject
+anchor=4
+x=-279
+y=-124
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Race Start Regular
+layer=3
+font=conduitmditc_tt21i
+text={race.subject}
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=Route map
+anchor=4
+x=-158
+y=21
+w=258
+h=258
+scale=1
+color=0.696133 0.696133 0.696133 1
+visible=1
+group=Race Start Regular
+layer=2
+texture={race.map}
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=shape
+name=Info backing
+anchor=4
+x=0
+y=47
+w=574
+h=314
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Regular
+layer=1
+shape=0 7 7 7 0
+fill=0.21547 0.21547 0.21547 0.895525
+filltoken=hud.shade 1.0806
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Map backing
+anchor=4
+x=-158
+y=21
+w=266
+h=264
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Regular
+layer=1
+shape=0 0 0 0 0
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Message
+anchor=1
+x=123
+y=222
+w=276
+h=64
+scale=0.65
+color=1 1 1 1
+visible=1
+group=Race Start Regular
+layer=3
+font=conduitmditc_tt21i
+text={race.message}
+align=0
+wrap=1
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Purse row
+anchor=4
+x=130
+y=-38
+w=296
+h=21
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Regular/purse
+layer=2
+shape=0 0 0 0 0
+fill=0.143646 0.143646 0.143646 0.900553
+filltoken=hud.shade2 0.998439
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Purse label
+anchor=4
+x=-10
+y=-39
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Race Start Regular/purse
+layer=3
+font=conduitmditc_tt21i
+text=Purse:
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Purse value
+anchor=4
+x=271
+y=-38
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Race Start Regular/purse
+layer=3
+font=conduitmditc_tt21i
+text={race.purse}
+align=2
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Race Type row
+anchor=4
+x=130
+y=-90
+w=296
+h=21
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Regular/Race Type
+layer=2
+shape=0 0 0 0 0
+fill=0.143646 0.143646 0.143646 0.900553
+filltoken=hud.shade2 0.998439
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Race Type label
+anchor=4
+x=-10
+y=-91
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Race Start Regular/Race Type
+layer=3
+font=conduitmditc_tt21i
+text=Race Type:
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Race Type value
+anchor=4
+x=271
+y=-90
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Race Start Regular/Race Type
+layer=3
+font=conduitmditc_tt21i
+text={race.type}
+align=2
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Distance row
+anchor=4
+x=130
+y=-64
+w=296
+h=21
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Regular/Distance
+layer=2
+shape=0 0 0 0 0
+fill=0.143646 0.143646 0.143646 0.900553
+filltoken=hud.shade2 0.998439
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Distance label
+anchor=4
+x=-10
+y=-65
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Race Start Regular/Distance
+layer=3
+font=conduitmditc_tt21i
+text=Distance:
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Distance value
+anchor=4
+x=271
+y=-64
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Race Start Regular/Distance
+layer=3
+font=conduitmditc_tt21i
+text={race.distance}
+align=2
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Cell
+anchor=4
+x=-143.9
+y=179
+w=268
+h=41
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Regular/Grid
+layer=2
+shape=10 10 10 10 0
+fill=0 0 0 0.480663
+filltoken=button.dark 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Cell selected
+anchor=4
+x=-143.9
+y=179
+w=268
+h=41
+scale=1
+color=0.21547 0.21547 0.21547 0.920246
+visible=1
+group=Race Start Regular/Grid
+layer=2
+shape=10 10 10 10 0
+fill=0 0 0 0.482353
+filltoken=dark.select 1
+selonly=1
+colortoken=hud.shade 1.11043
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-143.9
+y=173
+w=103.68
+h=20.7
+scale=1
+color=1 1 1 1
+visible=1
+group=Race Start Regular/Grid
+layer=3
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=text
+name=Item text
+anchor=4
+x=-150.9
+y=180
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Race Start Regular/Grid
+layer=4
+font=conduitmditc_tt21i
+text={item}
+align=1
+role=label
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-2
+w=597
+h=433
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Race Start Multiplayer
+shape=7 7 7 7 3
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+strokealign=1
+strokegrad=1 0 0;0 0.7922 0.9569 0.5412 1@hud.accent;1 0.7922 0.9569 0.5412 0@hud.accent
+strokegradtoken=hud.glow
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Cingular icon
+anchor=4
+x=-271
+y=-188
+w=28
+h=28
+scale=1
+color=0.8118 0.502 0.1882 1
+visible=1
+group=Race Start Multiplayer
+layer=3
+texture=ENGAGE_CINGULAR_ICON
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=Phone icon
+anchor=4
+x=-44
+y=-182
+w=26
+h=26
+scale=1
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer
+layer=3
+texture=ENGAGE_PHONE_ICON
+pack=
+uv=0 0 1 1
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Title
+anchor=4
+x=-26
+y=-182
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer
+layer=3
+font=conduitmditc_tt21i
+text=Incoming Mobile Message
+align=0
+role=title
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=From bar
+anchor=4
+x=0
+y=-152
+w=572
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Multiplayer
+layer=1
+shape=7 7 7 7 0
+fill=0.21547 0.21547 0.21547 0.920246
+filltoken=hud.shade 1.11043
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=From
+anchor=4
+x=-279
+y=-152
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer
+layer=3
+font=conduitmditc_tt21i
+text={race.from}
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Subject bar
+anchor=4
+x=0
+y=-124
+w=572
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Multiplayer
+layer=1
+shape=7 7 7 7 0
+fill=0.21547 0.21547 0.21547 0.920246
+filltoken=hud.shade 1.11043
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Subject
+anchor=4
+x=-279
+y=-124
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer
+layer=3
+font=conduitmditc_tt21i
+text={race.subject}
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=Route map
+anchor=4
+x=-158
+y=21
+w=258
+h=258
+scale=1
+color=0.696133 0.696133 0.696133 1
+visible=1
+group=Race Start Multiplayer
+layer=2
+texture={race.map}
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=shape
+name=Info backing
+anchor=4
+x=0
+y=47
+w=574
+h=314
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Multiplayer
+layer=1
+shape=0 7 7 7 0
+fill=0.21547 0.21547 0.21547 0.895525
+filltoken=hud.shade 1.0806
+cut=0;Panel
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Map backing
+anchor=4
+x=-158
+y=21
+w=266
+h=264
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Multiplayer
+layer=1
+shape=0 0 0 0 0
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Message
+anchor=1
+x=123
+y=222
+w=276
+h=64
+scale=0.65
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer
+layer=3
+font=conduitmditc_tt21i
+text={race.message}
+align=0
+wrap=1
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Purse row
+anchor=4
+x=130
+y=-38
+w=296
+h=21
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Multiplayer/purse
+layer=2
+shape=0 0 0 0 0
+fill=0.143646 0.143646 0.143646 0.900553
+filltoken=hud.shade2 0.998439
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Purse label
+anchor=4
+x=-10
+y=-39
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/purse
+layer=3
+font=conduitmditc_tt21i
+text=Purse:
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Purse value
+anchor=4
+x=271
+y=-38
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/purse
+layer=3
+font=conduitmditc_tt21i
+text={race.purse}
+align=2
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Race Type row
+anchor=4
+x=130
+y=-90
+w=296
+h=21
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Multiplayer/Race Type
+layer=2
+shape=0 0 0 0 0
+fill=0.143646 0.143646 0.143646 0.900553
+filltoken=hud.shade2 0.998439
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Race Type label
+anchor=4
+x=-10
+y=-91
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Race Type
+layer=3
+font=conduitmditc_tt21i
+text=Race Type:
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Race Type value
+anchor=4
+x=271
+y=-90
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Race Type
+layer=3
+font=conduitmditc_tt21i
+text={race.type}
+align=2
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Distance row
+anchor=4
+x=130
+y=-64
+w=296
+h=21
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Multiplayer/Distance
+layer=2
+shape=0 0 0 0 0
+fill=0.143646 0.143646 0.143646 0.900553
+filltoken=hud.shade2 0.998439
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Distance label
+anchor=4
+x=-10
+y=-65
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Distance
+layer=3
+font=conduitmditc_tt21i
+text=Distance:
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Distance value
+anchor=4
+x=271
+y=-64
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Distance
+layer=3
+font=conduitmditc_tt21i
+text={race.distance}
+align=2
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=130
+y=139
+w=322
+h=16.9177
+scale=1
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Grid copy
+layer=3
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=text
+name=Item text
+anchor=4
+x=122.174
+y=139.507
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Grid copy
+layer=4
+font=conduitmditc_tt21i
+text={item}
+align=1
+role=label
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Cell
+anchor=4
+x=130
+y=139
+w=299.639
+h=20.7971
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Multiplayer/Grid copy
+layer=2
+shape=7 7 7 7 0
+fill=0 0 0 0.480663
+filltoken=button.dark 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Cell selected
+anchor=4
+x=130
+y=139
+w=299.639
+h=20.7971
+scale=1
+color=0.21547 0.21547 0.21547 0.920246
+visible=1
+group=Race Start Multiplayer/Grid copy
+layer=2
+shape=7 7 7 7 0
+fill=0 0 0 0.482353
+filltoken=dark.select 1
+selonly=1
+colortoken=hud.shade 1.11043
+
+[element]
+mode=menus
+type=shape
+name=shape 125
+anchor=4
+x=0
+y=0
+w=600
+h=437
+scale=1
+color=0 0 0 0.883978
+visible=1
+group=Race Start Multiplayer/Race Settings/menu_big
+shape=5 5 5 5 3
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+strokealign=1
+strokegrad=1 0 0;0 0.8824 0.8824 0.8824 0.6@hud.line;1 0.8824 0.8824 0.8824 0@hud.line
+strokegradtoken=hud.glow
+colortoken=hud.black 1
+
+[element]
+mode=menus
+type=shape
+name=shape 125 copy
+anchor=4
+x=0
+y=6
+w=579
+h=364
+scale=1
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Race Settings/menu_big
+shape=5 5 5 5 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+cut=0;
+colortoken=hud.grey 1
+
+[element]
+mode=menus
+type=text
+name=Controls
+anchor=4
+x=288.326
+y=-196.29
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=Race Start Multiplayer/Race Settings/menu_big
+layer=2
+font=conduitmditc_tt21i
+text={race.type}
+align=2
+
+[element]
+mode=menus
+type=text
+name=UniPad Options
+anchor=4
+x=-287.714
+y=-196.286
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=Race Start Multiplayer/Race Settings/menu_big
+layer=2
+font=conduitmditc_tt21i
+text=Race Settings
+align=0
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=-270
+y=161
+w=0
+h=64
+scale=0.75
+color=0.792157 0.956863 0.541176 1
+visible=1
+group=Race Start Multiplayer/Race Settings/menu_big
+layer=2
+font=conduitmditc_tt21i
+text=Description
+align=0
+role=desc
+
+[element]
+mode=menus
+type=text
+name=Back copy
+anchor=4
+x=197
+y=203
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Race Settings/menu_big
+layer=6
+font=conduitmditc_tt21i
+text=Back
+align=0
+
+[element]
+mode=menus
+type=image
+name=icon East (follows the controller)
+anchor=4
+x=185
+y=203
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Race Settings/menu_big
+layer=9
+texture=icon:auto:East
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=Cell
+anchor=4
+x=-16
+y=-131.95
+w=517
+h=27.75
+scale=1
+color=0.21547 0.21547 0.21547 0.455801
+visible=0
+group=Race Start Multiplayer/Race Settings/Grid
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+colortoken=hud.shade 0.55
+
+[element]
+mode=menus
+type=image
+name=Cell selected
+anchor=4
+x=-16
+y=-131.95
+w=517
+h=27.75
+scale=1
+color=0.7922 0.9569 0.5412 0.3
+visible=0
+group=Race Start Multiplayer/Race Settings/Grid
+layer=1
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+selonly=1
+colortoken=hud.accent 0.3
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-16
+y=-135.7
+w=198
+h=13.5
+scale=1
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+tilekinds=9
+
+[element]
+mode=menus
+type=text
+name=Item text
+anchor=4
+x=-269
+y=-132
+w=0
+h=64
+scale=0.75
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+layer=3
+font=conduitmditc_tt21i
+text={item}
+align=0
+role=label
+tilekinds=9
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=Scroller track
+anchor=4
+x=269
+y=0
+w=4
+h=293.9
+scale=1
+color=0.8824 0.8824 0.8824 0.3
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+role=gtrack
+colortoken=hud.line 0.3
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=269
+y=-126.95
+w=8
+h=40
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+layer=1
+texture=WHITE16X16
+pack=
+uv=0 0 1 1
+role=gtab
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Picker: Arrow
+anchor=4
+x=225.629
+y=-131.95
+w=24
+h=24
+scale=1
+color=1 1 1 0.588235
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+layer=2
+texture=U2_MENU_ARROW
+pack=?
+uv=0 0 1 1
+role=arrowR
+selonly=1
+tilekinds=4
+
+[element]
+mode=menus
+type=image
+name=Picker: Arrow
+anchor=4
+x=-15.9315
+y=-131.95
+w=24
+h=24
+scale=1
+color=1 1 1 0.588235
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+layer=2
+texture=U2_MENU_ARROW
+pack=?
+uv=1 1 0 0
+role=arrowL
+selonly=1
+tilekinds=4
+
+[element]
+mode=menus
+type=text
+name=Picker: Steam Controller
+anchor=4
+x=104.969
+y=-131.89
+w=0
+h=64
+scale=0.75
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+layer=2
+font=conduitmditc_tt21i
+text=Steam Controller
+align=1
+role=value
+tilekinds=4
+
+[element]
+mode=menus
+type=text
+name=Picker: Active Gamepad
+anchor=4
+x=-269
+y=-131.95
+w=0
+h=64
+scale=0.75
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+layer=4
+font=conduitmditc_tt21i
+text=Active Gamepad
+align=0
+role=label
+tilekinds=4
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=Slider: 0% bar
+anchor=4
+x=121.297
+y=-132.009
+w=143.416
+h=5.75
+scale=1
+color=0.388235 0.698039 0.133333 1
+visible=0
+group=Race Start Multiplayer/Race Settings/Grid
+layer=6
+texture=WHITE16X16_PURE_WHITE
+pack=?
+uv=0 0 1 1
+role=fill
+tilekinds=2
+
+[element]
+mode=menus
+type=image
+name=Slider: 0% slider
+anchor=4
+x=49.589
+y=-129.009
+w=16
+h=16
+scale=1
+color=1 1 1 1
+visible=0
+group=Race Start Multiplayer/Race Settings/Grid
+layer=9
+texture=U2_SLIDERBAR_TAB
+pack=?
+uv=0 0 1 1
+role=tab
+tilekinds=2
+
+[element]
+mode=menus
+type=text
+name=Slider: Steering Deadzone
+anchor=4
+x=-269
+y=-131.95
+w=0
+h=64
+scale=0.75
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+layer=2
+font=conduitmditc_tt21i
+text=Active Gamepad
+align=0
+role=label
+tilekinds=2
+
+[element]
+mode=menus
+type=image
+name=Slider: bar outline
+anchor=4
+x=121.297
+y=-127.944
+w=231.407
+h=32
+scale=1
+color=1 1 1 0.882353
+visible=0
+group=Race Start Multiplayer/Race Settings/Grid
+layer=2
+texture=U2_TEMP_SLIDERBG
+pack=?
+uv=0 0 1 1
+tilekinds=2
+
+[element]
+mode=menus
+type=text
+name=Slider: 0% text
+anchor=4
+x=28.7017
+y=-132.009
+w=0
+h=64
+scale=0.75
+color=0.753 0.753 0.753 1
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+layer=1
+font=conduitmditc_tt14i
+text=0%
+align=1
+role=value
+tilekinds=2
+
+[element]
+mode=menus
+type=shape
+name=Highlight
+anchor=4
+x=-13
+y=-132
+w=516
+h=29
+scale=1
+color=1 1 1 1
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+shape=1.25 1.25 1.25 1.25 0
+fill=1 1 1 0.2
+filltoken=Highlight_dark 0.2
+role=hl
+selonly=1
+colortoken=Highlight_dark 1
+
+[element]
+mode=menus
+type=shape
+name=Vector slider: track
+anchor=4
+x=121.297
+y=-132.009
+w=152
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+layer=2
+shape=12 12 12 12 2.4
+fill=0.917647 0.917647 0.917647 1
+filltoken=Scroll.2 1
+strokegrad=1 0 0;0 0.678431 0.678431 0.678431 1@Scroll.1;0.0866667 0.678431 0.678431 0.678431 1@Scroll.1;1 0.917647 0.917647 0.917647 1@Scroll.2
+strokegradtoken=Scroller
+tilekinds=2
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Vector slider: bar
+anchor=4
+x=121.297
+y=-132.009
+w=145
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+layer=6
+shape=1.5 1.5 1.5 1.5 0
+fill=0.3882 0.698 0.1333 1
+filltoken=hud.bright_green 1
+role=fill
+tilekinds=2
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Vector slider: knob
+anchor=4
+x=192.297
+y=-132.009
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Race Start Multiplayer/Race Settings/Grid
+layer=9
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+role=tab
+tilekinds=2
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158.7
+y=-134.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Carousel
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-134.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-134.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-134.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-132.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-132.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-274
+y=-172.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=4
+x=177
+y=-199
+w=0
+h=64
+scale=0.9
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Pause Screen
+font=conduitmditc_tt21i
+text=The Garage
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=0
+y=-89
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Pause Screen
+font=conduitmditc_tt21i
+text=Return to Explore Mode
+align=1
+role=desc
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Cash Bar
+anchor=4
+x=-204
+y=206
+w=190
+h=32
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Shared/Glyphs Bar/Cash Block
+shape=7 0 0 7 0
+fill=0 0 0 0.502762
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Glyphs Bar
+anchor=4
+x=96
+y=206
+w=407
+h=32
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Shared/Glyphs Bar
+shape=0 7 7 0 0
+fill=0 0 0 0.342541
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=image
+name=icon North (follows the controller)
+anchor=4
+x=226
+y=206
+w=30
+h=30
+scale=1
+color=1 1 1 1
+visible=1
+group=Shared/Glyphs Bar
+layer=11
+texture={page.prompt.2.icon}
+pack=
+uv=0 0 1 1
+showif=page.prompt.2
+
+[element]
+mode=menus
+type=text
+name=Help
+anchor=4
+x=243
+y=206
+w=0
+h=64
+scale=0.65
+color=1 1 1 1
+visible=1
+group=Shared/Glyphs Bar
+font=conduitmditc_tt21i
+text={page.prompt.2}
+align=0
+showif=page.prompt.2
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Context
+anchor=4
+x=-70
+y=206
+w=0
+h=64
+scale=0.65
+color=1 1 1 1
+visible=1
+group=Shared/Glyphs Bar
+font=conduitmditc_tt21i
+text={page.prompt.1}
+align=0
+showif=page.prompt.1
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=image
+name=icon South (follows the controller)
+anchor=4
+x=-86
+y=206
+w=30
+h=30
+scale=1
+color=1 1 1 1
+visible=1
+group=Shared/Glyphs Bar
+layer=11
+texture={page.prompt.1.icon}
+pack=
+uv=0 0 1 1
+showif=page.prompt.1
+
+[element]
+mode=menus
+type=text
+name=Cash
+anchor=4
+x=-204
+y=206
+w=0
+h=64
+scale=0.65
+color=1 1 1 1
+visible=1
+group=Shared/Glyphs Bar/Cash Block
+font=conduitmditc_tt21i
+text={bar.ticker}
+align=1
+swapanim=1
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-162
+w=592
+h=122
+scale=1
+color=0 0 0 0
+visible=1
+group=Garage/Garage Car Select/Car select
+shape=7 7 7 7 2
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=Menu.black.1 0
+
+[element]
+mode=menus
+type=shape
+name=Car select
+anchor=4
+x=0
+y=-144
+w=580
+h=72
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Garage Car Select/Car select
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.883977
+filltoken=Menu.grey.1 1.00184
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-188
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Garage Car Select/Car select
+shape=3 3 3 3 0
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=image
+name=Scroller Tab
+anchor=4
+x=-272
+y=-188
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=0
+group=Garage/Garage Car Select/Car select
+layer=5
+texture=U2_SLIDERBAR_TAB
+pack=?
+uv=0 0 1 1
+bind=car.slotbar
+bindkind=5
+bindrange=0 1
+bindrot=0 544
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=-272
+y=-188
+w=5
+h=5
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Garage/Garage Car Select/Car select
+layer=1
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
+bind=car.slotbar
+bindkind=5
+bindrange=0 1
+bindrot=0 544
+
+[element]
+mode=menus
+type=image
+name=Left Arrow
+anchor=4
+x=-266
+y=-144
+w=23
+h=23
+scale=1
+color=0.86 0.86 0.86 1
+visible=1
+group=Garage/Garage Car Select/Car select/Arrows
+layer=5
+texture=vec:U2_MENU_ARROW
+pack=
+uv=1 0 0 1
+showif=!car.left
+
+[element]
+mode=menus
+type=image
+name=Left Arrow (flash)
+anchor=4
+x=-266
+y=-144
+w=23
+h=23
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Garage Car Select/Car select/Arrows
+layer=5
+texture=vec:U2_MENU_ARROW
+pack=
+uv=1 0 0 1
+showif=car.left
+anim=4
+bounce=1.2 300 0.18 1
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Right Arrow
+anchor=4
+x=266
+y=-144
+w=23
+h=23
+scale=1
+color=0.86 0.86 0.86 1
+visible=1
+group=Garage/Garage Car Select/Car select/Arrows
+layer=5
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+showif=!car.right
+
+[element]
+mode=menus
+type=image
+name=Right Arrow (flash)
+anchor=4
+x=266
+y=-144
+w=23
+h=23
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Garage Car Select/Car select/Arrows
+layer=5
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+showif=car.right
+anim=4
+bounce=1.2 300 0.18 1
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=0
+x=137
+y=20
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Garage Car Select/Car select
+font=conduitmditc_tt21i
+text=Garage Car Select
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Maker logo
+anchor=4
+x=-160
+y=-145
+w=128
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Garage Car Select/Car select
+layer=5
+texture=fe:3E01AD1D
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=Name badge
+anchor=4
+x=90
+y=-145
+w=256
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Garage Car Select/Car select
+layer=5
+texture=fe:B05DD708
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=shape
+name=Slot Bar
+anchor=4
+x=-195
+y=-84
+w=204
+h=27
+scale=1
+color=0 0 0 0
+visible=1
+group=Garage/Garage Car Select/Slot bar
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=Menu.black.1 0
+
+[element]
+mode=menus
+type=text
+name=Slot Text
+anchor=4
+x=-197
+y=-84
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Garage Car Select/Slot bar
+font=conduitmditc_tt21i
+text={fe.6D221AA2}
+align=1
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Performance Bar
+anchor=4
+x=0
+y=168
+w=598
+h=38
+scale=1
+color=0 0 0 0
+visible=1
+group=Shared/Performance
+shape=7 7 7 7 2
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=Menu.black.1 0
+
+[element]
+mode=menus
+type=text
+name=ACCELERATION
+anchor=4
+x=-281
+y=162
+w=0
+h=64
+scale=0.55
+color=1 1 1 1
+visible=1
+group=Shared/Performance
+font=conduitmditc_tt21i
+text=ACCELERATION
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=TOP SPEED
+anchor=4
+x=-81
+y=162
+w=0
+h=64
+scale=0.55
+color=1 1 1 1
+visible=1
+group=Shared/Performance
+font=conduitmditc_tt21i
+text=TOP SPEED
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=HANDLING
+anchor=4
+x=119
+y=162
+w=0
+h=64
+scale=0.55
+color=1 1 1 1
+visible=1
+group=Shared/Performance
+font=conduitmditc_tt21i
+text=HANDLING
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Border
+anchor=4
+x=-203
+y=175
+w=168
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Shared/Performance/ACCELERATION
+shape=12 12 12 12 2.4
+fill=0.172549 0.172549 0.172549 0.4
+filltoken=scroll.3 0.4
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.7@scroll.3;0.17 0.172549 0.172549 0.172549 0.7@scroll.3;1 0.172549 0.172549 0.172549 0.5@scroll.3
+strokegradtoken=scroller_dark
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Meter
+anchor=4
+x=-203
+y=175
+w=162
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Shared/Performance/ACCELERATION
+shape=1.5 1.5 1.5 1.5 0
+fill=0.3882 0.698 0.1333 1
+filltoken=hud.bright_green 1
+bind=car.accel
+bindkind=1
+bindrange=0 100
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=-124
+y=175
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Shared/Performance/ACCELERATION
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
+bind=car.accel.installed
+bindkind=5
+bindrange=0 100
+bindrot=-160 2
+
+[element]
+mode=menus
+type=shape
+name=Border
+anchor=4
+x=-1
+y=175
+w=168
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Shared/Performance/TOP SPEED
+shape=12 12 12 12 2.4
+fill=0.172549 0.172549 0.172549 0.4
+filltoken=scroll.3 0.4
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.7@scroll.3;0.17 0.172549 0.172549 0.172549 0.7@scroll.3;1 0.172549 0.172549 0.172549 0.5@scroll.3
+strokegradtoken=scroller_dark
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Meter
+anchor=4
+x=-1
+y=175
+w=162
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Shared/Performance/TOP SPEED
+shape=1.5 1.5 1.5 1.5 0
+fill=0.3882 0.698 0.1333 1
+filltoken=hud.bright_green 1
+bind=car.topspeed
+bindkind=1
+bindrange=0 100
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=78
+y=175
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Shared/Performance/TOP SPEED
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
+bind=car.topspeed.installed
+bindkind=5
+bindrange=0 100
+bindrot=-160 2
+
+[element]
+mode=menus
+type=shape
+name=Border
+anchor=4
+x=197
+y=175
+w=168
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Shared/Performance/HANDLING
+shape=12 12 12 12 2.4
+fill=0.172549 0.172549 0.172549 0.4
+filltoken=scroll.3 0.4
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.7@scroll.3;0.17 0.172549 0.172549 0.172549 0.7@scroll.3;1 0.172549 0.172549 0.172549 0.5@scroll.3
+strokegradtoken=scroller_dark
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Meter
+anchor=4
+x=197
+y=175
+w=162
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Shared/Performance/HANDLING
+shape=1.5 1.5 1.5 1.5 0
+fill=0.3882 0.698 0.1333 1
+filltoken=hud.bright_green 1
+bind=car.handling
+bindkind=1
+bindrange=0 100
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=276
+y=175
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Shared/Performance/HANDLING
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
+bind=car.handling.installed
+bindkind=5
+bindrange=0 100
+bindrot=-160 2
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-52
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/Pause Options/Carousel
+shape=3 3 3 3 0
+fill=0.21547 0.21547 0.21547 0.920246
+filltoken=hud.shade 1.11043
+cut=0;group:Pause 1/Pause Options/menu panel 1
+role=gtrack
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158.7
+y=-14.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Pause 1/Pause Options/Carousel
+shape=7 7 7 7 3
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-14.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-14.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-14.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Pause 1/Pause Options/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-12.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Pause 1/Pause Options/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-12.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Pause 1/Pause Options/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-280
+y=-52.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Pause 1/Pause Options/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158
+y=-145
+w=134
+h=67
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Garage Car Select/select
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158
+y=-145
+w=134
+h=67
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Garage Car Select/select
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158
+y=-145
+w=134
+h=67
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Garage Car Select/select
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=Visual Rating Bar
+anchor=4
+x=226
+y=-76
+w=144
+h=22
+scale=1
+color=0 0 0 0
+visible=1
+group=Shared/Visual Rating
+shape=0 7 0 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=Menu.black.1 0
+
+[element]
+mode=menus
+type=shape
+name=Rating Bar
+anchor=4
+x=255
+y=-51
+w=86
+h=25
+scale=1
+color=0 0 0 0
+visible=1
+group=Shared/Visual Rating
+shape=0 0 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=Menu.black.1 0
+
+[element]
+mode=menus
+type=text
+name=Visual Rating
+anchor=4
+x=247
+y=-78
+w=0
+h=64
+scale=0.6
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Shared/Visual Rating
+font=conduitmditc_tt21i
+text=Visual Rating
+align=1
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Score
+anchor=4
+x=260
+y=-52
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Shared/Visual Rating
+font=conduitmditc_tt21i
+text={car.visual}
+align=2
+tint=car.visual.tint
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=U2_REPUTATION_STAR_HIGH
+anchor=0
+x=692
+y=175
+w=30
+h=30
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Shared/Visual Rating
+texture=U2_REPUTATION_STAR_HIGH
+pack=?
+uv=0 0 1 1
+tint=car.visual.tint
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Border
+anchor=4
+x=288
+y=44
+w=8
+h=155
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Shared/Visual Rating/Visual Rating Bar
+shape=12 12 12 12 2.4
+fill=0.172549 0.172549 0.172549 0.4
+filltoken=scroll.3 0.4
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.7@scroll.3;0.17 0.172549 0.172549 0.172549 0.7@scroll.3;1 0.172549 0.172549 0.172549 0.5@scroll.3
+strokegradtoken=scroller_dark
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Meter
+anchor=4
+x=288
+y=44
+w=5
+h=151
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Shared/Visual Rating/Visual Rating Bar
+shape=1.5 1.5 1.5 1.5 0
+fill=0.7922 0.9569 0.5412 1
+filltoken=hud.accent 1
+bind=car.visualbar
+bindkind=2
+bindrange=0 1
+tint=car.visual.tint
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=288
+y=-30
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Shared/Visual Rating/Visual Rating Bar
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
+bind=car.visualbar
+bindkind=6
+bindrange=0 1
+bindrot=-149.5 1.5
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-156
+w=592
+h=135
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Carousel Box
+anchor=4
+x=0
+y=-148
+w=580
+h=62
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Change Parts
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.883977
+filltoken=Menu.grey.1 1.00184
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Description Box
+anchor=4
+x=0
+y=-103
+w=580
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-186
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Carousel
+shape=3 3 3 3 0
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
+role=gtrack
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Carousel
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-148.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-274
+y=-186.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=4
+x=-289
+y=-206
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Change Parts
+font=conduitmditc_tt21i
+text=Header
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=0
+y=-103
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Change Parts
+font=conduitmditc_tt21i
+text=Change Body Parts
+align=1
+role=desc
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-156
+w=592
+h=135
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Carousel Box
+anchor=4
+x=0
+y=-148
+w=580
+h=62
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Change Parts
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.883977
+filltoken=Menu.grey.1 1.00184
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Description Box
+anchor=4
+x=0
+y=-103
+w=580
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-186
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Carousel
+shape=3 3 3 3 0
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
+role=gtrack
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Carousel
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-148.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Performance Parts/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Performance Parts/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-274
+y=-186.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Performance Parts/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=4
+x=-289
+y=-206
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Change Parts
+font=conduitmditc_tt21i
+text=Header
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=0
+y=-103
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Change Parts
+font=conduitmditc_tt21i
+text=Change Body Parts
+align=1
+role=desc
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-156
+w=592
+h=135
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Specialties/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Carousel Box
+anchor=4
+x=0
+y=-148
+w=580
+h=62
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Specialties/Change Parts
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.883977
+filltoken=Menu.grey.1 1.00184
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Description Box
+anchor=4
+x=0
+y=-103
+w=580
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Specialties/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-186
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Specialties/Carousel
+shape=3 3 3 3 0
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
+role=gtrack
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Specialties/Carousel
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Specialties/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Specialties/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-148.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Specialties/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Specialties/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Specialties/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-274
+y=-186.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Specialties/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=4
+x=-289
+y=-206
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Specialties/Change Parts
+font=conduitmditc_tt21i
+text=Header
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=0
+y=-103
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Specialties/Change Parts
+font=conduitmditc_tt21i
+text=Change Body Parts
+align=1
+role=desc
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-156
+w=592
+h=135
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Body Parts/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Carousel Box
+anchor=4
+x=0
+y=-148
+w=580
+h=62
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Body Parts/Change Parts
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.883977
+filltoken=Menu.grey.1 1.00184
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Description Box
+anchor=4
+x=0
+y=-103
+w=580
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Body Parts/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-186
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Body Parts/Carousel
+shape=3 3 3 3 0
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
+role=gtrack
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Body Parts/Carousel
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Body Parts/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Body Parts/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-148.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Body Parts/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Body Parts/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Body Parts/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-274
+y=-186.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Body Parts/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=4
+x=-289
+y=-206
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Body Parts/Change Parts
+font=conduitmditc_tt21i
+text=Header
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=0
+y=-103
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Body Parts/Change Parts
+font=conduitmditc_tt21i
+text=Change Body Parts
+align=1
+role=desc
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Panel 1
+anchor=4
+x=0
+y=168
+w=596
+h=36
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Shared/Body Parts Panel
+shape=7 7 7 7 2
+fill=0.3882 0.698 0.1333 1
+filltoken=hud.bright_green 1
+merge=0;Body Parts 1
+showif=gm.parts.count
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=shape
+name=Panel 2
+anchor=4
+x=-274
+y=49
+w=48
+h=273
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Shared/Body Parts Panel
+shape=7 7 7 7 2
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+showif=gm.parts.count
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=shape
+name=Parts List
+anchor=4
+x=-269
+y=49
+w=28
+h=267
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Shared/Body Parts Panel
+shape=7 7 7 7 2
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+cut=0;Panel 2
+showif=gm.parts.count
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=-290
+y=49
+w=8
+h=267
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Shared/Body Parts Panel/Parts
+shape=7 7 7 7 2
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+cut=0;Panel 2
+role=gtrack
+showif=gm.parts.count
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Part Name Text
+anchor=0
+x=395
+y=397
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Shared/Body Parts Panel
+font=conduitmditc_tt21i
+text=STINGRAY
+align=1
+showif=gm.parts.count
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Price Text
+anchor=4
+x=229
+y=168.2
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Shared/Body Parts Panel
+font=conduitmditc_tt21i
+text=1111
+align=1
+showif=gm.parts.count
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Part Name Bar
+anchor=4
+x=-44
+y=168
+w=412
+h=28
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Shared/Body Parts Panel
+shape=7 0 0 7 2
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+showif=gm.parts.count
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=shape
+name=Price Bar
+anchor=4
+x=229
+y=168
+w=131
+h=28
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Shared/Body Parts Panel
+shape=0 7 7 0 2
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+showif=gm.parts.count
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-269
+y=-60
+w=25
+h=25
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Shared/Body Parts Panel/Parts
+shape=3.8 3.8 3.8 3.8 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+showif=gm.parts.count
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-269
+y=-60
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=Shared/Body Parts Panel/Parts
+shape=3.8 3.8 3.8 3.8 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+showif=gm.parts.count
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-269
+y=-60
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=Shared/Body Parts Panel/Parts
+layer=1
+shape=3.8 3.8 3.8 3.8 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+showif=gm.parts.count
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=Seleced part
+anchor=4
+x=-269
+y=-60
+w=10
+h=10
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Shared/Body Parts Panel/Parts
+shape=60 60 60 60 2
+fill=1 1 1 1
+filltoken=hud.text 1
+fillgrad=2 0 0;0.65 1 1 1 1@hud.text;1 1 1 1 0@hud.text
+showif=gm.parts.count
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-290
+y=-24
+w=12
+h=12
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Shared/Body Parts Panel/Parts
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+showif=gm.parts.count
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-156
+w=592
+h=135
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Carousel Box
+anchor=4
+x=0
+y=-148
+w=580
+h=62
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Change Parts
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.883977
+filltoken=Menu.grey.1 1.00184
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Description Box
+anchor=4
+x=0
+y=-103
+w=580
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=4
+x=-289
+y=-206
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Change Parts
+font=conduitmditc_tt21i
+text=Header
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=0
+y=-103
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Change Parts
+font=conduitmditc_tt21i
+text=Change Body Parts
+align=1
+role=desc
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=1
+y=17
+w=592
+h=206
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/perf
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+showif=gm.upgrade.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=upgrades Box
+anchor=4
+x=-1
+y=-25
+w=580
+h=114
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/perf
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+cut=0;
+showif=gm.upgrade.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=scroller
+anchor=4
+x=277
+y=-25
+w=9
+h=67
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
+shape=7 7 7 7 0
+fill=0.7922 0.9569 0.5412 0.882353
+filltoken=hud.accent 0.882353
+cut=0;
+role=gtrack
+showif=gm.upgrade.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Performance Stats box
+anchor=4
+x=-1
+y=78
+w=580
+h=76
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/perf
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+showif=gm.upgrade.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Torque window
+anchor=4
+x=-1
+y=73
+w=571
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque group
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+showif=gm.upgrade.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Power window 
+anchor=4
+x=-1
+y=99
+w=571
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power group
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+showif=gm.upgrade.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Performane Stats
+anchor=4
+x=-280
+y=49
+w=0
+h=64
+scale=0.65
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/perf
+font=conduitmditc_tt21i
+text=Performance Stats
+align=0
+showif=gm.upgrade.shown
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=U2_MENU_ARROW up
+anchor=4
+x=277
+y=-70
+w=21
+h=21
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
+layer=11
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+rot=-90
+role=arrowU
+showif=gm.upgrade.shown
+
+[element]
+mode=menus
+type=image
+name=U2_MENU_ARROW down
+anchor=4
+x=277
+y=20
+w=21
+h=21
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
+layer=11
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+rot=90
+role=arrowD
+showif=gm.upgrade.shown
+
+[element]
+mode=menus
+type=shape
+name=Option 1
+anchor=4
+x=-77
+y=-63
+w=418
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
+shape=7 0 0 7 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+showif=gm.upgrade.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Option 1 ownership
+anchor=4
+x=199
+y=-63
+w=128
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
+shape=0 7 7 0 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+showif=gm.upgrade.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Option 1 text
+anchor=4
+x=-267
+y=-63
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
+layer=2
+font=conduitmditc_tt21i
+text=Option 1
+align=0
+role=label
+showif=gm.upgrade.shown
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Option 1 status
+anchor=4
+x=198
+y=-63
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
+layer=2
+font=conduitmditc_tt21i
+text=Owned
+align=1
+role=value
+showif=gm.upgrade.shown
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Option 1
+anchor=4
+x=-77
+y=-37
+w=418
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=0
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Rows (unused)
+shape=7 0 0 7 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Option 1 ownership
+anchor=4
+x=199
+y=-37
+w=128
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=0
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Rows (unused)
+shape=0 7 7 0 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Option 1 text
+anchor=4
+x=-267
+y=-37
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=0
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Rows (unused)
+font=conduitmditc_tt21i
+text=Option 2
+align=0
+role=desc
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Option 1 status
+anchor=4
+x=198
+y=-37
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=0
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Rows (unused)
+font=conduitmditc_tt21i
+text=Owned
+align=1
+role=desc
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Option 1
+anchor=4
+x=-77
+y=-11
+w=418
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=0
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Rows (unused)
+shape=7 0 0 7 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Option 1 ownership
+anchor=4
+x=199
+y=-11
+w=128
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=0
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Rows (unused)
+shape=0 7 7 0 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Option 1 text
+anchor=4
+x=-267
+y=-11
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=0
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Rows (unused)
+font=conduitmditc_tt21i
+text=Option 3
+align=0
+role=desc
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Option 1 status
+anchor=4
+x=198
+y=-11
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=0
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Rows (unused)
+font=conduitmditc_tt21i
+text=Owned
+align=1
+role=desc
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Option 1
+anchor=4
+x=-77
+y=15
+w=418
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=0
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Rows (unused)
+shape=7 0 0 7 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Option 1 ownership
+anchor=4
+x=199
+y=15
+w=128
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=0
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Rows (unused)
+shape=0 7 7 0 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Option 1 text
+anchor=4
+x=-267
+y=15
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=0
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Rows (unused)
+font=conduitmditc_tt21i
+text=Option 4
+align=0
+role=desc
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Option 1 status
+anchor=4
+x=198
+y=15
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=0
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Rows (unused)
+font=conduitmditc_tt21i
+text=Owned
+align=1
+role=desc
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Torque
+anchor=4
+x=-267
+y=73
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque group
+font=conduitmditc_tt21i
+text=Torque
+align=0
+showif=gm.upgrade.shown
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Power
+anchor=4
+x=-267
+y=99
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power group
+font=conduitmditc_tt21i
+text=Power
+align=0
+showif=gm.upgrade.shown
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Power Stats
+anchor=4
+x=-27
+y=99
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power group
+font=conduitmditc_tt21i
+text={fe.6BB32446}
+align=0
+showif=gm.upgrade.shown
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Torque Stats
+anchor=4
+x=-27
+y=73
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque group
+font=conduitmditc_tt21i
+text={fe.18531358}
+align=0
+showif=gm.upgrade.shown
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Border
+anchor=4
+x=194
+y=73
+w=168
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque meter
+shape=12 12 12 12 2.4
+fill=0.172549 0.172549 0.172549 0.4
+filltoken=scroll.3 0.4
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.7@scroll.3;0.17 0.172549 0.172549 0.172549 0.7@scroll.3;1 0.172549 0.172549 0.172549 0.5@scroll.3
+strokegradtoken=scroller_dark
+showif=gm.upgrade.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Meter
+anchor=4
+x=0
+y=0
+w=162
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque meter
+shape=1.5 1.5 1.5 1.5 0
+fill=1 1 1 1
+showif=gm.upgrade.shown
+follow=44C7C775
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Meter change
+anchor=4
+x=0
+y=0
+w=162
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque meter
+shape=1.5 1.5 1.5 1.5 0
+fill=1 1 1 1
+showif=gm.upgrade.shown
+follow=E433ADB4
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Border
+anchor=4
+x=194
+y=99
+w=168
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power meter
+shape=12 12 12 12 2.4
+fill=0.172549 0.172549 0.172549 0.4
+filltoken=scroll.3 0.4
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.7@scroll.3;0.17 0.172549 0.172549 0.172549 0.7@scroll.3;1 0.172549 0.172549 0.172549 0.5@scroll.3
+strokegradtoken=scroller_dark
+showif=gm.upgrade.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Meter
+anchor=4
+x=0
+y=0
+w=162
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power meter
+shape=1.5 1.5 1.5 1.5 0
+fill=1 1 1 1
+showif=gm.upgrade.shown
+follow=CEA9C0A3
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Meter change
+anchor=4
+x=0
+y=0
+w=162
+h=5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power meter
+shape=1.5 1.5 1.5 1.5 0
+fill=1 1 1 1
+showif=gm.upgrade.shown
+follow=6E15A6E2
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-156
+w=592
+h=135
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Carousel Box
+anchor=4
+x=0
+y=-148
+w=580
+h=62
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Change Parts
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.883977
+filltoken=Menu.grey.1 1.00184
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Description Box
+anchor=4
+x=0
+y=-103
+w=580
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-186
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+shape=3 3 3 3 0
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
+role=gtrack
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-186
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
+shape=3 3 3 3 0
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
+role=gtrack
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-148.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-148.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-274
+y=-186.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-274
+y=-186.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=4
+x=-289
+y=-206
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Change Parts
+font=conduitmditc_tt21i
+text=Header
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=0
+y=-103
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Change Parts
+font=conduitmditc_tt21i
+text=Change Body Parts
+align=1
+role=desc
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=U2_MENU_ARROW up lit
+anchor=4
+x=277
+y=-70
+w=21
+h=21
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
+layer=12
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+rot=-90
+role=arrowUon
+showif=gm.upgrade.shown
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=U2_MENU_ARROW down lit
+anchor=4
+x=277
+y=20
+w=21
+h=21
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
+layer=12
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+rot=90
+role=arrowDon
+showif=gm.upgrade.shown
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=277
+y=-50
+w=12
+h=12
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+showif=gm.upgrade.shown
+
+[element]
+mode=menus
+type=shape
+name=Selected ownership
+anchor=4
+x=199
+y=-63
+w=128
+h=24
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
+layer=1
+shape=0 7 7 0 0
+fill=0 0 0 0.85
+selonly=1
+showif=gm.upgrade.shown
+
+[page]
+group=Pause 1/Pause Options/Unipad Options
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+title=UniPad Options
+
+[page]
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+title=UniPad Options
+
+[page]
+group=Pause 1/Pause Options/Unipad Options/Rumble Options
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+title=Rumble Options
+
+[page]
+group=Pause 1
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+pausemenu=1
+title=Pause
+
+[page]
+group=Pause 1/Pause Options
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+pauseopts=1
+title=Options
+
+[page]
+group=Garage
+start=0
+selcolor=0 0.792157 0.956863 0.541176 1
+dedicated=1
+garagemenu=1
+title=The Garage
+prompt=South;Select
+prompt=North;Help
+shared=Shared/Glyphs Bar
+feswap=hud.shade Menu.grey.1
+
+[page]
+group=Confirm Page
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+confirmdlg=1
+feswap=hud.shade Menu.grey.1
+
+[page]
+group=World Map
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+worldmap=1
+feswap=hud.shade Menu.grey.1
+
+[page]
+group=Race Start Regular
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+racedlg=1
+title=Incoming Mobile Message
+
+[page]
+group=Race Start Multiplayer
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+racedlgmp=1
+title=Incoming Mobile Message
+
+[page]
+group=Race Start Multiplayer/Race Settings
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+
+[page]
+group=Garage/Garage Car Select
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+carselect=1
+title=Garage Car Select
+prompt=South;Select
+prompt=East;Back
+shared=Shared/Performance
+shared=Shared/Visual Rating
+
+[page]
+group=Shared
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+
+[page]
+group=Garage/Change Parts
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+partsmenu=1
+title=Parts Storage
+
+[page]
+group=Garage/Change Parts/Performance Parts
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+perfpartsmenu=1
+title=Performance Part Storage
+
+[page]
+group=Garage/Change Parts/Specialties
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+specialtiesmenu=1
+title=Car Specialties Storage
+
+[page]
+group=Garage/Change Parts/Body Parts
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+bodypartsmenu=1
+title=Body Parts Storage
+shared=Shared/Visual Rating
+shared=Shared/Body Parts Panel
+
+[page]
+group=Garage/Change Parts/Performance Parts/Performance Upgrade
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+perfupgrademenu=1
+title={gm.upgrade.title}
+prompt=South;Install
+shared=Shared/Performance
+
+[page]
+group=Garage/Change Parts/Rim Brands
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+rimbrandmenu=1
+title=Rim Brands
+
+[widget]
+group=Garage/Change Parts/Rim Brands/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+tile=Button 14
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+tile=Button 14
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
+type=listbox
+bind=list:gm.upgrade
+grid=1 4 549 102 -286 -75 549 24 1 1 -11.5 -24 0 2 0 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+num=0 1 0.05 0
+
+[widget]
+group=Shared/Body Parts Panel/Parts
+type=carousel
+bind=list:gm.parts
+carousel=1 0 1 1
+grid=1 7 28 252 -283 -78 28 36 1 1 -269 48 0 0 0 1
+tile=Button 1
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Body Parts/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+tile=Button 14
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Performance Parts/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+tile=Button 14
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Specialties/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+tile=Button 14
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Carousel
+type=carousel
+carousel=1 0 1 0
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 3 1
+tile=Body Parts
+tbind=parts.body
+ticon=#B802F10E
+tdesc=Change Body Parts
+tile=Performance Parts
+tbind=parts.performance
+ticon=#C56D3032
+tdesc=Change Performance Parts
+tile=Specialties
+tbind=parts.specialties
+ticon=#3F40E75F
+tdesc=Change Interiors / Car Specialties
+num=0 1 0.05 0
+
+[widget]
+group=Pause 1/Carousel
+type=carousel
+carousel=1 0 1 0
+grid=3 1 444 62 -221.7 -45.3 126 62 1 1 0.3 -14.3 33 0 5 1
+tile=Return to Explore
+tbind=pause.resume
+ticon=INGAME_ICON_EXPLORE
+tdesc=Return to Explore Mode
+tile=Jump to Garage
+tbind=pause.garage
+ticon=SHOP_ICON_CRIB
+tdesc=Jump to Garage
+tile=Options
+tbind=pause.options
+ticon=INGAME_ICON_OPTIONS
+tdesc=Options
+tile=Free Cam
+tbind=pause.freecam
+ticon=INGAME_ICON_REPLAY
+tdesc=Free Cam
+tile=Quit
+tbind=pause.quit
+ticon=INGAME_ICON_QUIT_TO_FE
+tdesc=Quit to Main Menu
+num=0 1 0.05 0
+
+[widget]
+group=Pause 1/Pause Options/Carousel
+type=carousel
+carousel=1 0 1 0
+grid=3 1 444 62 -221.7 -45.3 126 62 1 1 0.3 -14.3 33 0 5 1
+tile=Audio
+tbind=pauseopt.audio
+ticon=OPTIONS_ICON_AUDIO
+tdesc=Audio
+tile=Display
+tbind=pauseopt.display
+ticon=OPTIONS_ICON_DISPLAY
+tdesc=Display
+tile=Gameplay
+tbind=pauseopt.gameplay
+ticon=OPTIONS_ICON_GAMEPLAY_SETTINGS
+tdesc=Gameplay
+tile=Player
+tbind=pauseopt.player
+ticon=OPTIONS_ICON_PLAYER_SETTINGS
+tdesc=Player
+tile=UniPad Options
+taction=page:Pause 1/Pause Options/Unipad Options
+ticon=INGAME_ICON_OPTIONS
+tdesc=UniPad Options
+num=0 1 0.05 0
+
+[widget]
+group=Pause 1/Pause Options/Unipad Options/Grid
+type=grid
+grid=1 8 550 293.9 -291 -146.95 550 30 1 1 -16 0 0 7.7 8 1
+tile=Active Gamepad
+ttype=picker
+tbind=pad.active
+tnum=0 1 0.05 0
+tile=Rumble Mode
+ttype=picker
+tbind=rumble.mode
+tnum=0 1 0.05 0
+tile=Camera Control Style
+ttype=picker
+tbind=cam.style
+tnum=0 1 0.05 0
+tile=Steering Deadzone
+ttype=slider
+tbind=steer.deadzone
+tnum=0 1 0.05 0
+tile=Steering Gate
+ttype=slider
+tbind=steer.gate
+tnum=0 1 0.05 0
+tile=Steering Curve
+ttype=slider
+tbind=steer.curve
+tnum=0 1 0.05 0
+tile=Rumble Options
+taction=page:Pause 1/Pause Options/Unipad Options/Rumble Options
+tile=Change Gamepad Bindings
+taction=page:Pause 1/Pause Options/Unipad Options/Gamepad Bindings
+num=0 1 0.05 6
+
+[widget]
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+type=grid
+grid=1 8 550 293.9 -291 -146.95 550 30 1 1 -16 0 0 7.7 12 1
+tile=Rumble Mode
+ttype=picker
+tbind=rumble.mode
+tdesc=How the controller rumbles: Off, Console (Xbox feel), Enhanced, Modern vibration or Haptics.
+tnum=0 1 0.05 0
+tile=Strength
+ttype=slider
+tbind=rumble.strength
+tdesc=Overall rumble strength.
+tnum=0 1 0.05 0
+tile=Collisions
+ttype=slider
+tbind=rumble.collisions
+tdesc=Crashes into walls, cars and traffic.
+tnum=0 1 0.05 0
+tile=Landings
+ttype=slider
+tbind=rumble.landings
+tdesc=Touching down after a jump.
+tnum=0 1 0.05 0
+tile=Bumps
+ttype=slider
+tbind=rumble.bumps
+tdesc=Body contact and bumps in the road.
+tnum=0 1 0.05 0
+tile=Road
+ttype=slider
+tbind=rumble.road
+tdesc=Road texture while driving.
+tnum=0 1 0.05 0
+tile=Engine
+ttype=slider
+tbind=rumble.engine
+tdesc=Engine revs.
+tnum=0 1 0.05 0
+tile=Nitrous
+ttype=slider
+tbind=rumble.nitrous
+tdesc=Nitrous kicking in and flowing.
+tnum=0 1 0.05 0
+tile=Wheelspin
+ttype=slider
+tbind=rumble.wheelspin
+tdesc=Tires spinning.
+tnum=0 1 0.05 0
+tile=Surface
+ttype=slider
+tbind=rumble.surface
+tdesc=The surface under the car.
+tnum=0 1 0.05 0
+tile=Cornering
+ttype=slider
+tbind=rumble.cornering
+tdesc=Grip while cornering.
+tnum=0 1 0.05 0
+tile=Trigger Rumble
+ttype=picker
+tbind=rumble.triggers
+tdesc=Trigger motors (Enhanced mode, Xbox One / Series controllers).
+tnum=0 1 0.05 0
+num=0 1 0.05 0
+
+[widget]
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/Grid
+type=grid
+grid=2 8 484 282 -236.5 -142 237 30 1 1 5.5 -1 10 6 8 1
+tile=Steering
+tbind=bind.steer
+tile=Throttle
+tbind=bind.throttle
+tile=Brake/Reverse
+tbind=bind.brake
+tile=E-Brake
+tbind=bind.ebrake
+tile=Nitrous
+tbind=bind.nitrous
+tile=Look Back
+tbind=bind.lookback
+tile=Shift Up
+tbind=bind.shiftup
+tile=Shift Down
+tbind=bind.shiftdown
+tile=Reset Car
+tbind=bind.reset
+tile=Pause
+tbind=bind.pause
+tile=World Map
+tbind=bind.map
+tile=Messages
+tbind=bind.messages
+tile=Career Stats
+tbind=bind.legend
+tile=Enter Race/Shop
+tbind=bind.engage
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Confirm Page/Grid
+type=grid
+grid=2 1 590.2 46 -294.998 51 288 46 1 1 0.101761 74 14.2 7.7 1 1
+tile=Yes
+tbind=dialog.yes
+tile=No
+tbind=dialog.no
+num=0 1 0.05 0
+
+[widget]
+group=World Map/Legend
+type=grid
+bind=list:map.legend
+grid=1 13 231 293 -293.5 -123.5 231 22.5385 1 0 -293.5 23 0 0 0 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+num=0 1 0.05 0
+
+[widget]
+group=Race Start Regular/Grid
+type=grid
+grid=2 1 576 46 -287.898 156 288 46 1 1 0.101761 179 0 0 1 1
+tile=Accept
+tbind=race.accept
+tile=Decline
+tbind=race.decline
+num=0 1 0.05 0
+
+[widget]
+group=Race Start Multiplayer/Grid copy
+type=grid
+grid=1 3 322 70 -31 125.47 322 23.3333 1 2 291 160.47 0 0 3 1
+tile=Coop
+tbind=race.coop
+tile=Solo
+tbind=race.accept
+tile=Race Settings
+taction=page:Race Start Multiplayer/Race Settings
+num=0 1 0.05 0
+
+[widget]
+group=Race Start Multiplayer/Race Settings/Grid
+type=grid
+grid=1 8 550 293.9 -291 -146.95 550 30 1 1 -16 0 0 7.7 8 1
+tile=AI Racers
+ttype=picker
+tbind=race.ai
+tdesc=Race against AI opponents.
+tnum=0 1 0.05 0
+tile=AI Racers in the Race
+ttype=slider
+tbind=race.aicount
+tdesc=How many AI opponents (0-15).
+tnum=0 1 0.05 0
+tile=AI Difficulty
+ttype=picker
+tbind=race.difficulty
+tdesc=How fast and smart the AI opponents drive.
+tnum=0 1 0.05 0
+tile=Rubberbanding
+ttype=picker
+tbind=race.rubberband
+tdesc=AI opponents slow down when ahead and speed up when behind.
+tnum=0 1 0.05 0
+tile=Traffic
+ttype=picker
+tbind=race.traffic
+tdesc=Traffic cars on the streets during the race.
+tnum=0 1 0.05 0
+tile=Collision
+ttype=picker
+tbind=race.collision
+tdesc=Bumping into the other players' cars.
+tnum=0 1 0.05 0
+tile=Button 7
+tile=Button 8
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Carousel
+type=carousel
+carousel=1 0 1 0
+grid=3 1 444 62 -221.7 -165.3 126 62 1 1 0.3 -134.3 33 0 8 1
+tile=Return to Explore
+tbind=garage.explore
+ticon=#A230CD88
+tdesc=Return to Explore Mode
+tile=World Map
+tbind=garage.worldmap
+ticon=#22F2CEAB
+tdesc=World Map
+tile=Car Select
+tbind=garage.carselect
+ticon=#A964095B
+tdesc=Car Select
+tile=Change Parts
+tbind=garage.parts
+ticon=#511F9D75
+tdesc=Change Parts
+tile=Performance Tuning
+tbind=garage.tuning
+ticon=#7A9B397A
+tdesc=Performance Tuning / Dyno
+tile=View Rewards
+tbind=garage.rewards
+ticon=#49D2E3DE
+tdesc=View Rewards
+tile=Save
+tbind=garage.save
+ticon=#8ADA6FD4
+tdesc=Save
+tile=Main Menu
+tbind=garage.mainmenu
+ticon=#FC39853F
+tdesc=Back to Main Menu
+num=0 1 0.05 0
