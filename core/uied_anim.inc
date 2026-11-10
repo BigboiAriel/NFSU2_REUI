@@ -152,7 +152,7 @@ struct View { float t0 = -50, t1 = 650, v0 = 0, v1 = 1.2f; bool fit = true; };
 struct State {
     bool on = false;
     std::string elemKey;          // the focused element (mode / group / name)
-    int clip = 3;                 // the clip being edited (Focus: the example)
+    int clip = 0;                 // the clip being edited (In: what a screen shows first)
     enum { F_NONE, F_ELEMENT, F_CLIP, F_TRACK, F_PLANNED } focus = F_NONE;
     int track = -1;               // focus == F_TRACK
     std::string planned;          // focus == F_PLANNED: which placeholder
