@@ -8,16 +8,17 @@
 
 namespace shapes {
 
-constexpr int kGpuMaxCuts = 16, kGpuMaxStops = 8;
+constexpr int kGpuMaxCuts = 16, kGpuMaxStops = 8, kGpuMaxMerges = 16;
 
 bool GpuOn();                          // the shaders are ready (made on first ask)
 void GpuFrameStart();                  // each frame, before anything's drawn (last frame's lists are rendered)
 void GpuRelease();                     // device going away
 
-// The shape on the quad q (its box plus `margin` on every side, clockwise from top-left), fill / stroke coloured by
-// fillCol / strokeCol (times the gradients' colours). false: not drawn (too many cuts / stops, or no shaders).
+// The shape - with the shapes merged into it (a union) - on the quad q (UnionBox's box plus `margin` on every side,
+// clockwise from top-left), fill / stroke coloured by fillCol / strokeCol (times the gradients' colours). false: not
+// drawn (too many cuts / merges / stops, or no shaders).
 bool GpuDraw(ImDrawList* dl, const Box& shape, float stroke, int align, const Gradient& strokeGrad, const Gradient& fillGrad,
-             const std::vector<Box>& cuts, float margin, const ImVec2 q[4], ImU32 fillCol, ImU32 strokeCol);
+             const std::vector<Box>& cuts, const std::vector<Box>& merges, float margin, const ImVec2 q[4], ImU32 fillCol, ImU32 strokeCol);
 // the margin the quad needs around the box (the stroke past the edge and a pixel for the soft edge)
 float GpuMargin(float stroke, int align);
 

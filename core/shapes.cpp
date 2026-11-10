@@ -152,14 +152,7 @@ bool Get(const Box& s, float stroke, int align, const Gradient& sg, const Gradie
     }
     // the box around the shape and what's merged into it (shape frame): the textures cover it
     float bx = s.w / 2, by = s.h / 2;
-    float x0 = -bx, x1 = bx, y0 = -by, y1 = by;
-    for (auto& m : merges) {
-        if (!std::isfinite(m.w) || !std::isfinite(m.h) || !std::isfinite(m.cx) || !std::isfinite(m.cy)) continue;
-        float c = fabsf(cosf(m.rot)), sn = fabsf(sinf(m.rot)), g = std::max(0.f, m.gap);
-        float ex = c * m.w / 2 + sn * m.h / 2 + g, ey = sn * m.w / 2 + c * m.h / 2 + g;
-        x0 = std::min(x0, m.cx - ex); x1 = std::max(x1, m.cx + ex); y0 = std::min(y0, m.cy - ey); y1 = std::max(y1, m.cy + ey);
-    }
-    float ox = (x0 + x1) / 2, oy = (y0 + y1) / 2, hw = (x1 - x0) / 2, hh = (y1 - y0) / 2;
+    float ox, oy, hw, hh; UnionBox(s, merges, ox, oy, hw, hh);
     if (hw > 5e4f || hh > 5e4f) return false;
     // the stroke band, in distance from the edge (negative inside): inside [-sw, 0], centre [-sw/2, sw/2], outside [0, sw];
     // the fill goes all the way to the path (the edge itself), under the stroke - as drawing programs do
@@ -264,6 +257,17 @@ bool Get(const Box& s, float stroke, int align, const Gradient& sg, const Gradie
     out.fill = e.fill; out.stroke = e.stroke; out.margin = margin; out.pw = pw; out.ph = ph;
     out.ox = ox; out.oy = oy; out.hw = hw; out.hh = hh;
     return out.fill || out.stroke;
+}
+
+void UnionBox(const Box& s, const std::vector<Box>& merges, float& ox, float& oy, float& hw, float& hh) {
+    float x0 = -s.w / 2, x1 = s.w / 2, y0 = -s.h / 2, y1 = s.h / 2;
+    for (auto& m : merges) {
+        if (!std::isfinite(m.w) || !std::isfinite(m.h) || !std::isfinite(m.cx) || !std::isfinite(m.cy)) continue;
+        float c = fabsf(cosf(m.rot)), sn = fabsf(sinf(m.rot)), g = std::max(0.f, m.gap);
+        float ex = c * m.w / 2 + sn * m.h / 2 + g, ey = sn * m.w / 2 + c * m.h / 2 + g;
+        x0 = std::min(x0, m.cx - ex); x1 = std::max(x1, m.cx + ex); y0 = std::min(y0, m.cy - ey); y1 = std::max(y1, m.cy + ey);
+    }
+    ox = (x0 + x1) / 2; oy = (y0 + y1) / 2; hw = (x1 - x0) / 2; hh = (y1 - y0) / 2;
 }
 
 void Trim() {

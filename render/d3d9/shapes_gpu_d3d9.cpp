@@ -20,12 +20,12 @@ namespace {
 // Pixel shader constants (float4): see Params. p: the point in the shape's own pixels, from its centre (as shapes.cpp's
 // texel centres); the soft edge is one screen pixel (from the derivatives, so turns and animations stay sharp).
 const char kPS[] = R"HLSL(
-float4 P0 : register(c0);   // quad width, height (shape pixels, margin included), margin, mode (0 fill, 1 stroke)
+float4 P0 : register(c0);   // quad width, height (shape pixels, margin included: the union box's), margin, mode (0 fill, 1 stroke)
 float4 P1 : register(c1);   // half width, half height, stroke band inner side, outer side (distance from the edge)
 float4 P2 : register(c2);   // corner radii: top-left, top-right, bottom-right, bottom-left
 float4 P3 : register(c3);   // stroke width, fill gradient mode, stroke gradient mode, cuts
 float4 P4 : register(c4);   // fill: linear direction x, y, half length along it, depth (from the edge)
-float4 P5 : register(c5);   // stroke: start offset (turns), fill stops, stroke stops, -
+float4 P5 : register(c5);   // stroke: start offset (turns), fill stops, stroke stops, merges
 float4 FC[8] : register(c6);    // fill stops: colour
 float4 FP[8] : register(c14);   //             position (x)
 float4 SC[8] : register(c22);   // stroke stops: colour
@@ -33,6 +33,10 @@ float4 SP[8] : register(c30);   //               position (x)
 float4 CA[16] : register(c38);  // cuts: centre x, y (shape's frame), cos, sin (into the cut's frame)
 float4 CB[16] : register(c54);  //       half width, half height, gap, -
 float4 CR[16] : register(c70);  //       corner radii
+float4 P6 : register(c86);      // the union box (the shape and what's merged into it): centre x, y (shape's frame), half w, h
+float4 MA[16] : register(c87);  // merged shapes: centre x, y (shape's frame), cos, sin (into its frame)
+float4 MB[16] : register(c103); //                half width, half height, gap, -
+float4 MR[16] : register(c119); //                corner radii
 
 static const float PI = 3.14159265;
 
@@ -107,12 +111,19 @@ float4 SampStroke(float t) {
 }
 
 float4 main(float4 col : COLOR0, float2 uv : TEXCOORD0) : COLOR {
-    float2 p = uv * P0.xy - P0.zz - P1.xy;
+    float2 p = uv * P0.xy - P0.zz - P6.zw + P6.xy;   // (the quad covers the union box)
     float fw = max(max(length(ddx(p)), length(ddy(p))), 1e-4);   // shape pixels per screen pixel
     float k = 1 / fw, aa = 0.5 * fw;
     float2 b = P1.xy;
     float lo = P1.z, hi = P1.w, sw = P3.x;
     float d = SdRoundBox(p, b, P2);
+    float nm = P5.w;
+    [loop] for (int m = 0; m < 16; m++) {   // A + B: min(dA, dB), B grown by its gap
+        if (m >= nm) break;
+        float2 l = p - MA[m].xy;
+        float2 rp = float2(l.x * MA[m].z - l.y * MA[m].w, l.x * MA[m].w + l.y * MA[m].z);
+        d = min(d, SdRoundBox(rp, MB[m].xy, MR[m]) - MB[m].z);
+    }
     float cutEdge = 0;   // the nearest edge here is a cut's (no stroke of the shape's there)
     float nc = P3.w, dcut = -1e9;
     [loop] for (int i = 0; i < 16; i++) {   // A minus B: max(dA, -dB), B grown by its gap
@@ -130,8 +141,16 @@ float4 main(float4 col : COLOR0, float2 uv : TEXCOORD0) : COLOR {
         if (P3.y > 0.5) {   // (one sample, its t by the gradient's mode: linear, radial, from the edge)
             // (from the edge: measured from the outline with its corners rounded to 1.5x the depth at least, so the
             // glow's lines bend round the corners instead of meeting in creases from them)
-            float dg = max(SdRoundBox(p, b, max(P2, 1.5 * P4.w)), dcut);
-            float t = P3.y < 1.5 ? (dot(p, P4.xy) / P4.z + 1) / 2 : P3.y < 2.5 ? length(p / max(b, 1e-3)) : (P4.w > 0 ? -dg / P4.w : 1);
+            float du = SdRoundBox(p, b, max(P2, 1.5 * P4.w));
+            [loop] for (int j = 0; j < 16; j++) {   // (merged shapes, theirs rounded the same)
+                if (j >= nm) break;
+                float2 l = p - MA[j].xy;
+                float2 rp = float2(l.x * MA[j].z - l.y * MA[j].w, l.x * MA[j].w + l.y * MA[j].z);
+                du = min(du, SdRoundBox(rp, MB[j].xy, max(MR[j], 1.5 * P4.w)) - MB[j].z);
+            }
+            float dg = max(du, dcut);
+            float2 g = p - P6.xy;   // (linear / radial: across the union box)
+            float t = P3.y < 1.5 ? (dot(g, P4.xy) / P4.z + 1) / 2 : P3.y < 2.5 ? length(g / max(P6.zw, 1e-3)) : (P4.w > 0 ? -dg / P4.w : 1);
             c = SampFill(saturate(t));
         }
         o = float4(c.rgb, c.a * cov);
@@ -163,7 +182,7 @@ VO main(float4 pos : POSITION, float4 col : COLOR0, float2 uv : TEXCOORD0) {
 }
 )HLSL";
 
-constexpr int kRegs = 86;
+constexpr int kRegs = 135;
 struct Params { float c[kRegs][4]; };
 std::deque<Params> g_params;   // this frame's shapes' constants (the draw list keeps pointers until it's rendered)
 
@@ -253,23 +272,32 @@ float GpuMargin(float stroke, int align) {
 }
 
 bool GpuDraw(ImDrawList* dl, const Box& s, float stroke, int align, const Gradient& sg, const Gradient& fg,
-             const std::vector<Box>& cuts, float margin, const ImVec2 q[4], ImU32 fillCol, ImU32 strokeCol) {
+             const std::vector<Box>& cuts, const std::vector<Box>& merges, float margin, const ImVec2 q[4], ImU32 fillCol, ImU32 strokeCol) {
     if (g_state != 3 || !dl) return false;
     if (!std::isfinite(s.w) || !std::isfinite(s.h) || !std::isfinite(stroke) || s.w < 1 || s.h < 1 || s.w > 1e5f || s.h > 1e5f) return false;
-    if ((int)cuts.size() > kGpuMaxCuts || (int)sg.stops.size() > kGpuMaxStops || (int)fg.stops.size() > kGpuMaxStops) return false;
+    if ((int)cuts.size() > kGpuMaxCuts || (int)merges.size() > kGpuMaxMerges || (int)sg.stops.size() > kGpuMaxStops || (int)fg.stops.size() > kGpuMaxStops) return false;
     float sw = std::max(0.f, std::min(stroke, 1e4f));
     if (align < ALIGN_INSIDE || align > ALIGN_OUTSIDE) align = ALIGN_INSIDE;
     float lo = align == ALIGN_INSIDE ? -sw : align == ALIGN_CENTRE ? -sw / 2 : 0.f, hi = lo + sw;
     float bx = s.w / 2, by = s.h / 2;
     int fm = fg.mode && !fg.stops.empty() ? fg.mode : 0, sm = sg.mode && !sg.stops.empty() ? sg.mode : 0;
+    float ox, oy, hw, hh; UnionBox(s, merges, ox, oy, hw, hh);
+    if (!std::isfinite(hw) || !std::isfinite(hh) || hw > 5e4f || hh > 5e4f) return false;
     Params p; memset(&p, 0, sizeof p);
-    Set(p, 0, s.w + 2 * margin, s.h + 2 * margin, margin, 0);
+    Set(p, 0, 2 * hw + 2 * margin, 2 * hh + 2 * margin, margin, 0);
     Set(p, 1, bx, by, lo, hi);
     Set(p, 2, s.r[0], s.r[1], s.r[2], s.r[3]);
     Set(p, 3, sw, (float)fm, (float)sm, (float)cuts.size());
     float la = fg.angle * 3.14159265f / 180, ldx = cosf(la), ldy = sinf(la);
-    Set(p, 4, ldx, ldy, std::max(1e-3f, fabsf(ldx) * bx + fabsf(ldy) * by), fg.depth);
-    Set(p, 5, sg.angle / 360.f, (float)fg.stops.size(), (float)sg.stops.size(), 0);
+    Set(p, 4, ldx, ldy, std::max(1e-3f, fabsf(ldx) * hw + fabsf(ldy) * hh), fg.depth);
+    Set(p, 5, sg.angle / 360.f, (float)fg.stops.size(), (float)sg.stops.size(), (float)merges.size());
+    Set(p, 86, ox, oy, hw, hh);
+    for (size_t i = 0; i < merges.size(); ++i) {
+        const Box& m = merges[i];
+        Set(p, 87 + (int)i, m.cx, m.cy, cosf(-m.rot), sinf(-m.rot));
+        Set(p, 103 + (int)i, m.w / 2, m.h / 2, m.gap, 0);
+        Set(p, 119 + (int)i, m.r[0], m.r[1], m.r[2], m.r[3]);
+    }
     for (size_t i = 0; i < fg.stops.size(); ++i) { auto& st = fg.stops[i]; Set(p, 6 + (int)i, st[1], st[2], st[3], st[4]); Set(p, 14 + (int)i, st[0], 0, 0, 0); }
     for (size_t i = 0; i < sg.stops.size(); ++i) { auto& st = sg.stops[i]; Set(p, 22 + (int)i, st[1], st[2], st[3], st[4]); Set(p, 30 + (int)i, st[0], 0, 0, 0); }
     for (size_t i = 0; i < cuts.size(); ++i) {

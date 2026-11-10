@@ -34,6 +34,9 @@ struct Result { gfx::Tex fill = nullptr; gfx::Tex stroke = nullptr; float margin
 // optional gradients. Its textures cover the shape's box plus `margin` pixels on every side.
 bool Get(const Box& shape, float stroke, int align, const Gradient& strokeGrad, const Gradient& fillGrad,
          const std::vector<Box>& cuts, Result& out);
+// The box around a shape and what's merged into it (shape frame): its centre from the shape's centre and half size, in
+// shape pixels (no merges: 0, 0 and the shape's own half size). Both drawing paths cover it.
+void UnionBox(const Box& shape, const std::vector<Box>& merges, float& ox, float& oy, float& hw, float& hh);
 // ... with other shapes merged into it (a union: one outline, one stroke around them all, the gradients across the
 // whole), each grown by its gap. (2026-11-09)
 bool Get(const Box& shape, float stroke, int align, const Gradient& strokeGrad, const Gradient& fillGrad,

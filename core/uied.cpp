@@ -905,21 +905,20 @@ static void DrawShape(ImDrawList* dl, Elem& e, ImVec2 a, ImVec2 b, ImU32 col, bo
     float fc[4] = {e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3] * fade};
     if (fOn) fc[0] = fc[1] = fc[2] = 1;   // the gradient's colours, at the fill's opacity
     if (sOn) { ImVec4 v = ImGui::ColorConvertU32ToFloat4(col); col = ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, v.w)); }
-    auto quad = [&](float m, ImVec2* q) { q[0] = at(-pw / 2 - m, -ph / 2 - m); q[1] = at(pw / 2 + m, -ph / 2 - m); q[2] = at(pw / 2 + m, ph / 2 + m); q[3] = at(-pw / 2 - m, ph / 2 + m); };
     bool drawn = false;
-    if (shapes::GpuOn() && merges.empty()) {   // the graphics card works it out per pixel (nothing made, nothing kept; merged shapes: the CPU's)
-        float m = shapes::GpuMargin(sw, e.strokeAlign); ImVec2 q[4]; quad(m, q);
-        drawn = shapes::GpuDraw(dl, box, sw, e.strokeAlign, sg, fg, cuts, m, q, fc[3] > 0.002f ? Col(fc) : 0u, col);
+    float uox, uoy, uhw, uhh; shapes::UnionBox(box, merges, uox, uoy, uhw, uhh);   // (the box around it and what's merged into it)
+    auto uquad = [&](float m, ImVec2* q) {
+        float l = uox - uhw - m, rt = uox + uhw + m, t = uoy - uhh - m, bt = uoy + uhh + m;
+        q[0] = at(l, t); q[1] = at(rt, t); q[2] = at(rt, bt); q[3] = at(l, bt);
+    };
+    if (shapes::GpuOn()) {   // the graphics card works it out per pixel (nothing made, nothing kept)
+        float m = shapes::GpuMargin(sw, e.strokeAlign); ImVec2 q[4]; uquad(m, q);
+        drawn = shapes::GpuDraw(dl, box, sw, e.strokeAlign, sg, fg, cuts, merges, m, q, fc[3] > 0.002f ? Col(fc) : 0u, col);
     }
     if (!drawn) {   // (no shaders, or more cuts / gradient stops than they take): a texture made on the CPU
         shapes::Result r;
         if (!shapes::Get(box, sw, e.strokeAlign, sg, fg, cuts, merges, r)) return;
-        ImVec2 q[4];
-        if (merges.empty()) quad(r.margin, q);
-        else {   // (the box around it and what's merged into it)
-            float m = r.margin, l = r.ox - r.hw - m, rt = r.ox + r.hw + m, t = r.oy - r.hh - m, bt = r.oy + r.hh + m;
-            q[0] = at(l, t); q[1] = at(rt, t); q[2] = at(rt, bt); q[3] = at(l, bt);
-        }
+        ImVec2 q[4]; uquad(r.margin, q);
         if (r.fill && fc[3] > 0.002f) dl->AddImageQuad(gfx::Id(r.fill), q[0], q[1], q[2], q[3], ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), Col(fc));
         if (r.stroke) dl->AddImageQuad(gfx::Id(r.stroke), q[0], q[1], q[2], q[3], ImVec2(0, 0), ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1), col);
     }
