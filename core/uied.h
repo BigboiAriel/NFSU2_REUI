@@ -17,10 +17,15 @@ namespace uied {
     bool WantsFrames();                      // UniPad: something to draw even with the panel closed
     void Panel();                            // the "UI editor" tab
     bool Unsaved();                          // editor changes not saved yet
-    // game modes, each with its own overlay layout
-    // MENUS: the menu pages' workspace (menu pages, rows, templates); never drawn as a HUD
-    enum Mode { FREEROAM = 0, RACE, DRAG, DRIFT, OUTRUN, MENUS, NMODES };
-    void DrawOverlay(int mode);              // every frame, after NewFrame; mode: one of Mode, -1 = not driving (menus)
+    // Game modes, each with its own overlay layout: the game connection's list, set before Init (NFSU2's by default:
+    // the Mode numbering below). key: how layout files name it (an unknown key loads into mode 0); name: shown.
+    struct ModeDef { std::string key, name; };
+    constexpr int kMaxModes = 16;
+    extern std::vector<ModeDef> modes;       // at most kMaxModes
+    extern int menusMode;                    // the menu pages' workspace (menu pages, rows, templates; never drawn as a HUD), -1 none
+    extern bool nfsu2Tools;                  // NFSU2's import buttons (UniPad's menus, the multiplayer mod's overlay, the race HUD)
+    enum Mode { FREEROAM = 0, RACE, DRAG, DRIFT, OUTRUN, MENUS, NMODES };   // (NFSU2's)
+    void DrawOverlay(int mode);              // every frame, after NewFrame; mode: an index into modes, -1 = not driving (menus)
     void Release();                          // device going away for good: drop our textures
     // {token} values for text elements (fps, name, speed, ...); return false for an unknown token
     extern std::function<bool(const std::string& key, std::string& out)> tokens;

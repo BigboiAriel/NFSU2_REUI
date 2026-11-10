@@ -16,6 +16,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <memory>
+#include <mutex>
 #include <string>
 
 namespace reui {
@@ -31,6 +32,16 @@ namespace {
 
 reui_rex::OverlayPtr g_overlay;
 bool g_open = false;   // the editor panel (F6)
+std::mutex g_modeLock;
+std::string g_modeKey;  // what the port says is being played ("" none)
+
+int ModeIndex() {
+    std::string key;
+    { std::lock_guard<std::mutex> l(g_modeLock); key = g_modeKey; }
+    if (key.empty()) return -1;
+    for (size_t i = 0; i < uied::modes.size(); ++i) if (uied::modes[i].key == key) return (int)i;
+    return -1;
+}
 
 std::string Dir(const std::filesystem::path& p) {   // (the core's file calls are the ANSI ones)
     std::string s = p.string();
@@ -43,7 +54,7 @@ void Frame() {
     uied::FrameStart();
     ImGuiIO& io = ImGui::GetIO();
     ImGui::GetStyle().FontScaleMain = std::max(1.f, io.DisplaySize.y / 1080.f);   // (the editor readable at 4K)
-    uied::DrawOverlay(0);
+    uied::DrawOverlay(ModeIndex());
     if (g_open) {
         ImGui::SetNextWindowPos(ImVec2(40, 40), ImGuiCond_FirstUseEver);
         ImGui::SetNextWindowSize(ImVec2(std::min(900.f, io.DisplaySize.x - 80), std::min(1000.f, io.DisplaySize.y - 80)), ImGuiCond_FirstUseEver);
@@ -61,6 +72,10 @@ bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::Gra
     CreateDirectoryW(dataDir.wstring().c_str(), nullptr);
     uied::dataDir = data;
     uied::prefabDir = data + "prefabs\\";
+    uied::modes = { {"freeroam", "Free roam"}, {"race", "Racing"}, {"timetrial", "Time trial"},
+                    {"stunt", "Stunt park"},   {"tutorial", "Tutorial"}, {"menus", "Menus"} };
+    uied::menusMode = 5;
+    uied::nfsu2Tools = false;
     reui_rex::OverlaySetup s;
     s.window = window;
     s.presenter = presenter;
@@ -102,6 +117,12 @@ void Destroy() {
 }
 
 bool EditorOpen() { return g_open; }
+
+void SetMode(const std::string& key) {
+    std::lock_guard<std::mutex> l(g_modeLock);
+    if (key != g_modeKey) REXLOG_INFO("REUI: game mode {}", key.empty() ? "(none)" : key);
+    g_modeKey = key;
+}
 void SetEditorOpen(bool open) { g_open = open; }
 
 } // namespace reui_joyride

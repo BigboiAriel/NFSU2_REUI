@@ -18,7 +18,7 @@ static std::string RowName(std::string label) {
 }
 
 // the menu tools show while the Menus workspace is the one being edited
-static bool MenuWs() { return menuMode || g_editMode == MENUS; }
+static bool MenuWs() { return menuMode || IsMenus(g_editMode); }
 
 // (button / slider / picker: the kinds of tile; highlight: an older one-row widget, only so its layouts still read)
 enum WType { W_NONE = 0, W_BUTTON, W_SLIDER, W_PICKER, W_HIGHLIGHT, W_GRID, W_CAROUSEL, W_NTYPES };

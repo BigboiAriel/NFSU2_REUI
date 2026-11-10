@@ -373,12 +373,18 @@ static bool FlagsHide(const Elem& e) {   // any of its flags says hidden now
     return false;
 }
 
-static std::vector<Elem> g_layout[NMODES];   // one overlay per game mode
+std::vector<ModeDef> modes = { {"freeroam", "Free roam"}, {"race", "Racing"}, {"drag", "Drag racing"},
+                               {"drift", "Drift racing"}, {"outrun", "Outrun"}, {"menus", "Menus"} };
+int menusMode = MENUS;
+bool nfsu2Tools = true;
+static std::vector<Elem> g_layout[kMaxModes];   // one overlay per game mode
 static int g_editMode = 0, g_nowMode = -1;
-static const char* kModeKey[NMODES] = { "freeroam", "race", "drag", "drift", "outrun", "menus" };
-static const char* kModeName[NMODES] = { "Free roam", "Racing", "Drag racing", "Drift racing", "Outrun", "Menus" };
+static int NumModes() { return std::max(1, std::min((int)modes.size(), kMaxModes)); }
+static const char* ModeKey(int m) { return m >= 0 && m < (int)modes.size() ? modes[m].key.c_str() : "mode"; }
+static const char* ModeName(int m) { return m >= 0 && m < (int)modes.size() ? modes[m].name.c_str() : "?"; }
+static bool IsMenus(int m) { return menusMode >= 0 && m == menusMode; }
 // the menu pages live in the Menus workspace (UniPad's own copy: its single layout)
-static std::vector<Elem>& MenuElems() { return menuMode ? g_layout[0] : g_layout[MENUS]; }
+static std::vector<Elem>& MenuElems() { return menuMode || menusMode < 0 || menusMode >= NumModes() ? g_layout[0] : g_layout[menusMode]; }
 static std::vector<Elem>& Elems() { return g_layout[g_editMode]; }
 static int g_sel = -1;
 static std::string g_selGroup;            // a group picked in the list (then g_sel = -1)
@@ -1728,7 +1734,7 @@ static void Pf(std::string& o, const char* fmt, ...) {   // printf onto a string
 }
 static void PutElemS(std::string& o, int m, const Elem& e) {   // one element as the layout / prefab files keep it
     Pf(o, "\n[element]\nmode=%s\ntype=%s\nname=%s\nanchor=%d\nx=%g\ny=%g\nw=%g\nh=%g\nscale=%g\ncolor=%g %g %g %g\nvisible=%d\n",
-            kModeKey[m], TypeKey(e.type), Esc(e.name).c_str(), e.anchor, e.x, e.y, e.w, e.h, e.scale, e.col[0], e.col[1], e.col[2], e.col[3], e.visible ? 1 : 0);
+            ModeKey(m), TypeKey(e.type), Esc(e.name).c_str(), e.anchor, e.x, e.y, e.w, e.h, e.scale, e.col[0], e.col[1], e.col[2], e.col[3], e.visible ? 1 : 0);
     if (e.row > 0) Pf(o, "row=%d\n", e.row);
     if (!e.group.empty()) Pf(o, "group=%s\n", Esc(e.group).c_str());
     if (e.hiMine) Pf(o, "highlight=%g %g %g %g\n", e.hiCol[0], e.hiCol[1], e.hiCol[2], e.hiCol[3]);
@@ -1798,14 +1804,14 @@ static void Save() {
     SaveLinks(f);
     int total = 0;
     auto put = [&](int m, const Elem& e) { ++total; PutElem(f, m, e); };
-    for (int m = 0; m < NMODES; ++m) for (auto& e : g_layout[m]) put(m, e);
+    for (int m = 0; m < NumModes(); ++m) for (auto& e : g_layout[m]) put(m, e);
     SaveMenus(f);
     if (!EndWrite(f, g_layoutPath)) { Log("ui editor: couldn't save %s (the old file is kept; still unsaved)", g_layoutPath.c_str()); return; }
     g_dirty = false;
     Log("ui editor: saved %d element(s) to %s", total, g_layoutPath.c_str());
 }
 static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // one "key=value" of an [element]
-    if (k == "mode") { for (int m = 0; m < NMODES; ++m) if (v == kModeKey[m]) e.mode = m; }
+    if (k == "mode") { for (int m = 0; m < NumModes(); ++m) if (v == modes[m].key) e.mode = m; }
     else if (k == "type") e.type = v == "text" ? E_TEXT : v == "shape" ? E_SHAPE : E_IMAGE;
     else if (k == "shape") { int n = sscanf(v.c_str(), "%f %f %f %f %f", &e.rad[0], &e.rad[1], &e.rad[2], &e.rad[3], &e.stroke); (void)n; e.radLink = e.rad[0] == e.rad[1] && e.rad[1] == e.rad[2] && e.rad[2] == e.rad[3]; }
     else if (k == "fill") sscanf(v.c_str(), "%f %f %f %f", &e.fillCol[0], &e.fillCol[1], &e.fillCol[2], &e.fillCol[3]);
@@ -2080,14 +2086,14 @@ void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)
     vecart::SetDir(data + "vector\\");
     Load();
     // no menu pages yet: UniPad's menus (made in its own editor before REUI) come in, until this workspace is saved
-    if (!menuMode && g_layout[MENUS].empty()) {
+    if (nfsu2Tools && !menuMode && menusMode >= 0 && g_layout[menusMode].empty()) {
         std::string p = g_dir + "\\scripts\\NFSU2UniPad_menus.txt";
-        if (GetFileAttributesA(p.c_str()) != INVALID_FILE_ATTRIBUTES && LoadFile(p, MENUS, true))
+        if (GetFileAttributesA(p.c_str()) != INVALID_FILE_ATTRIBUTES && LoadFile(p, menusMode, true))
             Log("ui editor: no menu pages here yet - using %s (Save to keep them in this workspace)", p.c_str());
     }
     // no HUD layouts yet: the multiplayer mod's (made in its own editor before REUI) come in the same way
-    bool hud = false; for (int m = 0; m < NMODES; ++m) if (m != MENUS) hud |= !g_layout[m].empty();
-    if (!hud) {
+    bool hud = false; for (int m = 0; m < NumModes(); ++m) if (!IsMenus(m)) hud |= !g_layout[m].empty();
+    if (nfsu2Tools && !hud) {
         std::string p = g_dir + "\\scripts\\NFSU2Multiplayer_overlay.txt";
         if (GetFileAttributesA(p.c_str()) != INVALID_FILE_ATTRIBUTES && LoadFile(p, -1, true))
             Log("ui editor: no HUD layouts here yet - using %s (Save to keep them in this workspace)", p.c_str());
@@ -2134,15 +2140,15 @@ static void LinksRebase(const std::string& from, const std::string& to);
 // A snapshot of everything editable is kept at each settled point (no mouse button down, nothing being typed or
 // dragged); the first frame that settles after edits pushes the previous one. kUndoSteps of them.
 constexpr size_t kUndoSteps = 24;
-struct Snap { std::vector<Elem> lay[NMODES]; std::vector<Widget> widgets; std::vector<Page> pages; std::vector<LinkSet> links; };
+struct Snap { std::vector<Elem> lay[kMaxModes]; std::vector<Widget> widgets; std::vector<Page> pages; std::vector<LinkSet> links; };
 static std::deque<Snap> g_undo, g_redo;
 static Snap g_base; static bool g_baseOk = false; static unsigned g_baseGen = 0;
 static Snap TakeSnap() {
-    Snap s; for (int m = 0; m < NMODES; ++m) s.lay[m] = g_layout[m];
+    Snap s; for (int m = 0; m < kMaxModes; ++m) s.lay[m] = g_layout[m];
     s.widgets = g_widgets; s.pages = g_pages; s.links = g_links; return s;
 }
 static void PutSnap(const Snap& s) {
-    for (int m = 0; m < NMODES; ++m) g_layout[m] = s.lay[m];
+    for (int m = 0; m < kMaxModes; ++m) g_layout[m] = s.lay[m];
     g_widgets = s.widgets; g_pages = s.pages;
     g_links = s.links; for (auto& l : g_links) l.refOk = false;   // (the pieces are as they were: the look is read again)
     g_dragging = -1;
@@ -2395,7 +2401,7 @@ void DrawOverlay(int mode) {
     if (g_state != 2) return;
     Trim();
     if (DrawMenu(ImGui::GetBackgroundDrawList())) { g_dragging = -1; return; }   // the menu, when it's open, is all that's drawn
-    if (!editing && !testMode && (!g_show || mode < 0 || mode >= NMODES)) return;
+    if (!editing && !testMode && (!g_show || mode < 0 || mode >= NumModes())) return;
     ImDrawList* dl = ImGui::GetBackgroundDrawList();   // under the panel, over the game
     // while editing or testing: the layout being edited; otherwise the one for what we're doing now
     {
@@ -3313,26 +3319,29 @@ void Panel() {
     ImGui::Checkbox("Edit on screen (drag to move, green corner to resize, Shift keeps shape)", &g_edit);
     ImGui::SameLine(); if (ImGui::Checkbox("Highlight selection", &g_hiSel)) g_dirty = true;
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Green outline around the selected texture / text (and orange box around a selected group) on screen.");
-    ImGui::TextDisabled("Each game mode has its own layout. Now: %s%s", g_nowMode >= 0 && g_nowMode < NMODES ? kModeName[g_nowMode] : "not driving (menus)",
+    ImGui::TextDisabled("Each game mode has its own layout. Now: %s%s", g_nowMode >= 0 && g_nowMode < NumModes() ? ModeName(g_nowMode) : "not driving (menus)",
                         g_edit ? " - while editing on screen, the layout picked below is shown" : "");
     if (ImGui::BeginTabBar("##modes")) {
-        for (int m = 0; m < NMODES; ++m) {
-            char lb[48]; snprintf(lb, sizeof lb, "%s (%d)###mode%d", kModeName[m], (int)g_layout[m].size(), m);
+        if (g_editMode >= NumModes()) { g_editMode = 0; g_sel = -1; }
+        for (int m = 0; m < NumModes(); ++m) {
+            char lb[96]; snprintf(lb, sizeof lb, "%s (%d)###mode%d", ModeName(m), (int)g_layout[m].size(), m);
             if (ImGui::BeginTabItem(lb)) { if (g_editMode != m) { g_editMode = m; g_sel = -1; g_dragging = -1; } ImGui::EndTabItem(); }
         }
         ImGui::EndTabBar();
     }
     {
         static int copyFrom = 0;
-        ImGui::SetNextItemWidth(130); ImGui::Combo("##copyfrom", &copyFrom, kModeName, NMODES); ImGui::SameLine();
+        std::vector<const char*> names; for (int m = 0; m < NumModes(); ++m) names.push_back(ModeName(m));
+        copyFrom = std::min(copyFrom, NumModes() - 1);
+        ImGui::SetNextItemWidth(130); ImGui::Combo("##copyfrom", &copyFrom, names.data(), (int)names.size()); ImGui::SameLine();
         if (ImGui::Button("Copy its elements into this layout") && copyFrom != g_editMode) {
             for (auto e : g_layout[copyFrom]) { e.group = IntoMenu(e.group); Elems().push_back(e); }
             g_dirty = true;
         }
-        if (g_nowMode >= 0 && g_nowMode < NMODES && g_nowMode != g_editMode) { ImGui::SameLine(); if (ImGui::SmallButton("edit the current mode's layout")) { g_editMode = g_nowMode; g_sel = -1; } }
+        if (g_nowMode >= 0 && g_nowMode < NumModes() && g_nowMode != g_editMode) { ImGui::SameLine(); if (ImGui::SmallButton("edit the current mode's layout")) { g_editMode = g_nowMode; g_sel = -1; } }
     }
     // (Menus: "Import UniPad's menus file" and the old "menu page" hint are gone - menus live in REUI now)
-    if (g_editMode != MENUS) {
+    if (nfsu2Tools && !IsMenus(g_editMode)) {
         if (ImGui::Button("Import the multiplayer mod's overlay")) {
             std::string p = g_dir + "\\scripts\\NFSU2Multiplayer_overlay.txt";
             if (LoadFile(p, -1, true)) Log("ui editor: imported %s", p.c_str());
@@ -3340,7 +3349,7 @@ void Panel() {
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Adds every game mode's layout from scripts\\NFSU2Multiplayer_overlay.txt to the same modes here.");
     }
-    if (g_editMode != FREEROAM && g_editMode != MENUS) {
+    if (nfsu2Tools && g_editMode != FREEROAM && !IsMenus(g_editMode)) {
         static int importRows = 4;
         ImGui::SetNextItemWidth(90); ImGui::InputInt("rows##imp", &importRows); importRows = std::max(1, std::min(12, importRows)); ImGui::SameLine();
         if (ImGui::Button("Import the game's race HUD (position, laps, leaderboard, time)")) {
@@ -3667,7 +3676,7 @@ void Panel() {
         { std::vector<Elem> none; ElemsPreview(have ? cache : none, ImVec2(std::max(200.f, ImGui::GetContentRegionAvail().x), h - ImGui::GetFrameHeightWithSpacing()), have ? "(empty)" : "Pick a prefab to see it here"); }
         ImGui::BeginDisabled(!have);
         if (ImGui::Button("Add")) AddPrefab(pick);
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("A copy in this game mode (%s), as a new group.", kModeName[g_editMode]);
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("A copy in this game mode (%s), as a new group.", ModeName(g_editMode));
         ImGui::SameLine();
         if (ImGui::Button("Delete")) ImGui::OpenPopup("Delete prefab?");
         ImGui::EndDisabled();

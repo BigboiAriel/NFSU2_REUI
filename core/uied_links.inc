@@ -157,7 +157,7 @@ static void SaveLinks(FILE* f) {
     }
 }
 static void LoadLinkLine(const std::string& v, int intoMode) {
-    LinkSet s; s.mode = intoMode >= 0 ? intoMode : std::max(0, std::min(NMODES - 1, atoi(v.c_str())));
+    LinkSet s; s.mode = intoMode >= 0 ? intoMode : std::max(0, std::min(NumModes() - 1, atoi(v.c_str())));
     size_t p = v.find('|');
     { std::string head = v.substr(0, p); size_t sp = head.find(' '); if (sp != std::string::npos) s.name = Unesc(head.substr(sp + 1)); }
     while (p != std::string::npos) {
