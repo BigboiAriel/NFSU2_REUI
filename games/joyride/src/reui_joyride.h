@@ -13,9 +13,10 @@ class GraphicsProvider;
 
 namespace reui_joyride {
 
-// dataDir: REUI's folder (layout.txt, prefabs\, vector\ art) - the port's user data folder \REUI
+// dataDir: REUI's folder (layout.txt, prefabs\, vector\ art, cache\) - the port's user data folder \REUI.
+// gameData: the game's files (data.bpk: the menus' pictures); empty = none.
 bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::GraphicsProvider* provider,
-            const std::filesystem::path& dataDir);
+            const std::filesystem::path& dataDir, const std::filesystem::path& gameData);
 void Destroy();
 bool EditorOpen();
 void SetEditorOpen(bool open);

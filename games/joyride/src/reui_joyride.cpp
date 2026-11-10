@@ -1,5 +1,5 @@
-// See reui_joyride.h. First stage: REUI's editor and HUD layouts drawn over the game at the window's resolution
-// (shapes made on the CPU, SVG art, the ImGui fonts); Joy Ride's own textures, fonts and screens come next.
+// See reui_joyride.h. REUI's editor and layouts drawn over the game at the window's resolution (shapes made on the
+// CPU, SVG art, vector fonts, the menus' pictures from data.bpk); Joy Ride's screens come next.
 #include "reui_joyride.h"
 
 #include "assets_joyride.h"
@@ -55,7 +55,7 @@ void Frame() {
 } // namespace
 
 bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::GraphicsProvider* provider,
-            const std::filesystem::path& dataDir) {
+            const std::filesystem::path& dataDir, const std::filesystem::path& gameData) {
     if (g_overlay) return true;
     const std::string data = Dir(dataDir);
     CreateDirectoryW(dataDir.wstring().c_str(), nullptr);
@@ -84,7 +84,7 @@ bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::Gra
     if (!g_overlay) { REXLOG_ERROR("REUI: overlay could not be made"); return false; }
     ImGuiContext* prev = ImGui::GetCurrentContext();
     ImGui::SetCurrentContext(reui_rex::OverlayContext(g_overlay.get()));
-    assets_joyride::Install(data);   // vector fonts (REUI\fonts, Windows')
+    assets_joyride::Install(data, gameData.empty() ? std::filesystem::path() : gameData / "data.bpk");
     uied::Init(data, data + "layout.txt", [](const char* line) { REXLOG_INFO("REUI: {}", line); });
     ImGui::SetCurrentContext(prev);
     REXLOG_INFO("REUI: ready ({}) - F6 opens the editor", data);
@@ -93,6 +93,7 @@ bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::Gra
 
 void Destroy() {
     if (!g_overlay) return;
+    assets_joyride::Shutdown();
     ImGuiContext* prev = ImGui::GetCurrentContext();
     ImGui::SetCurrentContext(reui_rex::OverlayContext(g_overlay.get()));
     uied::Release();
