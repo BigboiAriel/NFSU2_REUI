@@ -851,7 +851,6 @@ static const BakedPrefab kBakedPrefabs[] = {
     "uv=0 0 1 1\n"
     "rot=-4.9983\n"
     "layer=2\n"
-    "additive=1\n"
     "aclip=In;566.6667;once\n"
     "akey=In;x;0 3.4339 in;400 0.9684 qout;533.3333 0 linear\n"
     "akey=In;y;0 0.9748 in;300 1.7929 qout;533.3333 0 linear\n"

@@ -122,6 +122,27 @@ static gfx::Tex TexOf(int i, bool mayLoad = true) {
     t.tex = tx;
     return tx;
 }
+// A texture's white silhouette (its alpha, every colour white): drawn over it with normal blending, a clip's
+// colour + (brightness flashes) on any backend - additive blending isn't on every one (rex). DXT: both colour
+// endpoints of every block made white (alpha untouched; DXT1's one-bit alpha too).
+static std::map<int, gfx::Tex> g_white;
+static gfx::Tex WhiteOf(int i) {
+    if (i < 0 || i >= (int)g_tex.size() || !gfx::Ready()) return nullptr;
+    auto it = g_white.find(i);
+    if (it != g_white.end()) return it->second;
+    gfx::Tex tx = nullptr;
+    gfx::Format fmt = gfx::BGRA8; std::vector<uint8_t> px; int pitch = 0;
+    if (assets::source.pixels && assets::source.pixels(g_tex[i], fmt, px, pitch)) {
+        if (fmt == gfx::BGRA8) { for (size_t k = 0; k + 3 < px.size(); k += 4) px[k] = px[k + 1] = px[k + 2] = 255; }
+        else {
+            const size_t bs = fmt == gfx::DXT1 ? 8 : 16, at = fmt == gfx::DXT1 ? 0 : 8;
+            for (size_t k = 0; k + bs <= px.size(); k += bs) for (int j = 0; j < 4; ++j) px[k + at + j] = 0xFF;
+        }
+        tx = gfx::Create(g_tex[i].w, g_tex[i].h, fmt, px.data(), pitch);
+    }
+    g_white[i] = tx;   // (null: tried, not again)
+    return tx;
+}
 static int FindTex(const std::string& name, const std::string& pack) {
     int any = -1;
     for (size_t i = 0; i < g_tex.size(); ++i) if (g_tex[i].name == name) { if (pack.empty() || g_tex[i].pack == pack) return (int)i; if (any < 0) any = (int)i; }
@@ -130,6 +151,8 @@ static int FindTex(const std::string& name, const std::string& pack) {
 static int FindFont(const std::string& name) { for (size_t i = 0; i < g_fonts.size(); ++i) if (g_fonts[i].name == name) return (int)i; return -1; }
 void Release() {
     for (auto& t : g_tex) if (t.tex) { gfx::Release(t.tex); t.tex = nullptr; }
+    for (auto& w : g_white) if (w.second) gfx::Release(w.second);
+    g_white.clear();
     vecart::Release();
     shapes::Release();
     shapes::GpuRelease();
@@ -1230,12 +1253,18 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
                                  uv0, ImVec2(uv1.x, uv0.y), uv1, ImVec2(uv0.x, uv1.y), c4);
             };
             quad(col);
-            if (poseAdd) {   // a clip's colour +: the picture again, added on (brightens where it is, its own shape)
+            if (poseAdd) {   // a clip's colour +: its white silhouette over it, as opaque as the add (towards white / the add's tint)
                 const float al = ImGui::ColorConvertU32ToFloat4(col).w;
-                const float ca[4] = { std::min(1.f, pose.add[0]), std::min(1.f, pose.add[1]), std::min(1.f, pose.add[2]), al };
-                if (!e.additive) dl->AddCallback(gfx::CbAdditive, nullptr);
-                quad(Col(ca));
-                if (!e.additive && !noAlpha) dl->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+                const float k = std::min(1.f, std::max(pose.add[0], std::max(pose.add[1], pose.add[2])));
+                const float ca[4] = { std::min(1.f, pose.add[0] / k), std::min(1.f, pose.add[1] / k), std::min(1.f, pose.add[2] / k), al * k };
+                if (gfx::Tex wt = e.texIdx >= 0 && !e.additive ? WhiteOf(e.texIdx) : nullptr) {
+                    gfx::Tex keep = tx; tx = wt; quad(Col(ca)); tx = keep;
+                } else {   // (no silhouette: the picture added on, where the backend can add)
+                    const float cb[4] = { std::min(1.f, pose.add[0]), std::min(1.f, pose.add[1]), std::min(1.f, pose.add[2]), al };
+                    if (!e.additive) dl->AddCallback(gfx::CbAdditive, nullptr);
+                    quad(Col(cb));
+                    if (!e.additive && !noAlpha) dl->AddCallback(ImDrawCallback_ResetRenderState, nullptr);
+                }
             }
         }
         if (tx && (e.additive || noAlpha)) dl->AddCallback(ImDrawCallback_ResetRenderState, nullptr);

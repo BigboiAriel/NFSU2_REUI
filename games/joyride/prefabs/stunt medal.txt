@@ -21,7 +21,6 @@ pack=hud/stuntdisplay/hudstuntdisplay
 uv=0 0 1 1
 rot=-4.9983
 layer=2
-additive=1
 aclip=In;566.6667;once
 akey=In;x;0 3.4339 in;400 0.9684 qout;533.3333 0 linear
 akey=In;y;0 0.9748 in;300 1.7929 qout;533.3333 0 linear
