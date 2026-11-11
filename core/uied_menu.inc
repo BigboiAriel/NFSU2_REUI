@@ -1287,7 +1287,7 @@ static void DrawMenuPage(ImDrawList* dl, const Page& p, int sel) {
         auto it = w ? rowIdx.find(w) : rowIdx.end();
         if (it != rowIdx.end()) {   // a grid / carousel: its tiles, all at once where its first piece is drawn; its scroller / arrows as themselves
             bool on = it->second == sel;
-            if (GridPiece(e)) { if (gridsDrawn.insert(w).second) DrawGrid(dl, &p, *w, on || GridGameSel(*w), 0, false); continue; }
+            if (GridPiece(e)) { if (e.type != E_MOTION && gridsDrawn.insert(w).second) DrawGrid(dl, &p, *w, on || GridGameSel(*w), 0, false); continue; }   // (at its lowest drawn piece's layer: a motion isn't drawn)
             if (!GridScroller(*w, e)) continue;
         } else if (e.role == "desc") {
             if (sel >= 0) e.text = desc;
@@ -1314,7 +1314,7 @@ static void DrawShared(ImDrawList* dl, const Page& p, const std::string& skipIn 
         bool in = false; for (auto& u : use) in |= InGroup(src.group, u.group);
         if (!in || (!skipIn.empty() && InGroup(src.group, skipIn))) continue;
         Widget* w = WidgetFor(src.group);
-        if (w && GridLike(*w) && GridPiece(src)) { if (gridsDrawn.insert(w).second) DrawGrid(dl, &p, *w, GridGameSel(*w), 0, false); continue; }
+        if (w && GridLike(*w) && GridPiece(src)) { if (src.type != E_MOTION && gridsDrawn.insert(w).second) DrawGrid(dl, &p, *w, GridGameSel(*w), 0, false); continue; }
         Elem e = src;
         if (w && GridLike(*w) && !GridScroller(*w, e)) continue;   // (its scroller: the tab along the track; its arrows)
         DrawElem(dl, e, false);
