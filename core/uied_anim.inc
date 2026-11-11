@@ -2772,7 +2772,19 @@ void AnimUndoTest() {   // (tests) undo, then redo: the focused element's key co
 void AnimLive(bool live) { if (anim::g.live != live) { anim::g.live = live; anim::SimRestart(); } }
 std::function<bool(const std::string& cmd)> animEvent;
 bool AnimTakesInput() { return anim::g.on && !anim::g.gameInput; }
-void AnimTestScript(const std::string& steps) {   // (tests) "step|step|...": a step every few frames, results to anim_test.txt
+void AnimTestScript(const std::string& spec) {   // (tests) "step|step|..." or a file in REUI's folder (a step a line): a step
+    std::string steps = spec;                       // every few frames, results to anim_test.txt
+    if (spec.size() > 4 && spec.compare(spec.size() - 4, 4, ".txt") == 0) {
+        steps.clear();
+        if (FILE* f = fopen((dataDir + spec).c_str(), "r")) {
+            char line[1024];
+            while (fgets(line, sizeof line, f)) {
+                std::string l = line; while (!l.empty() && (l.back() == '\n' || l.back() == '\r')) l.pop_back();
+                if (!l.empty() && l[0] != '#') { if (!steps.empty()) steps += "|"; steps += l; }
+            }
+            fclose(f);
+        }
+    }
     if (FILE* f = anim::TestOut(true)) fclose(f);
     anim::g_test.clear(); anim::g_testWait = 0;
     size_t p = 0;
