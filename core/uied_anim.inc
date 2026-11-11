@@ -324,18 +324,20 @@ static void Triggers(const Elem& e, ElemAnim& a, double now) {
 }
 static void Hidden(ElemAnim& a) { a.run = Run(); }
 static bool Leaving(Elem& e, bool kept) {   // kept: a group motion over it is leaving (it stays till that's done)
-    if (e.shownSince < 0) { if (e.an.p) Hidden(*e.an.p); return false; }   // (it wasn't up: stays gone)
+    if (e.shownSince < 0) { if (e.an.p) Hidden(*e.an.p); return false; }   // (it wasn't up, or its Out is done: stays gone)
     ElemAnim* a = e.an.p;
     if (!a) return kept;
     const Clip* out = ClipNamed(a, "Out");
     Run& r = a->run;
+    // gone: also not "shown" any more, at once - a group motion is asked from its members' draws too, and one still
+    // counted as shown would start its Out over for the next member
     if (!out) {   // no Out of its own: gone now, or (kept) as it is, frozen
         if (kept) { r.frozen = true; return true; }
-        Hidden(*a); return false;
+        Hidden(*a); e.shownSince = -1; return false;
     }
     const double now = ImGui::GetTime();
     if (r.outAt < 0) { r.outAt = now; StartBlend(*a, now); }
-    if (MsSince(r.outAt, now) >= out->length && !kept) { Hidden(*a); return false; }   // (kept: holds Out's end)
+    if (MsSince(r.outAt, now) >= out->length && !kept) { Hidden(*a); e.shownSince = -1; return false; }   // (kept: holds Out's end)
     return true;
 }
 static void Showing(Elem& e) {
