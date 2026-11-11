@@ -23,6 +23,7 @@ namespace uied {
     void AnimBare(bool bare);                // the side panels and graph hidden (only the timeline)
     void AnimSpeed(float speed);             // live clips play at this speed (slow motion to check them; 1 normally)
     void AnimLive(bool live);                // animation mode plays the layout live (triggers, stand-in menu values)
+    void AnimKeysTest(float at);             // (tests) the focused element's shown keys copied and pasted at `at` ms
     bool ShowIfUsed(const char* prefix);     // an element of any layout shows by a token starting so ("menu.sel:")
     bool Unsaved();                          // editor changes not saved yet
     // Game modes, each with its own overlay layout: the game connection's list, set before Init (NFSU2's by default:

@@ -1625,6 +1625,9 @@ void SetAnimMode(bool on) {
 }
 void AnimBare(bool bare) { anim::g.bare = bare; }
 void AnimSpeed(float speed) { anim::g_speed = std::max(0.01f, std::min(10.f, speed)); }
+void AnimKeysTest(float at) {   // (tests: the focused element's shown keys copied, pasted at `at` ms)
+    anim::PickAllShown(); anim::CopyKeys(false); anim::g.time = at; anim::PasteKeys();
+}
 void AnimLive(bool live) { if (anim::g.live != live) { anim::g.live = live; anim::SimRestart(); } }
 void AnimPlayhead(float ms, bool play) { anim::g.time = std::max(0.f, ms); anim::g.playing = play; anim::g.loop = true; }
 void AnimFocus(int index) {
