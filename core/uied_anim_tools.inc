@@ -330,7 +330,7 @@ static void Ghosts(ImDrawList* dl) {
         g_ghost.on = true; g_ghost.t = t;
         const float blue[3] = { 0.35f, 0.6f, 1.f }, orange[3] = { 1.f, 0.55f, 0.2f };
         for (int i = 0; i < 3; ++i) g_ghost.tint[i] = n < 0 ? blue[i] : orange[i];
-        g_ghost.alpha = 0.28f / (float)abs(n);
+        g_ghost.alpha = 0.4f / (float)abs(n);
         for (int i : who) DrawElem(dl, Elems()[i], false);
     }
     g_ghost.on = false;
@@ -916,7 +916,7 @@ static void StateGraph() {
     ImGui::TextDisabled("its clips and what starts them");
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Boxes: its clips (lit: playing now in Live / the game, or the one being edited). Arrows: what starts them.\nClick a box: edit that clip; an arrow's label: its trigger on the page. Drag box to box: a transition of its own.");
     const float u = ImGui::GetFontSize() / 13.f;
-    const float W = std::max(520 * u, ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ScrollbarSize);   // (narrow: it scrolls)
+    const float W = std::max(420 * u, ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ScrollbarSize);   // (narrow: it scrolls)
     ImGui::BeginChild("##sgscroll", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
     ImDrawList* dl = ImGui::GetWindowDrawList();
     const ImVec2 o = ImGui::GetCursorScreenPos();

@@ -2174,7 +2174,7 @@ static void SidePanel(ImVec2 pos, ImVec2 size, float defSplit) {
     const ImVec2 avail = ImGui::GetContentRegionAvail();
     const float u = ImGui::GetFontSize() / 13.f, divW = 8 * u, minW = 90 * u;
     float split = w_.split > 0 ? w_.split : defSplit;
-    if (g.pageTab == 1) split = std::max(split, 0.68f);   // (the state graph: more room, the list still there)
+    if (g.pageTab == 1) split = 0.98f;   // (the state graph: all the room but the list's narrowest)
     const float leftW = std::max(std::min(minW, avail.x * 0.5f), std::min(avail.x * split - divW * 0.5f, avail.x - divW - minW));
     ImGui::BeginChild("##apage", ImVec2(std::max(1.f, leftW), avail.y));
     {   // the page | the state graph (a click on the graph's trigger arrow comes back to the page)
@@ -2216,9 +2216,12 @@ static void SidePanel(ImVec2 pos, ImVec2 size, float defSplit) {
 static void GraphPanel(ImVec2 pos, ImVec2 size) {
     WinBegin(WIN_GRAPH, "Keys and curves##anim", pos, size);
     Clip* c = CurClip();
-    if (ImGui::BeginTabBar("##gtabs")) {
-        if (ImGui::BeginTabItem("Values")) { if (g.graphTab != 0) { g.graphTab = 0; g.graph.fit = true; } ImGui::EndTabItem(); }
-        if (ImGui::BeginTabItem("Speed")) { if (g.graphTab != 1) { g.graphTab = 1; g.graph.fit = true; } ImGui::EndTabItem(); }
+    if (ImGui::BeginTabBar("##gtabs")) {   // (set from elsewhere - the test script: picked here once)
+        static int lastTab = -1;
+        const bool force = g.graphTab != lastTab && lastTab >= 0;
+        if (ImGui::BeginTabItem("Values", nullptr, force && g.graphTab == 0 ? ImGuiTabItemFlags_SetSelected : 0)) { if (!force && g.graphTab != 0) { g.graphTab = 0; g.graph.fit = true; } ImGui::EndTabItem(); }
+        if (ImGui::BeginTabItem("Speed", nullptr, force && g.graphTab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) { if (!force && g.graphTab != 1) { g.graphTab = 1; g.graph.fit = true; } ImGui::EndTabItem(); }
+        lastTab = g.graphTab;
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Each track's rate of change (units, scale, degrees per second): a jump shows a jerk at a key.");
         ImGui::EndTabBar();
     }
@@ -2638,6 +2641,11 @@ static void Frame() {
     }
     const bool titleOnly = io.ConfigWindowsMoveFromTitleBarOnly;   // (dragging inside a window - the graph, the rows - isn't a move)
     io.ConfigWindowsMoveFromTitleBarOnly = true;
+#if IMGUI_VERSION_NUM >= 19100   // (Tab is a shortcut here: no widget of these windows takes the focus by it)
+    ImGui::PushItemFlag(ImGuiItemFlags_NoTabStop, true);
+#else
+    ImGui::PushTabStop(false);
+#endif
     if (g.bare) Timeline(ImVec2(0, H - tlH), ImVec2(W, tlH));
     else {
         const float graphH = g.expanded ? 0.f : H * kGraph;
@@ -2648,6 +2656,11 @@ static void Frame() {
         Timeline(ImVec2(0, H - tlH), ImVec2(W, tlH));
     }
     WinFrameEnd();
+#if IMGUI_VERSION_NUM >= 19100
+    ImGui::PopItemFlag();
+#else
+    ImGui::PopTabStop();
+#endif
     io.ConfigWindowsMoveFromTitleBarOnly = titleOnly;
 }
 
