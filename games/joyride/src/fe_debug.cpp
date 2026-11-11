@@ -288,16 +288,23 @@ std::string ScreenKey(const std::string& path) {
 void SetFeBridge(const FeBridge& b) { g_bridge = b; }
 void FeSend(int dir, const std::string& method, const std::vector<std::string>& args) { if (g_bridge.send) g_bridge.send(dir, method, args); }
 
-std::string g_callsFile;   // <REUI>\fe_calls.txt: every call written as it's seen, while <REUI>\fe_calls.on is there (debugging)
+std::string g_callsFile, g_varsIn, g_varsOut;   // (debugging) <REUI>\fe_vars.txt: paths (a line each) whose values are
+double g_varsAt = -10;                         // written to fe_vars_out.txt every second, while fe_calls.on is there
+// (<REUI>\fe_calls.txt: every call written as it's seen, while <REUI>\fe_calls.on is there)
 void FeInit(const std::string& dataDir) {
     g_cmdsFile = dataDir + "fe_commands.txt"; FeMenusInit(dataDir);
-    if (FILE* f = fopen((dataDir + "fe_calls.on").c_str(), "rb")) { fclose(f); g_callsFile = dataDir + "fe_calls.txt"; }
+    if (FILE* f = fopen((dataDir + "fe_calls.on").c_str(), "rb")) {
+        fclose(f); g_callsFile = dataDir + "fe_calls.txt"; g_varsIn = dataDir + "fe_vars.txt"; g_varsOut = dataDir + "fe_vars_out.txt";
+    }
 }
 
 const std::string& FeTopScreen() { return g_top; }
 
 bool FeToken(const std::string& key, std::string& out) {
     if (key == "screen") { out = g_top; return true; }
+    if (key.rfind("flash:", 0) == 0) {   // a movie variable: {flash:_level0.feScreen.mDifficultyInfo.0.NAME}
+        out.clear(); if (g_bridge.get) g_bridge.get(key.substr(6), out); return true;
+    }
     if (FeMenuToken(key, out)) return true;
     if (key == "screens") {
         out.clear();
@@ -339,6 +346,20 @@ void FeFrame() {
         while (g_log.size() > 5000) g_log.pop_front();
     }
     FeMenuFrame();
+    if (!g_varsIn.empty() && g_bridge.get && ImGui::GetTime() - g_varsAt >= 1.0) {   // (debugging: fe_vars.txt's paths)
+        g_varsAt = ImGui::GetTime();
+        if (FILE* f = fopen(g_varsIn.c_str(), "rb")) {
+            std::string out; char line[1024];
+            while (fgets(line, sizeof line, f)) {
+                std::string p = line; while (!p.empty() && (p.back() == '\n' || p.back() == '\r' || p.back() == ' ')) p.pop_back();
+                if (p.empty() || p[0] == '#') continue;
+                std::string v; const bool has = g_bridge.get(p, v);
+                out += p + " = " + (has ? v : std::string("(none)")) + "\n";
+            }
+            fclose(f);
+            if (FILE* o = fopen(g_varsOut.c_str(), "wb")) { fprintf(o, "%.1f s\n%s", ImGui::GetTime(), out.c_str()); fclose(o); }
+        }
+    }
 }
 
 void FeDebugWindow(bool* open) {

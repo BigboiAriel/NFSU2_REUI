@@ -45,6 +45,9 @@ struct FeBridge {
     std::function<std::vector<FeScreen>()> screens;
     std::function<std::vector<FeCall>(uint64_t since, uint64_t& next)> calls;   // after call number `since`
     std::function<void(int dir, const std::string& method, const std::vector<std::string>& args)> send;
+    // a movie variable's value as last read ("_level0.feScreen.mDifficultyInfo.0.NAME"; strings as their text); asking
+    // keeps it read (every 100 ms on the game thread); false: not there (yet)
+    std::function<bool(const std::string& path, std::string& out)> get;
 };
 void SetFeBridge(const FeBridge& bridge);
 void StartAnimMode(bool focusFirst, float ms = 0, bool play = false, bool bare = false);   // animation mode (F8);
