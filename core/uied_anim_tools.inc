@@ -4,6 +4,7 @@
 // and the test script. Plan: "Animation editor improvements: plan" (a Claude doc in the Joy Ride project).
 
 // ================================================================ the canvas: where each element was drawn
+static void ApplyHandles(Track& tr); static Clip* ClipOfName(Elem& e, const std::string& name);   // (below)
 
 struct Drawn { ImVec2 a, b, piv; float rot = 0; int frame = -10; };
 static std::unordered_map<const Elem*, Drawn> g_drawn;
@@ -93,6 +94,7 @@ struct CanvasDrag {
     float ang = 0, lastAng = 0;                // (turning: the angle so far)
     int elem = -1; Clip keep; bool active = false;
     int modal = 0;                             // G / S / R: the mouse moves it with no button held (click or Enter keeps it)
+    bool moved = false;                        // (a drag keys nothing till the mouse has moved 3 px: a click or a hold doesn't)
 };
 static CanvasDrag g_cd;
 static bool Turns(const Elem& e) { return e.type == E_IMAGE || e.type == E_SHAPE || e.type == E_MOTION; }
@@ -143,6 +145,7 @@ static bool CanvasBegin(int part, float ux, float uy, ImVec2 m, int modal = 0) {
 }
 static void CanvasDragTo(ImVec2 m, bool shift, bool ctrl) {
     if (!g_cd.active || !ImGui::IsMousePosValid(&m)) return;   // (the mouse off the window: nothing)
+    if (!g_cd.moved && !g_cd.modal) { if (fabsf(m.x - g_cd.m0.x) < 3 && fabsf(m.y - g_cd.m0.y) < 3) return; g_cd.moved = true; }
     Clip* c = CurClip(); const int fi = FocusedIndex();
     if (!c || fi != g_cd.elem) { g_cd.active = false; g.dragOn = false; return; }
     Elem& e = Elems()[fi];
@@ -217,10 +220,46 @@ static void Quad(ImDrawList* dl, const Box& b, ImU32 col, float th) {
     dl->AddPolyline(q, 4, IM_COL32(0, 0, 0, 170), ImDrawFlags_Closed, th + 2.f);
     dl->AddPolyline(q, 4, col, ImDrawFlags_Closed, th);
 }
-static void MotionPath(ImDrawList* dl) {   // the focused element's centre over the whole clip: a line, a dot per frame
-    const int fi = FocusedIndex(); Clip* c = CurClip();
-    if (fi < 0 || !c || !Keys(*c)) return;
-    Elem& e = Elems()[fi];
+// ---- the motion path: an element's centre over the whole clip (its Move X and Y together), a dot per frame - close dots:
+// slow. Held 800 ms on an element, it's pinned there with its keys marked; a click on a key: the easing of its way on.
+static int g_pathMenuElem = -1; static float g_pathMenuT = -1; static bool g_openPathMenu = false;
+static int PathElem() {   // the pinned path's element (-1: none)
+    if (g.pathKey.empty()) return -1;
+    auto& els = Elems();
+    for (int i = 0; i < (int)els.size(); ++i) if (KeyOf(g_editMode, els[i]) == g.pathKey) return i;
+    return -1;
+}
+static std::vector<float> PathKeyTimes(const Clip& c) {   // Move X / Y keys' times, each once
+    std::vector<float> ts;
+    for (int p : { P_X, P_Y }) for (auto& k : c.tracks[p].keys) ts.push_back(k.t);
+    std::sort(ts.begin(), ts.end()); ts.erase(std::unique(ts.begin(), ts.end(), [](float x, float y) { return fabsf(x - y) < 0.5f; }), ts.end());
+    return ts;
+}
+static int PathKeyEase(const Clip& c, float t) {   // the easing of the Move X / Y keys there (-2: they differ)
+    int e = -1;
+    for (int p : { P_X, P_Y }) for (auto& k : c.tracks[p].keys) if (fabsf(k.t - t) < 0.5f) e = e == -1 || e == k.ease ? k.ease : -2;
+    return e;
+}
+static void SetPathKeyEase(Clip& c, float t, int ease, int ht = -1) {   // the Move X / Y keys at t: easing (and handle type)
+    for (int p : { P_X, P_Y }) {
+        Track& tr = c.tracks[p];
+        for (size_t i = 0; i < tr.keys.size(); ++i) {
+            Key& k = tr.keys[i];
+            if (fabsf(k.t - t) >= 0.5f) continue;
+            const Key* n = i + 1 < tr.keys.size() ? &tr.keys[i + 1] : nullptr;
+            if (ease >= 0) { if (ease == EZ_BEZIER) ToBezier(k, n); else k.ease = ease; }
+            if (ht >= 0) { if (k.ease != EZ_BEZIER) ToBezier(k, n); k.ht = ht; }
+        }
+        ApplyHandles(tr);
+    }
+    g_dirty = true;
+}
+// returns the key time under the mouse (-1: none); `interactive`: the pinned path (keys marked, hover lit)
+static float MotionPath(ImDrawList* dl, int ei, bool interactive, ImVec2 m) {
+    if (ei < 0 || ei >= (int)Elems().size()) return -1;
+    Elem& e = Elems()[ei];
+    Clip* c = ClipOfName(e, PreviewName());
+    if (!c || !Keys(*c)) return -1;
     ImVec2 a, b; ElemRect(e, a, b);
     const float k = Unit();
     const ImVec2 c0((a.x + b.x) / 2, (a.y + b.y) / 2), pv(c0.x + (e.type == E_TEXT ? 0.f : e.pivX * k), c0.y + (e.type == E_TEXT ? 0.f : e.pivY * k));
@@ -230,13 +269,45 @@ static void MotionPath(ImDrawList* dl) {   // the focused element's centre over 
         if (Turns(e)) q = Turn(q, p.rot);
         return ImVec2(pv.x + q.x + p.dx * k, pv.y + q.y + p.dy * k);
     };
-    std::vector<ImVec2> pts;
-    for (float t = 0; t <= c->length + 0.5f; t += FrameMs()) pts.push_back(at(t));
-    if (pts.size() > 1) { dl->AddPolyline(pts.data(), (int)pts.size(), IM_COL32(0, 0, 0, 140), 0, 3.5f); dl->AddPolyline(pts.data(), (int)pts.size(), IM_COL32(255, 210, 90, 230), 0, 1.5f); }
-    for (auto& p : pts) dl->AddCircleFilled(p, 1.8f, IM_COL32(255, 240, 200, 220));
-    for (auto& tr : c->tracks) for (auto& kk : tr.keys) if (tr.prop == P_X || tr.prop == P_Y) { const ImVec2 p = at(kk.t); dl->AddCircle(p, 4.5f, IM_COL32(255, 255, 255, 230), 0, 1.5f); }
+    const std::vector<float> keys = PathKeyTimes(*c);
+    float hot = -1;
+    if (interactive) for (float t : keys) { const ImVec2 p = at(t); if (fabsf(m.x - p.x) <= 8 && fabsf(m.y - p.y) <= 8) hot = t; }
+    const float lit = hot >= 0 ? hot : (g_openPathMenu || ImGui::IsPopupOpen("##pathkey") ? g_pathMenuT : -1.f);
+    float litEnd = c->length; for (float t : keys) if (t > lit + 0.5f) { litEnd = t; break; }
+    std::vector<ImVec2> pts, seg;
+    for (float t = 0; t <= c->length + 0.5f; t += FrameMs()) { pts.push_back(at(t)); if (lit >= 0 && t >= lit - 0.5f && t <= litEnd + 0.5f) seg.push_back(pts.back()); }
+    if (pts.size() > 1) { dl->AddPolyline(pts.data(), (int)pts.size(), IM_COL32(0, 0, 0, 150), 0, interactive ? 4.5f : 3.5f); dl->AddPolyline(pts.data(), (int)pts.size(), IM_COL32(255, 210, 90, 230), 0, interactive ? 2.f : 1.5f); }
+    if (seg.size() > 1) dl->AddPolyline(seg.data(), (int)seg.size(), IM_COL32(110, 200, 255, 255), 0, 3.f);   // (the lit key's way on)
+    for (auto& p : pts) dl->AddCircleFilled(p, interactive ? 2.2f : 1.8f, IM_COL32(255, 240, 200, 220));
+    for (float t : keys) {
+        const ImVec2 p = at(t);
+        if (!interactive) { dl->AddCircle(p, 4.5f, IM_COL32(255, 255, 255, 230), 0, 1.5f); continue; }
+        const bool h = fabsf(t - lit) < 0.5f, last = fabsf(t - keys.back()) < 0.5f;
+        const float r = h ? 8.f : 6.5f;
+        ImVec2 q[4] = { ImVec2(p.x, p.y - r), ImVec2(p.x + r, p.y), ImVec2(p.x, p.y + r), ImVec2(p.x - r, p.y) };
+        dl->AddConvexPolyFilled(q, 4, h ? IM_COL32(110, 200, 255, 255) : IM_COL32(255, 255, 255, 255));
+        dl->AddPolyline(q, 4, IM_COL32(0, 0, 0, 230), ImDrawFlags_Closed, 1.5f);
+        if (!last) {   // its easing, by it
+            const int ez = PathKeyEase(*c, t);
+            const char* nm = ez >= 0 ? kEase[ez] : "mixed";
+            dl->AddText(ImVec2(p.x + 11, p.y - 7), IM_COL32(0, 0, 0, 220), nm);
+            dl->AddText(ImVec2(p.x + 10, p.y - 8), h ? IM_COL32(150, 215, 255, 255) : IM_COL32(255, 255, 255, 240), nm);
+        }
+    }
     const float now = PreviewTime() - (c->name == "In" ? InDelay(e) : 0.f);
     const ImVec2 p = at(ClipTime(*c, now)); dl->AddCircleFilled(p, 4.f, IM_COL32(80, 150, 255, 255));
+    if (interactive && keys.empty()) { const ImVec2 q = at(0); dl->AddText(ImVec2(q.x + 8, q.y + 8), IM_COL32(255, 230, 160, 255), "no Move X / Y keys in this clip"); }
+    return hot;
+}
+// a hold: the mouse down on an element and kept still 800 ms pins its path
+static struct Hold { bool down = false; ImVec2 at; double t0 = 0; int elem = -1; } g_hold;
+static void PinPath(int ei) {
+    if (ei < 0 || ei >= (int)Elems().size()) return;
+    FocusElem(ei);
+    g.pathKey = KeyOf(g_editMode, Elems()[ei]);
+    Clip* c = ClipOfName(Elems()[ei], PreviewName());
+    Note(c && !PathKeyTimes(*c).empty() ? "Its path (Move X and Y): click a key on it to change its easing. Esc or a click off it: hide it."
+                                       : "Its path: it doesn't move in the " + PreviewName() + " clip (no Move X / Y keys).");
 }
 static void Canvas(ImDrawList* dl) {
     if (!g.on || g.live) { if (g_cd.active) CanvasEnd(true); return; }
@@ -244,7 +315,21 @@ static void Canvas(ImDrawList* dl) {
     const ImVec2 m = io.MousePos;
     const bool overUi = ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || (ImGui::IsAnyItemActive() && !g_cd.active);
     const int fi = FocusedIndex();
-    if (g.path && !g.playing) MotionPath(dl);
+    const int pe = PathElem();
+    if (g.path && !g.playing && fi != pe) MotionPath(dl, fi, false, m);
+    const float pathHot = pe >= 0 ? MotionPath(dl, pe, !overUi && !g_cd.active, m) : -1.f;
+    // a hold (800 ms, the mouse still): that element's path, pinned
+    if (g_hold.down) {
+        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left) || fabsf(m.x - g_hold.at.x) > 4 || fabsf(m.y - g_hold.at.y) > 4) g_hold.down = false;
+        else if (ImGui::GetTime() - g_hold.t0 >= 0.8) {
+            g_hold.down = false;
+            if (g_cd.active && !g_cd.modal) CanvasEnd(true);   // (a move that didn't move: nothing to keep)
+            PinPath(g_hold.elem);
+        } else {   // (filling ring: how long to hold)
+            const float u = (float)((ImGui::GetTime() - g_hold.t0) / 0.8);
+            if (u > 0.2f) dl->PathArcTo(m, 14, -1.5708f, -1.5708f + 6.2832f * u, 24), dl->PathStroke(IM_COL32(255, 210, 90, 230), 0, 3.f);
+        }
+    }
     // a drag / G S R going on
     if (g_cd.active) {
         if (g_cd.modal) {
@@ -298,7 +383,19 @@ static void Canvas(ImDrawList* dl) {
     if (part == H_CORNER && ux * uy < 0) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNESW);
     else if (part == H_EDGE && ux == 0) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
     else if (part != H_NONE && !(part == H_MOVE && !hits.empty() && hits[0] != fi)) ImGui::SetMouseCursor(curs[part]);
+    if (pathHot >= 0) {   // a key on the pinned path: its easing
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+        Clip* pc = ClipOfName(Elems()[pe], PreviewName());
+        const int ez = pc ? PathKeyEase(*pc, pathHot) : -1;
+        ImGui::SetTooltip("Key at %s: %s to the next key.\nClick: its easing. Right-click: the playhead here.", TimeText(pathHot).c_str(), ez >= 0 ? kEase[ez] : "mixed easings");
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { g_pathMenuElem = pe; g_pathMenuT = pathHot; g_openPathMenu = true; }
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) { g.time = pathHot + (PreviewName() == "In" ? InDelay(Elems()[pe]) : 0.f); g.playing = false; }
+        return;
+    }
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+        const int under = !hits.empty() ? hits[0] : (part == H_MOVE ? fi : -1);
+        if (under >= 0) g_hold = { true, m, ImGui::GetTime(), part == H_MOVE && !io.KeyCtrl && (hits.empty() || hits[0] == fi) ? fi : under };
+        else if (pe >= 0) g.pathKey.clear();   // (a click off everything: the pinned path goes)
         // its handles first (a click inside it moves it only if it's the one under the mouse, or Ctrl is held)
         if (part != H_NONE && (part != H_MOVE || hits.empty() || hits[0] == fi || io.KeyCtrl)) CanvasBegin(part, ux, uy, m);
         else CanvasPick(m, io.KeyAlt);
@@ -1122,6 +1219,7 @@ static void Shortcuts() {
         if (pr(ImGuiKey_Delete)) DeletePicked();
     }
     if (alt && !ctrl && pr(ImGuiKey_I)) KeyHere(true);
+    if (pr(ImGuiKey_Escape) && !g.pathKey.empty() && !ImGui::IsPopupOpen("##pathkey")) g.pathKey.clear();
     if (ctrl && !alt && pr(ImGuiKey_D)) DuplicateKeys();
 }
 // the T / V menus and the keys' help (opened from a window: the timeline)
@@ -1129,6 +1227,25 @@ static void ShortcutPopups() {
     if (g_openEase) { ImGui::OpenPopup("##tease"); g_openEase = false; }
     if (g_openHandles) { ImGui::OpenPopup("##vhandles"); g_openHandles = false; }
     if (g_openHelp) { ImGui::OpenPopup("##keyhelp"); g_openHelp = false; }
+    if (g_openPathMenu) { ImGui::OpenPopup("##pathkey"); g_openPathMenu = false; }
+    if (ImGui::BeginPopup("##pathkey")) {   // a key on the pinned path: the easing of its Move X / Y on to the next key
+        Clip* pc = g_pathMenuElem >= 0 && g_pathMenuElem < (int)Elems().size() ? ClipOfName(Elems()[g_pathMenuElem], PreviewName()) : nullptr;
+        if (!pc) ImGui::CloseCurrentPopup();
+        else {
+            const int ez = PathKeyEase(*pc, g_pathMenuT);
+            ImGui::Text("%s, key at %s", Elems()[g_pathMenuElem].name.c_str(), TimeText(g_pathMenuT).c_str());
+            ImGui::TextDisabled("Move X / Y: the way to the next key");
+            for (int e = 0; e < EZ_NEASE; ++e) if (ImGui::MenuItem(kEase[e], nullptr, ez == e)) SetPathKeyEase(*pc, g_pathMenuT, e);
+            ImGui::Separator();
+            ImGui::TextDisabled("Handles (bezier)");
+            int ht = -1; for (int p : { P_X, P_Y }) for (auto& k : pc->tracks[p].keys) if (fabsf(k.t - g_pathMenuT) < 0.5f && k.ease == EZ_BEZIER) ht = k.ht;
+            for (int h = 0; h < HT_N; ++h) if (ImGui::MenuItem(kHandleType[h], nullptr, ht == h)) SetPathKeyEase(*pc, g_pathMenuT, -1, h);
+            ImGui::Separator();
+            if (ImGui::MenuItem("Playhead to this key")) { g.time = g_pathMenuT + (PreviewName() == "In" ? InDelay(Elems()[g_pathMenuElem]) : 0.f); g.playing = false; }
+            if (ImGui::MenuItem("Hide the path")) g.pathKey.clear();
+        }
+        ImGui::EndPopup();
+    }
     if (ImGui::BeginPopup("##tease")) {
         ImGui::TextDisabled("Way to the next key (the picked keys)");
         for (int e = 0; e < EZ_NEASE; ++e) if (ImGui::MenuItem(kEase[e])) {
@@ -1160,6 +1277,7 @@ static void ShortcutPopups() {
             ImGui::EndTable();
         }
         ImGui::TextDisabled("On screen: click an element to focus it (again: the one under it; Alt: its group).");
+        ImGui::TextDisabled("Hold the mouse on it 800 ms: its path, with its keys - click one to change its easing.");
         ImGui::TextDisabled("Auto key on: drag its box to move, its corners / edges to scale, outside a corner to turn, the cross: its pivot.");
         ImGui::EndPopup();
     }
@@ -1337,6 +1455,23 @@ static void TestStep(const std::string& step) {
     }
     else if (cmd == "custom") { if (fi >= 0) { Clip& k = ClipFor(Elems()[fi], arg(1)); k.on = true; } TestLog("custom clip %s on %s", arg(1).c_str(), fname.c_str()); }
     else if (cmd == "flow") { if (ElemAnim* an = Focused()) { Flow f; f.from = arg(1); f.to = arg(2); f.cond = arg(3); f.blend = num(4, 120); an->flows.push_back(f); g_dirty = true; } TestLog("flow %s -> %s when '%s'", arg(1).c_str(), arg(2).c_str(), arg(3).c_str()); }
+    else if (cmd == "hold") {   // hold:<name>: as holding the mouse on it 800 ms
+        const int i = ElemNamed(arg(1)); Box b;
+        if (i < 0 || !BoxOf(i, b)) { TestLog("hold %s: not on screen", arg(1).c_str()); return; }
+        PinPath(i);
+        Clip* pc = ClipOfName(Elems()[i], PreviewName());
+        std::string ks; if (pc) for (float t : PathKeyTimes(*pc)) { const int ez = PathKeyEase(*pc, t); ks += " " + TimeText(t) + "=" + (ez >= 0 ? kEaseKey[ez] : "mixed"); }
+        TestLog("hold %s: path pinned (%s), keys:%s", arg(1).c_str(), PathElem() == i ? "ok" : "not pinned", ks.c_str());
+    }
+    else if (cmd == "pathkey") {   // pathkey:<ms>:<ease key>[:<handle type>]: as the path key's menu
+        const int pe = PathElem(); Clip* pc = pe >= 0 ? ClipOfName(Elems()[pe], PreviewName()) : nullptr;
+        if (!pc) { TestLog("pathkey: no pinned path"); return; }
+        int ez = -1; for (int j = 0; j < EZ_NEASE; ++j) if (arg(2) == kEaseKey[j]) ez = j;
+        int ht = -1; for (int j = 0; j < HT_N; ++j) if (arg(3) == kHandleKey[j]) ht = j;
+        SetPathKeyEase(*pc, num(1), ez, ht);
+        g_pathMenuElem = pe; g_pathMenuT = num(1); if (arg(4) == "menu") g_openPathMenu = true;
+        TestLog("pathkey %g -> %s", num(1), TracksText(*pc).c_str());
+    }
     else if (cmd == "status") TestLog("status: time %g, %s mode, focused %s, clip %s, live %d, G/S/R %d, auto key %d", g.time, g.screen ? "Screen" : "Element", fname.c_str(), PreviewName().c_str(), (int)g.live, g_cd.active ? g_cd.modal : 0, (int)g.autoKey);
     else if (cmd == "press") { g.simPressAt = ImGui::GetTime(); TestLog("press (live)"); }
     else if (cmd == "row") { g.simRow = (int)num(1); TestLog("focus row %d (live)", g.simRow); }

@@ -252,6 +252,7 @@ struct State {
     bool gameInput = false;       // the game gets the keyboard / controller while animating
     std::string layoutName = "Standard";
     std::string focusTrigger;     // (the state graph: a trigger's field to go to on the page)
+    std::string pathKey;          // an element's motion path pinned on screen (held 800 ms): its keys' easing edited there
 };
 static State g;
 
