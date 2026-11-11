@@ -24,8 +24,9 @@ std::atomic<bool> g_stop{false};
 
 // ---------------------------------------------------------------- the menus' pictures
 
-constexpr int kCacheVersion = 3;   // 2: also keeps the menus' font movie (gfxfontlib.gfx: the game's fonts); 3: every menu movie
-                                   // (cache\movies\<movie>.gfx: animation mode's "Copy motion from the game")
+constexpr int kCacheVersion = 4;   // 2: also keeps the menus' font movie (gfxfontlib.gfx: the game's fonts); 3: every menu movie
+                                   // (cache\movies\<movie>.gfx: animation mode's "Copy motion from the game"); 4: the game's
+                                   // string tables (data\locale\*.loc -> cache\locale\<lang>.loc: the {loc:KEY} token)
 struct Img { uint64_t off; uint32_t size; };
 std::vector<Img> g_img;                   // by Tex::id (written by the scan before uied sees the index)
 std::filesystem::path g_bin;
@@ -114,6 +115,13 @@ bool BuildCache(const std::filesystem::path& bin, const std::filesystem::path& i
     std::vector<uint8_t> pack;            // its bytes
 
     auto Pack = [&](const Entry& m) {     // one menu pack collected: keep its images
+        if (Lower(m.name).rfind("data\\locale\\", 0) == 0) {   // a string table (en.loc...): kept whole, cache\locale\<lang>.loc
+            std::error_code ec;
+            const std::filesystem::path f = bin.parent_path() / L"locale" / std::filesystem::path(Lower(m.name.substr(12)));
+            std::filesystem::create_directories(f.parent_path(), ec);
+            if (FILE* o = _wfopen(f.wstring().c_str(), L"wb")) { fwrite(pack.data(), 1, pack.size(), o); fclose(o); }
+            return;
+        }
         std::vector<Entry> files;
         bool bad = false;
         if (!Directory(pack.data(), pack.size(), files, bad)) { ++badPacks; return; }
@@ -165,8 +173,9 @@ bool BuildCache(const std::filesystem::path& bin, const std::filesystem::path& i
             if (Directory(head.data(), head.size(), all, bad)) {
                 haveDir = true;
                 for (auto& e : all)
-                    if (Lower(e.name).rfind("data\\fe\\", 0) == 0 && Lower(e.ext).compare(0, 3, "bpk") == 0 && e.size)
-                        menus.push_back(e);
+                    if ((Lower(e.name).rfind("data\\fe\\", 0) == 0 && Lower(e.ext).compare(0, 3, "bpk") == 0 && e.size)
+                        || (Lower(e.name).rfind("data\\locale\\", 0) == 0 && Lower(e.ext).compare(0, 3, "loc") == 0 && e.size))
+                        menus.push_back(e);   // (and the string tables: just after the menus in the file)
                 std::sort(menus.begin(), menus.end(), [](const Entry& a, const Entry& b) { return a.off < b.off; });
                 head.clear(); head.shrink_to_fit();
                 // (menu packs that started before the directory was complete: the cache misses them)

@@ -5,8 +5,12 @@
 
 #include <imgui.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
+#include <cstring>
+#include <deque>
 #include <map>
 #include <mutex>
 #include <string>
@@ -38,6 +42,43 @@ int g_pressRow = -1; double g_pressAt = -1e9, g_backAt = -1e9;
 double Now() { return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(); }
 const double kPressOn = 0.2;      // s a press reads on (a few frames, whatever the frame rate)
 
+// ---- a REUI menu page standing in for the screen (its "stands in for"): the screen's up / down / left / right / select
+// go to the page (one a frame, each a press and a release); back stays the movie's. The page's tiles run the game's own
+// calls ("fe:" commands, below).
+std::atomic<bool> g_pageOn{false};   // a page is open for the screen on top (the game thread asks)
+std::string g_pageScreen;            // (locked) that screen
+std::deque<std::string> g_events;    // (locked) its presses, for REUI's frame
+bool g_ownOpen = false;              // (REUI's thread) the open page is ours (opened for a screen)
+bool g_pulse = false;                // (REUI's thread) last frame held a press: this one lets go
+
+// ---- the game's strings: <REUI>\cache\locale\<lang>.loc (data.bpk's data\locale, kept by the picture cache) -
+// "8COL", the count (u32 LE) at 20, then (djb2(key), offset) big-endian pairs sorted by key, then the UTF-8 strings
+std::string g_dataDir, g_lang = "en";
+std::map<uint32_t, std::string> g_loc;
+int g_locTries = 0; double g_locAt = -100;
+uint32_t Djb2(const std::string& s) { uint32_t h = 5381; for (unsigned char c : s) h = h * 33 + c; return h; }
+uint32_t Be32(const unsigned char* p) { return (uint32_t)p[0] << 24 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 8 | p[3]; }
+void LocLoad() {   // (until it's there: the cache is written in the background on the first start)
+    if (!g_loc.empty() || g_locTries > 60 || ImGui::GetTime() - g_locAt < 2.0) return;
+    ++g_locTries; g_locAt = ImGui::GetTime();
+    FILE* f = fopen((g_dataDir + "cache\\locale\\" + g_lang + ".loc").c_str(), "rb");
+    if (!f) return;
+    std::vector<unsigned char> d;
+    unsigned char buf[65536]; size_t n;
+    while ((n = fread(buf, 1, sizeof buf, f)) > 0) d.insert(d.end(), buf, buf + n);
+    fclose(f);
+    if (d.size() < 24 || memcmp(d.data(), "8COL", 4) != 0) return;
+    const uint32_t count = d[20] | d[21] << 8 | d[22] << 16 | (uint32_t)d[23] << 24;
+    const size_t strs = 24 + (size_t)count * 8;
+    if (count > 200000 || strs > d.size()) return;
+    for (uint32_t i = 0; i < count; ++i) {
+        const uint32_t key = Be32(&d[24 + i * 8]), off = Be32(&d[28 + i * 8]);
+        if (strs + off >= d.size()) continue;
+        const char* p = (const char*)&d[strs + off];
+        g_loc[key] = std::string(p, strnlen(p, d.size() - strs - off));
+    }
+}
+
 void Enter(const std::string& key) {   // (locked)
     if (key == g_key) return;
     g_key = key;
@@ -51,6 +92,17 @@ void Enter(const std::string& key) {   // (locked)
 void SetMenusEnabled(bool on) { g_enabled = on; }
 
 bool FeMenuInput(const std::string& screenPath, const std::string& code, int controller) {
+    if (g_enabled && g_pageOn && !g_popup) {   // a REUI page stands in for the screen: its presses are the page's
+        const std::string key = ScreenKey(screenPath);
+        std::lock_guard<std::mutex> l(g_mu);
+        if (key == g_pageScreen) {
+            if (code == "UP" || code == "DOWN" || code == "LEFT" || code == "RIGHT" || code == "ADVANCE") {
+                if (g_events.size() < 16) g_events.push_back(code);
+                return true;
+            }
+            if (code == "BACK") { g_backAt = Now(); return false; }   // (the movie's own back)
+        }
+    }
     if (!g_enabled || !g_drive || g_popup) return false;
     const std::string key = ScreenKey(screenPath);
     const MenuDef* m = Find(key);
@@ -76,9 +128,110 @@ bool FeMenuInput(const std::string& screenPath, const std::string& code, int con
     return false;
 }
 
+namespace {
+// "fe:" a tile's game command: calls split at ';' (outside quotes), each "Module:method(args)" - the movie asking the game
+// (ExternalInterface) - or "@function(args)" - the game calling the screen's movie (_level0.feScreen.function; a path
+// from "_" as it is). {tile} is the picked tile's number.
+std::vector<std::string> SplitOutside(const std::string& s, char sep) {
+    std::vector<std::string> out; std::string cur; bool q = false;
+    for (char c : s) {
+        if (c == '"') q = !q;
+        if (c == sep && !q) { out.push_back(cur); cur.clear(); } else cur += c;
+    }
+    out.push_back(cur);
+    return out;
+}
+std::string Trim(std::string s) {
+    while (!s.empty() && (s.back() == ' ' || s.back() == '\t')) s.pop_back();
+    size_t i = 0; while (i < s.size() && (s[i] == ' ' || s[i] == '\t')) ++i;
+    return s.substr(i);
+}
+void RunCommand(std::string cmd, int tile) {
+    for (size_t k; (k = cmd.find("{tile}")) != std::string::npos;) cmd.replace(k, 6, std::to_string(std::max(0, tile)));
+    for (std::string call : SplitOutside(cmd, ';')) {
+        call = Trim(call);
+        if (call.empty()) continue;
+        const size_t a = call.find('('), b = call.rfind(')');
+        std::string name = Trim(call.substr(0, a)), in = a != std::string::npos && b != std::string::npos && b > a ? call.substr(a + 1, b - a - 1) : "";
+        std::vector<std::string> args;
+        if (!Trim(in).empty()) for (auto& x : SplitOutside(in, ',')) args.push_back(Trim(x));
+        if (name.empty()) continue;
+        if (name[0] == '@') {
+            name = name.substr(1);
+            FeSend(1, name[0] == '_' ? name : "_level0.feScreen." + name, args);
+        } else FeSend(0, name, args);
+    }
+}
+
+} // namespace
+
+void FeMenusInit(const std::string& dataDir) {
+    g_dataDir = dataDir;
+    for (auto& m : kMenus) uied::standInKeys.push_back(m.key);
+    uied::menuAction = [](const std::string& a) {
+        if (a.compare(0, 3, "fe:") != 0) return false;
+        const int tile = uied::MenuSelectedTile();
+        {
+            std::lock_guard<std::mutex> l(g_mu);
+            g_pressRow = tile; g_pressAt = Now();   // (menu.press / menu.press:<tile>)
+            if (!g_pageScreen.empty()) g_last[g_pageScreen] = std::max(0, tile);   // (back on this screen: the same tile)
+        }
+        RunCommand(a.substr(3), tile);
+        return true;
+    };
+    uied::menuSound = [](int s) {   // the page's moves: the game's own menu sound (its movies' Audio.MENU_UP / MENU_DOWN)
+        if (!g_pageOn) return;
+        if (s == uied::SND_UP || s == uied::SND_DOWN || s == uied::SND_LEFT || s == uied::SND_RIGHT)
+            FeSend(0, "Audio:playSound", { "\"UI_UpDown\"" });
+    };
+}
+
+bool LocText(const std::string& key, std::string& out) {
+    LocLoad();
+    auto it = g_loc.find(Djb2(key));
+    if (it == g_loc.end()) return false;
+    out = it->second;
+    return true;
+}
+
+namespace {
+void PageFrame(const std::string& top) {   // (REUI's thread) the page standing in for the screen on top
+    const std::string page = g_enabled && !g_popup ? uied::MenuPageFor(top) : std::string();
+    if (!page.empty()) {
+        if (!uied::MenuIsOpen() || uied::MenuTopPage() != page) {
+            if (uied::MenuOpen(page)) {
+                g_ownOpen = true; g_pulse = false;
+                int row = 0;
+                { std::lock_guard<std::mutex> l(g_mu); g_events.clear(); auto it = g_last.find(top); if (it != g_last.end()) row = it->second; }
+                uied::MenuSelectTile(row);
+            }
+        }
+    } else if (g_ownOpen) {
+        if (uied::MenuIsOpen()) uied::MenuClose();
+        g_ownOpen = false;
+    }
+    const bool on = !page.empty() && uied::MenuIsOpen() && uied::MenuTopPage() == page;
+    { std::lock_guard<std::mutex> l(g_mu); g_pageScreen = on ? top : std::string(); }
+    g_pageOn = on;
+    if (!on) return;
+    uied::MenuInput in;
+    if (g_pulse) g_pulse = false;   // (a press, then a frame let go: each of the game's events is one press)
+    else {
+        std::string ev;
+        { std::lock_guard<std::mutex> l(g_mu); if (!g_events.empty()) { ev = g_events.front(); g_events.pop_front(); } }
+        if (!ev.empty()) {
+            in.up = ev == "UP"; in.down = ev == "DOWN"; in.left = ev == "LEFT"; in.right = ev == "RIGHT"; in.accept = ev == "ADVANCE";
+            g_pulse = true;
+        }
+    }
+    uied::MenuFrame(in, ImGui::GetIO().DeltaTime);
+}
+} // namespace
+
 void FeMenuFrame() {
     g_drive = uied::ShowIfUsed("menu.sel:");
     const std::string& top = FeTopScreen();
+    PageFrame(top);
     std::lock_guard<std::mutex> l(g_mu);
     if (top == "boot/pressstart") g_last.clear();   // (it resets the game's breadcrumbs: the menus start at the top)
     if (Find(top)) {
@@ -97,6 +250,7 @@ void FeMenuCall(const std::string& method, const std::string& args) {
 bool FeMenuHides(const std::string& screenKey) { return g_popup && g_enabled && g_drive && Find(screenKey); }
 
 bool FeMenuToken(const std::string& key, std::string& out) {
+    if (key.rfind("loc:", 0) == 0) { if (!LocText(key.substr(4), out)) out = key.substr(4); return true; }   // the game's own text
     if (key.rfind("menu.", 0) != 0) return false;
     std::lock_guard<std::mutex> l(g_mu);
     if (key == "menu.press" || key.rfind("menu.press:", 0) == 0) {   // (not tied to the screen: the game moves on at once)

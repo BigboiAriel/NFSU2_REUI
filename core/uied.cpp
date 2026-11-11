@@ -329,6 +329,7 @@ struct Elem {
                                           // name / cash: Fade_Out the old, Fade_In the new - SwapText)
     bool afterLabel = false;              // menus, a grid's piece: moves with the end of its tile's label text (a binding's icon)
     int tileKinds = 0;                    // menus, a grid's piece: the tiles it shows on (1 buttons, 2 sliders, 4 pickers, 8 bindings; 0 all)
+    int tileParity = 0;                   // menus, a grid's piece: 0 every tile, 1 the 1st / 3rd / 5th..., 2 the 2nd / 4th... (striped rows)
     std::string kit;                      // (loading only: an older widget-kit template piece - left out)
     // live-value rules: showIf = a value key ("!key": the opposite) - shown only while it's set (not blank / "0");
     // bind = a value key driving the element: bindKind 1 fill left to right, 2 fill bottom to top (images: cut, not
@@ -1012,6 +1013,9 @@ static const std::string& SwapTok(const std::string& n) {
     return n;
 }
 static void ApplyTokSwap(Elem& e);
+// A grid tile being drawn (uied_menu.inc DrawGrid): its pieces' clips take the tile's state - Focus / Unfocus / Selected
+// follow the tile being the selected one, Press its accept - and In waits the grid's stagger for its place.
+static struct TileCtx { bool on = false, sel = false, press = false; float inDelay = 0; } g_tileCtx;
 namespace anim {   // (uied_anim.inc) an element's clips now: the change they make to it this frame
 struct Pose { float dx = 0, dy = 0, sx = 1, sy = 1, rot = 0, a = 1, mul[3] = { 1, 1, 1 }, add[3] = { 0, 0, 0 }; };
 static bool PoseOf(Elem& e, bool editing, Pose& p);   // false: nothing playing on it
@@ -1020,11 +1024,16 @@ static bool Leaving(Elem& e, bool kept);   // its show-only-while went off: true
                                            // or kept: its group's motion is leaving (it stays, frozen, till that ends)
 static void Showing(Elem& e);    // it's shown (back during an Out: In starts again)
 static bool ShownNow(const Elem& e);   // its show-only-while now (animation mode's live preview: shown till Leave)
+// a copy of src drawn in a menu page / grid tile (tile -1: the page's own piece): its clip state kept from frame to
+// frame (the copy is made afresh each frame); not drawn last frame: from the start (In plays again)
+static void CopyLoad(const Elem& src, int tile, Elem& e);
+static void CopySave(const Elem& src, int tile, const Elem& e);
 }
 // ---- group motion: a "motion" element's clips (In, triggers, Out...) move every element of its group (and the groups in
 // it) about its point - scale, turn and move with it, fade and tint - after the element's own clips; inner groups first
 static std::vector<Elem>* LayoutOf(const Elem& e) {
     for (auto& l : g_layout) if (!l.empty() && &e >= &l.front() && &e <= &l.back()) return &l;
+    if (g_drawList && !g_drawList->empty() && &e >= &g_drawList->front() && &e <= &g_drawList->back()) return g_drawList;   // (a grid tile's copies)
     return nullptr;
 }
 static void MotionsOf(const Elem& e, std::vector<Elem*>& out) {   // the motion elements over it, inner groups first
@@ -1046,7 +1055,7 @@ static int MotionPoses(Elem& e, bool editing, MotionPose* out, int max) {
     for (Elem* c : cs) {
         if (n >= max) break;
         Cached& k = cache[c];
-        if (k.frame != frame) { k.frame = frame; k.p = anim::Pose(); k.posed = anim::PoseOf(*c, false, k.p); }
+        if (k.frame != frame || g_tileCtx.on) { k.frame = frame; k.p = anim::Pose(); k.posed = anim::PoseOf(*c, false, k.p); }   // (tiles: their own copies)
         if (!k.posed) continue;
         ImVec2 a, b; ElemRect(*c, a, b);
         const float u = Unit();
@@ -2081,6 +2090,7 @@ static void PutElemS(std::string& o, int m, const Elem& e) {   // one element as
     if (!e.role.empty()) Pf(o, "role=%s\n", e.role.c_str());
     if (e.selOnly) Pf(o, "selonly=1\n");
     if (e.tileKinds) Pf(o, "tilekinds=%d\n", e.tileKinds);
+    if (e.tileParity) Pf(o, "tileparity=%d\n", e.tileParity);
     if (e.afterLabel) Pf(o, "afterlabel=1\n");
     if (e.wrap) Pf(o, "wrap=1\n");
     if (e.swapAnim) Pf(o, "swapanim=1\n");
@@ -2175,6 +2185,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "role") e.role = v;
     else if (k == "selonly") e.selOnly = atoi(v.c_str()) != 0;
     else if (k == "tilekinds") e.tileKinds = atoi(v.c_str()) & 15;
+    else if (k == "tileparity") e.tileParity = std::max(0, std::min(2, atoi(v.c_str())));
     else if (k == "afterlabel") e.afterLabel = atoi(v.c_str()) != 0;
     else if (k == "wrap") e.wrap = atoi(v.c_str()) != 0;
     else if (k == "swapanim") e.swapAnim = atoi(v.c_str()) != 0;
@@ -2294,6 +2305,11 @@ static void WriteDeletedPrefabs(const std::vector<std::string>& names) {
 }
 static bool PrefabOnDisk(const std::string& name) { return GetFileAttributesA((PrefabDir() + name + ".txt").c_str()) != INVALID_FILE_ATTRIBUTES; }
 static bool PrefabBuiltIn(const std::string& name) { return BakedPrefabText(name) != nullptr; }
+// a prefab's grids / carousels and menu pages (uied_menu.inc): written after its elements, read aside, added with it
+static void PrefabMenusSave(FILE* f, const std::string& group);
+static void PrefabMenusClear();
+static bool PrefabMenusLine(const std::string& line, bool& inMenus);   // a [page] / [widget] section's line: true if taken
+static int PrefabMenusAdd(const std::string& root, const std::string& top);   // returns the grids / pages added
 static bool SavePrefab(const std::string& group, std::string name) {
     for (char& c : name) if (strchr("\\/:*?\"<>|", c)) c = '_';
     if (name.empty()) return false;
@@ -2316,6 +2332,7 @@ static bool SavePrefab(const std::string& group, std::string name) {
     }
     int n = 0;
     for (auto& e : Elems()) if (e.group == group || InGroup(e.group, group)) { PutElem(f, g_editMode, e); ++n; }
+    PrefabMenusSave(f, group);   // (its grids and menu pages come with it)
     if (!EndWrite(f, path)) { g_prefabMsg = "couldn't write " + path; return false; }
     {   // saved again under a deleted name: it's back
         auto del = DeletedPrefabs();
@@ -2348,14 +2365,17 @@ static std::vector<ColorToken> g_prefabTokens;   // the last parsed prefab's own
 static std::vector<GradToken> g_prefabGrads;
 static void ParsePrefab(const std::string& text, std::string& root, std::vector<Elem>& els) {
     g_prefabTokens.clear(); g_prefabGrads.clear();
+    PrefabMenusClear();
     Elem* cur = nullptr;
+    bool inMenus = false;
     size_t at = 0;
     while (at < text.size()) {
         size_t nl = text.find('\n', at); if (nl == std::string::npos) nl = text.size();
         std::string s = text.substr(at, nl - at); at = nl + 1;
         while (!s.empty() && s.back() == '\r') s.pop_back();
         if (s.empty() || s[0] == '#') continue;
-        if (s == "[element]") { els.push_back(Elem()); cur = &els.back(); continue; }
+        if (s == "[element]") { els.push_back(Elem()); cur = &els.back(); inMenus = false; continue; }
+        if (PrefabMenusLine(s, inMenus)) { cur = nullptr; continue; }   // (its grids / pages)
         size_t eq = s.find('='); if (eq == std::string::npos) continue;
         std::string k = s.substr(0, eq), v = s.substr(eq + 1);
         if (!cur) {
@@ -2403,8 +2423,9 @@ static void AddPrefab(const std::string& name) {
         e.mode = g_editMode; e.texIdx = e.fontIdx = -2; e.shownSince = -1;
         Elems().push_back(e);
     }
+    const int menus = PrefabMenusAdd(root, top);   // its grids / pages, under the new name
     g_selGroup = top; g_sel = -1; ClearMulti(); g_dirty = true;
-    g_prefabMsg = "added \"" + name + "\" as " + top;
+    g_prefabMsg = "added \"" + name + "\" as " + top + (menus ? " (with " + std::to_string(menus) + " grid / page settings)" : "");
 }
 
 void Init(const std::string& gameDir, const std::string& layoutPath, void (*log)(const char*)) {

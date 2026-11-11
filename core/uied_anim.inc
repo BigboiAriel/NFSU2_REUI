@@ -294,7 +294,7 @@ static float StaggerStep(const Elem& m, const Elem& e) {   // e's place among m'
     return 0;
 }
 static float InDelay(const Elem& e) {
-    float d = e.an.p ? e.an.p->p.delay : 0.f;
+    float d = (e.an.p ? e.an.p->p.delay : 0.f) + (g_tileCtx.on ? g_tileCtx.inDelay : 0.f);   // (a grid tile: the grid's stagger)
     if (e.type == E_MOTION && e.group.empty()) return d;
     static std::vector<Elem*> cs; MotionsOf(e, cs);
     std::vector<Elem*> ms(cs);
@@ -364,7 +364,8 @@ static void Rest(ElemAnim& a, int clip, double now, bool blend = true) {     // 
 static void Triggers(const Elem& e, ElemAnim& a, double now) {
     Run& r = a.run;
     const int iFocus = ClipIdx(a, "Focus"), iUnf = ClipIdx(a, "Unfocus"), iSel = ClipIdx(a, "Selected"), iPress = ClipIdx(a, "Press");
-    const bool f = !a.focusIf.empty() && CondOk(a.focusIf, e.group), pr = !a.pressIf.empty() && CondOk(a.pressIf, e.group);
+    bool f = !a.focusIf.empty() && CondOk(a.focusIf, e.group), pr = !a.pressIf.empty() && CondOk(a.pressIf, e.group);
+    if (g_tileCtx.on) { f = g_tileCtx.sel; pr = g_tileCtx.press; }   // (a grid tile's piece: its tile selected / accepted)
     auto focusedRest = [&](bool blend) { if (iSel >= 0) Switch(a, iSel, now, blend); else Rest(a, iFocus, now, blend); };
     if (!r.inited) {   // coming up: rests as its focus is (no Focus / Unfocus played, no blend)
         r.inited = true; r.focus = f; r.press = pr; r.blendAt = -1;
@@ -388,6 +389,29 @@ static void Triggers(const Elem& e, ElemAnim& a, double now) {
     }
 }
 static void Hidden(ElemAnim& a) { a.run = Run(); }
+// menu pages / grid tiles draw copies made afresh each frame: their clip state is kept here, per source and tile
+struct CopyState { Run run; double since = -1; bool playWas = false; int frame = -10; };
+static std::map<std::pair<const Elem*, int>, CopyState> g_copies;
+static void CopyLoad(const Elem& src, int tile, Elem& e) {
+    auto it = g_copies.find({ &src, tile });
+    const int frame = ImGui::GetFrameCount();
+    if (it == g_copies.end() || it->second.frame < frame - 1) {   // (not drawn last frame: up again from the start)
+        e.shownSince = -1; if (e.an.p) e.an.p->run = Run();
+        if (it != g_copies.end()) g_copies.erase(it);
+        return;
+    }
+    e.shownSince = it->second.since; e.playWas = it->second.playWas;
+    if (e.an.p) e.an.p->run = it->second.run;
+}
+static void CopySave(const Elem& src, int tile, const Elem& e) {
+    CopyState& c = g_copies[{ &src, tile }];
+    c.since = e.shownSince; c.playWas = e.playWas; c.frame = ImGui::GetFrameCount();
+    if (e.an.p) c.run = e.an.p->run;
+    if (g_copies.size() > 4096) {   // (sources gone: edits, reloads)
+        const int frame = c.frame;
+        for (auto i = g_copies.begin(); i != g_copies.end();) if (i->second.frame < frame - 1) i = g_copies.erase(i); else ++i;
+    }
+}
 static bool Leaving(Elem& e, bool kept) {   // kept: a group motion over it is leaving (it stays till that's done)
     if (e.shownSince < 0) { if (e.an.p) Hidden(*e.an.p); return false; }   // (it wasn't up, or its Out is done: stays gone)
     ElemAnim* a = e.an.p;

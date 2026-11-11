@@ -184,4 +184,13 @@ namespace uied {
     std::string MenuBodyPartsPage();                   // ... Body Parts' browser at its categories (UI_GenericParts_Browser) ("" none)
     extern float menuFade;                             // menus fade in / out / cross-fade over this (seconds; 0 = off)
     extern bool customMenus;                           // false: no page stands in for the game's menus
+    // Pages that stand in for a game screen (a page's right-click menu: "stands in for"): the host opens the page while
+    // that screen is up (MenuPageFor its key) and feeds it the controller; standInKeys: the screens it offers.
+    extern std::vector<std::string> standInKeys;
+    std::string MenuPageFor(const std::string& key);   // the page standing in for that screen ("" none)
+    // A tile's action that isn't REUI's own ("page:...", "back", "close"): the host's (Joy Ride: "fe:" the game's own
+    // calls). true: done (the host plays any sound); false: REUI's error sound.
+    extern std::function<bool(const std::string& action)> menuAction;
+    int MenuSelectedTile();                            // the open page's selected grid tile (-1 none)
+    void MenuSelectTile(int tile);                     // ... set (the cursor back where the game's menu was left)
 }

@@ -13,6 +13,10 @@ void FeMenuFrame();                                                // every REUI
 bool FeMenuToken(const std::string& key, std::string& out);        // menu.sel:<row>, menu.unsel:<row>, menu.row, menu.on,
                                                                    // menu.press:<row> / menu.press / menu.back (on for 0.2 s after one)
 void SetMenusEnabled(bool on);
+// REUI menu pages standing in for a screen (their "stands in for": a kMenus key): opened while it's up, fed its up / down /
+// select; tiles run the game's own calls ("fe:" commands); the game's strings for {loc:KEY}
+void FeMenusInit(const std::string& dataDir);
+bool LocText(const std::string& key, std::string& out);   // the game's text for a string key (LEADERBOARDS_ACTIVITY_CUP...)
 void FeMenuCall(const std::string& method, const std::string& args);   // each call seen (popups opening / closing)
 bool FeMenuHides(const std::string& screenKey);   // a popup is over a driven screen: its REUI layout steps aside
 } // namespace reui_joyride

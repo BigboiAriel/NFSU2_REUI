@@ -288,7 +288,7 @@ std::string ScreenKey(const std::string& path) {
 void SetFeBridge(const FeBridge& b) { g_bridge = b; }
 void FeSend(int dir, const std::string& method, const std::vector<std::string>& args) { if (g_bridge.send) g_bridge.send(dir, method, args); }
 
-void FeInit(const std::string& dataDir) { g_cmdsFile = dataDir + "fe_commands.txt"; }
+void FeInit(const std::string& dataDir) { g_cmdsFile = dataDir + "fe_commands.txt"; FeMenusInit(dataDir); }
 
 const std::string& FeTopScreen() { return g_top; }
 
