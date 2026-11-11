@@ -4051,7 +4051,7 @@ static void PanelBody() {
         // paste what's picked; Ctrl + S saves (also while typing in a box)
         ImGuiIO& io = ImGui::GetIO();
         if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) Save();
-        if (!io.WantTextInput) {
+        if (!io.WantTextInput && !anim::g.on) {   // (animation mode: its own keys - Delete / Ctrl + C / V are for keys there)
             if (ImGui::IsKeyPressed(ImGuiKey_Delete, false)) DeleteSelected();
             if (io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_C, false)) CopyPicked();
             if (io.KeyCtrl && !io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_V, false)) PasteClip();

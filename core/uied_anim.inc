@@ -590,6 +590,70 @@ static void EaseButtons(Clip* c) {
     }
 }
 
+// ---------------------------------------------------------------- copy / cut / paste keys (Ctrl + C / X / V)
+// The picked keys of the clip being edited, kept with their times from the first one, their tracks and easing (bezier
+// handles too). Pasted at the playhead into the clip being edited now - this element or another, this clip or another;
+// keys copied from one track go onto the track the graph shows, if it shows one (Scale X's keys onto Scale Y).
+
+struct KeyClip { struct K { int prop; float dt; Key k; }; std::vector<K> keys; std::string from; };
+static KeyClip g_kclip;
+static std::string g_note; static double g_noteAt = -1e9;   // (a line under the graph's header for a few seconds)
+static void Note(const std::string& m) { g_note = m; g_noteAt = ImGui::GetTime(); }
+static int PickedKeys(const Clip& c) { int n = 0; for (auto& tr : c.tracks) for (auto& k : tr.keys) n += k.sel; return n; }
+static void CopyKeys(bool cut) {
+    Clip* c = CurClip();
+    if (!c) return;
+    float t0 = 1e9f;
+    for (auto& tr : c->tracks) for (auto& k : tr.keys) if (k.sel) t0 = std::min(t0, k.t);
+    if (t0 > 1e8f) { Note("Pick keys first: click them in the graph or the timeline (Shift: several, Ctrl + A: all shown)."); return; }
+    g_kclip.keys.clear();
+    for (int p = 0; p < P_NPROP; ++p) for (auto& k : c->tracks[p].keys) if (k.sel) { Key kk = k; kk.sel = false; g_kclip.keys.push_back({ p, k.t - t0, kk }); }
+    const int fi = FocusedIndex();
+    g_kclip.from = (fi >= 0 ? Elems()[fi].name : std::string("?")) + ", " + c->name;
+    if (cut) for (auto& tr : c->tracks) tr.keys.erase(std::remove_if(tr.keys.begin(), tr.keys.end(), [](const Key& k) { return k.sel; }), tr.keys.end());
+    Note(std::string(cut ? "Cut " : "Copied ") + std::to_string(g_kclip.keys.size()) + " key" + (g_kclip.keys.size() == 1 ? "" : "s") + " (" + g_kclip.from + ").");
+}
+static void PasteKeys() {
+    Clip* c = CurClip();
+    if (!c) { Note("Pick an element to paste into."); return; }
+    if (g_kclip.keys.empty()) { Note("Nothing copied yet: pick keys and press Ctrl + C."); return; }
+    bool single = true;
+    for (auto& k : g_kclip.keys) single &= k.prop == g_kclip.keys[0].prop;
+    const int onto = single && g.focus == State::F_TRACK && g.track >= 0 ? g.track : -1;   // (one track's keys: the shown track)
+    for (auto& tr : c->tracks) for (auto& k : tr.keys) k.sel = false;
+    const float at = std::max(0.f, Snap(g.time));
+    float last = 0;
+    for (auto& ck : g_kclip.keys) {
+        Track& tr = c->tracks[onto >= 0 ? onto : ck.prop];
+        Key k = ck.k; k.t = std::max(0.f, Snap(at + ck.dt)); k.sel = true;
+        bool put = false;
+        for (auto& o : tr.keys) if (fabsf(o.t - k.t) < 0.5f) { o = k; put = true; break; }   // (a key there: replaced)
+        if (!put) tr.keys.push_back(k);
+        last = std::max(last, k.t);
+    }
+    for (auto& tr : c->tracks) SortKeys(tr);
+    c->on = true;
+    if (last > c->length) c->length = last;
+    g.graph.fit = g.big.fit = true;
+    Note("Pasted " + std::to_string(g_kclip.keys.size()) + " key" + (g_kclip.keys.size() == 1 ? "" : "s") + " at " + TimeText(at) +
+         (onto >= 0 ? std::string(" onto ") + kProp[onto].name : std::string()) + " (from " + g_kclip.from + ").");
+}
+static void PickAllShown() {   // every key of the tracks the graph shows
+    Clip* c = CurClip();
+    if (!c) return;
+    const std::vector<int> shown = GraphTracks(c);
+    for (int p = 0; p < P_NPROP; ++p) for (auto& k : c->tracks[p].keys) k.sel = std::find(shown.begin(), shown.end(), p) != shown.end();
+}
+static void KeyClipItems() {   // (the key menus' copy / paste part)
+    Clip* c = CurClip();
+    const int n = c ? PickedKeys(*c) : 0;
+    if (ImGui::MenuItem("Copy keys", "Ctrl+C", false, n > 0)) CopyKeys(false);
+    if (ImGui::MenuItem("Cut keys", "Ctrl+X", false, n > 0)) CopyKeys(true);
+    char lb[96]; snprintf(lb, sizeof lb, "Paste %d key%s at the playhead", (int)g_kclip.keys.size(), g_kclip.keys.size() == 1 ? "" : "s");
+    if (ImGui::MenuItem(g_kclip.keys.empty() ? "Paste at the playhead" : lb, "Ctrl+V", false, !g_kclip.keys.empty() && c)) PasteKeys();
+    if (ImGui::MenuItem("Pick all shown", "Ctrl+A", false, c != nullptr)) PickAllShown();
+}
+
 // ---------------------------------------------------------------- keys + curves graph
 
 static void FitView(View& v, Clip* c, const std::vector<int>& tracks) {
@@ -775,17 +839,21 @@ static void Graph(const char* id, ImVec2 size, View& v) {
         c->tracks[hitTrack].keys[hitKey].sel = true;
         ImGui::OpenPopup("##keymenu");
     }
+    if (hov && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && hitKey < 0) ImGui::OpenPopup("##graphmenu");
+    if (ImGui::BeginPopup("##graphmenu")) { KeyClipItems(); ImGui::EndPopup(); }
     if (ImGui::BeginPopup("##keymenu")) {
         ImGui::TextDisabled("Way to the next key");
         for (int e = 0; e < EZ_NEASE; ++e)
             if (ImGui::MenuItem(kEase[e])) ApplyEase(*c, e);
+        ImGui::Separator();
+        KeyClipItems();
         ImGui::Separator();
         if (ImGui::MenuItem("Delete key")) for (auto& tr : c->tracks) tr.keys.erase(std::remove_if(tr.keys.begin(), tr.keys.end(), [](const Key& k) { return k.sel; }), tr.keys.end());
         ImGui::EndPopup();
     }
     if (hov && (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_X)) && !io.WantTextInput)
         for (auto& tr : c->tracks) tr.keys.erase(std::remove_if(tr.keys.begin(), tr.keys.end(), [](const Key& k) { return k.sel; }), tr.keys.end());
-    if (hov) ImGui::SetTooltip("Drag keys (Shift: time only). Round dots: bezier handles - drag to shape the curve (Shift: height only).\nThe buttons above: linear / constant / bezier for the picked keys. Right-click a key: every easing, delete.\nDouble-click: add a key (one track shown). Click: move the playhead. Wheel: zoom time, Ctrl+wheel: values,\nmiddle / Alt drag: pan, F: fit.");
+    if (hov) ImGui::SetTooltip("Drag keys (Shift: time only). Round dots: bezier handles - drag to shape the curve (Shift: height only).\nThe buttons above: linear / constant / bezier for the picked keys. Right-click a key: every easing, delete.\nCtrl + C / X / V: copy / cut / paste the picked keys (at the playhead), Ctrl + A: pick all shown.\nDouble-click: add a key (one track shown). Click: move the playhead. Wheel: zoom time, Ctrl+wheel: values,\nmiddle / Alt drag: pan, F: fit.");
 }
 
 
@@ -1220,6 +1288,13 @@ static void GraphPanel(ImVec2 pos, ImVec2 size) {
     ImGui::SameLine(); if (ImGui::SmallButton("fit")) g.graph.fit = true;
     if (c && g.focus == State::F_TRACK) { ImGui::SameLine(); if (ImGui::SmallButton("all tracks")) { g.focus = State::F_CLIP; g.graph.fit = true; } }
     EaseButtons(c);
+    ImGui::SameLine(0, 12); if (ImGui::SmallButton("copy##k")) CopyKeys(false);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Copy the picked keys (Ctrl + C; Ctrl + X cuts).");
+    ImGui::SameLine(); ImGui::BeginDisabled(g_kclip.keys.empty());
+    if (ImGui::SmallButton("paste##k")) PasteKeys();
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Paste at the playhead, into this element's clip being edited (Ctrl + V).\nKeys copied from one track go onto the track shown here, if one is.");
+    if (ImGui::GetTime() - g_noteAt < 4.0) { ImGui::SameLine(); ImGui::TextColored(ImVec4(0.55f, 0.85f, 1.f, 1.f), "%s", g_note.c_str()); }
     ImVec2 avail = ImGui::GetContentRegionAvail();
     Graph("##graph", ImVec2(avail.x, std::max(40.f, avail.y)), g.graph);
     ImGui::End();
@@ -1437,7 +1512,12 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
     }
     if (hov && c && (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_X)) && !io.WantTextInput)
         for (auto& tr : c->tracks) tr.keys.erase(std::remove_if(tr.keys.begin(), tr.keys.end(), [](const Key& k) { return k.sel; }), tr.keys.end());
-    if (hov && m.x >= ra.x) ImGui::SetTooltip("Click / drag: move the playhead. Drag keys (Shift: pick several), Delete removes. Wheel: zoom, middle drag: pan.");
+    if (hov && c && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && m.x >= ra.x) {   // a key under it: picked first (as a click)
+        if (hitKey >= 0 && !c->tracks[hitRow].keys[hitKey].sel) { for (auto& tr : c->tracks) for (auto& kk : tr.keys) kk.sel = false; c->tracks[hitRow].keys[hitKey].sel = true; }
+        ImGui::OpenPopup("##tlkeys");
+    }
+    if (ImGui::BeginPopup("##tlkeys")) { KeyClipItems(); ImGui::EndPopup(); }
+    if (hov && m.x >= ra.x) ImGui::SetTooltip("Click / drag: move the playhead. Drag keys (Shift: pick several), Delete removes. Wheel: zoom, middle drag: pan.\nRight-click / Ctrl + C, X, V: copy, cut, paste keys at the playhead; Ctrl + A picks all shown.");
     if (hov && m.x < ra.x) ImGui::SetTooltip("Click a track: graph it (the top row: the whole clip). Wheel: scroll the rows.");
     // ---- expanded: the big graph under the rows
     if (g.expanded) {
@@ -1470,6 +1550,12 @@ static void Frame() {
     }
     if (ImGui::IsKeyPressed(ImGuiKey_Space, false) && !io.WantTextInput && ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) g.playing = !g.playing;
     if (ImGui::IsKeyPressed(ImGuiKey_H, false) && !io.WantTextInput && ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) g.bare = !g.bare;
+    if (!io.WantTextInput && io.KeyCtrl && !g.live) {   // keys: copy / cut / paste / pick all
+        if (ImGui::IsKeyPressed(ImGuiKey_C, false)) CopyKeys(false);
+        if (ImGui::IsKeyPressed(ImGuiKey_X, false)) CopyKeys(true);
+        if (ImGui::IsKeyPressed(ImGuiKey_V, false)) PasteKeys();
+        if (ImGui::IsKeyPressed(ImGuiKey_A, false)) PickAllShown();
+    }
     if (g.live && !io.WantTextInput) {   // the stand-in menu's keys
         if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) g.simRow = std::max(0, g.simRow - 1);
         if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) g.simRow = std::min(63, g.simRow + 1);
