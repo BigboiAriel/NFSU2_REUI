@@ -75,7 +75,7 @@ struct Char {
 };
 struct Movie {
     std::vector<uint8_t> body;
-    double fps = 30, stageH = 720;
+    double fps = 30, stageW = 1280, stageH = 720;
     std::map<int, Char> chars;
     std::vector<Frame> root;
     std::vector<uied::MotionClipInfo> clips;
@@ -267,7 +267,7 @@ std::shared_ptr<Movie> Load(const std::string& movie, std::string& err) {
     if (n < 8) { err = "too short"; return nullptr; }
     Bits b(d, n, 0); const int k = b.U(5);
     double r[4]; for (double& v : r) v = b.S(k) / 20.0;
-    m->stageH = std::max(1.0, r[3] - r[2]);
+    m->stageW = std::max(1.0, r[1] - r[0]); m->stageH = std::max(1.0, r[3] - r[2]);
     const size_t p = b.End();
     if (p + 4 > n) { err = "too short"; return nullptr; }
     m->fps = std::max(1.0, d[p + 1] + d[p] / 256.0);
@@ -399,6 +399,9 @@ void Install(const std::string& movieDir) {
         // (a movie loaded into another plays at the host's frame rate - the menus' main.swf / ingamemain.swf: 30 fps -
         // whatever its own header says: most say Flash's default 12)
         clips = mv->clips; fps = 30.f; pxPerUnit = (float)(mv->stageH / 480.0);
+        for (size_t i = 0; i < clips.size() && i < mv->clipAt.size(); ++i) {
+            clips[i].root = mv->clipAt[i].first < 0; clips[i].stageW = (float)mv->stageW; clips[i].stageH = (float)mv->stageH;
+        }
         return true;
     };
     uied::motionSource.sample = [](const std::string& movie, int clip, std::vector<uied::MotionPiece>& pieces, std::string& err) {

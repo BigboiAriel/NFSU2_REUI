@@ -4105,6 +4105,8 @@ static void PanelBody() {
         ImGui::EndGroup();
         if (!g_prefabMsg.empty()) ImGui::TextDisabled("%s", g_prefabMsg.c_str());
     }
+    // ---- from the game: a movie's clip previewed, its pictures added (uied_anim.inc)
+    if (!menuMode) anim::FromGameSection();
     // ---- controller button icons
     if (!iconKeys.empty() && iconTexture && ImGui::CollapsingHeader("Button icons")) {
         static int fam = 0;   // 0 = follows the controller, 1.. = a family

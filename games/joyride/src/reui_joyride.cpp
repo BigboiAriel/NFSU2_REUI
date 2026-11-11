@@ -141,6 +141,7 @@ void SetAnimSpeed(float speed) { uied::AnimSpeed(speed); }
 void SetAnimLive(bool live) { uied::AnimLive(live); }
 void AnimKeysTest(float at) { uied::AnimKeysTest(at); }
 void AnimCopyMotionTest(const std::string& spec) { uied::AnimCopyMotionTest(spec); }
+void FromGameTest(const std::string& spec) { uied::FromGameTest(spec); }
 void StartAnimMode(bool focusFirst, float ms, bool play, bool bare) {
     uied::SetAnimMode(true);
     if (focusFirst) uied::AnimFocus(0);

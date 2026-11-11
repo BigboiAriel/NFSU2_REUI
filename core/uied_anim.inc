@@ -1225,8 +1225,8 @@ static void PreviewCorners(const MotionPiece& pc, const MotionFrame& f, ImVec2 c
     const float xs[4] = { -hw, hw, hw, -hw }, ys[4] = { -hh, -hh, hh, hh };
     for (int i = 0; i < 4; ++i) c[i] = ImVec2(o.x + (f.x + xs[i] * cs - ys[i] * sn) * k, o.y + (f.y + xs[i] * sn + ys[i] * cs) * k);
 }
-static void MotionPreviewBox(std::vector<MotionPiece>& ps, int& picked, int frames, float fps, const std::string& key) {
-    MotionPreview& v = g_mpv;
+static void MotionPreviewBox(std::vector<MotionPiece>& ps, int& picked, int frames, float fps, const std::string& key, MotionPreview& v = g_mpv,
+                             const char* clickHint = "copy this piece's motion") {
     if (v.boundsFor != key) {   // the clip's extent over all its frames (the view fits it)
         v.boundsFor = key; v.frame = g_cmShow ? frames / 2.f : 0; v.lo = ImVec2(1e9f, 1e9f); v.hi = ImVec2(-1e9f, -1e9f);
         for (auto& pc : ps) for (auto& f : pc.frames) {
@@ -1277,7 +1277,7 @@ static void MotionPreviewBox(std::vector<MotionPiece>& ps, int& picked, int fram
     }
     if (under >= 0 && under != picked) { ImVec2 c[4]; PreviewCorners(ps[under], ps[under].frames[fi], c, o, k); dl->AddPolyline(c, 4, IM_COL32(110, 170, 255, 220), ImDrawFlags_Closed, 1.5f); }
     dl->PopClipRect();
-    if (hov && under >= 0) ImGui::SetTooltip("%s\n(click: copy this piece's motion)", ps[under].name.c_str());
+    if (hov && under >= 0) ImGui::SetTooltip("%s\n(click: %s)", ps[under].name.c_str(), clickHint);
     if (hov && under >= 0 && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) picked = under;
 }
 
@@ -1408,6 +1408,201 @@ static void CopyMotionSection(Elem& e, Clip* cur) {
         if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Each of them gets its piece's motion on its own %s clip (their keys there are replaced).\nOpen \"the pairs\" to see who gets what.", cur->name.c_str());
     }
     if (ImGui::GetTime() - g_noteAt < 4.0) ImGui::TextColored(ImVec4(0.55f, 0.85f, 1.f, 1.f), "%s", g_note.c_str());
+}
+
+// ---------------------------------------------------------------- the editor's "From the game" spot (next to Prefabs)
+// A movie's clip played in a box, as in copy motion; its pictures added to the layout as image elements, placed, sized,
+// turned and faded as they are on the clip's rest frame (a movie's own timeline: where the game shows them; a sprite's:
+// about the screen's middle), optionally each with its motion over the clip as one of its clips (In...).
+static int RestOf(const MotionPiece& pc, int rest) {   // the frame its rest values come from: the nearest it's on (-1: never)
+    const int n = (int)pc.frames.size();
+    if (!n) return -1;
+    const int r = std::max(0, std::min(rest, n - 1));
+    for (int d = 0; d < n; ++d) { if (r + d < n && pc.frames[r + d].on) return r + d; if (r - d >= 0 && pc.frames[r - d].on) return r - d; }
+    return -1;
+}
+static std::string PicTexName(const std::string& image, const std::string& movie, std::string& pack) {   // the texture list's own spelling
+    int any = -1;
+    for (size_t i = 0; i < g_tex.size(); ++i) {
+        if (LowerS(g_tex[i].name) != image) continue;
+        if (LowerS(g_tex[i].pack) == LowerS(movie)) { pack = g_tex[i].pack; return g_tex[i].name; }
+        if (any < 0) any = (int)i;
+    }
+    if (any >= 0) { pack = g_tex[any].pack; return g_tex[any].name; }
+    pack = movie; return image;
+}
+static struct FromGameUi {
+    std::vector<std::string> movies; bool listed = false;
+    std::string movie; char filter[64] = "";
+    std::vector<MotionClipInfo> clips; float fps = 30, ppu = 1.5f; std::string clipsFor;
+    int clip = -1; std::vector<MotionPiece> pieces; std::string piecesFor;
+    int piece = -1;
+    int place = 0;                // 0 auto (its clip below: Out its first frame, the rest their last), 1 first, 2 last, 3 the frame shown
+    bool motion = true; int motionClip = 0;   // each added element gets its piece's motion as this clip (kClips)
+    bool whereShown = false;      // (test hook: scrolled to)
+    std::string err, msg; double msgAt = -10;
+    MotionPreview pv;
+} g_fg;
+static int FgRest(const FromGameUi& u, int n) {
+    const bool out = u.motion && !strcmp(kClips[u.motionClip][0], "Out");
+    return u.place == 1 ? 0 : u.place == 2 ? n - 1 : u.place == 3 ? std::max(0, std::min(n - 1, (int)u.pv.frame)) : (out ? 0 : n - 1);
+}
+// which: piece indices (all of them: the clip's pictures). Returns elements added; into a new top-level group named for
+// the clip (one piece: into the group picked in the list, if any)
+static int AddFromGame(FromGameUi& u, const std::vector<int>& which, bool one) {
+    if (u.clip < 0 || u.clip >= (int)u.clips.size()) return 0;
+    const MotionClipInfo& ci = u.clips[u.clip];
+    const int n = ci.last - ci.first + 1, rest = FgRest(u, n);
+    // where the clip's pixels go: a movie's timeline - the stage's middle on the screen's (the game fits its height);
+    // a sprite's - the middle of what's added
+    float ox = ci.stageW / 2, oy = ci.stageH / 2;
+    if (!ci.root || ci.stageH <= 0) {
+        float lx = 1e9f, ly = 1e9f, hx = -1e9f, hy = -1e9f;
+        for (int i : which) { const int r = RestOf(u.pieces[i], rest); if (r < 0 || u.pieces[i].image.empty()) continue; const MotionFrame& f = u.pieces[i].frames[r];
+            lx = std::min(lx, f.x); ly = std::min(ly, f.y); hx = std::max(hx, f.x); hy = std::max(hy, f.y); }
+        if (lx > hx) return 0;
+        ox = (lx + hx) / 2; oy = (ly + hy) / 2;
+    }
+    std::string clipShort = ci.name.substr(0, ci.name.find("  ("));
+    for (auto& c : clipShort) if (c == ':' || c == '/' || c == '(' || c == ')') c = ' ';
+    std::string top;
+    if (one && !g_selGroup.empty()) top = g_selGroup;
+    else {
+        std::string base = IntoMenu(GroupLeaf(u.movie) + " " + clipShort);
+        while (!base.empty() && base.back() == ' ') base.pop_back();
+        top = base;
+        auto taken = [&](const std::string& g) { for (auto& e : Elems()) if (e.group == g || InGroup(e.group, g)) return true; return false; };
+        for (int i = 2; taken(top); ++i) top = base + " " + std::to_string(i);
+    }
+    const size_t first = Elems().size();
+    std::vector<int> from;
+    for (int i : which) {
+        const MotionPiece& pc = u.pieces[i];
+        const int r = RestOf(pc, rest);
+        if (r < 0 || pc.image.empty()) continue;
+        const MotionFrame& f = pc.frames[r];
+        Elem e; e.type = E_IMAGE; e.anchor = 4; e.mode = g_editMode; e.group = top;
+        e.tex = PicTexName(pc.image, u.movie, e.pack); e.name = e.tex;
+        e.x = roundf((f.x - ox) / u.ppu * 100) / 100; e.y = roundf((f.y - oy) / u.ppu * 100) / 100;
+        e.w = std::max(1.f, roundf(std::max(1.f, pc.w) * f.sx / u.ppu * 100) / 100); e.h = std::max(1.f, roundf(std::max(1.f, pc.h) * f.sy / u.ppu * 100) / 100);
+        e.rot = roundf(f.rot * 100) / 100;
+        e.col[3] = std::max(0.f, std::min(1.f, f.a));
+        e.texIdx = e.fontIdx = -2; e.shownSince = -1;
+        Elems().push_back(e); from.push_back(i);
+    }
+    int keys = 0;
+    if (u.motion) for (size_t k = 0; k < from.size(); ++k) {
+        int kk = 0, t = 0;
+        Clip& c = ClipFor(Elems()[first + k], kClips[u.motionClip][0]);
+        if (MotionToClip(u.pieces[from[k]], rest, u.ppu, u.fps, c, kk, t)) keys += kk;
+    }
+    if (from.empty()) return 0;
+    ClearMulti(); g_dirty = true;
+    if (one) { g_sel = (int)first; g_selGroup.clear(); } else { g_selGroup = top; g_sel = -1; }
+    u.msg = "added " + std::to_string(from.size()) + (from.size() == 1 ? " picture" : " pictures") + " as " + top
+          + (u.motion ? " (" + std::to_string(keys) + " keys on their " + kClips[u.motionClip][0] + " clips)" : "");
+    u.msgAt = ImGui::GetTime();
+    Log("ui editor: from the game: %s (%s, %s, rest frame %d)", u.msg.c_str(), u.movie.c_str(), ci.name.c_str(), rest + 1);
+    return (int)from.size();
+}
+static void FromGameSection() {
+    FromGameUi& u = g_fg;
+    if (u.whereShown) ImGui::SetNextItemOpen(true);
+    if (!ImGui::CollapsingHeader("From the game")) return;
+    if (u.whereShown) { ImGui::SetScrollHereY(0.f); u.whereShown = false; }
+    MotionSource& ms = motionSource;
+    if (!ms.movies || !ms.clips || !ms.sample) { ImGui::TextDisabled("This game doesn't give its movies to the editor."); return; }
+    if (!u.listed) { u.movies = ms.movies(); u.listed = true; }
+    if (u.movies.empty()) {
+        ImGui::TextDisabled("No movies yet: the picture cache keeps them (it's rebuilt once after an update - restart the game).");
+        if (ImGui::SmallButton("look again##fg")) u.listed = false;
+        return;
+    }
+    ImGui::PushID("fromgame");
+    ImGui::TextDisabled("The game's Flash screens: preview a clip, then add its pictures where the game puts them.");
+    const float h = 330;
+    ImGui::BeginGroup();   // left: the movies, filtered
+    ImGui::SetNextItemWidth(230);
+    ImGui::InputTextWithHint("##fgfilter", "filter (e.g. medal, jra_menus)", u.filter, sizeof u.filter);
+    ImGui::BeginChild("##fglist", ImVec2(230, h - ImGui::GetFrameHeightWithSpacing()), REUI_CHILD_BORDERS);
+    {
+        const std::string f = LowerS(u.filter);
+        int shown = 0;
+        for (auto& m : u.movies) {
+            if (!f.empty() && LowerS(m).find(f) == std::string::npos) continue;
+            if (++shown > 600) { ImGui::TextDisabled("(more: filter them)"); break; }
+            if (ImGui::Selectable((GroupLeaf(m) + "##" + m).c_str(), m == u.movie)) { u.movie = m; u.clip = -1; }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", m.c_str());
+        }
+        if (!shown) ImGui::TextDisabled("(none match)");
+    }
+    ImGui::EndChild();
+    ImGui::EndGroup();
+    ImGui::SameLine();
+    ImGui::BeginGroup();   // right: the clip, its preview, Add
+    if (u.movie.empty()) ImGui::TextDisabled("Pick a movie to see its clips here (%d movies).", (int)u.movies.size());
+    else {
+        if (u.clipsFor != u.movie) {
+            u.clipsFor = u.movie; u.clips.clear(); u.err.clear(); u.piecesFor.clear();
+            if (!ms.clips(u.movie, u.clips, u.fps, u.ppu, u.err)) u.clips.clear();
+            if (u.clip >= (int)u.clips.size()) u.clip = -1;
+            if (u.clip < 0 && !u.clips.empty()) u.clip = 0;   // (the movie's first clip, to see something at once)
+        }
+        if (!u.err.empty()) ImGui::TextColored(ImVec4(1, 0.5f, 0.4f, 1), "%s", u.err.c_str());
+        else if (u.clips.empty()) ImGui::TextDisabled("It has no clips (no labels or frames to play).");
+        else {
+            ImGui::SetNextItemWidth(-60);
+            if (ImGui::BeginCombo("clip##fg", u.clips[u.clip].name.c_str(), ImGuiComboFlags_HeightLarge)) {
+                for (int i = 0; i < (int)u.clips.size(); ++i)
+                    if (ImGui::Selectable((u.clips[i].name + "##c" + std::to_string(i)).c_str(), i == u.clip)) { u.clip = i; u.piecesFor.clear(); }
+                ImGui::EndCombo();
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("A label of the movie (or of a sprite in it) up to the next one: the frames it plays.\nThe movie's own labels place pictures where the game shows them; a sprite's go about the screen's middle.");
+            const std::string pf = u.movie + "#" + std::to_string(u.clip);
+            if (u.piecesFor != pf) {
+                u.piecesFor = pf; u.pieces.clear(); u.piece = -1;
+                if (!ms.sample(u.movie, u.clip, u.pieces, u.err)) u.pieces.clear();
+                for (int i = 0; i < (int)u.pieces.size() && u.piece < 0; ++i) if (!u.pieces[i].image.empty()) u.piece = i;
+            }
+            const MotionClipInfo& ci = u.clips[u.clip];
+            const int n = ci.last - ci.first + 1;
+            if (!u.err.empty()) ImGui::TextColored(ImVec4(1, 0.5f, 0.4f, 1), "%s", u.err.c_str());
+            else if (u.pieces.empty()) ImGui::TextDisabled("Nothing shows in that clip.");
+            else {
+                int pics = 0; for (auto& pc : u.pieces) pics += !pc.image.empty() && RestOf(pc, 0) >= 0;
+                ImGui::TextDisabled("%d frames, %.0f ms - %d pictures (%d other pieces: text and shapes aren't added)", n, (n - 1) * 1000.f / u.fps, pics, (int)u.pieces.size() - pics);
+                MotionPreviewBox(u.pieces, u.piece, n, u.fps, "fg:" + pf, u.pv, "pick this picture to add on its own");
+                const char* places[] = { "auto (an Out clip: its first frame, else its last)", "its first frame", "its last frame", "the frame shown" };
+                ImGui::SetNextItemWidth(-60); ImGui::Combo("place##fg", &u.place, places, 4);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("The frame the pictures are placed as (where, how big, turned, faded). In, Focus, Press... end at rest; Out starts there.\n\"The frame shown\": pause the preview where you want it.");
+                ImGui::Checkbox("with their motion as##fg", &u.motion);
+                ImGui::SameLine(); ImGui::SetNextItemWidth(110);
+                ImGui::BeginDisabled(!u.motion);
+                if (ImGui::BeginCombo("##fgclip", kClips[u.motionClip][0])) {
+                    for (int i = 0; i < 7; ++i) if (ImGui::Selectable(kClips[i][0], i == u.motionClip)) u.motionClip = i;   // (not the planned ones)
+                    ImGui::EndCombo();
+                }
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Each picture added gets its motion over the clip as eased keys on this clip (as \"Copy motion from the game\" makes them).");
+                std::vector<int> all; for (int i = 0; i < (int)u.pieces.size(); ++i) if (!u.pieces[i].image.empty()) all.push_back(i);
+                ImGui::BeginDisabled(!pics);
+                if (ImGui::Button(("Add all " + std::to_string(pics) + " pictures").c_str())) AddFromGame(u, all, false);
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("As a new group (\"%s %s\"), in this game mode (%s).", GroupLeaf(u.movie).c_str(), ci.name.substr(0, ci.name.find("  (")).c_str(), ModeName(g_editMode));
+                const bool pickPic = u.piece >= 0 && u.piece < (int)u.pieces.size() && !u.pieces[u.piece].image.empty();
+                ImGui::SameLine();
+                ImGui::BeginDisabled(!pickPic);
+                if (ImGui::Button("Add the picked one")) AddFromGame(u, { u.piece }, true);
+                ImGui::EndDisabled();
+                if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip(pickPic ? "%s\n(click a picture in the preview to pick it)%s" : "Click a picture in the preview to pick it.%s%s",
+                                      pickPic ? u.pieces[u.piece].name.c_str() : "", g_selGroup.empty() ? "" : ("\nInto the group picked in the list: " + g_selGroup).c_str());
+            }
+        }
+    }
+    ImGui::EndGroup();
+    if (ImGui::GetTime() - u.msgAt < 6.0) ImGui::TextColored(ImVec4(0.55f, 0.85f, 1.f, 1.f), "%s", u.msg.c_str());
+    ImGui::PopID();
 }
 
 // ---------------------------------------------------------------- animation page (left of the list)
@@ -2011,6 +2206,36 @@ void AnimCopyMotionTest(const std::string& spec) {   // (tests) "<element>.<movi
     anim::g_cm.clip = mc; anim::g_cm.piecesFor.clear();
     anim::g_mpv.play = false; anim::g_mpv.boundsFor.clear();
     anim::g_cmShow = true;
+}
+void FromGameTest(const std::string& spec) {   // (tests) "<movie name>.<clip>.<motion clip | none>": as "Add all"
+    char mv[128] = "", cn[64] = ""; int clip = -1;
+    if (sscanf(spec.c_str(), "%127[^.].%d.%63s", mv, &clip, cn) != 3 || !motionSource.movies) { Log("from the game test: bad spec %s", spec.c_str()); return; }
+    anim::FromGameUi& u = anim::g_fg;
+    u.movies = motionSource.movies(); u.listed = true; u.movie.clear();
+    for (auto& m : u.movies) if (anim::LowerS(GroupLeaf(m)) == anim::LowerS(mv)) { u.movie = m; break; }
+    std::string err;
+    if (u.movie.empty() || !motionSource.clips(u.movie, u.clips, u.fps, u.ppu, err) || clip < 0 || clip >= (int)u.clips.size()
+        || !motionSource.sample(u.movie, clip, u.pieces, err)) { Log("from the game test: no movie / clip %s %s", spec.c_str(), err.c_str()); return; }
+    u.clipsFor = u.movie; u.clip = clip; u.piecesFor = u.movie + "#" + std::to_string(clip); u.err.clear();
+    u.piece = -1; for (int i = 0; i < (int)u.pieces.size() && u.piece < 0; ++i) if (!u.pieces[i].image.empty()) u.piece = i;
+    u.motion = strcmp(cn, "none") != 0; u.place = 0;
+    for (int i = 0; i < 7; ++i) if (!strcmp(anim::kClips[i][0], cn)) u.motionClip = i;
+    std::vector<int> all; for (int i = 0; i < (int)u.pieces.size(); ++i) if (!u.pieces[i].image.empty()) all.push_back(i);
+    const size_t first = Elems().size();
+    const int added = anim::AddFromGame(u, all, false);
+    FILE* f = fopen((dataDir + "anim_test.txt").c_str(), "w");
+    auto out = [&](const char* fmt, ...) {
+        char line[512]; va_list ap; va_start(ap, fmt); vsnprintf(line, sizeof line, fmt, ap); va_end(ap);
+        Log("%s", line); if (f) fprintf(f, "%s\n", line);
+    };
+    out("from the game test: %s / %s: %d added - %s", u.movie.c_str(), u.clips[clip].name.c_str(), added, u.msg.c_str());
+    for (size_t i = first; i < Elems().size(); ++i) {
+        const Elem& e = Elems()[i];
+        int keys = 0; if (e.an.p) for (auto& c : e.an.p->clips) keys += anim::Keys(c);
+        out("from the game test:   %s [%s] at %.1f, %.1f size %.1f x %.1f rot %.1f alpha %.2f, %d keys", e.name.c_str(), e.pack.c_str(), e.x, e.y, e.w, e.h, e.rot, e.col[3], keys);
+    }
+    if (f) fclose(f);
+    u.whereShown = true; u.pv.play = false; u.pv.boundsFor.clear();
 }
 void AnimKeysTest(float at) {   // (tests: the focused element's shown keys copied, pasted at `at` ms)
     anim::PickAllShown(); anim::CopyKeys(false); anim::g.time = at; anim::PasteKeys();

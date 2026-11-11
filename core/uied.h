@@ -25,11 +25,13 @@ namespace uied {
     void AnimLive(bool live);                // animation mode plays the layout live (triggers, stand-in menu values)
     void AnimKeysTest(float at);             // (tests) the focused element's shown keys copied and pasted at `at` ms
     void AnimCopyMotionTest(const std::string& spec);   // (tests) "<element>.<movie clip>.<clip name>": copy motion as the page does
+    void FromGameTest(const std::string& spec);   // (tests) "<movie name>.<clip>.<motion clip | none>": the editor's From the game, Add all
     bool ShowIfUsed(const char* prefix);     // an element of any layout shows by a token starting so ("menu.sel:")
     // Copy motion from the game (animation mode): the host's movies (Flash), their clips (a label's frames) and the
     // motion of each piece in a clip, frame by frame. The editor fits eased keys to a piece's motion.
     struct MotionFrame { bool on = false; float x = 0, y = 0, sx = 1, sy = 1, rot = 0, a = 1, add[3] = { 0, 0, 0 }; };   // (world: movie pixels, degrees clockwise)
-    struct MotionClipInfo { std::string name; int first = 1, last = 1; };   // (frames, from 1)
+    struct MotionClipInfo { std::string name; int first = 1, last = 1; bool root = false; float stageW = 0, stageH = 0; };   // (frames, from 1;
+                                             // root: the movie's own timeline (pieces in stage pixels), else a sprite's (its own space))
     struct MotionPiece { std::string name, image; float w = 0, h = 0; std::vector<MotionFrame> frames; };   // image: its picture's name
                                              // (lower case), or ""; w, h: its own size (movie pixels, before its scale)
     struct MotionSource {
