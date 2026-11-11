@@ -469,6 +469,7 @@ static const BakedPrefab kBakedPrefabs[] = {
     "action=\n"
     "grid=1 8 296 213.333 -450.4 -79.6663 296 26.6667 1 0 -450.4 27.0003 0 0 0 1\n"
     "stagger=50\n"
+    "gwrap=1\n"
     "tile={loc:LEADERBOARDS_ACTIVITY_CUP}\n"
     "taction=fe:FEScreenBreadCrumbs:setBreadCrumb({tile}); Audio:playSound(\"UI_OnSelect\"); FEHangout:onPressPlay(); GameSetup:setGameModeCupRace(); @exitScreen(\"screens\\\\jra_menus\\\\hangOutDifficulty.swf\")\n"
     "tile={loc:LEADERBOARDS_ACTIVITY_STUNT_PARK}\n"

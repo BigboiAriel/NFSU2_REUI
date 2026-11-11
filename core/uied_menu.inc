@@ -506,6 +506,7 @@ static void GridKeepVisible(const Widget& w, MenuState::GridSt& st, int count) {
     st.top = std::max(0, std::min(std::max(0, total - rows), st.top));
 }
 // an arrow inside the grid: true if it moved there (false: at the edge - the page takes it)
+static bool g_moveHeld = false;   // (MenuFrame) the move is a held button's repeat: a grid that wraps stops at its end
 static bool GridMove(Widget& w, int dx, int dy) {
     auto items = GridItems(w); int n = (int)items.size();
     if (!n) return false;
@@ -530,11 +531,18 @@ static bool GridMove(Widget& w, int dx, int dy) {
     if (dx) {   // the tile beside it on its row (a whole-row tile has none)
         ns = -1;
         for (int i = 0; i < n; ++i) if (L[i].row == cs.row && L[i].col == cs.col + dx) ns = i;
+        if (ns < 0 && w.wrap && !g_moveHeld && w.type != W_LISTBOX) {   // (wraps: the other end of its row)
+            int best = -1;
+            for (int i = 0; i < n; ++i) if (L[i].row == cs.row && i != st.sel && (best < 0 || (dx > 0 ? L[i].col < L[best].col : L[i].col > L[best].col))) best = i;
+            ns = best;
+        }
         if (ns < 0) return false;
         st.wantCol = -1;
     }
     if (dy) {
-        int nr = cs.row + dy; if (nr < 0 || nr >= GridRowsOf(L)) return false;
+        int nr = cs.row + dy;
+        if ((nr < 0 || nr >= GridRowsOf(L)) && w.wrap && !g_moveHeld && GridRowsOf(L) > 1) nr = nr < 0 ? GridRowsOf(L) - 1 : 0;   // (wraps: top <-> bottom)
+        if (nr < 0 || nr >= GridRowsOf(L)) return false;
         if (w.type == W_LISTBOX) { g_menu.lastDir[w.group] = dy < 0 ? -1 : 1; (dy < 0 ? g_menu.flashU : g_menu.flashD) = g_menu.t; }
         // the same column on screen (short rows can be moved across; a whole-row tile keeps the column you came from)
         float vis = cs.span > 1 ? (st.wantCol >= 0 ? (float)st.wantCol : 0.f) : cs.col + GridRowShift(w, L, cs.row);
@@ -1237,6 +1245,7 @@ void MenuFrame(const MenuInput& in, double dt) {
     if (!n) return;
     if (GridLike(*rows[g_menu.sel].w)) {   // arrows move inside the grid first; at its edge the page takes them
         Widget& gw = *rows[g_menu.sel].w;
+        for (int k = 0; k < 4; ++k) if (fire[k]) g_moveHeld = g_menu.held[k] > 0;   // (a press wraps; holding stops at the end)
         if (fire[0] && GridMove(gw, 0, -1)) fire[0] = false;
         if (fire[1] && GridMove(gw, 0, 1)) fire[1] = false;
         if (fire[2] && GridMove(gw, -1, 0)) fire[2] = false;
@@ -1673,6 +1682,11 @@ static void GridPanel(Widget& w) {
         ImGui::SetNextItemWidth(160);
         if (ImGui::InputTextWithHint("live list (values)", "key (empty: its own tiles)", lb, sizeof lb)) { w.bind = lb[0] ? std::string("list:") + lb : ""; GridFitTiles(w); g_dirty = true; }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Tiles from another mod's live list instead: <key>.count items, each <key>.N (its text) and <key>.N.icon (its picture).");
+    }
+    if (w.type == W_GRID) {
+        if (ImGui::Checkbox("wraps", &w.wrap)) g_dirty = true;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Up from the top row goes to the bottom one (and down from the bottom to the top; left / right round\nits row). Holding the button stops at the end, as the game's lists do.");
+        ImGui::SameLine();
     }
     ImGui::SetNextItemWidth(120);
     if (ImGui::DragFloat("stagger (ms)", &w.stagger, 1.f, 0.f, 1000.f, "%.0f")) { w.stagger = std::max(0.f, w.stagger); g_dirty = true; }
@@ -2159,6 +2173,7 @@ static void SaveWidgetProps(FILE* f, const Widget& w) {
         if (w.type == W_CAROUSEL) fprintf(f, "carousel=%d %d %d %d\n", w.centred ? 1 : 0, w.wrap ? 1 : 0, w.selStill ? 1 : 0, w.vertical ? 1 : 0);
         fprintf(f, "grid=%d %d %g %g %g %g %g %g %d %d %g %g %g %g %d %d\n", w.cols, w.rows, w.gw, w.gh, w.gx, w.gy, w.refW, w.refH, w.scalePieces ? 1 : 0, w.startAt, c.ox, c.oy, w.spX, w.spY, w.totalRows, w.rowSpace ? 1 : 0);
         if (w.stagger > 0) fprintf(f, "stagger=%g\n", w.stagger);
+        if (w.wrap && w.type != W_CAROUSEL) fprintf(f, "gwrap=1\n");
         // its tiles: "tile=<label>" starts one, the lines after it are its own
         for (int i = 0, n = std::min((int)w.tiles.size(), GridTileCount(w)); i < n; ++i) {
             const Widget& t = w.tiles[i];
@@ -2212,6 +2227,7 @@ static bool LoadWidgetKey(Widget& w, const std::string& k, const std::string& v)
     else if (k == "grid") { int sp = 1, rs = 0; int got = sscanf(v.c_str(), "%d %d %f %f %f %f %f %f %d %d %f %f %f %f %d %d", &w.cols, &w.rows, &w.gw, &w.gh, &w.gx, &w.gy, &w.refW, &w.refH, &sp, &w.startAt, &w.ox, &w.oy, &w.spX, &w.spY, &w.totalRows, &rs); w.scalePieces = sp != 0; w.rowSpace = got >= 16 && rs != 0; w.hasOrigin = got >= 12; w.spX = std::max(0.f, w.spX); w.spY = std::max(0.f, w.spY); w.totalRows = std::max(0, w.totalRows); w.startAt = std::max(0, std::min(2, w.startAt)); w.cols = std::max(1, w.cols); w.rows = std::max(1, w.rows); }
     else if (k == "num") sscanf(v.c_str(), "%f %f %f %f", &w.min, &w.max, &w.step, &w.value);
     else if (k == "stagger") w.stagger = std::max(0.f, (float)atof(v.c_str()));
+    else if (k == "gwrap") w.wrap = atoi(v.c_str()) != 0;
     else if (k == "carousel") { int c = 1, r = 0, h = 1, vt = 0; sscanf(v.c_str(), "%d %d %d %d", &c, &r, &h, &vt); w.centred = c != 0; w.wrap = r != 0; w.selStill = h != 0; w.vertical = vt != 0; }
     else if (k == "tile") { Widget t; t.type = W_BUTTON; t.label = Unesc(v); w.tiles.push_back(t); }
     else if (k.size() > 1 && k[0] == 't' && !w.tiles.empty()) {   // the last tile's
