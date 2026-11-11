@@ -2452,6 +2452,16 @@ void FromGameTest(const std::string& spec) {   // (tests) "<movie name>.<clip>.<
     u.whereShown = true; u.scrollList = true; u.pv.play = false; u.pv.boundsFor.clear(); u.pv.startAt = u.clips[clip].last - u.clips[clip].first;
 }
 void AnimKeysTest(float at) {   // (tests: the focused element's shown keys copied, pasted at `at` ms)
+    {   // (no keys on the focused one: the first element with keys, in the first layout that has one)
+        auto keys = [](const Elem& e) { int n = 0; if (e.an.p) for (auto& c : e.an.p->clips) n += anim::Keys(c); return n; };
+        const int fi = anim::FocusedIndex();
+        if (fi < 0 || !keys(Elems()[fi]))
+            for (int m = 0, done = 0; m < NumModes() && !done; ++m)
+                for (int i = 0; i < (int)g_layout[m].size(); ++i)
+                    if (keys(g_layout[m][i])) { g_editMode = m; AnimFocus(i); done = 1; break; }
+        if (anim::ElemAnim* fa = anim::Focused())   // (its clip with keys: the one being edited)
+            for (int k = 0; k < (int)fa->clips.size(); ++k) if (anim::Keys(fa->clips[k])) { anim::g.clip = k; break; }
+    }
     anim::PickAllShown(); anim::CopyKeys(false); anim::g.time = at; anim::PasteKeys();
 }
 void AnimUndoTest() {   // (tests) undo, then redo: the focused element's key count each time, to <REUI>\anim_test.txt
