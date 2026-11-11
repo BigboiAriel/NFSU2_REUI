@@ -297,7 +297,8 @@ void PageFrame(const std::string& top) {   // (REUI's thread) the page standing 
         std::string ev;
         { std::lock_guard<std::mutex> l(g_mu); if (!g_events.empty()) { ev = g_events.front(); g_events.pop_front(); } }
         if (ev == "BACK") {   // the page's "on back": the calls the screen's own back makes
-            RunCommand(uied::MenuBackCommand(), uied::MenuSelectedTile());
+            const std::string b = uied::MenuBackCommand();   // ("fe:<calls>": the game's; nothing else is a host command)
+            if (b.compare(0, 3, "fe:") == 0) RunCommand(b.substr(3), uied::MenuSelectedTile());
             ev.clear();
         }
         if (!ev.empty()) {
