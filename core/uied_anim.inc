@@ -887,6 +887,14 @@ AnimBox& AnimBox::operator=(AnimBox&& o) noexcept { if (this != &o) { delete p; 
 AnimBox::~AnimBox() { delete p; }
 
 bool AnimModeOn() { return anim::g.on; }
+bool ShowIfUsed(const char* prefix) {
+    const size_t n = strlen(prefix);
+    for (auto& l : g_layout) for (auto& e : l) {
+        const std::string& s = !e.showIf.empty() && e.showIf[0] == '!' ? e.showIf.substr(1) : e.showIf;
+        if (s.compare(0, n, prefix) == 0) return true;
+    }
+    return false;
+}
 void SetAnimMode(bool on) {
     anim::g.on = on;
     if (!on) return;

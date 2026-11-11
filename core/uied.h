@@ -21,6 +21,7 @@ namespace uied {
     void AnimFocus(int elementIndex);        // (tests) focus an element of the layout being edited
     void AnimPlayhead(float ms, bool play);  // (tests) the timeline's playhead, playing (looping) or not
     void AnimBare(bool bare);                // the side panels and graph hidden (only the timeline)
+    bool ShowIfUsed(const char* prefix);     // an element of any layout shows by a token starting so ("menu.sel:")
     bool Unsaved();                          // editor changes not saved yet
     // Game modes, each with its own overlay layout: the game connection's list, set before Init (NFSU2's by default:
     // the Mode numbering below). key: how layout files name it (an unknown key loads into mode 0); name: shown.

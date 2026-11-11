@@ -5,6 +5,7 @@
 //     the pages and the game as it happens; the commands the pages can send (fe_commands.txt, made by
 //     tools/fe/fe_commands.py from the game's movies) with a sender that sends any of them, as the page or as the game.
 #include "fe_debug.h"
+#include "fe_menus.h"
 #include "reui_joyride.h"
 
 #include <imgui.h>
@@ -285,6 +286,7 @@ std::string ScreenKey(const std::string& path) {
 }
 
 void SetFeBridge(const FeBridge& b) { g_bridge = b; }
+void FeSend(int dir, const std::string& method, const std::vector<std::string>& args) { if (g_bridge.send) g_bridge.send(dir, method, args); }
 
 void FeInit(const std::string& dataDir) { g_cmdsFile = dataDir + "fe_commands.txt"; }
 
@@ -292,6 +294,7 @@ const std::string& FeTopScreen() { return g_top; }
 
 bool FeToken(const std::string& key, std::string& out) {
     if (key == "screen") { out = g_top; return true; }
+    if (FeMenuToken(key, out)) return true;
     if (key == "screens") {
         out.clear();
         for (auto& s : g_screens) out += (out.empty() ? "" : ",") + ScreenKey(s.path);
@@ -299,7 +302,7 @@ bool FeToken(const std::string& key, std::string& out) {
     }
     if (key.rfind("screen:", 0) == 0) {
         const std::string want = key.substr(7);
-        out = std::any_of(g_screens.begin(), g_screens.end(), [&](const FeScreen& s) { return ScreenKey(s.path) == want; }) ? "1" : "0";
+        out = !FeMenuHides(want) && std::any_of(g_screens.begin(), g_screens.end(), [&](const FeScreen& s) { return ScreenKey(s.path) == want; }) ? "1" : "0";
         return true;
     }
     return false;
@@ -322,11 +325,13 @@ void FeFrame() {
         uint64_t next = g_next;
         for (auto& c : g_bridge.calls(g_next, next)) {
             if (c.dir == 0) g_seenCalls[c.method]++;
+            if (c.dir == 0) FeMenuCall(c.method, c.args);
             if (!g_pause) g_log.push_back(c);
         }
         g_next = next;
         while (g_log.size() > 5000) g_log.pop_front();
     }
+    FeMenuFrame();
 }
 
 void FeDebugWindow(bool* open) {
