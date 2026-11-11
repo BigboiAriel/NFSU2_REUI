@@ -3,6 +3,7 @@
 #include "assets.h"
 #include "bpk.h"
 #include "log.h"
+#include "swf_fonts.h"
 
 #include <windows.h>
 
@@ -23,7 +24,7 @@ std::atomic<bool> g_stop{false};
 
 // ---------------------------------------------------------------- the menus' pictures
 
-constexpr int kCacheVersion = 1;
+constexpr int kCacheVersion = 2;   // 2: also keeps the menus' font movie (gfxfontlib.gfx: the game's fonts)
 struct Img { uint64_t off; uint32_t size; };
 std::vector<Img> g_img;                   // by Tex::id (written by the scan before uied sees the index)
 std::filesystem::path g_bin;
@@ -119,6 +120,12 @@ bool BuildCache(const std::filesystem::path& bin, const std::filesystem::path& i
         std::string movie = m.name.substr(8, m.name.size() - 8 - 4);   // data\fe\ ... .bpk
         for (auto& c : movie) if (c == '\\') c = '/';
         const bool hud = Lower(movie).rfind("hud/", 0) == 0;
+        if (Lower(movie) == "gfxfontlib")   // the menus' fonts: kept whole, made into TrueType files (ScanFonts)
+            for (auto& e : files)
+                if (Lower(e.ext).compare(0, 3, "gfx") == 0 && e.off + e.size <= pack.size()) {
+                    const std::wstring f = (bin.parent_path() / L"gfxfontlib.gfx").wstring();
+                    if (FILE* o = _wfopen(f.c_str(), L"wb")) { fwrite(pack.data() + e.off, 1, (size_t)e.size, o); fclose(o); }
+                }
         for (auto& e : files) {
             if (Lower(e.ext).compare(0, 3, "dds") != 0) continue;
             if (e.off + e.size > pack.size() || e.size < 128) { ++badImages; continue; }
@@ -244,6 +251,36 @@ void AddFont(assets::Index& out, const std::string& name, const std::string& pat
     out.fonts.push_back(f);
 }
 
+// The game's own fonts (Franklin Gothic Demi / Medium Cond, Amasis Black Italic, ...): made from the player's
+// gfxfontlib.gfx (kept by the picture cache) into <data>\cache\fonts\*.ttf once, named as the menus name them
+// ("$XR_TITLE", "$XR_NORMAL", "$XR_MAIN_HEADER", ...).
+void GameFonts(assets::Index& out) {
+    const std::filesystem::path cache = std::filesystem::path(g_dir) / "cache", gfx = cache / "gfxfontlib.gfx", dir = cache / "fonts";
+    std::error_code ec;
+    if (!std::filesystem::exists(gfx, ec)) return;
+    std::filesystem::create_directories(dir, ec);
+    const auto marker = dir / "XR_TITLE.ttf";
+    if (!std::filesystem::exists(marker, ec) || std::filesystem::last_write_time(marker, ec) < std::filesystem::last_write_time(gfx, ec)) {
+        std::vector<uint8_t> movie;
+        if (FILE* f = _wfopen(gfx.wstring().c_str(), L"rb")) {
+            fseek(f, 0, SEEK_END); movie.resize((size_t)ftell(f)); fseek(f, 0, SEEK_SET);
+            if (fread(movie.data(), 1, movie.size(), f) != movie.size()) movie.clear();
+            fclose(f);
+        }
+        std::vector<std::pair<std::string, std::string>> made; std::string err;
+        if (swf_fonts::ToTtf(movie, dir.string() + "\\", made, err)) reui::Log("REUI: the game's fonts: %d made in %s", (int)made.size(), dir.string().c_str());
+        else reui::Log("REUI: the game's fonts from %s failed: %s", gfx.string().c_str(), err.c_str());
+    }
+    WIN32_FIND_DATAA fd;
+    HANDLE h = FindFirstFileA((dir.string() + "\\*.ttf").c_str(), &fd);
+    if (h == INVALID_HANDLE_VALUE) return;
+    do {
+        const std::string n = fd.cFileName;
+        AddFont(out, "$" + n.substr(0, n.rfind('.')), dir.string() + "\\" + n, "the game (data.bpk)");
+    } while (FindNextFileA(h, &fd));
+    FindClose(h);
+}
+
 void ScanFonts(assets::Index& out) {
     // REUI's own fonts folder: <data>\fonts\*.ttf / *.otf (named by the file)
     std::string fonts = g_dir + "fonts\\";
@@ -269,8 +306,9 @@ void ScanFonts(assets::Index& out) {
 }
 
 void Scan(assets::Index& out) {
+    ScanImages(out);   // (first: building its cache keeps the game's font movie)
+    GameFonts(out);
     ScanFonts(out);
-    ScanImages(out);
 }
 
 } // namespace

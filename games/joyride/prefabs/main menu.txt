@@ -1,0 +1,677 @@
+# NFSU2_REUI prefab
+# The front end's main menu, redone with the game's own pictures and fonts (tools/fe/mainmenu_example.py
+# in the Joy Ride port). Shows with the real one (screen jra_menus/hangoutmainmenu); its opening plays in animation mode (F8).
+root=main menu
+
+[element]
+mode=frontend
+type=image
+name=paper
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-274.667
+y=24
+w=362.667
+h=541.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=menubackground_i1
+pack=controls/menubackground
+uv=0 0 1 1
+layer=1
+aclip=In;466.667;once
+akey=In;alpha;0 0 linear;100 1 linear
+
+[element]
+mode=frontend
+type=shape
+name=button bar
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=0
+y=215.667
+w=1386.667
+h=48.667
+scale=1
+color=0 0 0 0
+visible=1
+shape=0 0 0 0 0
+fill=0 0 0 0.8
+layer=1
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=title shadow
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-378.667
+y=-150.485
+w=0
+h=0
+scale=1.362
+color=0.5 0.04 0.04 0.3
+visible=1
+font=$XR_MAIN_HEADER
+text=Main Menu
+align=0
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=title light
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-379.333
+y=-151.152
+w=0
+h=0
+scale=1.362
+color=0.85 0.8 0.57 1
+visible=1
+font=$XR_MAIN_HEADER
+text=Main Menu
+align=0
+layer=3
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=title
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-380
+y=-151.819
+w=0
+h=0
+scale=1.362
+color=0.5 0.04 0.04 1
+visible=1
+font=$XR_MAIN_HEADER
+text=Main Menu
+align=0
+layer=4
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=image
+name=title specks
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-328
+y=-158.667
+w=157.333
+h=101.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i34
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=5
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=image
+name=row 1 stripe
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-305.333
+y=-65
+w=296
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i1
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 2 light
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-351.733
+y=-39.068
+w=0
+h=0
+scale=0.614
+color=1 1 1 0.7
+visible=1
+font=$XR_TITLE
+text=Stunt Park
+align=0
+layer=3
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 2
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-352.4
+y=-39.735
+w=0
+h=0
+scale=0.614
+color=0.224 0.216 0.208 1
+visible=1
+font=$XR_TITLE
+text=Stunt Park
+align=0
+layer=4
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=image
+name=row 3 stripe
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-303.467
+y=-11.667
+w=296
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i1
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 3 light
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-350.8
+y=-12.402
+w=0
+h=0
+scale=0.614
+color=1 1 1 0.7
+visible=1
+font=$XR_TITLE
+text=Quick Race
+align=0
+layer=3
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 3
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-351.467
+y=-13.068
+w=0
+h=0
+scale=0.614
+color=0.224 0.216 0.208 1
+visible=1
+font=$XR_TITLE
+text=Quick Race
+align=0
+layer=4
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 4 light
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-349.867
+y=14.265
+w=0
+h=0
+scale=0.614
+color=1 1 1 0.7
+visible=1
+font=$XR_TITLE
+text=Xbox LIVE
+align=0
+layer=3
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 4
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-350.533
+y=13.598
+w=0
+h=0
+scale=0.614
+color=0.224 0.216 0.208 1
+visible=1
+font=$XR_TITLE
+text=Xbox LIVE
+align=0
+layer=4
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=image
+name=row 5 stripe
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-301.6
+y=41.667
+w=296
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i1
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 5 light
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-348.933
+y=40.932
+w=0
+h=0
+scale=0.614
+color=1 1 1 0.7
+visible=1
+font=$XR_TITLE
+text=Leaderboards
+align=0
+layer=3
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 5
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-349.6
+y=40.265
+w=0
+h=0
+scale=0.614
+color=0.224 0.216 0.208 1
+visible=1
+font=$XR_TITLE
+text=Leaderboards
+align=0
+layer=4
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 6 light
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-348
+y=67.598
+w=0
+h=0
+scale=0.614
+color=1 1 1 0.7
+visible=1
+font=$XR_TITLE
+text=Achievements
+align=0
+layer=3
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 6
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-348.667
+y=66.932
+w=0
+h=0
+scale=0.614
+color=0.224 0.216 0.208 1
+visible=1
+font=$XR_TITLE
+text=Achievements
+align=0
+layer=4
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=image
+name=row 7 stripe
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-299.733
+y=95
+w=296
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i1
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 7 light
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-347.067
+y=94.265
+w=0
+h=0
+scale=0.614
+color=1 1 1 0.7
+visible=1
+font=$XR_TITLE
+text=Help and Options
+align=0
+layer=3
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 7
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-347.733
+y=93.598
+w=0
+h=0
+scale=0.614
+color=0.224 0.216 0.208 1
+visible=1
+font=$XR_TITLE
+text=Help and Options
+align=0
+layer=4
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 8 light
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-346.133
+y=120.932
+w=0
+h=0
+scale=0.614
+color=1 1 1 0.7
+visible=1
+font=$XR_TITLE
+text=Return to Game Library
+align=0
+layer=3
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=row 8
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-346.8
+y=120.265
+w=0
+h=0
+scale=0.614
+color=0.224 0.216 0.208 1
+visible=1
+font=$XR_TITLE
+text=Return to Game Library
+align=0
+layer=4
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=image
+name=highlight
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-278.667
+y=-64.733
+w=354.667
+h=58.027
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i22
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=6
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=image
+name=highlight A
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-370.2
+y=-64
+w=24
+h=24
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i29
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=7
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 1 linear
+akey=In;sx;0 0.16 hold;200 0.16 linear;333.333 1.1 linear;433.333 1 qout
+akey=In;sy;0 0.16 hold;200 0.16 linear;333.333 1.1 linear;433.333 1 qout
+
+[element]
+mode=frontend
+type=text
+name=highlight shadow
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-352
+y=-65.068
+w=0
+h=0
+scale=0.614
+color=0 0 0 0.25
+visible=1
+font=$XR_TITLE
+text=Championship Series
+align=0
+layer=7
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=highlight text
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-353.333
+y=-66.402
+w=0
+h=0
+scale=0.614
+color=1 1 1 1
+visible=1
+font=$XR_TITLE
+text=Championship Series
+align=0
+layer=8
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+mode=frontend
+type=image
+name=callout A
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-367
+y=207.867
+w=21.333
+h=21.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=icons_i1c
+pack=controls/icons
+uv=0 0 1 1
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=callout select
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-350.4
+y=208.099
+w=0
+h=0
+scale=0.354
+color=1 1 1 1
+visible=1
+font=$XR_NORMAL
+text=Select
+align=0
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+
+[element]
+mode=frontend
+type=image
+name=callout B
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-293.6
+y=208.2
+w=21.333
+h=21.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=icons_i19
+pack=controls/icons
+uv=0 0 1 1
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+
+[element]
+mode=frontend
+type=text
+name=callout back
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-277.133
+y=208.099
+w=0
+h=0
+scale=0.354
+color=1 1 1 1
+visible=1
+font=$XR_NORMAL
+text=Back
+align=0
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
