@@ -913,11 +913,13 @@ static void StateGraph() {
     if (fi < 0 || !an) { ImGui::TextDisabled("Pick an element to see its clips and triggers."); return; }
     Elem& e = Elems()[fi];
     ImGui::Text("%s", e.name.c_str()); ImGui::SameLine();
-    ImGui::TextDisabled("its clips (boxes) and what starts them (arrows). Click a box: edit that clip; an arrow: its trigger. Drag box to box: a transition of its own.");
-    ImDrawList* dl = ImGui::GetWindowDrawList();
+    ImGui::TextDisabled("its clips and what starts them");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Boxes: its clips (lit: playing now in Live / the game, or the one being edited). Arrows: what starts them.\nClick a box: edit that clip; an arrow's label: its trigger on the page. Drag box to box: a transition of its own.");
     const float u = ImGui::GetFontSize() / 13.f;
+    const float W = std::max(520 * u, ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ScrollbarSize);   // (narrow: it scrolls)
+    ImGui::BeginChild("##sgscroll", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+    ImDrawList* dl = ImGui::GetWindowDrawList();
     const ImVec2 o = ImGui::GetCursorScreenPos();
-    const float W = std::max(300.f, ImGui::GetContentRegionAvail().x);
     std::vector<int> custom;
     for (int i = 0; i < (int)an->clips.size(); ++i) { bool std_ = false; for (auto& k : kClips) std_ |= an->clips[i].name == k[0]; if (!std_) custom.push_back(i); }
     const float laneH = 64 * u, H = laneH * (custom.empty() ? 3 : 4) + 8;
@@ -1068,6 +1070,7 @@ static void StateGraph() {
     }
     if (ImGui::SmallButton("+ transition")) { Flow f; f.from = "Press"; f.to = custom.empty() ? "Selected" : an->clips[custom[0]].name; an->flows.push_back(f); g_dirty = true; }
     ImGui::SameLine(); CustomClipButton(*an);
+    ImGui::EndChild();
 }
 
 // ================================================================ keyboard shortcuts (animation mode, Live off)
@@ -1326,6 +1329,7 @@ static void TestStep(const std::string& step) {
     else if (cmd == "layout") { LayoutApply(arg(1)); TestLog("layout %s", arg(1).c_str()); }
     else if (cmd == "custom") { if (fi >= 0) { Clip& k = ClipFor(Elems()[fi], arg(1)); k.on = true; } TestLog("custom clip %s on %s", arg(1).c_str(), fname.c_str()); }
     else if (cmd == "flow") { if (ElemAnim* an = Focused()) { Flow f; f.from = arg(1); f.to = arg(2); f.cond = arg(3); f.blend = num(4, 120); an->flows.push_back(f); g_dirty = true; } TestLog("flow %s -> %s when '%s'", arg(1).c_str(), arg(2).c_str(), arg(3).c_str()); }
+    else if (cmd == "status") TestLog("status: time %g, %s mode, focused %s, clip %s, live %d, G/S/R %d, auto key %d", g.time, g.screen ? "Screen" : "Element", fname.c_str(), PreviewName().c_str(), (int)g.live, g_cd.active ? g_cd.modal : 0, (int)g.autoKey);
     else if (cmd == "press") { g.simPressAt = ImGui::GetTime(); TestLog("press (live)"); }
     else if (cmd == "row") { g.simRow = (int)num(1); TestLog("focus row %d (live)", g.simRow); }
     else if (cmd == "state") { if (ElemAnim* an = Focused()) TestLog("%s now: %s", fname.c_str(), StateNow(*an).c_str()); }

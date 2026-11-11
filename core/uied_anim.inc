@@ -2173,7 +2173,8 @@ static void SidePanel(ImVec2 pos, ImVec2 size, float defSplit) {
     ImGuiIO& io = ImGui::GetIO();
     const ImVec2 avail = ImGui::GetContentRegionAvail();
     const float u = ImGui::GetFontSize() / 13.f, divW = 8 * u, minW = 90 * u;
-    const float split = w_.split > 0 ? w_.split : defSplit;
+    float split = w_.split > 0 ? w_.split : defSplit;
+    if (g.pageTab == 1) split = std::max(split, 0.68f);   // (the state graph: more room, the list still there)
     const float leftW = std::max(std::min(minW, avail.x * 0.5f), std::min(avail.x * split - divW * 0.5f, avail.x - divW - minW));
     ImGui::BeginChild("##apage", ImVec2(std::max(1.f, leftW), avail.y));
     {   // the page | the state graph (a click on the graph's trigger arrow comes back to the page)
