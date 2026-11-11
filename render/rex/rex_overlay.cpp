@@ -12,11 +12,14 @@
 #include <rex/ui/window_listener.h>
 
 #include <imgui.h>
+#include <imgui_internal.h>   // (GetActiveID: the input diagnostics)
 
 #include <SDL3/SDL_mouse.h>   // (the game's window is SDL's: REUI's cursor shapes - resize arrows, the text beam)
 
 #include <algorithm>
 #include <chrono>
+#include <cstdarg>
+#include <cstdio>
 #include <cstring>
 #include <cstdint>
 #include <deque>
@@ -24,6 +27,14 @@
 #include <vector>
 
 namespace reui_rex {
+
+// (temporary: input diagnostics - reui_input_debug.txt next to the game, when reui_input_debug.on is there)
+static void InputDebug(const char* fmt, ...) {
+    static FILE* f = nullptr; static bool tried = false;
+    if (!tried) { tried = true; if (FILE* t = fopen("reui_input_debug.on", "rb")) { fclose(t); f = fopen("reui_input_debug.txt", "w"); } }
+    if (!f) return;
+    va_list ap; va_start(ap, fmt); vfprintf(f, fmt, ap); va_end(ap); fputc('\n', f); fflush(f);
+}
 
 static ImGuiKey KeyOf(int vk) {
     if (vk >= 'A' && vk <= 'Z') return (ImGuiKey)(ImGuiKey_A + (vk - 'A'));
@@ -104,7 +115,8 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
         UpdateCursor();
         // typing: the game's window is SDL's, which sends typed characters only while its text input is on (off by
         // default; the SDK's own ImGui turns it on for itself only) - on while one of REUI's text boxes is being typed in
-        if (io.WantTextInput != textOn_ && s_.window) { textOn_ = io.WantTextInput; s_.window->SetTextInputActive(textOn_); }
+        if (io.WantTextInput != textOn_ && s_.window) { textOn_ = io.WantTextInput; s_.window->SetTextInputActive(textOn_); InputDebug("text input %d (window says %d)", (int)textOn_, (int)s_.window->IsTextInputActive()); }
+        { static int lastActive = -1; const int act = ImGui::GetActiveID() != 0; if (act != lastActive) { lastActive = act; InputDebug("active widget %d, want text %d", act, (int)io.WantTextInput); } }
         ImDrawData* dd = ImGui::GetDrawData();
         if (dd && dd->Textures) for (ImTextureData* t : *dd->Textures) UpdateTexture(t);
         if (dd && dd->CmdListsCount > 0 && w > 0 && h > 0) Render(dc, dd);
@@ -143,6 +155,7 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
     void OnKeyDown(rex::ui::KeyEvent& e) override { Key(e, true); }
     void OnKeyUp(rex::ui::KeyEvent& e) override { Key(e, false); }
     void OnKeyChar(rex::ui::KeyEvent& e) override {
+        InputDebug("char %u wants %d", (unsigned)e.virtual_key(), (int)Wants());
         if (!Wants()) return;
         bool take = true;
         With([&](ImGuiIO& io) { io.AddInputCharacter((unsigned)e.virtual_key()); take = Takes(io); });
@@ -167,6 +180,7 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
     bool Takes(const ImGuiIO& io) const { return !(s_.shareKeys && s_.shareKeys()) || io.WantTextInput; }
     void Key(rex::ui::KeyEvent& e, bool down) {
         int vk = (int)e.virtual_key();
+        InputDebug("key %d %s wants %d", vk, down ? "down" : "up", (int)Wants());
         if (down && s_.keyDown && s_.keyDown(vk)) { e.set_handled(true); return; }
         if (!Wants()) return;
         bool take = true;
