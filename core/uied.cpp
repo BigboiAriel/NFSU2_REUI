@@ -595,7 +595,7 @@ static bool CondOk(const std::string& cond, const std::string& group) {
     std::string v, key = neg ? cond.substr(1) : cond;
     if (key.compare(0, 11, "page.prompt") == 0 || key == "page.title") {   // (REUI's own: the menu's prompts / header text)
         g_tokGroup = group;
-        if (key == "page.title") v = g_titleNow = TitleFor(e.group); else PageToken(key, v);
+        if (key == "page.title") v = g_titleNow = TitleFor(group); else PageToken(key, v);
         bool set = !v.empty() && v != "0";
         return neg ? !set : set;
     }
