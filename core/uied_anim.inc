@@ -26,8 +26,11 @@ enum Ease { EZ_LINEAR, EZ_IN, EZ_OUT, EZ_INOUT, EZ_BACK_IN, EZ_BACK_OUT, EZ_ELAS
 static const char* kEase[EZ_NEASE] = { "Linear", "Ease in", "Ease out", "Ease in-out", "Back in (anticipate)",
                                     "Back out (overshoot)", "Elastic out", "Bounce out", "Hold (step)", "Bezier (handles)", "Soft in", "Soft out", "Soft in-out" };
 
-// A key: a value at a time; `ease` shapes the way to the next key (bezier: handles in 0..1 of that segment).
-struct Key { float t = 0, v = 0; int ease = EZ_LINEAR; float h1x = 0.33f, h1y = 0.f, h2x = 0.67f, h2y = 1.f; bool sel = false; };
+// A key: a value at a time; `ease` shapes the way to the next key. Bezier: two handles - h1 leaves this key, h2 comes
+// into the next; their x is a fraction (0..1) of the way in time, their y an offset in value from their own key (h1 from
+// this one, h2 from the next), so a flat stretch can curve too and the handles move with their keys. (0, 0): flat
+// tangents, a smooth ease in-out.
+struct Key { float t = 0, v = 0; int ease = EZ_LINEAR; float h1x = 0.33f, h1y = 0.f, h2x = 0.67f, h2y = 0.f; bool sel = false; };
 
 enum Prop { P_X, P_Y, P_SX, P_SY, P_ROT, P_ALPHA, P_MR, P_MG, P_MB, P_AR, P_AG, P_AB, P_NPROP };
 struct PropDef { const char* name; const char* unit; float def, lo, hi; ImU32 col; };
@@ -67,15 +70,38 @@ static const char* kClips[][2] = {
 };
 
 // Easing: 0..1 -> 0..1 (back / elastic go past the ends).
-static float BezierY(const Key& k, float u) {
-    // x(s) = u for the curve (0,0) (h1x,h1y) (h2x,h2y) (1,1): bisection on s
+static float BezierS(const Key& k, float u) {
+    // the curve's parameter where its time is u: x(s) = u for (0) (h1x) (h2x) (1), bisection on s
     float lo = 0, hi = 1, s = u;
     for (int i = 0; i < 30; ++i) {
         s = (lo + hi) * 0.5f;
         float x = 3 * (1 - s) * (1 - s) * s * k.h1x + 3 * (1 - s) * s * s * k.h2x + s * s * s;
         (x < u ? lo : hi) = s;
     }
-    return 3 * (1 - s) * (1 - s) * s * k.h1y + 3 * (1 - s) * s * s * k.h2y + s * s * s;
+    return s;
+}
+static float BezierV(const Key& k, const Key& n, float u) {   // the value on the way from k to n (u: 0..1 of the time)
+    const float s = BezierS(k, u), r = 1 - s;
+    return r * r * r * k.v + 3 * r * r * s * (k.v + k.h1y) + 3 * r * s * s * (n.v + k.h2y) + s * s * s * n.v;
+}
+// a key turned bezier: handles that keep (about) the shape it had - the eases' standard cubic forms
+static void ToBezier(Key& k, const Key* n) {
+    float x1 = 0.33f, y1 = 0, x2 = 0.67f, y2 = 1;   // (normalised; linear and the rest: a smooth ease in-out)
+    switch (k.ease) {
+    case EZ_IN: x1 = 0.32f; y1 = 0; x2 = 0.67f; y2 = 0; break;
+    case EZ_OUT: x1 = 0.33f; y1 = 1; x2 = 0.68f; y2 = 1; break;
+    case EZ_INOUT: x1 = 0.65f; y1 = 0; x2 = 0.35f; y2 = 1; break;
+    case EZ_QIN: x1 = 1 / 3.f; y1 = 0; x2 = 2 / 3.f; y2 = 1 / 3.f; break;
+    case EZ_QOUT: x1 = 1 / 3.f; y1 = 2 / 3.f; x2 = 2 / 3.f; y2 = 1; break;
+    case EZ_QINOUT: x1 = 0.45f; y1 = 0; x2 = 0.55f; y2 = 1; break;
+    case EZ_BACK_IN: x1 = 0.36f; y1 = 0; x2 = 0.66f; y2 = -0.56f; break;
+    case EZ_BACK_OUT: x1 = 0.34f; y1 = 1.56f; x2 = 0.64f; y2 = 1; break;
+    case EZ_BEZIER: return;
+    default: break;
+    }
+    const float dv = n ? n->v - k.v : 0.f;
+    k.h1x = x1; k.h1y = y1 * dv; k.h2x = x2; k.h2y = (y2 - 1) * dv;
+    k.ease = EZ_BEZIER;
 }
 static float BounceOut(float u) {
     const float n = 7.5625f, d = 2.75f;
@@ -95,7 +121,6 @@ static float Eased(const Key& k, float u) {
     case EZ_ELASTIC: return u <= 0 ? 0 : u >= 1 ? 1 : powf(2, -10 * u) * sinf((u * 10 - 0.75f) * 2.0943951f) + 1;
     case EZ_BOUNCE: return BounceOut(u);
     case EZ_HOLD: return u >= 1 ? 1.f : 0.f;
-    case EZ_BEZIER: return BezierY(k, u);
     case EZ_QIN: return u * u;
     case EZ_QOUT: return 1 - (1 - u) * (1 - u);
     case EZ_QINOUT: return u < 0.5f ? 2 * u * u : 1 - 2 * (1 - u) * (1 - u);
@@ -110,6 +135,7 @@ static float Value(const Track& tr, float t) {
     for (size_t i = 0; i + 1 < k.size(); ++i) {
         if (t > k[i + 1].t) continue;
         const float span = std::max(0.001f, k[i + 1].t - k[i].t);
+        if (k[i].ease == EZ_BEZIER) return BezierV(k[i], k[i + 1], (t - k[i].t) / span);
         return k[i].v + (k[i + 1].v - k[i].v) * Eased(k[i], (t - k[i].t) / span);
     }
     return k.back().v;
@@ -300,6 +326,60 @@ static void AnimKey(Elem& e, const std::string& k, const std::string& v) {
 }
 static std::string AnimText(const ElemAnim* a) { std::string o; if (a) PutAnim(o, *a); return o; }
 
+// ---------------------------------------------------------------- interpolation buttons (linear / constant / bezier)
+
+// the keys an easing change goes to: the picked ones, or (none picked) every key of the tracks the graph shows
+static bool EaseTarget(const Clip& c, bool anyPicked, const std::vector<int>& shown, int p, const Key& k) {
+    return anyPicked ? k.sel : std::find(shown.begin(), shown.end(), p) != shown.end();
+}
+static void ApplyEase(Clip& c, int ease) {
+    bool any = false; for (auto& tr : c.tracks) for (auto& k : tr.keys) any |= k.sel;
+    const std::vector<int> shown = GraphTracks(&c);
+    for (int p = 0; p < P_NPROP; ++p) {
+        Track& tr = c.tracks[p];
+        for (size_t i = 0; i < tr.keys.size(); ++i) {
+            Key& k = tr.keys[i];
+            if (!EaseTarget(c, any, shown, p, k)) continue;
+            if (ease == EZ_BEZIER) ToBezier(k, i + 1 < tr.keys.size() ? &tr.keys[i + 1] : nullptr);   // (keeps the shape)
+            else k.ease = ease;
+        }
+    }
+}
+static void EaseButtons(Clip* c) {
+    if (!c) return;
+    bool any = false; for (auto& tr : c->tracks) for (auto& k : tr.keys) any |= k.sel;
+    const std::vector<int> shown = GraphTracks(c);
+    int common = -1; bool first = true;   // the targets' one easing (its button lit), -1: mixed / none
+    for (int p = 0; p < P_NPROP; ++p) {
+        const Track& tr = c->tracks[p];
+        for (size_t i = 0; i + 1 < tr.keys.size(); ++i)   // (a track's last key leads nowhere: its easing doesn't count)
+            if (EaseTarget(*c, any, shown, p, tr.keys[i])) { if (first) common = tr.keys[i].ease; else if (common != tr.keys[i].ease) common = -1; first = false; }
+    }
+    struct B { int ease; const char* id; const char* tip; };
+    static const B bs[] = {
+        { EZ_LINEAR, "##ezlin", "Linear: straight on to the next key." },
+        { EZ_HOLD, "##ezconst", "Constant: holds its value, then jumps at the next key." },
+        { EZ_BEZIER, "##ezbez", "Bezier: a curve with two handles to drag in the graph (it starts from the key's easing,\nor a smooth ease in-out from linear)." },
+    };
+    const float h = ImGui::GetTextLineHeight() + 2;
+    for (int bi = 0; bi < 3; ++bi) {
+        ImGui::SameLine(0, bi ? 2.f : 10.f);
+        const bool on = common == bs[bi].ease;
+        if (on) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+        const bool click = ImGui::Button(bs[bi].id, ImVec2(h * 1.7f, h));
+        if (on) ImGui::PopStyleColor();
+        const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+        const float x0 = a.x + h * 0.35f, x1 = b.x - h * 0.35f, y0 = a.y + h * 0.2f, y1 = b.y - h * 0.2f, xm = (x0 + x1) * 0.5f;
+        const ImU32 col = on ? IM_COL32(255, 255, 255, 255) : IM_COL32(110, 170, 255, 255);
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        if (bs[bi].ease == EZ_LINEAR) dl->AddLine(ImVec2(x0, y1), ImVec2(x1, y0), col, 2.f);
+        else if (bs[bi].ease == EZ_HOLD) { ImVec2 q[4] = { ImVec2(x0, y1), ImVec2(xm, y1), ImVec2(xm, y0), ImVec2(x1, y0) }; dl->AddPolyline(q, 4, col, 0, 2.f); }
+        else dl->AddBezierCubic(ImVec2(x0, y1), ImVec2(xm + h * 0.15f, y1), ImVec2(xm - h * 0.15f, y0), ImVec2(x1, y0), col, 2.f);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n(%s)", bs[bi].tip, any ? "the picked keys" : "no keys picked: every key of the curves shown");
+        if (click) ApplyEase(*c, bs[bi].ease);
+    }
+}
+
 // ---------------------------------------------------------------- keys + curves graph
 
 static void FitView(View& v, Clip* c, const std::vector<int>& tracks) {
@@ -361,6 +441,13 @@ static void Graph(const char* id, ImVec2 size, View& v) {
     // curves and keys
     int hitTrack = -1, hitKey = -1, hitHandle = 0;
     const ImVec2 m = io.MousePos;
+    float hitD = 1e9f;   // (the nearest key or handle under the mouse wins)
+    auto tryHit = [&](ImVec2 q, float reach, int p, int i, int h) {
+        if (!hov && g.dragKey < 0) return;
+        const float dx = m.x - q.x, dy = m.y - q.y, d = dx * dx + dy * dy;
+        if (fabsf(dx) <= reach && fabsf(dy) <= reach && d < hitD) { hitD = d; hitTrack = p; hitKey = i; hitHandle = h; }
+    };
+    const bool dragging = g.dragKey >= 0 && ImGui::IsMouseDown(ImGuiMouseButton_Left);
     for (int p : tracks) {
         Track& tr = c->tracks[p];
         const ImU32 col = kProp[p].col;
@@ -371,24 +458,38 @@ static void Graph(const char* id, ImVec2 size, View& v) {
         for (int i = 0; i < (int)tr.keys.size(); ++i) {
             Key& k = tr.keys[i];
             ImVec2 kp(X(k.t), Yv(k.v));
-            // bezier handles of the segment to the next key
+            // bezier: the handles of the way to the next key (h1 off this key, h2 into the next), dragged to shape it
             if (k.ease == EZ_BEZIER && i + 1 < (int)tr.keys.size()) {
                 const Key& n = tr.keys[i + 1];
-                ImVec2 h1(X(k.t + k.h1x * (n.t - k.t)), Yv(k.v + k.h1y * (n.v - k.v)));
-                ImVec2 h2(X(k.t + k.h2x * (n.t - k.t)), Yv(k.v + k.h2y * (n.v - k.v)));
-                dl->AddLine(kp, h1, IM_COL32(255, 255, 255, 90)); dl->AddLine(ImVec2(X(n.t), Yv(n.v)), h2, IM_COL32(255, 255, 255, 90));
-                dl->AddCircleFilled(h1, 4, IM_COL32(255, 255, 255, 200)); dl->AddCircleFilled(h2, 4, IM_COL32(255, 255, 255, 200));
-                if (hov && hitKey < 0) {
-                    if (fabsf(m.x - h1.x) < 6 && fabsf(m.y - h1.y) < 6) { hitTrack = p; hitKey = i; hitHandle = 1; }
-                    else if (fabsf(m.x - h2.x) < 6 && fabsf(m.y - h2.y) < 6) { hitTrack = p; hitKey = i; hitHandle = 2; }
+                const ImVec2 np(X(n.t), Yv(n.v));
+                const ImVec2 h1(X(k.t + k.h1x * (n.t - k.t)), Yv(k.v + k.h1y));
+                const ImVec2 h2(X(k.t + k.h2x * (n.t - k.t)), Yv(n.v + k.h2y));
+                const bool act1 = dragging && g.dragTrack == p && g.dragKey == i && g.dragHandle == 1;
+                const bool act2 = dragging && g.dragTrack == p && g.dragKey == i && g.dragHandle == 2;
+                dl->AddLine(kp, h1, (col & 0x00FFFFFF) | 0xA0000000, 1.5f); dl->AddLine(np, h2, (col & 0x00FFFFFF) | 0xA0000000, 1.5f);
+                for (int h = 0; h < 2; ++h) {
+                    const ImVec2 hp = h ? h2 : h1; const bool act = h ? act2 : act1;
+                    dl->AddCircleFilled(hp, act ? 5.5f : 4.5f, act ? IM_COL32(255, 200, 60, 255) : IM_COL32(245, 245, 245, 255));
+                    dl->AddCircle(hp, act ? 5.5f : 4.5f, IM_COL32(0, 0, 0, 200), 0, 1.f);
                 }
+                tryHit(h1, 8, p, i, 1); tryHit(h2, 8, p, i, 2);
             }
             const float r = 5;
             ImVec2 q[4] = { ImVec2(kp.x, kp.y - r), ImVec2(kp.x + r, kp.y), ImVec2(kp.x, kp.y + r), ImVec2(kp.x - r, kp.y) };
             dl->AddConvexPolyFilled(q, 4, k.sel ? IM_COL32(255, 200, 60, 255) : IM_COL32(235, 235, 235, 255));
             dl->AddPolyline(q, 4, IM_COL32(0, 0, 0, 200), ImDrawFlags_Closed, 1.f);
-            if (hov && hitKey < 0 && fabsf(m.x - kp.x) <= 7 && fabsf(m.y - kp.y) <= 7) { hitTrack = p; hitKey = i; hitHandle = 0; }
+            tryHit(kp, 7, p, i, 0);
         }
+    }
+    if (hov && !dragging && hitKey >= 0) {   // what a click would grab
+        const Track& tr = c->tracks[hitTrack]; const Key& k = tr.keys[hitKey];
+        ImVec2 q(X(k.t), Yv(k.v));
+        if (hitHandle && hitKey + 1 < (int)tr.keys.size()) {
+            const Key& n = tr.keys[hitKey + 1];
+            q = hitHandle == 1 ? ImVec2(X(k.t + k.h1x * (n.t - k.t)), Yv(k.v + k.h1y)) : ImVec2(X(k.t + k.h2x * (n.t - k.t)), Yv(n.v + k.h2y));
+        }
+        dl->AddCircle(q, 9, IM_COL32(255, 200, 60, 200), 0, 1.5f);
+        ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
     }
     // playhead
     dl->AddLine(ImVec2(X(g.time), a.y), ImVec2(X(g.time), b.y), IM_COL32(80, 150, 255, 255), 2.f);
@@ -446,11 +547,11 @@ static void Graph(const char* id, ImVec2 size, View& v) {
                 const float dt = nt - k.t, dv = (io.KeyShift ? 0.f : nv - k.v);
                 for (auto& t2 : c->tracks) for (auto& kk : t2.keys) if (kk.sel) { kk.t = std::max(0.f, kk.t + dt); kk.v += dv; }
             } else if (g.dragKey + 1 < (int)tr.keys.size()) {
+                // (time: kept inside the way, so the curve never turns back on itself; value: free; Shift: value only)
                 const Key& n = tr.keys[g.dragKey + 1];
-                const float u = (T(m.x) - k.t) / std::max(0.001f, n.t - k.t);
-                const float w = fabsf(n.v - k.v) > 1e-6f ? (V(m.y) - k.v) / (n.v - k.v) : 0.f;
-                if (g.dragHandle == 1) { k.h1x = std::max(0.f, std::min(1.f, u)); k.h1y = w; }
-                else { k.h2x = std::max(0.f, std::min(1.f, u)); k.h2y = w; }
+                const float u = std::max(0.f, std::min(1.f, (T(m.x) - k.t) / std::max(0.001f, n.t - k.t)));
+                if (g.dragHandle == 1) { if (!io.KeyShift) k.h1x = u; k.h1y = V(m.y) - k.v; }
+                else { if (!io.KeyShift) k.h2x = u; k.h2y = V(m.y) - n.v; }
             }
         }
     } else if (g.dragKey >= 0) {
@@ -467,15 +568,16 @@ static void Graph(const char* id, ImVec2 size, View& v) {
     if (ImGui::BeginPopup("##keymenu")) {
         ImGui::TextDisabled("Way to the next key");
         for (int e = 0; e < EZ_NEASE; ++e)
-            if (ImGui::MenuItem(kEase[e])) for (auto& tr : c->tracks) for (auto& kk : tr.keys) if (kk.sel) kk.ease = e;
+            if (ImGui::MenuItem(kEase[e])) ApplyEase(*c, e);
         ImGui::Separator();
         if (ImGui::MenuItem("Delete key")) for (auto& tr : c->tracks) tr.keys.erase(std::remove_if(tr.keys.begin(), tr.keys.end(), [](const Key& k) { return k.sel; }), tr.keys.end());
         ImGui::EndPopup();
     }
     if (hov && (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_X)) && !io.WantTextInput)
         for (auto& tr : c->tracks) tr.keys.erase(std::remove_if(tr.keys.begin(), tr.keys.end(), [](const Key& k) { return k.sel; }), tr.keys.end());
-    if (hov) ImGui::SetTooltip("Drag keys (Shift: time only), white dots: bezier handles. Right-click a key: its easing / delete.\nDouble-click: add a key (one track shown). Click: move the playhead. Wheel: zoom time, Ctrl+wheel: values,\nmiddle / Alt drag: pan, F: fit.");
+    if (hov) ImGui::SetTooltip("Drag keys (Shift: time only). Round dots: bezier handles - drag to shape the curve (Shift: height only).\nThe buttons above: linear / constant / bezier for the picked keys. Right-click a key: every easing, delete.\nDouble-click: add a key (one track shown). Click: move the playhead. Wheel: zoom time, Ctrl+wheel: values,\nmiddle / Alt drag: pan, F: fit.");
 }
+
 
 // ---------------------------------------------------------------- elements list (right edge)
 
@@ -492,6 +594,7 @@ struct WinState {
     ImVec2 disp;                  // the screen they were last placed on
     ImVec2 now[WIN_N][2]; bool shown[WIN_N] = {}, shownLast[WIN_N] = {};   // this frame's (pixels), for snapping
     ImVec2 last[WIN_N][2];        // last frame's
+    bool drag[WIN_N] = {}; ImVec2 dragTo[WIN_N];   // moved by our own grip (a window without a title bar): where to
 };
 static WinState w_;
 static std::string WinFile() { return dataDir + "anim_windows.txt"; }
@@ -530,6 +633,7 @@ static bool WinBegin(int id, const char* title, ImVec2 defPos, ImVec2 defSize, I
         ImGui::SetNextWindowSize(ImVec2(r.w * D.x, r.h * D.y), ImGuiCond_Always);
     }
     const bool placed = w_.force[id] || dispChanged || !w_.shownLast[id];
+    if (!placed && w_.drag[id]) ImGui::SetNextWindowPos(w_.dragTo[id], ImGuiCond_Always);   // (then snapped as any move)
     w_.force[id] = false;
     const bool open = ImGui::Begin(title, nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | extra);
     ImVec2 p = ImGui::GetWindowPos(), sz = ImGui::GetWindowSize();
@@ -703,12 +807,13 @@ static void AnimPage(ImVec2 pos, ImVec2 size) {
             ImGui::Text("%d key%s picked", n, n == 1 ? "" : "s");
             int e2 = ease < 0 ? 0 : ease;
             ImGui::SetNextItemWidth(220);
-            if (ImGui::Combo("way to the next key", &e2, kEase, EZ_NEASE)) for (auto& tr : cur->tracks) for (auto& k : tr.keys) if (k.sel) k.ease = e2;
+            if (ImGui::Combo("way to the next key", &e2, kEase, EZ_NEASE)) ApplyEase(*cur, e2);
             Key* bz = nullptr;   // the first picked bezier key's handles
             for (auto& tr : cur->tracks) for (auto& k : tr.keys) if (!bz && k.sel && k.ease == EZ_BEZIER) bz = &k;
             if (bz) {
-                ImGui::SetNextItemWidth(220); ImGui::DragFloat2("handle 1 (x, y)", &bz->h1x, 0.01f);
-                ImGui::SetNextItemWidth(220); ImGui::DragFloat2("handle 2 (x, y)", &bz->h2x, 0.01f);
+                ImGui::SetNextItemWidth(220); ImGui::DragFloat2("handle 1 (time 0-1, value +)", &bz->h1x, 0.01f);
+                ImGui::SetNextItemWidth(220); ImGui::DragFloat2("handle 2 (time 0-1, value +)", &bz->h2x, 0.01f);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Handle 1 leaves this key, handle 2 comes into the next: time as a part of the way,\nvalue added to its key's. Easier: drag them in the graph.");
                 bz->h1x = std::max(0.f, std::min(1.f, bz->h1x)); bz->h2x = std::max(0.f, std::min(1.f, bz->h2x));
             }
         }
@@ -777,6 +882,7 @@ static void GraphPanel(ImVec2 pos, ImVec2 size) {
     ImGui::Text("Showing: %s", what.c_str());
     ImGui::SameLine(); if (ImGui::SmallButton("fit")) g.graph.fit = true;
     if (c && g.focus == State::F_TRACK) { ImGui::SameLine(); if (ImGui::SmallButton("all tracks")) { g.focus = State::F_CLIP; g.graph.fit = true; } }
+    EaseButtons(c);
     ImVec2 avail = ImGui::GetContentRegionAvail();
     Graph("##graph", ImVec2(avail.x, std::max(40.f, avail.y)), g.graph);
     ImGui::End();
@@ -786,11 +892,31 @@ static void GraphPanel(ImVec2 pos, ImVec2 size) {
 
 static void Timeline(ImVec2 pos, ImVec2 size) {
     if (g.bare) ImGui::SetNextWindowBgAlpha(0.35f);   // (hidden panels: the timeline is see-through and short)
-    WinBegin(WIN_TL, "Timeline##anim", pos, size, ImGuiWindowFlags_NoScrollbar);
+    WinBegin(WIN_TL, "Timeline##anim", pos, size, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar);
     Clip* c = CurClip();
     ElemAnim* an = Focused();
     const float len = PreviewLen();
-    // ---- header: transport, time, clip, options
+    // ---- header: transport, time, clip, options. No title bar (room for the rows): it's moved by the grip at its left
+    // end or the empty part of this row (its edges size it, as the other windows')
+    ImGuiIO& hio = ImGui::GetIO();
+    ImDrawList* dl0 = ImGui::GetWindowDrawList();
+    auto moveGrip = [&](bool dots) {
+        static ImVec2 startWin, startMouse;
+        if (ImGui::IsItemActivated()) { startWin = ImGui::GetWindowPos(); startMouse = hio.MousePos; }
+        if (ImGui::IsItemActive()) { w_.drag[WIN_TL] = true; w_.dragTo[WIN_TL] = ImVec2(startWin.x + hio.MousePos.x - startMouse.x, startWin.y + hio.MousePos.y - startMouse.y); }
+        else if (ImGui::IsItemDeactivated()) w_.drag[WIN_TL] = false;
+        if (ImGui::IsItemHovered() || ImGui::IsItemActive()) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+        if (ImGui::IsItemHovered() && !ImGui::IsItemActive()) ImGui::SetTooltip("Drag to move the timeline (its edges size it).");
+        if (dots) {   // a grip: 2 x 3 dots
+            const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+            const ImU32 col = ImGui::IsItemHovered() || ImGui::IsItemActive() ? IM_COL32(220, 220, 230, 255) : IM_COL32(130, 130, 145, 255);
+            const float cx = (a.x + b.x) * 0.5f, cy = (a.y + b.y) * 0.5f, d = ImGui::GetFontSize() * 0.28f;
+            for (int i = -1; i <= 1; ++i) for (int j = 0; j < 2; ++j) dl0->AddCircleFilled(ImVec2(cx + (j ? d : -d) * 0.5f, cy + i * d), 1.6f, col);
+        }
+    };
+    ImGui::InvisibleButton("##tlgrip", ImVec2(ImGui::GetFontSize() * 0.8f, ImGui::GetFrameHeight()));
+    moveGrip(true);
+    ImGui::SameLine(0, 4);
     auto keyTimes = [&]() { std::vector<float> ts; if (c) for (auto& tr : c->tracks) for (auto& k : tr.keys) ts.push_back(k.t); std::sort(ts.begin(), ts.end()); return ts; };
     if (ImGui::Button("|<")) g.time = 0;
     ImGui::SameLine(); if (ImGui::Button("<k")) { float best = 0; for (float t : keyTimes()) if (t < g.time - 0.5f) best = t; g.time = best; }
@@ -814,13 +940,19 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
         if (ImGui::Combo("clip", &g.clip, names.data(), (int)names.size())) { g.focus = State::F_CLIP; g.graph.fit = g.big.fit = true; }
     }
     const float bw = ImGui::CalcTextSize("Exit animation mode").x + 20;
-    ImGui::SameLine(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - bw - ImGui::CalcTextSize(" Collapse ").x - ImGui::CalcTextSize(" Hide panels ").x - ImGui::CalcTextSize(" Reset windows ").x - 70));
+    const float rightX = ImGui::GetWindowContentRegionMax().x - bw - ImGui::CalcTextSize(" Collapse ").x - ImGui::CalcTextSize(" Hide panels ").x - ImGui::CalcTextSize(" Reset windows ").x - 70;
+    {   // the empty part of the row: a move handle too
+        ImGui::SameLine();
+        const float gapW = rightX - ImGui::GetCursorPosX() - ImGui::GetStyle().ItemSpacing.x;
+        if (gapW > 8) { ImGui::InvisibleButton("##tlmove", ImVec2(gapW, ImGui::GetFrameHeight())); moveGrip(false); }
+    }
+    ImGui::SameLine(std::max(ImGui::GetCursorPosX(), rightX));
     if (ImGui::Button(g.bare ? " Panels " : " Hide panels ")) g.bare = !g.bare;
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Hide / show the element list, animation page and graph (H): the whole screen to watch.");
     ImGui::SameLine(); if (ImGui::Button(g.expanded ? " Collapse " : " Expand ")) { g.expanded = !g.expanded; g.big.fit = true; }
-    ImGui::SameLine(); if (ImGui::Button(" Reset windows ")) WinReset();
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The windows back where they start. Drag a window by its title bar, size it from its edges;\nits edges snap to the other windows' and the screen's.");
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("A taller timeline with a big keys + curves graph.");
+    ImGui::SameLine(); if (ImGui::Button(" Reset windows ")) WinReset();
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The windows back where they start. Drag a window by its title bar (the timeline: the grip\nat its left end or the empty part of its top row), size it from its edges; its edges snap to\nthe other windows' and the screen's.");
     ImGui::SameLine(); if (ImGui::Button("Exit animation mode")) g.on = false;
     // ---- rows: names | ruler + keys
     const float nameW = 190, rowH = ImGui::GetTextLineHeight() + 6, rulerH = ImGui::GetTextLineHeight() + 8;
@@ -944,6 +1076,7 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
         ImGui::Spacing();
         ImGui::Text("Keys and curves: %s", !c ? "-" : g.focus == State::F_TRACK && g.track >= 0 ? kProp[g.track].name : (c->name + " clip").c_str());
         ImGui::SameLine(); if (ImGui::SmallButton("fit##big")) g.big.fit = true;
+        ImGui::PushID("big"); EaseButtons(c); ImGui::PopID();
         ImVec2 av = ImGui::GetContentRegionAvail();
         Graph("##biggraph", ImVec2(av.x, std::max(60.f, av.y)), g.big);
     }
@@ -973,14 +1106,19 @@ static void Frame() {
         g.elemKey = KeyOf(g_editMode, Elems()[g_sel]); g.focus = State::F_ELEMENT;
     }
     const float W = io.DisplaySize.x, H = io.DisplaySize.y, u = ImGui::GetFontSize() / 13.f;
-    const float tlH = g.expanded ? H * 0.5f : std::min(H * 0.3f, (g.bare ? 96 : 170) * u);
+    // the standard layout (fractions of the screen; Reset windows): the person's own, 2026-11-10 - the timeline along the
+    // bottom, the graph above it on the right, the animation page and the element list over that
+    const float kTl = 0.11435f, kGraph = 0.24858f, kList = 0.10242f, kPage = 0.17905f;
+    const float tlH = g.expanded ? H * 0.5f : g.bare ? std::min(H * 0.3f, 80 * u) : H * kTl;
     {   // the timeline's height follows Expand / Hide panels (it keeps its place, width and bottom edge)
         static int was = -1;
+        static float normalH = -1;   // (its height as the person left it, back when Expand / Hide panels are undone)
         const int now = (g.expanded ? 1 : 0) | (g.bare ? 2 : 0);
         if (was >= 0 && now != was && w_.r[WIN_TL].set) {
             WinRect& r = w_.r[WIN_TL];
             const float bottom = r.y + r.h;
-            r.h = tlH / H; r.y = std::max(0.f, bottom - r.h);
+            if (was == 0) normalH = r.h;
+            r.h = now == 0 && normalH > 0 ? normalH : tlH / H; r.y = std::max(0.f, bottom - r.h);
             w_.force[WIN_TL] = true; w_.dirty = true;
         }
         was = now;
@@ -989,8 +1127,8 @@ static void Frame() {
     io.ConfigWindowsMoveFromTitleBarOnly = true;
     if (g.bare) Timeline(ImVec2(0, H - tlH), ImVec2(W, tlH));
     else {
-        const float graphH = g.expanded ? 0.f : std::min(H * 0.32f, 280 * u);
-        const float listW = std::min(W * 0.22f, 300 * u), pageW = std::min(W * 0.28f, 400 * u);
+        const float graphH = g.expanded ? 0.f : H * kGraph;
+        const float listW = W * kList, pageW = W * kPage;
         const float topH = H - tlH - graphH;
         ElementsPanel(ImVec2(W - listW, 0), ImVec2(listW, topH));
         if (FocusedIndex() >= 0) AnimPage(ImVec2(W - listW - pageW, 0), ImVec2(pageW, topH));
