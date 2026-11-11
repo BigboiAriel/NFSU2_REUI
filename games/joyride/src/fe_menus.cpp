@@ -277,10 +277,11 @@ void PageFrame(const std::string& top) {   // (REUI's thread) the page standing 
     g_pageKeeps = on && uied::MenuGameKeeps();
     g_pageBack = on && !g_pageKeeps && !uied::MenuBackCommand().empty();
     g_pageOn = on;
-    // the game's own screen hidden under a page that does it all (shown again as the page goes: another screen, a popup)
+    // the game's own screen hidden under a page that does it all (shown again as the page goes: another screen, a popup) -
+    // its _alpha, not _visible (an invisible clip doesn't finish loading its pictures: the track card stayed on the first)
     const bool hide = on && uied::MenuHidesGame();
-    if (hide && (!g_hidGame || ImGui::GetTime() - g_hideAt > 0.25)) { FeSet("_level0.feScreen._visible", "false"); g_hideAt = ImGui::GetTime(); }
-    if (!hide && g_hidGame) FeSet("_level0.feScreen._visible", "true");
+    if (hide && (!g_hidGame || ImGui::GetTime() - g_hideAt > 0.25)) { FeSet("_level0.feScreen._alpha", "0"); g_hideAt = ImGui::GetTime(); }
+    if (!hide && g_hidGame) FeSet("_level0.feScreen._alpha", "100");
     g_hidGame = hide;
     if (!on) return;
     uied::MenuInput in;
