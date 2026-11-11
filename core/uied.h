@@ -30,7 +30,8 @@ namespace uied {
     // motion of each piece in a clip, frame by frame. The editor fits eased keys to a piece's motion.
     struct MotionFrame { bool on = false; float x = 0, y = 0, sx = 1, sy = 1, rot = 0, a = 1, add[3] = { 0, 0, 0 }; };   // (world: movie pixels, degrees clockwise)
     struct MotionClipInfo { std::string name; int first = 1, last = 1; };   // (frames, from 1)
-    struct MotionPiece { std::string name, image; std::vector<MotionFrame> frames; };   // image: its picture's name (lower case), or ""
+    struct MotionPiece { std::string name, image; float w = 0, h = 0; std::vector<MotionFrame> frames; };   // image: its picture's name
+                                             // (lower case), or ""; w, h: its own size (movie pixels, before its scale)
     struct MotionSource {
         std::function<std::vector<std::string>()> movies;   // e.g. "screens/jra_menus/hangoutmainmenu" (empty: none yet)
         // a movie's clips; fps: its frame rate; pxPerUnit: its pixels per editor unit (stage height / 480)

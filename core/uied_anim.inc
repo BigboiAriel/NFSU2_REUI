@@ -1215,7 +1215,74 @@ static struct CopyMotionUi {
     bool wholeLayout = false;     // every element at once: in the whole layout (else the focused element's outermost group)
     std::string err;
 } g_cm;
+// the Flash clip as the game draws it, in a box on the page: each piece's picture where it is on the frame (turned,
+// scaled, faded); the picked piece outlined; a click picks the piece under the mouse
+static struct MotionPreview { float frame = 0; bool play = true; std::string boundsFor; ImVec2 lo, hi; } g_mpv;
+static void PreviewCorners(const MotionPiece& pc, const MotionFrame& f, ImVec2 c[4], ImVec2 o, float k) {   // (box corners on screen)
+    const float r = f.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
+    const float hw = std::max(2.f, pc.w) * f.sx / 2, hh = std::max(2.f, pc.h) * f.sy / 2;
+    const float xs[4] = { -hw, hw, hw, -hw }, ys[4] = { -hh, -hh, hh, hh };
+    for (int i = 0; i < 4; ++i) c[i] = ImVec2(o.x + (f.x + xs[i] * cs - ys[i] * sn) * k, o.y + (f.y + xs[i] * sn + ys[i] * cs) * k);
+}
+static void MotionPreviewBox(std::vector<MotionPiece>& ps, int& picked, int frames, float fps, const std::string& key) {
+    MotionPreview& v = g_mpv;
+    if (v.boundsFor != key) {   // the clip's extent over all its frames (the view fits it)
+        v.boundsFor = key; v.frame = g_cmShow ? frames / 2.f : 0; v.lo = ImVec2(1e9f, 1e9f); v.hi = ImVec2(-1e9f, -1e9f);
+        for (auto& pc : ps) for (auto& f : pc.frames) {
+            if (!f.on || f.a <= 0.004f) continue;
+            ImVec2 c[4]; PreviewCorners(pc, f, c, ImVec2(0, 0), 1.f);
+            for (auto& q : c) { v.lo = ImVec2(std::min(v.lo.x, q.x), std::min(v.lo.y, q.y)); v.hi = ImVec2(std::max(v.hi.x, q.x), std::max(v.hi.y, q.y)); }
+        }
+        if (v.lo.x > v.hi.x) { v.lo = ImVec2(0, 0); v.hi = ImVec2(100, 100); }
+    }
+    if (ImGui::SmallButton(v.play ? " || ##mpv" : "  >  ##mpv")) v.play = !v.play;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Play / pause the game's clip (looping, at %g fps).", fps);
+    ImGui::SameLine(); ImGui::SetNextItemWidth(-60);
+    if (ImGui::SliderFloat("##mpvf", &v.frame, 0, (float)std::max(0, frames - 1), "frame %.0f")) v.play = false;
+    if (v.play && frames > 1) { v.frame += ImGui::GetIO().DeltaTime * fps * (float)g_speed; if (v.frame >= frames) v.frame = fmodf(v.frame, (float)frames); }
+    const int fi = std::max(0, std::min(frames - 1, (int)v.frame));
+    const float W = ImGui::GetContentRegionAvail().x - 4, H = std::max(110.f, std::min(W * 0.56f, 280.f));
+    const ImVec2 a = ImGui::GetCursorScreenPos(), b(a.x + W, a.y + H);
+    ImGui::InvisibleButton("##mpvbox", ImVec2(W, H));
+    const bool hov = ImGui::IsItemHovered();
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->AddRectFilled(a, b, IM_COL32(18, 20, 26, 255)); dl->AddRect(a, b, IM_COL32(255, 255, 255, 40));
+    const float bw = std::max(1.f, v.hi.x - v.lo.x), bh = std::max(1.f, v.hi.y - v.lo.y);
+    const float k = std::min((W - 16) / bw, (H - 16) / bh);
+    const ImVec2 o(a.x + W / 2 - (v.lo.x + bw / 2) * k, a.y + H / 2 - (v.lo.y + bh / 2) * k);
+    dl->PushClipRect(a, b, true);
+    int under = -1;
+    const ImVec2 m = ImGui::GetIO().MousePos;
+    for (int i = 0; i < (int)ps.size(); ++i) {   // (in the clip's order: the later on top)
+        const MotionPiece& pc = ps[i];
+        const MotionFrame& f = pc.frames[fi];
+        if (!f.on || f.a <= 0.004f) continue;
+        ImVec2 c[4]; PreviewCorners(pc, f, c, o, k);
+        float su = 1, sv = 1;
+        gfx::Tex tx = pc.image.empty() ? nullptr : NamedTex(pc.image, (int)(std::max(pc.w, pc.h) * k), su, sv);
+        const int al = (int)(255 * std::min(1.f, f.a));
+        if (tx) dl->AddImageQuad(gfx::Id(tx), c[0], c[1], c[2], c[3], ImVec2(0, 0), ImVec2(su, 0), ImVec2(su, sv), ImVec2(0, sv), IM_COL32(255, 255, 255, al));
+        else dl->AddPolyline(c, 4, IM_COL32(150, 160, 190, al / 2), ImDrawFlags_Closed, 1.f);   // (a shape / text: its box)
+        if (hov) {   // (under the mouse: inside its box)
+            bool in = true;
+            for (int j = 0; j < 4 && in; ++j) { const ImVec2 p = c[j], q = c[(j + 1) % 4]; in = (q.x - p.x) * (m.y - p.y) - (q.y - p.y) * (m.x - p.x) >= 0; }
+            if (!in) { in = true; for (int j = 0; j < 4 && in; ++j) { const ImVec2 p = c[j], q = c[(j + 1) % 4]; in = (q.x - p.x) * (m.y - p.y) - (q.y - p.y) * (m.x - p.x) <= 0; } }
+            if (in) under = i;
+        }
+    }
+    if (picked >= 0 && picked < (int)ps.size() && ps[picked].frames[fi].on) {   // the picked piece
+        ImVec2 c[4]; PreviewCorners(ps[picked], ps[picked].frames[fi], c, o, k);
+        dl->AddPolyline(c, 4, IM_COL32(255, 170, 60, 255), ImDrawFlags_Closed, 2.f);
+    }
+    if (under >= 0 && under != picked) { ImVec2 c[4]; PreviewCorners(ps[under], ps[under].frames[fi], c, o, k); dl->AddPolyline(c, 4, IM_COL32(110, 170, 255, 220), ImDrawFlags_Closed, 1.5f); }
+    dl->PopClipRect();
+    if (hov && under >= 0) ImGui::SetTooltip("%s\n(click: copy this piece's motion)", ps[under].name.c_str());
+    if (hov && under >= 0 && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) picked = under;
+}
+
+static bool g_cmShow = false;   // (tests: the section opened and scrolled to once)
 static void CopyMotionSection(Elem& e, Clip* cur) {
+    if (g_cmShow) ImGui::SetNextItemOpen(true);
     if (!ImGui::CollapsingHeader("Copy motion from the game")) return;
     MotionSource& ms = motionSource;
     if (!ms.movies || !ms.clips || !ms.sample) { ImGui::TextDisabled("This game doesn't give its movies to the editor."); return; }
@@ -1289,6 +1356,12 @@ static void CopyMotionSection(Elem& e, Clip* cur) {
     const MotionClipInfo& ci = u.clips[u.clip];
     const int n = ci.last - ci.first + 1;
     ImGui::TextDisabled("%d frames, %.0f ms", n, (n - 1) * 1000.f / u.fps);
+    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+    if (ImGui::TreeNode("preview##cm")) {   // the game's clip itself
+        MotionPreviewBox(u.pieces, u.piece, n, u.fps, pf);
+        if (g_cmShow) { ImGui::SetScrollHereY(1.f); g_cmShow = false; }
+        ImGui::TreePop();
+    }
     if (!cur) return;
     const bool has = Keys(*cur) > 0;
     const std::string bl = (has ? "Replace the " : "Copy into the ") + cur->name + " clip";
@@ -1931,6 +2004,11 @@ void AnimCopyMotionTest(const std::string& spec) {   // (tests) "<element>.<movi
     for (auto& tr : c->tracks) for (auto& k : tr.keys) out("anim test:   %s %g ms %g (%s)", anim::kPropKey[tr.prop], k.t, k.v, anim::kEaseKey[k.ease]);
     if (f) fclose(f);
     anim::g.graph.fit = anim::g.big.fit = true; anim::g.focus = anim::State::F_CLIP;
+    // the section on this movie / clip / piece, its preview paused half way (for a screenshot)
+    anim::g_cm.listed = false; anim::g_cm.forElem = anim::KeyOf(g_editMode, e); anim::g_cm.movie = movie; anim::g_cm.clipsFor.clear();
+    anim::g_cm.clip = mc; anim::g_cm.piecesFor.clear();
+    anim::g_mpv.play = false; anim::g_mpv.boundsFor.clear();
+    anim::g_cmShow = true;
 }
 void AnimKeysTest(float at) {   // (tests: the focused element's shown keys copied, pasted at `at` ms)
     anim::PickAllShown(); anim::CopyKeys(false); anim::g.time = at; anim::PasteKeys();

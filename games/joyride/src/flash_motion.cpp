@@ -319,7 +319,7 @@ std::string Describe(const Movie& mv, int cid, const std::string& path) {
 }
 
 // every leaf (not a sprite) under inst, with its world matrix / colour (relative to the sampled sprite)
-struct Leaf { std::string key, desc, image; M m; CX cx; double px = 0, py = 0; };
+struct Leaf { std::string key, desc, image; M m; CX cx; double px = 0, py = 0, w = 0, h = 0; };
 void Leaves(const Movie& mv, const Inst& in, const M& m0, const CX& c0, const std::string& path, const std::string& names, std::vector<Leaf>& out) {
     for (auto& kv : in.kids) {
         const Kid& k = kv.second;
@@ -332,6 +332,7 @@ void Leaves(const Movie& mv, const Inst& in, const M& m0, const CX& c0, const st
         auto c = mv.chars.find(k.cid);
         if (c != mv.chars.end() && (c->second.kind == Char::SHAPE || c->second.kind == Char::EDIT)) {
             l.px = (c->second.x0 + c->second.x1) / 2; l.py = (c->second.y0 + c->second.y1) / 2;
+            l.w = c->second.x1 - c->second.x0; l.h = c->second.y1 - c->second.y0;
             if (c->second.kind == Char::SHAPE && c->second.bitmap >= 0) { auto im = mv.chars.find(c->second.bitmap); if (im != mv.chars.end()) l.image = im->second.image; }
         }
         out.push_back(l);
@@ -357,7 +358,7 @@ bool Sample(const std::string& movie, int clip, std::vector<uied::MotionPiece>& 
         for (const Leaf& l : ls) {
             auto it = at.find(l.key);
             if (it == at.end()) {
-                uied::MotionPiece p; p.name = l.desc; p.image = l.image; p.frames.assign(n, uied::MotionFrame());
+                uied::MotionPiece p; p.name = l.desc; p.image = l.image; p.w = (float)l.w; p.h = (float)l.h; p.frames.assign(n, uied::MotionFrame());
                 at[l.key] = pieces.size(); pieces.push_back(p); it = at.find(l.key);
             }
             uied::MotionFrame& f = pieces[it->second].frames[i];
