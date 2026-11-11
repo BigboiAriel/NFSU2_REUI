@@ -539,7 +539,8 @@ static void Showing(Elem& e) {
 static int g_evFired = 0; static std::string g_evLast;   // (tests)
 static void RunEvent(const Event& ev) {
     ++g_evFired; g_evLast = ev.cmd;
-    if (!ev.cmd.empty() && menuAction) menuAction(ev.cmd);
+    if (ev.cmd.empty()) return;
+    if (animEvent) animEvent(ev.cmd); else if (menuAction) menuAction(ev.cmd);
 }
 static bool EventsRun() { return !g.on || (g.live && g.playEvents); }   // (animation mode: Live with "play events" only)
 // layer `layer` of r plays c from `since`, `t` ms into it now: the events it passed since last frame
@@ -2769,6 +2770,7 @@ void AnimUndoTest() {   // (tests) undo, then redo: the focused element's key co
     }
 }
 void AnimLive(bool live) { if (anim::g.live != live) { anim::g.live = live; anim::SimRestart(); } }
+std::function<bool(const std::string& cmd)> animEvent;
 bool AnimTakesInput() { return anim::g.on && !anim::g.gameInput; }
 void AnimTestScript(const std::string& steps) {   // (tests) "step|step|...": a step every few frames, results to anim_test.txt
     if (FILE* f = anim::TestOut(true)) fclose(f);

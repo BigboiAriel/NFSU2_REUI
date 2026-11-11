@@ -191,6 +191,8 @@ namespace uied {
     // A tile's action that isn't REUI's own ("page:...", "back", "close"): the host's (Joy Ride: "fe:" the game's own
     // calls). true: done (the host plays any sound); false: REUI's error sound.
     extern std::function<bool(const std::string& action)> menuAction;
+    // an animation event's command (a clip passing its time): the host runs it - no press, no page change (unset: menuAction)
+    extern std::function<bool(const std::string& cmd)> animEvent;
     // a grid's "on move" command (its cursor moved to tile): the host's (Joy Ride: the movie's own list follows); with
     // one, REUI plays no move sound of its own (the game's list does)
     extern std::function<void(const std::string& cmd, int tile)> menuMove;

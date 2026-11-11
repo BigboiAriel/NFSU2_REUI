@@ -241,6 +241,11 @@ void FeMenusInit(const std::string& dataDir) {
         RunCommand(a.substr(3), tile);
         return true;
     };
+    uied::animEvent = [](const std::string& a) {   // an animation event: the command alone (no press)
+        if (a.compare(0, 3, "fe:") != 0) return false;
+        RunCommand(a.substr(3), -1);
+        return true;
+    };
     uied::menuSound = [](int s) {   // the page's moves: the game's own sounds (its row lists play UI_Up / UI_Down)
         if (!g_pageOn) return;
         const char* n = s == uied::SND_UP ? "UI_Up" : s == uied::SND_DOWN ? "UI_Down"
