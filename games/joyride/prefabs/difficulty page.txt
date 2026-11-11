@@ -1788,6 +1788,7 @@ start=0
 selcolor=0 1 1 1 1
 standin=jra_menus/hangoutdifficulty
 starttile=flash:_level0.feScreen.mStartingIndex
+hidegame=1
 
 [widget]
 group=difficulty/rows
@@ -1800,9 +1801,9 @@ stagger=50
 gwrap=1
 gmove=fe:@mcRowControlArea.mcRowControl.setIndex({tile})
 tile={loc:{flash:_level0.feScreen.mDifficultyInfo.0.NAME}}
-taction=fe:@onSelect()
+taction=fe:{flash:_level0.feScreen.mLuaClassName}:onDifficultySelected({flash:_level0.feScreen.mDifficultyInfo.{tile}.ID}); FEScreenBreadCrumbs:setBreadCrumb({tile})
 tile={loc:{flash:_level0.feScreen.mDifficultyInfo.1.NAME}}
-taction=fe:@onSelect()
+taction=fe:{flash:_level0.feScreen.mLuaClassName}:onDifficultySelected({flash:_level0.feScreen.mDifficultyInfo.{tile}.ID}); FEScreenBreadCrumbs:setBreadCrumb({tile})
 tile={loc:{flash:_level0.feScreen.mDifficultyInfo.2.NAME}}
-taction=fe:@onSelect()
+taction=fe:{flash:_level0.feScreen.mLuaClassName}:onDifficultySelected({flash:_level0.feScreen.mDifficultyInfo.{tile}.ID}); FEScreenBreadCrumbs:setBreadCrumb({tile})
 num=0 1 0.05 0

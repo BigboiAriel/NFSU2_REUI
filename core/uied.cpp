@@ -293,6 +293,9 @@ static std::string Expand(const std::string& s, int row = 0) {
     }
     return out;
 }
+std::string ExpandTokens(const std::string& s) { return Expand(s); }
+static bool CondOk(const std::string& condIn, const std::string& group);
+bool CondTrue(const std::string& cond) { return CondOk(cond, std::string()); }
 
 // ---------------------------------------------------------------- overlay
 enum { E_IMAGE = 0, E_TEXT = 1, E_SHAPE = 2,

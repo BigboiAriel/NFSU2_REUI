@@ -457,6 +457,7 @@ group=main menu
 start=0
 selcolor=0 1 1 1 1
 standin=jra_menus/hangoutmainmenu
+hidegame=1
 
 [widget]
 group=main menu/rows

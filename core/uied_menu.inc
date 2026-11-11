@@ -119,6 +119,10 @@ struct Page {
                                          // "jra_menus/hangoutmainmenu"); "" none. The host opens / closes it (MenuPageFor)
     bool gameKeeps = false;              // the game keeps the controls: the host feeds it none (its own list moves, plays its
                                          // sounds, picks); the page shows it (a live list's <key>.sel) - MenuGameKeeps
+    std::string backCmd;                 // a host command for back (Joy Ride: "fe:..." - the calls the screen's own back makes);
+                                         // "": back stays the game's - MenuBackCommand
+    bool hideGame = false;               // the game's own screen is hidden while the page is up (Joy Ride: _level0.feScreen) -
+                                         // the page does it all - MenuHidesGame
 };
 static std::vector<Widget> g_widgets;
 static std::vector<Page> g_pages;
@@ -394,7 +398,9 @@ static std::vector<GItem> GridItemsAll(const Widget& w) {
                 std::string c, o; int r, g, b;
                 if (tokens(k + ".color", c) && sscanf(c.c_str(), "%d %d %d", &r, &g, &b) == 3) { it.tint[0] = r / 255.f; it.tint[1] = g / 255.f; it.tint[2] = b / 255.f; it.hasTint = true; }
                 if (tokens(k + ".on", o) && !o.empty()) it.on = o != "0";
+                tokens(k + ".action", it.action);
             }
+            if (it.action.empty()) it.action = w.action;   // (the grid's own: a host command, {tile} the item picked)
             v.push_back(it);
         }
         return v;
@@ -1193,6 +1199,8 @@ int MenuSelectedTile() {
     return items.empty() ? -1 : GridState(*rows[g_menu.sel].w, (int)items.size()).sel;
 }
 bool MenuGameKeeps() { Page* p = g_menu.open ? MenuPage() : nullptr; return p && p->gameKeeps; }
+std::string MenuBackCommand() { Page* p = g_menu.open ? MenuPage() : nullptr; return p ? p->backCmd : std::string(); }
+bool MenuHidesGame() { Page* p = g_menu.open ? MenuPage() : nullptr; return p && p->hideGame; }
 void MenuPressed() {   // the game took a press: the selected tile's Press clips (a page the game keeps the controls of)
     Page* p = g_menu.open ? MenuPage() : nullptr; if (!p) return;
     auto rows = PageRows(*p);
@@ -2114,6 +2122,13 @@ static void MenuBar() {
                 if (ImGui::IsItemHovered()) ImGui::SetTooltip("The tile it opens on: a value's number (the game's own list's start, flash:_level0.feScreen.mStartingIndex).");
                 if (ImGui::Checkbox("the game keeps the controls", &pg->gameKeeps)) g_dirty = true;
                 if (ImGui::IsItemHovered()) ImGui::SetTooltip("The screen's controller stays the game's: its own list moves, scrolls, plays its sounds and picks;\nthe page only shows it (a live list with <key>.sel: Joy Ride's list:ferows).");
+                static char bk[1024]; static const Page* bkFor = nullptr;
+                if (bkFor != pg || !ImGui::IsAnyItemActive()) { snprintf(bk, sizeof bk, "%s", pg->backCmd.c_str()); bkFor = pg; }
+                ImGui::SetNextItemWidth(260);
+                if (ImGui::InputTextWithHint("on back", "a game command (fe:...)", bk, sizeof bk)) { pg->backCmd = bk; g_dirty = true; }
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Back runs this instead of the game's own back (the calls the screen's back makes, as fe: commands).\nEmpty: back stays the game's.");
+                if (ImGui::Checkbox("hide the game's screen", &pg->hideGame)) g_dirty = true;
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("The game's own screen isn't drawn while the page is up (it still runs: its values can be read).\nIts popups still show, with the page stepping aside.");
             }
             if (!moved) if (Page* pg = PageOf(g)) SharedMenu(*pg);
             if (!moved) if (Page* pg = PageOf(g)) SwapsMenu(*pg);
@@ -2251,6 +2266,8 @@ static void SaveMenus(FILE* f) {
         if (p.garage) fprintf(f, "garagemenu=1\n");
         if (p.carSelect) fprintf(f, "carselect=1\n");
         if (p.gameKeeps) fprintf(f, "gamekeeps=1\n");
+        if (!p.backCmd.empty()) fprintf(f, "back=%s\n", Esc(p.backCmd).c_str());
+        if (p.hideGame) fprintf(f, "hidegame=1\n");
         if (p.parts) fprintf(f, "partsmenu=1\n");
         if (p.perfParts) fprintf(f, "perfpartsmenu=1\n");
         if (p.specialties) fprintf(f, "specialtiesmenu=1\n");
@@ -2314,6 +2331,8 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "garagemenu") p.garage = atoi(v.c_str()) != 0;
         else if (k == "carselect") p.carSelect = atoi(v.c_str()) != 0;
         else if (k == "gamekeeps") p.gameKeeps = atoi(v.c_str()) != 0;
+        else if (k == "back") p.backCmd = Unesc(v);
+        else if (k == "hidegame") p.hideGame = atoi(v.c_str()) != 0;
         else if (k == "partsmenu") p.parts = atoi(v.c_str()) != 0;
         else if (k == "perfpartsmenu") p.perfParts = atoi(v.c_str()) != 0;
         else if (k == "specialtiesmenu") p.specialties = atoi(v.c_str()) != 0;
@@ -2353,6 +2372,9 @@ static void PrefabMenusSave(FILE* f, const std::string& group) {
         if (!p.title.empty()) fprintf(f, "title=%s\n", Esc(p.title).c_str());
         if (!p.standIn.empty()) fprintf(f, "standin=%s\n", Esc(p.standIn).c_str());
         if (!p.startTile.empty()) fprintf(f, "starttile=%s\n", Esc(p.startTile).c_str());
+        if (p.gameKeeps) fprintf(f, "gamekeeps=1\n");
+        if (!p.backCmd.empty()) fprintf(f, "back=%s\n", Esc(p.backCmd).c_str());
+        if (p.hideGame) fprintf(f, "hidegame=1\n");
         for (auto& pr : p.prompts) fprintf(f, "prompt=%s;%s\n", pr.first.c_str(), Esc(pr.second).c_str());
         for (auto& x : p.shared) fprintf(f, "shared=%s\n", Esc(x).c_str());
     }

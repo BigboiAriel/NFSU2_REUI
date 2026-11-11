@@ -287,6 +287,8 @@ std::string ScreenKey(const std::string& path) {
 
 void SetFeBridge(const FeBridge& b) { g_bridge = b; }
 void FeSend(int dir, const std::string& method, const std::vector<std::string>& args) { if (g_bridge.send) g_bridge.send(dir, method, args); }
+void FeSet(const std::string& path, const std::string& value) { if (g_bridge.set) g_bridge.set(path, value); }
+bool FeGet(const std::string& path, std::string& out) { out.clear(); return g_bridge.get && g_bridge.get(path, out); }
 
 std::string g_callsFile, g_varsIn, g_varsOut;   // (debugging) <REUI>\fe_vars.txt: paths (a line each) whose values are
 double g_varsAt = -10;                         // written to fe_vars_out.txt every second, while fe_calls.on is there
@@ -304,6 +306,29 @@ bool FeToken(const std::string& key, std::string& out) {
     if (key == "screen") { out = g_top; return true; }
     if (key.rfind("flash:", 0) == 0) {   // a movie variable: {flash:_level0.feScreen.mDifficultyInfo.0.NAME}
         out.clear(); if (g_bridge.get) g_bridge.get(key.substr(6), out); return true;
+    }
+    if (key.rfind("fearr:", 0) == 0) {   // a list of the screen's own data (list:fearr:<array>:<label field>[:<lock field>]):
+        // the array the game sent the screen (_level0.feScreen.<array>), each item's label the string its field names
+        const size_t dot = key.find('.');
+        if (dot == std::string::npos) return false;
+        std::vector<std::string> spec; { std::string x = key.substr(6, dot - 6); size_t p = 0, q;
+            while ((q = x.find(':', p)) != std::string::npos) { spec.push_back(x.substr(p, q - p)); p = q + 1; } spec.push_back(x.substr(p)); }
+        if (spec.size() < 2 || !g_bridge.get) return false;
+        const std::string arr = "_level0.feScreen." + spec[0], k = key.substr(dot + 1);
+        out.clear();
+        if (k == "count") { std::string v; g_bridge.get(arr + ".length", v); out = std::to_string(std::max(0, atoi(v.c_str()))); return true; }
+        if (!isdigit((unsigned char)k[0])) return true;
+        const int n = atoi(k.c_str()); const size_t d2 = k.find('.');
+        if (n < 1) return true;
+        const std::string item = arr + "." + std::to_string(n - 1) + ".";
+        if (d2 == std::string::npos) {
+            std::string v; g_bridge.get(item + spec[1], v);
+            if (!v.empty() && !FeMenuToken("loc:" + v, out)) out = v;
+        } else if (k.substr(d2) == ".on" && spec.size() > 2) {
+            std::string v; g_bridge.get(item + spec[2], v);
+            out = v == "true" || v == "1" ? "0" : "1";
+        }
+        return true;
     }
     if (key.rfind("ferows.", 0) == 0) {   // the screen's RowControl list (list:ferows), as the movie shows it now
         // (its rows on screen: row_mcRowControl_<i> clips, mStartIndex the first one's item; the game keeps the controls)

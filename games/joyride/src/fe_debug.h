@@ -12,4 +12,6 @@ const std::string& FeTopScreen();
 std::string ScreenKey(const std::string& path);           // "screens\\menus\\x.swf" -> "menus/x"
 // a call to the game (dir 0, as a page: ExternalInterface) or to the movies (1, as the game: Invoke); any thread
 void FeSend(int dir, const std::string& method, const std::vector<std::string>& args);
+void FeSet(const std::string& path, const std::string& value);
+bool FeGet(const std::string& path, std::string& out);   // a movie variable as last read (bridge.get); false: not read yet   // a movie variable (bridge.set)
 } // namespace reui_joyride

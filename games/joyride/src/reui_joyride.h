@@ -48,6 +48,8 @@ struct FeBridge {
     // a movie variable's value as last read ("_level0.feScreen.mDifficultyInfo.0.NAME"; strings as their text); asking
     // keeps it read (every 100 ms on the game thread); false: not there (yet)
     std::function<bool(const std::string& path, std::string& out)> get;
+    // set a movie variable (on the game thread, soon): "true" / "false", a number, else a string
+    std::function<void(const std::string& path, const std::string& value)> set;
 };
 void SetFeBridge(const FeBridge& bridge);
 void StartAnimMode(bool focusFirst, float ms = 0, bool play = false, bool bare = false);   // animation mode (F8);

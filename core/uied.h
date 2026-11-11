@@ -198,4 +198,8 @@ namespace uied {
     void MenuSelectTile(int tile);                     // ... set (the cursor back where the game's menu was left)
     bool MenuGameKeeps();                              // the open page leaves the controller to the game (its "the game keeps the controls")
     void MenuPressed();                                // ... the game took a press: the selected tile's Press clips
+    std::string MenuBackCommand();                     // the open page's "on back" host command ("": back is the game's)
+    bool MenuHidesGame();                              // the open page hides the game's own screen ("hide the game's screen")
+    std::string ExpandTokens(const std::string& s);    // {token}s filled in (as a text's)
+    bool CondTrue(const std::string& cond);            // a show-if's test ("a && !b", "key=value")
 }

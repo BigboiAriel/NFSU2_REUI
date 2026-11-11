@@ -47,6 +47,8 @@ const double kPressOn = 0.2;      // s a press reads on (a few frames, whatever 
 // calls ("fe:" commands, below).
 std::atomic<bool> g_pageOn{false};   // a page is open for the screen on top (the game thread asks)
 std::atomic<bool> g_pageKeeps{false}; // ... and the game keeps its controls (the page's "the game keeps the controls")
+std::atomic<bool> g_pageBack{false};  // ... and back is the page's (its "on back" command)
+bool g_hidGame = false; double g_hideAt = -1e9;   // (REUI's thread) the game's screen hidden for a page ("hide the game's screen")
 std::string g_pageScreen;            // (locked) that screen
 std::deque<std::string> g_events;    // (locked) its presses, for REUI's frame
 bool g_ownOpen = false;              // (REUI's thread) the open page is ours (opened for a screen)
@@ -106,7 +108,11 @@ bool FeMenuInput(const std::string& screenPath, const std::string& code, int con
                 if (g_events.size() < 16) g_events.push_back(code);
                 return true;
             }
-            if (code == "BACK") { g_backAt = Now(); return false; }   // (the movie's own back)
+            if (code == "BACK") {
+                g_backAt = Now();
+                if (g_pageBack) { if (g_events.size() < 16) g_events.push_back(code); return true; }   // (the page's "on back")
+                return false;   // (the movie's own back)
+            }
         }
     }
     if (!g_enabled || !g_drive || g_popup) return false;
@@ -152,16 +158,54 @@ std::string Trim(std::string s) {
     size_t i = 0; while (i < s.size() && (s[i] == ' ' || s[i] == '\t')) ++i;
     return s.substr(i);
 }
-void RunCommand(std::string cmd, int tile) {
+// a command's {flash:...} / [flash:...] values not read from the movie yet (asked now: read on the game's next tick or so)
+bool FlashPending(const std::string& cmd) {
+    bool pending = false;
+    for (size_t k = 0; (k = cmd.find("flash:", k)) != std::string::npos;) {
+        size_t e = k += 6;
+        while (e < cmd.size() && (isalnum((unsigned char)cmd[e]) || cmd[e] == '_' || cmd[e] == '.' || cmd[e] == '$')) ++e;
+        std::string v;
+        if (e > k && !FeGet(cmd.substr(k, e - k), v)) pending = true;
+        k = e;
+    }
+    return pending;
+}
+struct Deferred { std::string cmd; int tile; double at; };
+std::vector<Deferred> g_deferred;   // (REUI's thread) commands waiting for their values
+void RunNow(std::string cmd, int tile);
+void RunCommand(std::string cmd, int tile) {   // (REUI's thread) run it once the values it uses are read
     for (size_t k; (k = cmd.find("{tile}")) != std::string::npos;) cmd.replace(k, 6, std::to_string(std::max(0, tile)));
+    if (FlashPending(cmd)) { g_deferred.push_back({cmd, tile, ImGui::GetTime()}); return; }
+    RunNow(cmd, tile);
+}
+void RunDeferred() {   // (each frame) the waiting ones whose values are in (or after 1 s: as they are)
+    for (size_t i = 0; i < g_deferred.size();) {
+        Deferred& d = g_deferred[i];
+        if (!FlashPending(d.cmd) || ImGui::GetTime() - d.at > 1.0) { const Deferred x = d; g_deferred.erase(g_deferred.begin() + i); RunNow(x.cmd, x.tile); }
+        else ++i;
+    }
+}
+void RunNow(std::string cmd, int tile) {
+    if (cmd.find('{') != std::string::npos) cmd = uied::ExpandTokens(cmd);   // (the screen's own values: {flash:...}, {loc:...})
     for (std::string call : SplitOutside(cmd, ';')) {
         call = Trim(call);
+        if (!call.empty() && call[0] == '[') {   // "[test] call": only while the test holds (a show-if's: "flash:...IS_LOCKED && !...")
+            const size_t e = call.find(']');
+            if (e == std::string::npos) continue;
+            if (!uied::CondTrue(Trim(call.substr(1, e - 1)))) continue;
+            call = Trim(call.substr(e + 1));
+        }
         if (call.empty()) continue;
         const size_t a = call.find('('), b = call.rfind(')');
         std::string name = Trim(call.substr(0, a)), in = a != std::string::npos && b != std::string::npos && b > a ? call.substr(a + 1, b - a - 1) : "";
         std::vector<std::string> args;
         if (!Trim(in).empty()) for (auto& x : SplitOutside(in, ',')) args.push_back(Trim(x));
         if (name.empty()) continue;
+        if (name == "set" && args.size() == 2) {   // set("<movie variable>", value): "new:Object" a new object
+            auto unq = [](std::string x) { if (x.size() >= 2 && x.front() == '"' && x.back() == '"') x = x.substr(1, x.size() - 2); return x; };
+            FeSet(unq(args[0]), unq(args[1]));
+            continue;
+        }
         if (name[0] == '@') {
             name = name.substr(1);
             FeSend(1, name[0] == '_' ? name : "_level0.feScreen." + name, args);
@@ -231,7 +275,13 @@ void PageFrame(const std::string& top) {   // (REUI's thread) the page standing 
     const bool on = !page.empty() && uied::MenuIsOpen() && uied::MenuTopPage() == page;
     { std::lock_guard<std::mutex> l(g_mu); g_pageScreen = on ? top : std::string(); }
     g_pageKeeps = on && uied::MenuGameKeeps();
+    g_pageBack = on && !g_pageKeeps && !uied::MenuBackCommand().empty();
     g_pageOn = on;
+    // the game's own screen hidden under a page that does it all (shown again as the page goes: another screen, a popup)
+    const bool hide = on && uied::MenuHidesGame();
+    if (hide && (!g_hidGame || ImGui::GetTime() - g_hideAt > 0.25)) { FeSet("_level0.feScreen._visible", "false"); g_hideAt = ImGui::GetTime(); }
+    if (!hide && g_hidGame) FeSet("_level0.feScreen._visible", "true");
+    g_hidGame = hide;
     if (!on) return;
     uied::MenuInput in;
     if (g_pageKeeps) {   // (the game moves its own list; the page follows it - list:ferows' sel)
@@ -245,6 +295,10 @@ void PageFrame(const std::string& top) {   // (REUI's thread) the page standing 
     else {
         std::string ev;
         { std::lock_guard<std::mutex> l(g_mu); if (!g_events.empty()) { ev = g_events.front(); g_events.pop_front(); } }
+        if (ev == "BACK") {   // the page's "on back": the calls the screen's own back makes
+            RunCommand(uied::MenuBackCommand(), uied::MenuSelectedTile());
+            ev.clear();
+        }
         if (!ev.empty()) {
             in.up = ev == "UP"; in.down = ev == "DOWN"; in.left = ev == "LEFT"; in.right = ev == "RIGHT"; in.accept = ev == "ADVANCE";
             g_pulse = true;
@@ -256,6 +310,7 @@ void PageFrame(const std::string& top) {   // (REUI's thread) the page standing 
 
 void FeMenuFrame() {
     g_drive = uied::ShowIfUsed("menu.sel:");
+    RunDeferred();
     const std::string& top = FeTopScreen();
     PageFrame(top);
     std::lock_guard<std::mutex> l(g_mu);
