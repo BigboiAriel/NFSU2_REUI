@@ -196,7 +196,9 @@ namespace uied {
     extern std::function<void(const std::string& cmd, int tile)> menuMove;
     int MenuSelectedTile();                            // the open page's selected grid tile (-1 none)
     void MenuSelectTile(int tile);                     // ... set (the cursor back where the game's menu was left)
-    void AnimUndoTest();                               // (tests) undo then redo in animation mode, counts to anim_test.txt
+    void AnimUndoTest();
+    bool AnimTakesInput();                             // animation mode is on and keeps the keyboard / controller from the game
+    void AnimTestScript(const std::string& steps);     // (tests) animation mode's test script ("step|step|..."), to anim_test.txt                               // (tests) undo then redo in animation mode, counts to anim_test.txt
     bool MenuGameKeeps();                              // the open page leaves the controller to the game (its "the game keeps the controls")
     void MenuPressed();                                // ... the game took a press: the selected tile's Press clips
     std::string MenuBackCommand();                     // the open page's "on back" host command ("": back is the game's)

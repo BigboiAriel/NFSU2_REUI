@@ -30,7 +30,13 @@ static const char* kEase[EZ_NEASE] = { "Linear", "Ease in", "Ease out", "Ease in
 // into the next; their x is a fraction (0..1) of the way in time, their y an offset in value from their own key (h1 from
 // this one, h2 from the next), so a flat stretch can curve too and the handles move with their keys. (0, 0): flat
 // tangents, a smooth ease in-out.
-struct Key { float t = 0, v = 0; int ease = EZ_LINEAR; float h1x = 0.33f, h1y = 0.f, h2x = 0.67f, h2y = 0.f; bool sel = false; };
+// ht: its handles' type (bezier) - free (each on its own), auto (smooth through its neighbours, never overshooting),
+// aligned (in and out on one line), vector (each pointing at its neighbour key: a corner). Its in handle is the previous
+// key's h2.
+enum HandleType { HT_FREE, HT_AUTO, HT_ALIGNED, HT_VECTOR, HT_N };
+static const char* kHandleType[HT_N] = { "Free", "Auto", "Aligned", "Vector" };
+static const char* kHandleKey[HT_N] = { "free", "auto", "aligned", "vector" };
+struct Key { float t = 0, v = 0; int ease = EZ_LINEAR; float h1x = 0.33f, h1y = 0.f, h2x = 0.67f, h2y = 0.f; bool sel = false; int ht = HT_FREE; };
 
 enum Prop { P_X, P_Y, P_SX, P_SY, P_ROT, P_ALPHA, P_MR, P_MG, P_MB, P_AR, P_AG, P_AB, P_FX, P_BLUR, P_REVEAL, P_NPROP };
 struct PropDef { const char* name; const char* unit; float def, lo, hi; ImU32 col; };
@@ -46,11 +52,17 @@ static const PropDef kProp[P_NPROP] = {
 };
 
 struct Track { int prop = P_X; std::vector<Key> keys; };
+// a clip's event (a named time that runs a host command as the clip passes it in the game) or marker (a note: no command)
+struct Event { float t = 0; std::string cmd, name; bool marker = false, sel = false; };
+// a transition of the state graph's own (aflow=): while `from` plays on the state layer ("*": any), `to` starts when
+// `cond` comes on (empty: when `from` ends), easing over `blend` ms
+struct Flow { std::string from, to, cond; float blend = 120; };
 enum Loop { ONCE, LOOP, PINGPONG };
 struct Clip {
     std::string name, trigger;   // trigger: a placeholder description (planned)
     float length = 500; int loop = ONCE; bool on = false;
     Track tracks[P_NPROP];
+    std::vector<Event> events;   // events and markers, by time
 };
 // planned per-element settings (placeholders for now)
 struct Planned {
@@ -72,16 +84,22 @@ struct Run {
     double outAt = -1;            // its Out started (s): it's leaving
     bool frozen = false;          // its group's motion is leaving: kept as it is (no triggers) till that ends
     float from[P_NPROP] = {}; double blendAt = -1;   // a clip change: the pose it blends from, and since when
+    float blendMs = -1;           // ... over this long (-1: its element's blend; a transition of its own sets it)
     float last[P_NPROP] = {}; bool hasLast = false;  // the pose drawn last frame
     bool locked = false; double lockAt = -1;          // Locked: its value last frame, and when it came on (-1: not playing)
     std::string value; bool hasValue = false; double valueAt = -1;   // Value change: the value last frame, when it changed
     double waitUntil = -1;        // "wait for the previous screen's Out": its In starts then (s; -1: no Out seen)
+    struct EvLayer { double since = -1e9; float last = -1; };
+    std::map<std::string, EvLayer> ev;   // events: each layer's clip time last frame (a new start: from -1)
+    std::vector<char> flowWas;    // its own transitions' conditions last frame
+    int prevState = -1; double switchAt = -1;   // the state layer's last change (the state graph lights its arrow)
 };
 struct ElemAnim {
     std::vector<Clip> clips; Planned p;
     std::string focusIf, pressIf;  // triggers: Focus / Unfocus / Selected follow focusIf ("menu.sel:2"), Press plays when pressIf comes on
     std::string lockedIf;          // ... Locked plays (then holds or loops) while this is on, over the focus layer
     std::string valueOf;           // ... Value change plays each time this value changes (on top: relative, as Out)
+    std::vector<Flow> flows;       // the state graph's own transitions (after the standard ones)
     float blend = 120;            // ms a change of clip eases over (from the pose it had)
     Run run;
 };
@@ -169,7 +187,12 @@ static float Value(const Track& tr, float t) {
 static void SortKeys(Track& tr) { std::stable_sort(tr.keys.begin(), tr.keys.end(), [](const Key& a, const Key& b) { return a.t < b.t; }); }
 static void SetKey(Track& tr, float t, float v) {
     for (auto& k : tr.keys) if (fabsf(k.t - t) < 0.5f) { k.v = v; return; }
-    Key k; k.t = t; k.v = v; tr.keys.push_back(k); SortKeys(tr);
+    Key k; k.t = t; k.v = v;
+    const Key* nb = nullptr;   // (a new key: the easing of the one before it - the first: the one after)
+    for (auto& o : tr.keys) if (o.t < t) nb = &o;
+    if (!nb && !tr.keys.empty()) nb = &tr.keys.front();
+    if (nb) { k.ease = nb->ease; if (k.ease == EZ_BEZIER) { k.ht = HT_AUTO; k.h1x = 0.33f; k.h2x = 0.67f; k.h1y = k.h2y = 0; } }
+    tr.keys.push_back(k); SortKeys(tr);
 }
 static int Keys(const Clip& c) { int n = 0; for (auto& tr : c.tracks) n += (int)tr.keys.size(); return n; }
 
@@ -218,7 +241,17 @@ struct State {
     int simRow = 0;                    // the focused menu row (-1: none)
     double simPressAt = -1e9, simBackAt = -1e9;
     bool simLocked = false; int simValue = 0;   // stand-ins for the Locked value and the Value change value (L / V)
-    bool dragOn = false; ImVec2 dragFrom; float dragX0 = 0, dragY0 = 0;   // auto key: the focused element dragged on screen
+    bool dragOn = false; ImVec2 dragFrom; float dragX0 = 0, dragY0 = 0;   // the canvas: a handle being dragged (or G / S / R)
+    // the timeline's Screen mode: the dope sheet - a row per group and element, the clip being edited on each
+    bool screen = false, keyedOnly = false; char sheetFilter[64] = "";
+    std::set<std::string> openRows, shutGroups;   // element rows showing their tracks; groups folded
+    int pageTab = 0;              // the panels window's left side: 0 the page, 1 the state graph
+    int graphTab = 0; bool normalise = false;   // the graph: 0 values, 1 speed; every track scaled to 0-1
+    bool onion = false, onionGroup = false, onionKeys = true, path = false; int onionStep = 4;   // onion skin, motion path
+    bool playEvents = false;      // events run as the playhead passes them (playing)
+    bool gameInput = false;       // the game gets the keyboard / controller while animating
+    std::string layoutName = "Standard";
+    std::string focusTrigger;     // (the state graph: a trigger's field to go to on the page)
 };
 static State g;
 
@@ -361,13 +394,20 @@ static void ToPose(const float* v, Pose& p) {
     p.mul[0] = v[P_MR]; p.mul[1] = v[P_MG]; p.mul[2] = v[P_MB];
     p.add[0] = std::max(0.f, v[P_AR]); p.add[1] = std::max(0.f, v[P_AG]); p.add[2] = std::max(0.f, v[P_AB]);
 }
-static void StartBlend(ElemAnim& a, double now) {   // the next frames ease from the pose it has now
+static void StartBlend(ElemAnim& a, double now, float ms = -1) {   // the next frames ease from the pose it has now
     Run& r = a.run;
-    if (r.hasLast && a.blend > 0) { for (int p = 0; p < P_NPROP; ++p) r.from[p] = r.last[p]; r.blendAt = now; }
+    const float len = ms >= 0 ? ms : a.blend;
+    if (r.hasLast && len > 0) { for (int p = 0; p < P_NPROP; ++p) r.from[p] = r.last[p]; r.blendAt = now; r.blendMs = ms; }
 }
-static void Switch(ElemAnim& a, int clip, double now, bool blend = true) {   // the state layer to `clip` (from its start)
-    if (blend) StartBlend(a, now);
+static void Switch(ElemAnim& a, int clip, double now, bool blend = true, float blendMs = -1) {   // the state layer to `clip` (from its start)
+    if (blend) StartBlend(a, now, blendMs);
+    if (a.run.state != clip) { a.run.prevState = a.run.state; a.run.switchAt = now; }
     a.run.state = clip; a.run.stateAt = now;
+}
+// any clip by name that has keys (a custom one too)
+static int ClipIdxAny(const ElemAnim& a, const std::string& name) {
+    for (int i = 0; i < (int)a.clips.size(); ++i) if (a.clips[i].name == name && Keys(a.clips[i])) return i;
+    return -1;
 }
 static void Rest(ElemAnim& a, int clip, double now, bool blend = true) {     // ... held at its end (a once clip's last frame)
     Switch(a, clip, now, blend);
@@ -385,6 +425,9 @@ static void Triggers(const Elem& e, ElemAnim& a, double now) {
         if (r.locked) if (const Clip* lc = ClipNamed(&a, "Locked")) r.lockAt = now - (lc->length / 1000.0 + 1) / g_speed;
         if (f) { if (iFocus >= 0) Switch(a, iFocus, now, false); else focusedRest(false); }
         else Rest(a, iUnf, now, false);
+        r.flowWas.assign(a.flows.size(), 0);
+        for (size_t i = 0; i < a.flows.size(); ++i) r.flowWas[i] = !a.flows[i].cond.empty() && CondOk(a.flows[i].cond, e.group);
+        r.prevState = -1; r.switchAt = -1;
         return;
     }
     if (f != r.focus) {
@@ -405,11 +448,27 @@ static void Triggers(const Elem& e, ElemAnim& a, double now) {
             r.value = v; r.hasValue = true;
         }
     }
+    auto curName = [&]() { return r.state >= 0 && r.state < (int)a.clips.size() ? a.clips[r.state].name : std::string(); };
     if (r.state >= 0 && r.state < (int)a.clips.size()) {   // a once clip that's done moves on
         const Clip& c = a.clips[r.state];
         if (c.loop == ONCE && MsSince(r.stateAt, now) >= c.length) {
-            if (r.state == iFocus && iSel >= 0 && r.focus) Switch(a, iSel, now, false);   // (Selected carries on from Focus)
+            const Flow* own = nullptr;   // (a transition of its own when it ends: first)
+            for (auto& fl : a.flows) if (fl.cond.empty() && fl.from == c.name && ClipIdxAny(a, fl.to) >= 0 && fl.to != c.name) { own = &fl; break; }
+            if (own) Switch(a, ClipIdxAny(a, own->to), now, true, own->blend);
+            else if (r.state == iFocus && iSel >= 0 && r.focus) Switch(a, iSel, now, false);   // (Selected carries on from Focus)
             else if (r.state == iPress) { if (r.focus) focusedRest(true); else Rest(a, iUnf, now); }
+        }
+    }
+    if (!a.flows.empty()) {   // the state graph's own transitions: their condition coming on, while their clip plays
+        r.flowWas.resize(a.flows.size(), 0);
+        for (size_t i = 0; i < a.flows.size(); ++i) {
+            const Flow& fl = a.flows[i];
+            const bool on = !fl.cond.empty() && CondOk(fl.cond, e.group);
+            const bool rising = on && !r.flowWas[i];
+            r.flowWas[i] = on;
+            if (!rising || (fl.from != "*" && fl.from != curName())) continue;
+            const int to = ClipIdxAny(a, fl.to);
+            if (to >= 0) Switch(a, to, now, true, fl.blend);
         }
     }
 }
@@ -476,13 +535,52 @@ static void Showing(Elem& e) {
     StartBlend(*a, now);
     e.shownSince = now;
 }
+// ---- events: a clip's events run (the host's command) as its playhead passes them in the game
+static int g_evFired = 0; static std::string g_evLast;   // (tests)
+static void RunEvent(const Event& ev) {
+    ++g_evFired; g_evLast = ev.cmd;
+    if (!ev.cmd.empty() && menuAction) menuAction(ev.cmd);
+}
+static bool EventsRun() { return !g.on || (g.live && g.playEvents); }   // (animation mode: Live with "play events" only)
+// layer `layer` of r plays c from `since`, `t` ms into it now: the events it passed since last frame
+static void PassEvents(Run& r, const char* layer, const Clip& c, double since, float t) {
+    if (c.events.empty() || !EventsRun()) return;
+    Run::EvLayer& L = r.ev[layer];
+    const float len = std::max(1.f, c.length);
+    if (L.since != since) { L.since = since; L.last = c.loop == ONCE && t > len + 50 ? t : -1.f; }   // (started at rest: none)
+    const float t0 = L.last;
+    if (t <= t0) return;
+    L.last = t;
+    for (auto& ev : c.events) {
+        if (ev.marker) continue;
+        if (c.loop == ONCE) { if (ev.t > t0 && ev.t <= t && ev.t <= len) RunEvent(ev); continue; }
+        const float per = c.loop == PINGPONG ? 2 * len : len;
+        const float ts[2] = { ev.t, c.loop == PINGPONG && ev.t < len ? 2 * len - ev.t : -1.f };
+        for (float et : ts) {
+            if (et < 0) continue;
+            const int n0 = std::max(0, (int)floorf((t0 - et) / per) + 1);
+            for (int n = n0; n < n0 + 4 && n * per + et <= t; ++n) RunEvent(ev);
+        }
+    }
+}
+// ---- onion skin: a ghost of an element being drawn - every clip at another time, tinted and faded, without effects
+static struct Ghost { bool on = false; float t = 0; float tint[3] = { 1, 1, 1 }; float alpha = 0.25f; } g_ghost;
+static bool Ghosting() { return g_ghost.on; }
+static void GhostTint(ImU32& col, Elem& e) {
+    ImVec4 c = ImGui::ColorConvertU32ToFloat4(col);
+    c.x = c.x * 0.3f + g_ghost.tint[0] * 0.7f; c.y = c.y * 0.3f + g_ghost.tint[1] * 0.7f; c.z = c.z * 0.3f + g_ghost.tint[2] * 0.7f; c.w *= g_ghost.alpha;
+    col = ImGui::ColorConvertFloat4ToU32(c);
+    for (int i = 0; i < 3; ++i) e.fillCol[i] = e.fillCol[i] * 0.3f + g_ghost.tint[i] * 0.7f;
+    e.fillCol[3] *= g_ghost.alpha;
+}
+static float PreviewTime() { return g_ghost.on ? g_ghost.t : g.time; }
 static bool PoseOf(Elem& e, bool editing, Pose& p) {
     ElemAnim* a = e.an.p;
     if (!a || editing) return false;
     if (g.on && !g.live) {   // animation mode: the clip being edited, at the playhead (In: after its wait)
         const Clip* c = ClipNamed(a, PreviewName());
         if (!c) return false;
-        Sample(*c, g.time - (c->name == "In" ? InDelay(e) : 0.f), p); return true;
+        Sample(*c, PreviewTime() - (c->name == "In" ? InDelay(e) : 0.f), p); return true;
     }
     Run& r = a->run;
     const double now = ImGui::GetTime();
@@ -505,6 +603,13 @@ static bool PoseOf(Elem& e, bool editing, Pose& p) {
     const Clip* in = ClipNamed(a, "In"), *idle = ClipNamed(a, "Idle");
     if (in && (!idle || t < in->length)) { SampleVals(*in, t, v); any = true; }
     else if (idle) { SampleVals(*idle, t - (in ? in->length : 0.f), v); any = true; }
+    if (!leaving) {   // (events: the layers' playheads)
+        if (in) PassEvents(r, "In", *in, since, t);
+        if (idle && t >= (in ? in->length : 0.f)) PassEvents(r, "Idle", *idle, since, t - (in ? in->length : 0.f));
+        if (r.state >= 0 && r.state < (int)a->clips.size()) PassEvents(r, "state", a->clips[r.state], r.stateAt, MsSince(r.stateAt, now));
+        if (r.locked && r.lockAt >= 0) if (const Clip* lc = ClipNamed(a, "Locked")) PassEvents(r, "Locked", *lc, r.lockAt, MsSince(r.lockAt, now));
+        if (r.valueAt >= 0) if (const Clip* vc = ClipNamed(a, "Value change")) PassEvents(r, "Value change", *vc, r.valueAt, MsSince(r.valueAt, now));
+    } else if (const Clip* o = ClipNamed(a, "Out")) PassEvents(r, "Out", *o, r.outAt, MsSince(r.outAt, now));
     // a layer: its keyed tracks over what's below - in place of it, or (relative: Out, leaving from wherever it is) on top
     // of it: scale, alpha and colour x multiply, move, rotation and colour + add
     auto over = [&](const Clip& c, double since, bool relative) {
@@ -524,7 +629,7 @@ static bool PoseOf(Elem& e, bool editing, Pose& p) {
     }
     if (leaving) if (const Clip* o = ClipNamed(a, "Out")) over(*o, r.outAt, true);
     if (r.blendAt >= 0) {
-        float u = MsSince(r.blendAt, now) / std::max(1.f, a->blend);
+        float u = MsSince(r.blendAt, now) / std::max(1.f, r.blendMs >= 0 ? r.blendMs : a->blend);
         if (u >= 1) r.blendAt = -1;
         else { u = u * u * (3 - 2 * u); for (int i = 0; i < P_NPROP; ++i) v[i] = r.from[i] + (v[i] - r.from[i]) * u; any = true; }
     }
@@ -535,6 +640,7 @@ static bool PoseOf(Elem& e, bool editing, Pose& p) {
     return true;
 }
 static bool FxOf(const Elem& e, const Pose* pose, Fx& fx) {   // its effects now (the Effects track scales glow / shadow)
+    if (g_ghost.on) return false;   // (onion skin ghosts: none)
     const ElemAnim* a = e.an.p;
     const float m = pose ? pose->fx : 1.f;
     if (a) {
@@ -591,10 +697,18 @@ static void PutAnim(std::string& o, const ElemAnim& a) {
             for (auto& k : tr.keys) {
                 Pf(o, ";%g %g %s", k.t, k.v, kEaseKey[std::max(0, std::min((int)EZ_NEASE - 1, k.ease))]);
                 if (k.ease == EZ_BEZIER) Pf(o, " %g %g %g %g", k.h1x, k.h1y, k.h2x, k.h2y);
+                if (k.ht > HT_FREE && k.ht < HT_N) Pf(o, " %s", kHandleKey[k.ht]);
             }
             Pf(o, "\n");
         }
     }
+    for (auto& c : a.clips)   // events and markers (a clip without keys keeps them too)
+        for (auto& ev : c.events) {
+            if (ev.marker) Pf(o, "amark=%s;%g;%s\n", c.name.c_str(), ev.t, ev.name.c_str());
+            else if (ev.name.empty()) Pf(o, "aevent=%s;%g;%s\n", c.name.c_str(), ev.t, ev.cmd.c_str());
+            else Pf(o, "aevent=%s;%g;%s;%s\n", c.name.c_str(), ev.t, ev.cmd.c_str(), ev.name.c_str());
+        }
+    for (auto& f : a.flows) Pf(o, "aflow=%s;%s;%s;%g\n", f.from.c_str(), f.to.c_str(), f.cond.c_str(), f.blend);
 }
 static std::vector<std::string> SplitSemi(const std::string& v) {
     std::vector<std::string> out; size_t p = 0;
@@ -629,7 +743,22 @@ static void AnimKey(Elem& e, const std::string& k, const std::string& v) {
     }
     std::vector<std::string> f = SplitSemi(v);
     if (f.empty() || f[0].empty()) return;
+    if (k == "aflow") {   // from;to;condition;blend
+        if (f.size() < 2) return;
+        ClipFor(e, f[1]);   // (a custom clip it goes to)
+        Flow fl; fl.from = f[0]; fl.to = f[1]; if (f.size() > 2) fl.cond = f[2]; if (f.size() > 3) fl.blend = std::max(0.f, (float)atof(f[3].c_str()));
+        e.an.p->flows.push_back(fl);
+        return;
+    }
     Clip& c = ClipFor(e, f[0]);
+    if (k == "aevent" || k == "amark") {   // clip;ms;command[;name]  /  clip;ms;name
+        if (f.size() < 3) return;
+        Event ev; ev.t = std::max(0.f, (float)atof(f[1].c_str())); ev.marker = k == "amark";
+        if (ev.marker) ev.name = f[2]; else { ev.cmd = f[2]; if (f.size() > 3) ev.name = f[3]; }
+        c.events.push_back(ev);
+        std::stable_sort(c.events.begin(), c.events.end(), [](const Event& x, const Event& y) { return x.t < y.t; });
+        return;
+    }
     if (k == "aclip") {
         if (f.size() > 1) c.length = std::max(1.f, (float)atof(f[1].c_str()));
         if (f.size() > 2) for (int i = 0; i < 3; ++i) if (f[2] == kLoopKey[i]) c.loop = i;
@@ -640,10 +769,15 @@ static void AnimKey(Elem& e, const std::string& k, const std::string& v) {
     int prop = -1; for (int i = 0; i < P_NPROP; ++i) if (f[1] == kPropKey[i]) prop = i;
     if (prop < 0) return;
     Track& tr = c.tracks[prop]; tr.keys.clear();
-    for (size_t i = 2; i < f.size(); ++i) {
-        Key key; char ez[16] = "linear";
-        if (sscanf(f[i].c_str(), "%f %f %15s %f %f %f %f", &key.t, &key.v, ez, &key.h1x, &key.h1y, &key.h2x, &key.h2y) < 2) continue;
-        for (int j = 0; j < EZ_NEASE; ++j) if (!strcmp(ez, kEaseKey[j])) key.ease = j;
+    for (size_t i = 2; i < f.size(); ++i) {   // "<ms> <value> <ease>[ <h1x> <h1y> <h2x> <h2y>][ <handle type>]"
+        Key key; char w[8][24] = {};
+        const int n = sscanf(f[i].c_str(), "%23s %23s %23s %23s %23s %23s %23s %23s", w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7]);
+        if (n < 2) continue;
+        key.t = (float)atof(w[0]); key.v = (float)atof(w[1]);
+        if (n > 2) for (int j = 0; j < EZ_NEASE; ++j) if (!strcmp(w[2], kEaseKey[j])) key.ease = j;
+        int at = 3;
+        if (key.ease == EZ_BEZIER && n >= 7) { key.h1x = (float)atof(w[3]); key.h1y = (float)atof(w[4]); key.h2x = (float)atof(w[5]); key.h2y = (float)atof(w[6]); at = 7; }
+        if (n > at) for (int j = 0; j < HT_N; ++j) if (!strcmp(w[at], kHandleKey[j])) key.ht = j;
         tr.keys.push_back(key);
     }
     SortKeys(tr);
@@ -790,6 +924,7 @@ static float NiceStep(float range, float px, float minPx) {
     return p * 10;
 }
 
+static void HandleTypeItems(Clip* c); static void SetHandleType(Clip& c, int ht);   // (uied_anim_tools.inc)
 static void Graph(const char* id, ImVec2 size, View& v) {
     Clip* c = CurClip();
     ImDrawList* dl = ImGui::GetWindowDrawList();
@@ -800,7 +935,29 @@ static void Graph(const char* id, ImVec2 size, View& v) {
     dl->AddRectFilled(a, b, IM_COL32(28, 30, 36, 255));
     if (!c) { dl->AddText(ImVec2(a.x + 10, a.y + 10), IM_COL32(150, 150, 150, 255), "Pick an element on the right to animate it."); return; }
     const std::vector<int> tracks = GraphTracks(c);
-    if (v.fit) { FitView(v, c, tracks); v.fit = false; }
+    // the speed view (each track's rate of change, per second; read-only) and the 0-1 view (every track scaled to fit)
+    const bool speed = g.graphTab == 1, norm = g.normalise && !speed;
+    float nlo[P_NPROP], nhi[P_NPROP];
+    for (int p : tracks) {
+        float lo = 1e9f, hi = -1e9f; const Track& tr = c->tracks[p];
+        for (auto& k : tr.keys) { lo = std::min(lo, k.v); hi = std::max(hi, k.v); }
+        for (int i = 0; i <= 60; ++i) { const float vv = Value(tr, c->length * i / 60.f); lo = std::min(lo, vv); hi = std::max(hi, vv); }
+        if (hi - lo < 1e-4f) { lo -= 0.5f; hi += 0.5f; }
+        nlo[p] = lo; nhi[p] = hi;
+    }
+    auto N = [&](int p, float val) { return norm ? (val - nlo[p]) / (nhi[p] - nlo[p]) : val; };   // a track's value -> drawn
+    auto Dn = [&](int p, float y) { return norm ? nlo[p] + y * (nhi[p] - nlo[p]) : y; };          // drawn -> its value
+    auto Rate = [&](const Track& tr, float t) { const float h = 2.f; return (Value(tr, t + h) - Value(tr, t - h)) / (2 * h) * 1000.f; };
+    if (v.fit) {
+        FitView(v, c, tracks); v.fit = false;
+        if (speed || norm) {
+            float lo = 1e9f, hi = -1e9f;
+            for (int p : tracks) for (int i = 0; i <= 120; ++i) { const float t = c->length * i / 120.f, vv = speed ? Rate(c->tracks[p], t) : N(p, Value(c->tracks[p], t)); lo = std::min(lo, vv); hi = std::max(hi, vv); }
+            if (lo > hi) { lo = 0; hi = 1; }
+            if (hi - lo < 0.05f) { lo -= 0.5f; hi += 0.5f; }
+            v.v0 = lo - (hi - lo) * 0.15f; v.v1 = hi + (hi - lo) * 0.15f;
+        }
+    }
     auto X = [&](float t) { return a.x + (t - v.t0) / (v.t1 - v.t0) * size.x; };
     auto Yv = [&](float val) { return b.y - (val - v.v0) / (v.v1 - v.v0) * size.y; };
     auto T = [&](float x) { return v.t0 + (x - a.x) / size.x * (v.t1 - v.t0); };
@@ -834,7 +991,7 @@ static void Graph(const char* id, ImVec2 size, View& v) {
     const ImVec2 m = io.MousePos;
     float hitD = 1e9f;   // (the nearest key or handle under the mouse wins)
     auto tryHit = [&](ImVec2 q, float reach, int p, int i, int h) {
-        if (!hov && g.dragKey < 0) return;
+        if ((!hov && g.dragKey < 0) || speed) return;
         const float dx = m.x - q.x, dy = m.y - q.y, d = dx * dx + dy * dy;
         if (fabsf(dx) <= reach && fabsf(dy) <= reach && d < hitD) { hitD = d; hitTrack = p; hitKey = i; hitHandle = h; }
     };
@@ -844,17 +1001,17 @@ static void Graph(const char* id, ImVec2 size, View& v) {
         const ImU32 col = kProp[p].col;
         // the curve: sampled every 2 pixels
         std::vector<ImVec2> pts;
-        for (float x = a.x; x <= b.x; x += 2) pts.push_back(ImVec2(x, Yv(Value(tr, T(x)))));
+        for (float x = a.x; x <= b.x; x += 2) pts.push_back(ImVec2(x, Yv(speed ? Rate(tr, T(x)) : N(p, Value(tr, T(x))))));
         if (pts.size() > 1) dl->AddPolyline(pts.data(), (int)pts.size(), col, 0, tracks.size() == 1 ? 2.f : 1.5f);
         for (int i = 0; i < (int)tr.keys.size(); ++i) {
             Key& k = tr.keys[i];
-            ImVec2 kp(X(k.t), Yv(k.v));
+            ImVec2 kp(X(k.t), Yv(speed ? Rate(tr, k.t) : N(p, k.v)));
             // bezier: the handles of the way to the next key (h1 off this key, h2 into the next), dragged to shape it
-            if (k.ease == EZ_BEZIER && i + 1 < (int)tr.keys.size()) {
+            if (k.ease == EZ_BEZIER && i + 1 < (int)tr.keys.size() && !speed) {
                 const Key& n = tr.keys[i + 1];
-                const ImVec2 np(X(n.t), Yv(n.v));
-                const ImVec2 h1(X(k.t + k.h1x * (n.t - k.t)), Yv(k.v + k.h1y));
-                const ImVec2 h2(X(k.t + k.h2x * (n.t - k.t)), Yv(n.v + k.h2y));
+                const ImVec2 np(X(n.t), Yv(N(p, n.v)));
+                const ImVec2 h1(X(k.t + k.h1x * (n.t - k.t)), Yv(N(p, k.v + k.h1y)));
+                const ImVec2 h2(X(k.t + k.h2x * (n.t - k.t)), Yv(N(p, n.v + k.h2y)));
                 const bool act1 = dragging && g.dragTrack == p && g.dragKey == i && g.dragHandle == 1;
                 const bool act2 = dragging && g.dragTrack == p && g.dragKey == i && g.dragHandle == 2;
                 dl->AddLine(kp, h1, (col & 0x00FFFFFF) | 0xA0000000, 1.5f); dl->AddLine(np, h2, (col & 0x00FFFFFF) | 0xA0000000, 1.5f);
@@ -865,19 +1022,23 @@ static void Graph(const char* id, ImVec2 size, View& v) {
                 }
                 tryHit(h1, 8, p, i, 1); tryHit(h2, 8, p, i, 2);
             }
-            const float r = 5;
+            const float r = speed ? 3.5f : 5;
             ImVec2 q[4] = { ImVec2(kp.x, kp.y - r), ImVec2(kp.x + r, kp.y), ImVec2(kp.x, kp.y + r), ImVec2(kp.x - r, kp.y) };
             dl->AddConvexPolyFilled(q, 4, k.sel ? IM_COL32(255, 200, 60, 255) : IM_COL32(235, 235, 235, 255));
             dl->AddPolyline(q, 4, IM_COL32(0, 0, 0, 200), ImDrawFlags_Closed, 1.f);
+            if (k.ht == HT_AUTO || k.ht == HT_ALIGNED || k.ht == HT_VECTOR) {   // (its handle type: a letter by it)
+                const char* l = k.ht == HT_AUTO ? "A" : k.ht == HT_ALIGNED ? "L" : "V";
+                dl->AddText(ImVec2(kp.x + 6, kp.y - 15), IM_COL32(200, 200, 210, 200), l);
+            }
             tryHit(kp, 7, p, i, 0);
         }
     }
     if (hov && !dragging && hitKey >= 0) {   // what a click would grab
         const Track& tr = c->tracks[hitTrack]; const Key& k = tr.keys[hitKey];
-        ImVec2 q(X(k.t), Yv(k.v));
+        ImVec2 q(X(k.t), Yv(N(hitTrack, k.v)));
         if (hitHandle && hitKey + 1 < (int)tr.keys.size()) {
             const Key& n = tr.keys[hitKey + 1];
-            q = hitHandle == 1 ? ImVec2(X(k.t + k.h1x * (n.t - k.t)), Yv(k.v + k.h1y)) : ImVec2(X(k.t + k.h2x * (n.t - k.t)), Yv(n.v + k.h2y));
+            q = hitHandle == 1 ? ImVec2(X(k.t + k.h1x * (n.t - k.t)), Yv(N(hitTrack, k.v + k.h1y))) : ImVec2(X(k.t + k.h2x * (n.t - k.t)), Yv(N(hitTrack, n.v + k.h2y)));
         }
         dl->AddCircle(q, 9, IM_COL32(255, 200, 60, 200), 0, 1.5f);
         ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
@@ -888,7 +1049,9 @@ static void Graph(const char* id, ImVec2 size, View& v) {
     {
         float ly = a.y + 6;
         for (int p : tracks) {
-            char t[64]; snprintf(t, sizeof t, "%s  %.3f", kProp[p].name, Value(c->tracks[p], g.time));
+            char t[96];
+            if (speed) snprintf(t, sizeof t, "%s  %.3f %s/s", kProp[p].name, Rate(c->tracks[p], g.time), kProp[p].unit);
+            else snprintf(t, sizeof t, "%s  %.3f", kProp[p].name, Value(c->tracks[p], g.time));
             ImVec2 ts = ImGui::CalcTextSize(t);
             dl->AddRectFilled(ImVec2(b.x - ts.x - 22, ly - 1), ImVec2(b.x - 4, ly + ts.y + 1), IM_COL32(20, 20, 24, 200));
             dl->AddRectFilled(ImVec2(b.x - ts.x - 18, ly + 4), ImVec2(b.x - ts.x - 10, ly + ts.y - 4), kProp[p].col);
@@ -909,7 +1072,19 @@ static void Graph(const char* id, ImVec2 size, View& v) {
         v.t0 += dt; v.t1 += dt; v.v0 += dv; v.v1 += dv;
         return;
     }
-    if (hov && ImGui::IsKeyPressed(ImGuiKey_F)) v.fit = true;
+    if (hov && ImGui::IsKeyPressed(ImGuiKey_F) && !io.WantTextInput) {
+        bool framed = false;
+        if (io.KeyShift) {   // the picked keys only
+            float t0 = 1e9f, t1 = -1e9f, v0 = 1e9f, v1 = -1e9f;
+            for (int p : tracks) for (auto& k : c->tracks[p].keys) if (k.sel) { t0 = std::min(t0, k.t); t1 = std::max(t1, k.t); const float y = N(p, k.v); v0 = std::min(v0, y); v1 = std::max(v1, y); }
+            if (t0 <= t1) {
+                if (t1 - t0 < 50) { t0 -= 50; t1 += 50; } if (v1 - v0 < 0.05f) { v0 -= 0.25f; v1 += 0.25f; }
+                const float pt = (t1 - t0) * 0.15f, pv = (v1 - v0) * 0.2f;
+                v.t0 = t0 - pt; v.t1 = t1 + pt; if (!speed) { v.v0 = v0 - pv; v.v1 = v1 + pv; } framed = true;
+            }
+        }
+        if (!framed) v.fit = true;
+    }
     if (hov && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
         if (hitKey >= 0) {
             Key& k = c->tracks[hitTrack].keys[hitKey];
@@ -924,9 +1099,9 @@ static void Graph(const char* id, ImVec2 size, View& v) {
             if (!io.KeyAlt) g.time = std::max(0.f, Snap(T(m.x)));   // click: move the playhead
         }
     }
-    if (hov && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && hitKey < 0) {
+    if (hov && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && hitKey < 0 && !speed) {
         const int p = !tracks.empty() ? (tracks.size() == 1 ? tracks[0] : -1) : (g.focus == State::F_TRACK ? g.track : -1);
-        if (p >= 0) { SetKey(c->tracks[p], std::max(0.f, Snap(T(m.x))), V(m.y)); c->on = true; }
+        if (p >= 0) { SetKey(c->tracks[p], std::max(0.f, Snap(T(m.x))), norm ? Dn(p, V(m.y)) : V(m.y)); c->on = true; }
     }
     if (g.dragKey >= 0 && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
         Track& tr = c->tracks[g.dragTrack];
@@ -934,15 +1109,45 @@ static void Graph(const char* id, ImVec2 size, View& v) {
             Key& k = tr.keys[g.dragKey];
             if (g.dragHandle == 0) {
                 const float nt = std::max(0.f, Snap(g.dragT + (m.x - g.dragStart.x) / size.x * (v.t1 - v.t0)));
-                const float nv = g.dragV - (m.y - g.dragStart.y) / size.y * (v.v1 - v.v0);
-                const float dt = nt - k.t, dv = (io.KeyShift ? 0.f : nv - k.v);
-                for (auto& t2 : c->tracks) for (auto& kk : t2.keys) if (kk.sel) { kk.t = std::max(0.f, kk.t + dt); kk.v += dv; }
+                float nvd = N(g.dragTrack, g.dragV) - (m.y - g.dragStart.y) / size.y * (v.v1 - v.v0);   // (drawn units)
+                if (io.KeyCtrl) { const float st = NiceStep(v.v1 - v.v0, size.y, 32) / 10; nvd = roundf(nvd / st) * st; }   // (Ctrl: round values)
+                const float dt = nt - k.t, dvd = (io.KeyShift ? 0.f : nvd - N(g.dragTrack, k.v));
+                for (int p2 = 0; p2 < P_NPROP; ++p2) for (auto& kk : c->tracks[p2].keys) if (kk.sel) {
+                    kk.t = std::max(0.f, kk.t + dt);
+                    kk.v += norm && std::find(tracks.begin(), tracks.end(), p2) != tracks.end() ? dvd * (nhi[p2] - nlo[p2]) : dvd;
+                }
             } else if (g.dragKey + 1 < (int)tr.keys.size()) {
                 // (time: kept inside the way, so the curve never turns back on itself; value: free; Shift: value only)
-                const Key& n = tr.keys[g.dragKey + 1];
+                const int p = g.dragTrack, i = g.dragKey;
+                Key& n = tr.keys[i + 1];
                 const float u = std::max(0.f, std::min(1.f, (T(m.x) - k.t) / std::max(0.001f, n.t - k.t)));
-                if (g.dragHandle == 1) { if (!io.KeyShift) k.h1x = u; k.h1y = V(m.y) - k.v; }
-                else { if (!io.KeyShift) k.h2x = u; k.h2y = V(m.y) - n.v; }
+                if (g.dragHandle == 1) { if (!io.KeyShift) k.h1x = u; k.h1y = Dn(p, V(m.y)) - k.v; }
+                else { if (!io.KeyShift) k.h2x = u; k.h2y = Dn(p, V(m.y)) - n.v; }
+                // the key the handle belongs to: auto -> aligned, vector -> free; aligned turns its other handle to match
+                const int owner = g.dragHandle == 1 ? i : i + 1;
+                Key& ok = tr.keys[owner];
+                if (ok.ht == HT_AUTO) ok.ht = HT_ALIGNED; else if (ok.ht == HT_VECTOR) ok.ht = HT_FREE;
+                if (ok.ht == HT_ALIGNED) {
+                    auto& K = tr.keys;
+                    const ImVec2 kp(X(ok.t), Yv(N(p, ok.v)));
+                    auto outPx = [&](int j) { const float sp = K[j + 1].t - K[j].t; return ImVec2(X(K[j].t + K[j].h1x * sp) - X(K[j].t), Yv(N(p, K[j].v + K[j].h1y)) - Yv(N(p, K[j].v))); };
+                    auto inPx = [&](int j) { const float sp = K[j].t - K[j - 1].t; return ImVec2(X(K[j - 1].t + K[j - 1].h2x * sp) - X(K[j].t), Yv(N(p, K[j].v + K[j - 1].h2y)) - Yv(N(p, K[j].v))); };
+                    const bool hasIn = owner > 0 && K[owner - 1].ease == EZ_BEZIER, hasOut = owner + 1 < (int)K.size() && K[owner].ease == EZ_BEZIER;
+                    if (hasIn && hasOut) {
+                        const ImVec2 dragged = g.dragHandle == 1 ? outPx(owner) : inPx(owner), other = g.dragHandle == 1 ? inPx(owner) : outPx(owner);
+                        const float ld = sqrtf(dragged.x * dragged.x + dragged.y * dragged.y), lo = sqrtf(other.x * other.x + other.y * other.y);
+                        if (ld > 0.5f) {
+                            const ImVec2 want(kp.x - dragged.x / ld * lo, kp.y - dragged.y / ld * lo);   // (opposite, its own length)
+                            if (g.dragHandle == 1) {   // the in handle: the previous key's h2
+                                Key& pk = K[owner - 1]; const float sp = std::max(0.001f, ok.t - pk.t);
+                                pk.h2x = std::max(0.f, std::min(1.f, (T(want.x) - pk.t) / sp)); pk.h2y = Dn(p, V(want.y)) - ok.v;
+                            } else {
+                                const float sp = std::max(0.001f, K[owner + 1].t - ok.t);
+                                ok.h1x = std::max(0.f, std::min(1.f, (T(want.x) - ok.t) / sp)); ok.h1y = Dn(p, V(want.y)) - ok.v;
+                            }
+                        }
+                    }
+                }
             }
         }
     } else if (g.dragKey >= 0) {
@@ -963,6 +1168,8 @@ static void Graph(const char* id, ImVec2 size, View& v) {
         for (int e = 0; e < EZ_NEASE; ++e)
             if (ImGui::MenuItem(kEase[e])) ApplyEase(*c, e);
         ImGui::Separator();
+        HandleTypeItems(c);
+        ImGui::Separator();
         KeyClipItems();
         ImGui::Separator();
         if (ImGui::MenuItem("Delete key")) for (auto& tr : c->tracks) tr.keys.erase(std::remove_if(tr.keys.begin(), tr.keys.end(), [](const Key& k) { return k.sel; }), tr.keys.end());
@@ -970,7 +1177,8 @@ static void Graph(const char* id, ImVec2 size, View& v) {
     }
     if (hov && (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_X)) && !io.WantTextInput)
         for (auto& tr : c->tracks) tr.keys.erase(std::remove_if(tr.keys.begin(), tr.keys.end(), [](const Key& k) { return k.sel; }), tr.keys.end());
-    if (hov) ImGui::SetTooltip("Drag keys (Shift: time only). Round dots: bezier handles - drag to shape the curve (Shift: height only).\nThe buttons above: linear / constant / bezier for the picked keys. Right-click a key: every easing, delete.\nCtrl + C / X / V: copy / cut / paste the picked keys (at the playhead), Ctrl + A: pick all shown.\nDouble-click: add a key (one track shown). Click: move the playhead. Wheel: zoom time, Ctrl+wheel: values,\nmiddle / Alt drag: pan, F: fit.");
+    if (hov && speed) ImGui::SetTooltip("Speed: each track's rate of change (per second) - a jump at a key is a jerk. Read-only: edit in Values.");
+    else if (hov) ImGui::SetTooltip("Drag keys (Shift: time only, Ctrl: round values). Round dots: bezier handles - drag to shape the curve (Shift: height only).\nHandles: Auto (A) smooth, Aligned (L) in line, Free, Vector (V) a corner - the buttons above, V, or right-click a key. F / Shift + F: fit all / the picked.\nThe buttons above: linear / constant / bezier for the picked keys. Right-click a key: every easing, delete.\nCtrl + C / X / V: copy / cut / paste the picked keys (at the playhead), Ctrl + A: pick all shown.\nDouble-click: add a key (one track shown). Click: move the playhead. Wheel: zoom time, Ctrl+wheel: values,\nmiddle / Alt drag: pan, F: fit.");
 }
 
 
@@ -994,6 +1202,8 @@ struct WinState {
     float split = -1;             // the side window's divider (-1: the standard one)
 };
 static WinState w_;
+struct NamedLayout { WinRect r[WIN_N]; float split = -1; bool screen = false; };
+static std::map<std::string, NamedLayout> g_layouts;   // the person's own window layouts (anim_windows.txt "layout" lines)
 static std::string WinFile() { return dataDir + "anim_windows.txt"; }
 static void WinLoad() {
     w_.loaded = true;
@@ -1004,6 +1214,12 @@ static void WinLoad() {
     while (fgets(line, sizeof line, f)) {
         const int n = sscanf(line, "%63s %f %f %f %f", key, &x, &y, &w, &h);
         if (n == 2 && !strcmp(key, "split")) { w_.split = x; continue; }
+        if (!strcmp(key, "layout")) {   // "layout <window> x y w h <name>" / "layout split <x> <name>" / "layout screen <0|1> <name>"
+            char wk[32] = "", nm[64] = ""; float v[4] = {};
+            if (sscanf(line, "layout %31s %f %f %f %f %63[^\n]", wk, &v[0], &v[1], &v[2], &v[3], nm) == 6) { for (int i = 0; i < WIN_N; ++i) if (!strcmp(wk, kWinKey[i])) g_layouts[nm].r[i] = { v[0], v[1], v[2], v[3], true }; }
+            else if (sscanf(line, "layout %31s %f %63[^\n]", wk, &v[0], nm) == 3) { if (!strcmp(wk, "split")) g_layouts[nm].split = v[0]; else if (!strcmp(wk, "screen")) g_layouts[nm].screen = v[0] != 0; }
+            continue;
+        }
         if (n != 5) continue;
         for (int i = 0; i < WIN_N; ++i) if (!strcmp(key, kWinKey[i])) w_.r[i] = { x, y, w, h, true };
         if (!strcmp(key, "animation")) oldPage = { x, y, w, h, true };
@@ -1024,13 +1240,17 @@ static void WinSave() {
     if (!f) return;
     for (int i = 0; i < WIN_N; ++i) if (w_.r[i].set) fprintf(f, "%s %.5f %.5f %.5f %.5f\n", kWinKey[i], w_.r[i].x, w_.r[i].y, w_.r[i].w, w_.r[i].h);
     if (w_.split > 0) fprintf(f, "split %.5f\n", w_.split);
+    for (auto& [nm, l] : g_layouts) {
+        for (int i = 0; i < WIN_N; ++i) if (l.r[i].set) fprintf(f, "layout %s %.5f %.5f %.5f %.5f %s\n", kWinKey[i], l.r[i].x, l.r[i].y, l.r[i].w, l.r[i].h, nm.c_str());
+        fprintf(f, "layout split %.5f %s\nlayout screen %d %s\n", l.split, nm.c_str(), l.screen ? 1 : 0, nm.c_str());
+    }
     fclose(f);
 }
 static void WinReset() {   // back to the standard layout (Frame's defaults)
     for (auto& r : w_.r) r.set = false;
     for (bool& f : w_.force) f = true;
     w_.split = -1;
-    remove(WinFile().c_str());
+    w_.dirty = true;   // (rewritten: the named layouts stay)
 }
 // a window of the workspace: placed at its own rect (or `defPos` / `defSize` until it has one); when the person drags
 // or sizes it, the moving edges snap (within 10 px) to the screen's edges and the other windows' edges
@@ -1739,6 +1959,8 @@ static void FromGameSection() {
 
 // ---------------------------------------------------------------- animation page (left of the list)
 
+#include "uied_anim_tools.inc"
+
 static void AnimPage() {   // (the left side of the panels window)
     const int idx = FocusedIndex();
     ElemAnim* an = Focused();
@@ -1789,19 +2011,20 @@ static void AnimPage() {   // (the left side of the panels window)
             }
             ImGui::EndTable();
         }
-        ImGui::BeginDisabled(); ImGui::Button("+ Custom clip"); ImGui::EndDisabled(); PlannedTag();
+        CustomClipButton(*an);
         ImGui::TextDisabled("Live: In, then Idle. Focus / Unfocus / Selected / Press by the triggers below, over them;");
-        ImGui::TextDisabled("Out before it hides. Changes blend. Locked, Value change: planned.");
+        ImGui::TextDisabled("Locked and Value change on top; Out before it hides. Changes blend. Custom clips: the state graph's arrows.");
     }
     // ---- triggers
-    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+    if (!g.focusTrigger.empty()) ImGui::SetNextItemOpen(true); else ImGui::SetNextItemOpen(true, ImGuiCond_Once);
     if (ImGui::CollapsingHeader("Triggers")) {
+        auto goHere = [](const char* which) { if (g.focusTrigger == which) { ImGui::SetKeyboardFocusHere(); ImGui::SetScrollHereY(0.3f); g.focusTrigger.clear(); } };
         char fb[128], pb[128];   // (ImGui keeps its own copy while one's being typed in)
         snprintf(fb, sizeof fb, "%s", an->focusIf.c_str()); snprintf(pb, sizeof pb, "%s", an->pressIf.c_str());
-        ImGui::SetNextItemWidth(-60);
+        ImGui::SetNextItemWidth(-60); goHere("focus");
         if (ImGui::InputTextWithHint("focus##trig", "a value, e.g. menu.sel:2", fb, sizeof fb)) an->focusIf = fb;
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("While this is on it's focused: Focus plays, then Selected loops. When it goes off, Unfocus plays,\nand Unfocus's last frame is how it rests while unfocused. A show-only-while value (! for not).\nMenus REUI drives: menu.sel:<row> (0 is the top row).");
-        ImGui::SetNextItemWidth(-60);
+        ImGui::SetNextItemWidth(-60); goHere("press");
         if (ImGui::InputTextWithHint("press##trig", "a value, e.g. menu.press:2", pb, sizeof pb)) an->pressIf = pb;
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Press plays each time this comes on (then it goes back to how it rests).\nMenus REUI drives: menu.press:<row> (select on that row), menu.press (any row), menu.back (back).");
         static int row = 1;
@@ -1811,10 +2034,10 @@ static void AnimPage() {   // (the left side of the panels window)
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Focus follows that row of the menu (1: the top one), Press its select.");
         char lb[128], vb[256];
         snprintf(lb, sizeof lb, "%s", an->lockedIf.c_str()); snprintf(vb, sizeof vb, "%s", an->valueOf.c_str());
-        ImGui::SetNextItemWidth(-60);
+        ImGui::SetNextItemWidth(-60); goHere("locked");
         if (ImGui::InputTextWithHint("locked##trig", "a value, e.g. flash:...IS_LOCKED", lb, sizeof lb)) an->lockedIf = lb;
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("While this is on, Locked plays over its focus (once: it holds its end; or it loops). Coming up\nlocked it starts at Locked's end. A show-only-while value (! for not; key=value compares).");
-        ImGui::SetNextItemWidth(-60);
+        ImGui::SetNextItemWidth(-60); goHere("value");
         if (ImGui::InputTextWithHint("value##trig", "a value, e.g. {score}", vb, sizeof vb)) an->valueOf = vb;
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Value change plays each time this value changes (a token's name, or text with {tokens}).\nIt plays on top of how it is, as Out does: scale / alpha multiply, moves add - a pop or a flash.");
         ImGui::SetNextItemWidth(120); ImGui::DragFloat("blend##trig", &an->blend, 2, 0, 2000, "%.0f ms");
@@ -1825,9 +2048,9 @@ static void AnimPage() {   // (the left side of the panels window)
     // ---- tracks
     ImGui::SetNextItemOpen(true, ImGuiCond_Once);
     if (cur && ImGui::CollapsingHeader("Tracks", ImGuiTreeNodeFlags_None)) {
-        ImGui::TextDisabled("%s clip, at %s. Set a value: a key at the playhead. Click a name: graph it.", cur->name.c_str(), TimeText(g.time).c_str());
-        if (ImGui::BeginTable("##tracks", 3, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
-            ImGui::TableSetupColumn("Track", ImGuiTableColumnFlags_WidthStretch); ImGui::TableSetupColumn("Value"); ImGui::TableSetupColumn("Keys");
+        ImGui::TextDisabled("%s clip, at %s. Set a value: a key at the playhead. The diamond: a key here (click: add / remove). I: key them all.", cur->name.c_str(), TimeText(g.time).c_str());
+        if (ImGui::BeginTable("##tracks", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
+            ImGui::TableSetupColumn("Track", ImGuiTableColumnFlags_WidthStretch); ImGui::TableSetupColumn("##key"); ImGui::TableSetupColumn("Value"); ImGui::TableSetupColumn("Keys");
             for (int p = 0; p < P_NPROP; ++p) {
                 Track& tr = cur->tracks[p];
                 ImGui::PushID(p);
@@ -1837,6 +2060,7 @@ static void AnimPage() {   // (the left side of the panels window)
                 dl->AddRectFilled(ImVec2(cp.x, cp.y + hh * 0.3f), ImVec2(cp.x + 6, cp.y + hh * 0.8f), kProp[p].col);
                 ImGui::Dummy(ImVec2(9, hh)); ImGui::SameLine();
                 if (ImGui::Selectable(kProp[p].name, g.focus == State::F_TRACK && g.track == p)) { g.focus = State::F_TRACK; g.track = p; g.graph.fit = g.big.fit = true; }
+                ImGui::TableNextColumn(); KeyDiamond(*cur, p);
                 ImGui::TableNextColumn(); ImGui::SetNextItemWidth(90);
                 float val = Value(tr, g.time);
                 if (ImGui::DragFloat("##v", &val, p == P_ROT || p <= P_Y ? 0.5f : 0.005f, 0, 0, "%.3f")) { SetKey(tr, Snap(g.time), val); cur->on = true; g.focus = State::F_TRACK; g.track = p; }
@@ -1948,7 +2172,17 @@ static void SidePanel(ImVec2 pos, ImVec2 size, float defSplit) {
     const float split = w_.split > 0 ? w_.split : defSplit;
     const float leftW = std::max(std::min(minW, avail.x * 0.5f), std::min(avail.x * split - divW * 0.5f, avail.x - divW - minW));
     ImGui::BeginChild("##apage", ImVec2(std::max(1.f, leftW), avail.y));
-    AnimPage();
+    {   // the page | the state graph (a click on the graph's trigger arrow comes back to the page)
+        static int lastTab = -1;
+        const bool force = g.pageTab != lastTab && lastTab >= 0;
+        if (ImGui::BeginTabBar("##ptabs")) {
+            if (ImGui::BeginTabItem("Page", nullptr, force && g.pageTab == 0 ? ImGuiTabItemFlags_SetSelected : 0)) { if (!force) g.pageTab = 0; AnimPage(); ImGui::EndTabItem(); }
+            if (ImGui::BeginTabItem("State graph", nullptr, force && g.pageTab == 1 ? ImGuiTabItemFlags_SetSelected : 0)) { if (!force) g.pageTab = 1; StateGraph(); ImGui::EndTabItem(); }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("The focused element's clips and what starts them; your own transitions.");
+            ImGui::EndTabBar();
+        }
+        lastTab = g.pageTab;
+    }
     ImGui::EndChild();
     ImGui::SameLine(0, 0);
     // the divider: drag it to share the width
@@ -1977,12 +2211,28 @@ static void SidePanel(ImVec2 pos, ImVec2 size, float defSplit) {
 static void GraphPanel(ImVec2 pos, ImVec2 size) {
     WinBegin(WIN_GRAPH, "Keys and curves##anim", pos, size);
     Clip* c = CurClip();
+    if (ImGui::BeginTabBar("##gtabs")) {
+        if (ImGui::BeginTabItem("Values")) { if (g.graphTab != 0) { g.graphTab = 0; g.graph.fit = true; } ImGui::EndTabItem(); }
+        if (ImGui::BeginTabItem("Speed")) { if (g.graphTab != 1) { g.graphTab = 1; g.graph.fit = true; } ImGui::EndTabItem(); }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Each track's rate of change (units, scale, degrees per second): a jump shows a jerk at a key.");
+        ImGui::EndTabBar();
+    }
     std::string what = !c ? "-" : g.focus == State::F_TRACK && g.track >= 0 ? std::string(kProp[g.track].name)
                      : g.focus == State::F_PLANNED ? g.planned + " (planned)" : c->name + " clip: all its keyed tracks";
     ImGui::Text("Showing: %s", what.c_str());
     ImGui::SameLine(); if (ImGui::SmallButton("fit")) g.graph.fit = true;
     if (c && g.focus == State::F_TRACK) { ImGui::SameLine(); if (ImGui::SmallButton("all tracks")) { g.focus = State::F_CLIP; g.graph.fit = true; } }
     EaseButtons(c);
+    if (c) {   // handle types
+        ImGui::SameLine(0, 10);
+        for (int h : { HT_AUTO, HT_ALIGNED, HT_FREE, HT_VECTOR }) {
+            ImGui::SameLine(0, 2);
+            if (ImGui::SmallButton(kHandleType[h])) SetHandleType(*c, h);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip(h == HT_AUTO ? "Auto handles: smooth through the keys beside it, never overshooting (V)." : h == HT_ALIGNED ? "Aligned: its two handles stay on one line." : h == HT_FREE ? "Free: each handle on its own." : "Vector: each handle points at its neighbour key - a sharp corner.");
+        }
+        ImGui::SameLine(0, 8); if (ImGui::Checkbox("0-1", &g.normalise)) g.graph.fit = g.big.fit = true;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Every track shown scaled to 0-1, so Move and Scale compare on one graph.");
+    }
     ImGui::SameLine(0, 12); if (ImGui::SmallButton("copy##k")) CopyKeys(false);
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Copy the picked keys (Ctrl + C; Ctrl + X cuts).");
     ImGui::SameLine(); ImGui::BeginDisabled(g_kclip.keys.empty());
@@ -2044,7 +2294,7 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
     if (g.autoKey) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.f));
     ImGui::Checkbox("auto key", &g.autoKey);
     if (g.autoKey) ImGui::PopStyleColor();
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("On: change the focused element on screen and the change is keyed at the playhead (this clip):\n  drag it: Move X / Y\n  Ctrl + wheel over it: Scale\n  Shift + wheel over it: Rotation\n  Alt + wheel over it: Alpha");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("On: the focused element's handle box on screen, each change keyed at the playhead (this clip):\n  drag inside it: Move X / Y (Shift: one axis)\n  its corners / edges: Scale (Shift on a corner: both alike)\n  just outside a corner: Rotation (Shift: 15 degree steps)\n  the cross: its pivot (not keyed)\n  Ctrl / Shift / Alt + wheel over it: Scale / Rotation / Alpha\nOff: clicking the screen only picks elements; values set on the page are keyed as always.");
     ImGui::SameLine(); ImGui::BeginDisabled(UndoCount() == 0);
     if (ImGui::Button("Undo")) Undo();
     ImGui::EndDisabled();
@@ -2057,6 +2307,45 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
         ImGui::SameLine(); ImGui::SetNextItemWidth(130);
         std::vector<const char*> names; for (auto& k : an->clips) names.push_back(k.name.c_str());
         if (ImGui::Combo("clip", &g.clip, names.data(), (int)names.size())) { g.focus = State::F_CLIP; g.graph.fit = g.big.fit = true; }
+    }
+    {   // Element / Screen (Tab), the view options, the window layouts, the keys' help
+        ImGui::SameLine();
+        for (int i = 0; i < 2; ++i) {
+            const bool on = g.screen == (i == 1);
+            if (on) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+            if (ImGui::Button(i ? "Screen" : "Element")) g.screen = i == 1;
+            if (on) ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip(i ? "Every element's clip on its own row, by group - time a whole screen in one place (Tab)." : "The focused element's tracks (Tab).");
+            if (!i) ImGui::SameLine(0, 1);
+        }
+        ImGui::SameLine(); if (ImGui::Button("View")) ImGui::OpenPopup("##tlview");
+        if (ImGui::BeginPopup("##tlview")) {
+            ImGui::Checkbox("Onion skin", &g.onion);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Faint ghosts of the focused element before (blue) and after (orange) the playhead (paused only).");
+            ImGui::Indent();
+            int om = g.onionKeys ? 0 : 1;
+            if (ImGui::RadioButton("at keys", &om, 0)) g.onionKeys = true; ImGui::SameLine();
+            if (ImGui::RadioButton("every", &om, 1)) g.onionKeys = false; ImGui::SameLine();
+            const int steps[] = { 2, 4, 8 }; int si = g.onionStep == 2 ? 0 : g.onionStep == 8 ? 2 : 1; const char* sn[] = { "2", "4", "8" };
+            ImGui::SetNextItemWidth(50); if (ImGui::Combo("frames", &si, sn, 3)) g.onionStep = steps[si];
+            ImGui::Checkbox("its whole group", &g.onionGroup);
+            ImGui::Unindent();
+            ImGui::Checkbox("Motion path", &g.path);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("The focused element's centre over the whole clip, a dot per frame (close dots: slow).");
+            ImGui::Separator();
+            ImGui::Checkbox("Play events", &g.playEvents);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Events run as the playhead passes them while playing (and in Live) - to check sounds against the motion.");
+            ImGui::Checkbox("Game gets the keys", &g.gameInput);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Off (normally): while animating, the keyboard / controller don't move the game's menus underneath.");
+            ImGui::Separator();
+            ImGui::Checkbox("Screen: keyed rows only", &g.keyedOnly);
+            ImGui::SetNextItemWidth(160); ImGui::InputTextWithHint("##shf", "Screen: filter rows", g.sheetFilter, sizeof g.sheetFilter);
+            ImGui::EndPopup();
+        }
+        ImGui::SameLine(); LayoutCombo();
+        ImGui::SameLine(); if (ImGui::Button(" ? ")) g_openHelp = true;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The keys of animation mode.");
+        ShortcutPopups();
     }
     const float bw = ImGui::CalcTextSize("Exit animation mode").x + 20;
     const float rightX = ImGui::GetWindowContentRegionMax().x - bw - ImGui::CalcTextSize(" Collapse ").x - ImGui::CalcTextSize(" Hide panels ").x - ImGui::CalcTextSize(" Reset windows ").x - ImGui::CalcTextSize(" Live ").x - 90;
@@ -2112,7 +2401,8 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
     const float nameW = 190, rowH = ImGui::GetTextLineHeight() + 6, rulerH = ImGui::GetTextLineHeight() + 8;
     ImVec2 avail = ImGui::GetContentRegionAvail();
     std::vector<int> rows;
-    if (c) for (int p = 0; p < P_NPROP; ++p) if (!c->tracks[p].keys.empty() || (g.focus == State::F_TRACK && g.track == p)) rows.push_back(p);
+    if (c && !g.screen) for (int p = 0; p < P_NPROP; ++p) if (!c->tracks[p].keys.empty() || (g.focus == State::F_TRACK && g.track == p)) rows.push_back(p);
+    if (g.screen) for (size_t i = 0, n = SheetRows().size(); i < n; ++i) rows.push_back(-1);   // (its height)
     float sheetH = g.expanded ? std::min(avail.y * 0.38f, rulerH + rowH * (rows.size() + 1) + 4) : avail.y;
     ImDrawList* dl = ImGui::GetWindowDrawList();
     ImVec2 o = ImGui::GetCursorScreenPos();
@@ -2150,8 +2440,11 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
         rowScroll = std::max(0.f, std::min(rowScroll, std::max(0.f, rowsH - roomH)));
     }
     float y = ra.y + rulerH - rowScroll;
+    static bool scrubbing = false; static int dRow = -1, dKey = -1; static float dStartX = 0; static std::vector<float> dOrig;
+    if (g.screen) ScreenSheet(dl, o, ra, rb, rulerH, rowH, hov, scrubbing, rowScroll);
     dl->PushClipRect(ImVec2(o.x, ra.y + rulerH), rb, true);
-    if (!c) dl->AddText(ImVec2(o.x + 8, y + 6), IM_COL32(150, 150, 150, 255), "Pick an element on the right.");
+    if (g.screen) {}
+    else if (!c) dl->AddText(ImVec2(o.x + 8, y + 6), IM_COL32(150, 150, 150, 255), "Pick an element on the right.");
     else {
         // summary: every key of the clip
         dl->AddRectFilled(ImVec2(o.x, y), ImVec2(rb.x, y + rowH), IM_COL32(255, 255, 255, 12));
@@ -2188,11 +2481,11 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
     }
     dl->PopClipRect();
     // input: scrub on the ruler (or empty space), drag keys, wheel zoom, middle pan
-    static bool scrubbing = false; static int dRow = -1, dKey = -1; static float dStartX = 0; static std::vector<float> dOrig;
+    const bool evTook = !g.screen && RulerEvents(dl, ra, rb, rulerH, hov);
     if (hov && io.MouseWheel != 0 && m.x < ra.x) rowScroll -= io.MouseWheel * rowH * 2;   // over the names: scroll the rows
     else if (hov && io.MouseWheel != 0) { const float f = io.MouseWheel > 0 ? 0.85f : 1.f / 0.85f, mt = T(m.x); g.tl0 = mt + (g.tl0 - mt) * f; g.tl1 = mt + (g.tl1 - mt) * f; }
     if (hov && ImGui::IsMouseDragging(ImGuiMouseButton_Middle)) { const float dt = -io.MouseDelta.x / (rb.x - ra.x) * (g.tl1 - g.tl0); g.tl0 += dt; g.tl1 += dt; }
-    if (hov && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && m.x >= ra.x) {
+    if (hov && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && m.x >= ra.x && !g.screen && !evTook) {
         if (c && hitKey >= 0) {
             Key& k = c->tracks[hitRow].keys[hitKey];
             if (!io.KeyShift && !k.sel) for (auto& tr : c->tracks) for (auto& kk : tr.keys) kk.sel = false;
@@ -2205,13 +2498,17 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
             if (c) for (auto& tr : c->tracks) for (auto& kk : tr.keys) kk.sel = false;
         }
     }
-    if (hov && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && m.x < ra.x && c) {   // a row's name: focus that track
+    if (hov && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && m.x < ra.x && c && !g.screen) {   // a row's name: focus that track
         float yy = ra.y + rulerH + rowH - rowScroll;
         for (int p : rows) { if (m.y >= yy && m.y < yy + rowH && m.y >= ra.y + rulerH) { g.focus = State::F_TRACK; g.track = p; g.graph.fit = g.big.fit = true; } yy += rowH; }
         if (m.y >= ra.y + rulerH - rowScroll && m.y < ra.y + rulerH + rowH - rowScroll && m.y >= ra.y + rulerH) { g.focus = State::F_CLIP; g.graph.fit = g.big.fit = true; }
     }
     if (scrubbing) {
-        if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) { g.time = std::max(0.f, Snap(T(m.x))); g.playing = false; }
+        if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+            float t = std::max(0.f, Snap(T(m.x)));
+            if (Clip* cc = CurClip()) for (auto& ev : cc->events) if (fabsf(X(ev.t) - m.x) < 6) t = ev.t;   // (markers catch it)
+            g.time = t; g.playing = false;
+        }
         else scrubbing = false;
     }
     if (dKey >= 0 && c) {
@@ -2221,15 +2518,15 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
             for (auto& tr : c->tracks) for (auto& kk : tr.keys) { if (n < dOrig.size() && kk.sel) kk.t = std::max(0.f, Snap(dOrig[n] + dt)); ++n; }
         } else { for (auto& tr : c->tracks) SortKeys(tr); dKey = -1; }
     }
-    if (hov && c && (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_X)) && !io.WantTextInput)
+    if (hov && c && ImGui::IsKeyPressed(ImGuiKey_X) && !io.WantTextInput && !io.KeyCtrl && !g.screen)
         for (auto& tr : c->tracks) tr.keys.erase(std::remove_if(tr.keys.begin(), tr.keys.end(), [](const Key& k) { return k.sel; }), tr.keys.end());
-    if (hov && c && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && m.x >= ra.x) {   // a key under it: picked first (as a click)
+    if (hov && c && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && m.x >= ra.x && !g.screen && !evTook && m.y >= ra.y + rulerH) {   // a key under it: picked first (as a click)
         if (hitKey >= 0 && !c->tracks[hitRow].keys[hitKey].sel) { for (auto& tr : c->tracks) for (auto& kk : tr.keys) kk.sel = false; c->tracks[hitRow].keys[hitKey].sel = true; }
         ImGui::OpenPopup("##tlkeys");
     }
     if (ImGui::BeginPopup("##tlkeys")) { KeyClipItems(); ImGui::EndPopup(); }
-    if (hov && m.x >= ra.x) ImGui::SetTooltip("Click / drag: move the playhead. Drag keys (Shift: pick several), Delete removes. Wheel: zoom, middle drag: pan.\nRight-click / Ctrl + C, X, V: copy, cut, paste keys at the playhead; Ctrl + A picks all shown.");
-    if (hov && m.x < ra.x) ImGui::SetTooltip("Click a track: graph it (the top row: the whole clip). Wheel: scroll the rows.");
+    if (hov && m.x >= ra.x && !g.screen && !evTook && !ImGui::IsPopupOpen("##evedit")) ImGui::SetTooltip("Click / drag: move the playhead. Drag keys (Shift: pick several), Delete removes. Wheel: zoom, middle drag: pan.\nRight-click / Ctrl + C, X, V: copy, cut, paste keys at the playhead; Ctrl + A picks all shown.\nRight-click the ruler: add an event or a marker (M: a marker at the playhead).");
+    if (hov && m.x < ra.x && !g.screen) ImGui::SetTooltip("Click a track: graph it (the top row: the whole clip). Wheel: scroll the rows.");
     // ---- expanded: the big graph under the rows
     if (g.expanded) {
         ImGui::Spacing();
@@ -2246,10 +2543,10 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
 
 // auto key: the focused element changed on screen, keyed at the playhead - drag: Move X / Y; Ctrl / Shift / Alt + wheel
 // over it: Scale / Rotation / Alpha
-static void AutoKey() {
+static void AutoKey() {   // (dragging: the canvas's handle box, uied_anim_tools.inc)
     ImGuiIO& io = ImGui::GetIO();
     Clip* c = CurClip(); const int fi = FocusedIndex();
-    if (!c || fi < 0) { g.dragOn = false; return; }
+    if (!c || fi < 0) return;
     Elem& e = Elems()[fi];
     const float k = Unit(), t = Snap(g.time);
     auto over = [&]() {   // the mouse over it as it's posed now
@@ -2260,18 +2557,7 @@ static void AutoKey() {
         return fabsf(io.MousePos.x - m.x) <= hw && fabsf(io.MousePos.y - m.y) <= hh;
     };
     auto key = [&](int prop, float v) { SetKey(c->tracks[prop], t, v); c->on = true; g.focus = State::F_TRACK; g.track = prop; };
-    if (!g.dragOn && ImGui::IsMouseClicked(0) && !io.WantCaptureMouse && over()) {
-        g.dragOn = true; g.dragFrom = io.MousePos;
-        g.dragX0 = Value(c->tracks[P_X], t); g.dragY0 = Value(c->tracks[P_Y], t);
-    }
-    if (g.dragOn) {
-        if (!ImGui::IsMouseDown(0)) g.dragOn = false;
-        else {
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
-            const float dx = (io.MousePos.x - g.dragFrom.x) / k, dy = (io.MousePos.y - g.dragFrom.y) / k;
-            key(P_X, g.dragX0 + roundf(dx * 10) / 10); key(P_Y, g.dragY0 + roundf(dy * 10) / 10);
-        }
-    }
+    (void)k;
     if (io.MouseWheel != 0 && !io.WantCaptureMouse && (io.KeyCtrl || io.KeyShift || io.KeyAlt) && over()) {
         const float w = io.MouseWheel;
         if (io.KeyCtrl) { const float f = powf(1.05f, w); key(P_SX, Value(c->tracks[P_SX], t) * f); key(P_SY, Value(c->tracks[P_SY], t) * f); }
@@ -2286,7 +2572,9 @@ static void Frame() {
         if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) { if (io.KeyShift) Redo(); else Undo(); }
         if (ImGui::IsKeyPressed(ImGuiKey_Y, false)) Redo();
     }
-    if (g.autoKey && !g.live) AutoKey(); else g.dragOn = false;
+    if (g.autoKey && !g.live) AutoKey();
+    ApplyAllHandles();   // (auto / vector handles follow their keys)
+    TestTick();
     // playback
     {   // a change to the focused element's clips: the layout has unsaved changes
         static std::string lastKey, lastText;
@@ -2296,9 +2584,12 @@ static void Frame() {
         lastKey = fi >= 0 ? g.elemKey : std::string(); lastText.swap(text);
     }
     if (g.playing && !g.live) {
-        const float len = PreviewLen();
+        const float len = PreviewLen(), was = g.time;
         g.time += io.DeltaTime * 1000.f;
-        if (g.time > len) { if (g.loop) g.time = fmodf(g.time, std::max(1.f, len)); else { g.time = len; g.playing = false; } }
+        if (g.time > len) {
+            PreviewEvents(was, len);
+            if (g.loop) { g.time = fmodf(g.time, std::max(1.f, len)); PreviewEvents(-1, g.time); } else { g.time = len; g.playing = false; }
+        } else PreviewEvents(was, g.time);
     }
     if (ImGui::IsKeyPressed(ImGuiKey_Space, false) && !io.WantTextInput && ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) g.playing = !g.playing;
     if (ImGui::IsKeyPressed(ImGuiKey_H, false) && !io.WantTextInput && ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) g.bare = !g.bare;
@@ -2318,6 +2609,8 @@ static void Frame() {
         if (ImGui::IsKeyPressed(ImGuiKey_L, false)) g.simLocked = !g.simLocked;
         if (ImGui::IsKeyPressed(ImGuiKey_V, false)) ++g.simValue;
     }
+    else Shortcuts();   // (Live's keys above: Esc leaves it)
+    if (g.live && !io.WantTextInput && ImGui::IsKeyPressed(ImGuiKey_Escape, false)) { g.live = false; SimRestart(); }
     if (g.focus == State::F_NONE && FocusedIndex() < 0 && g_sel >= 0 && g_sel < (int)Elems().size()) {   // start on the editor's pick
         g.elemKey = KeyOf(g_editMode, Elems()[g_sel]); g.focus = State::F_ELEMENT;
     }
@@ -2476,6 +2769,14 @@ void AnimUndoTest() {   // (tests) undo, then redo: the focused element's key co
     }
 }
 void AnimLive(bool live) { if (anim::g.live != live) { anim::g.live = live; anim::SimRestart(); } }
+bool AnimTakesInput() { return anim::g.on && !anim::g.gameInput; }
+void AnimTestScript(const std::string& steps) {   // (tests) "step|step|...": a step every few frames, results to anim_test.txt
+    if (FILE* f = anim::TestOut(true)) fclose(f);
+    anim::g_test.clear(); anim::g_testWait = 0;
+    size_t p = 0;
+    while (p <= steps.size()) { size_t q = steps.find('|', p); if (q == std::string::npos) q = steps.size(); if (q > p) anim::g_test.push_back(steps.substr(p, q - p)); p = q + 1; }
+    anim::TestLog("script: %d steps", (int)anim::g_test.size());
+}
 void AnimPlayhead(float ms, bool play) { anim::g.time = std::max(0.f, ms); anim::g.playing = play; anim::g.loop = true; }
 void AnimFocus(int index) {
     if (index < 0 || index >= (int)Elems().size()) return;

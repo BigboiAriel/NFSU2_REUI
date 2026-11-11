@@ -57,6 +57,7 @@ void StartAnimMode(bool focusFirst, float ms = 0, bool play = false, bool bare =
 void SetAnimSpeed(float speed);   // live animation clips at this speed (slow motion to check them; 1 normally)
 void AnimKeysTest(float at);      // (tests) copy the focused element's shown keys, paste at `at` ms
 void AnimUndoTest();              // (tests) undo, then redo: key counts to <REUI>\anim_test.txt
+void AnimTestScript(const std::string& steps);   // (tests) animation mode's test script: "step|step|...", to <REUI>\anim_test.txt
 void AnimCopyMotionTest(const std::string& spec);   // (tests) "<element>.<movie clip>.<clip>": copy motion
 void FromGameTest(const std::string& spec);         // (tests) "<movie>.<clip>.<motion clip | none>": the editor's From the game, Add all
 void SetAnimLive(bool live);      // animation mode: the layout played live with stand-in menu values (tests)

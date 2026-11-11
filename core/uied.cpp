@@ -1095,6 +1095,11 @@ static bool ShownNow(const Elem& e);   // its show-only-while now (animation mod
 // frame (the copy is made afresh each frame); not drawn last frame: from the start (In plays again)
 static void CopyLoad(const Elem& src, int tile, Elem& e);
 static void CopySave(const Elem& src, int tile, const Elem& e);
+// animation mode's canvas: where each element of the layout was drawn this frame (its posed box before turning, turned
+// `rot` degrees about `piv`) - for picking it on screen and its handle box
+static void NoteDrawn(const Elem& e, ImVec2 a, ImVec2 b, float rot, ImVec2 piv);
+static bool Ghosting();                  // onion skin: a ghost of it being drawn (its pose at another time; no effects)
+static void GhostTint(ImU32& col, Elem& e);   // ... tinted and faded
 }
 // ---- group motion: a "motion" element's clips (In, triggers, Out...) move every element of its group (and the groups in
 // it) about its point - scale, turn and move with it, fade and tint - after the element's own clips; inner groups first
@@ -1121,7 +1126,7 @@ static int MotionPoses(Elem& e, bool editing, MotionPose* out, int max) {
     int n = 0;
     for (Elem* c : cs) {
         if (n >= max) break;
-        Cached& k = cache[c];
+        Cached ghost; Cached& k = anim::Ghosting() ? ghost : cache[c];   // (an onion skin ghost: its own time, not kept)
         if (k.frame != frame || g_tileCtx.on) { k.frame = frame; k.p = anim::Pose(); k.posed = anim::PoseOf(*c, false, k.p); }   // (tiles: their own copies)
         if (!k.posed) continue;
         ImVec2 a, b; ElemRect(*c, a, b);
@@ -1337,6 +1342,12 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             for (int j = 0; j < 3; ++j) { e.fillCol[j] = std::min(1.f, e.fillCol[j] * gp.mul[j]); pose.add[j] += gp.add[j]; }
             e.fillCol[3] *= std::min(1.f, gp.a);
         }
+    }
+    if (anim::Ghosting()) anim::GhostTint(col, e);
+    else if (!editing) {   // (animation mode: where it is now, for picking it on screen)
+        const float k = Unit();
+        const bool turns = e.type == E_IMAGE || e.type == E_SHAPE;
+        anim::NoteDrawn(e, a, b, turns ? e.rot : 0.f, turns ? ImVec2((a.x + b.x) / 2 + e.pivX * k, (a.y + b.y) / 2 + e.pivY * k) : ImVec2((a.x + b.x) / 2, (a.y + b.y) / 2));
     }
     const bool poseAdd = (posed || grouped) && e.type == E_IMAGE && pose.add[0] + pose.add[1] + pose.add[2] > 0.004f;
     GameObject go; bool following = false;
@@ -2379,7 +2390,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "bounce") sscanf(v.c_str(), "%f %f %f %f", &e.bounceScale, &e.bounceMs, &e.bounceGlow, &e.bounceAlpha);
     else if (k == "keys") e.keys = v;
     else if (k == "aclip" || k == "akey" || k == "afocus" || k == "apress" || k == "ablend" || k == "adelay" || k == "astagger"
-             || k == "alocked" || k == "avalue" || k == "await" || k == "afx") anim::AnimKey(e, k, v);
+             || k == "alocked" || k == "avalue" || k == "await" || k == "afx" || k == "aevent" || k == "amark" || k == "aflow") anim::AnimKey(e, k, v);
     else if (k == "playon") e.playOn = v;
     else if (k == "flags") { e.flags.clear(); size_t p = 0; while (p <= v.size()) { size_t q = v.find(',', p); if (q == std::string::npos) q = v.size(); if (q > p) e.flags.push_back(v.substr(p, q - p)); p = q + 1; } }
 }
@@ -2928,7 +2939,9 @@ void DrawOverlay(int mode) {
         auto& lay = g_layout[editing || testMode ? g_editMode : mode];
         if (MenuWs()) GridFollow();
         g_drawList = &lay;
+        if (am) anim::Ghosts(dl);   // (onion skin: under the layout)
         for (int i : DrawOrder(lay)) if (!(MenuWs() && GridPieceOff(lay[i]))) DrawElem(dl, lay[i], editing);
+        if (am) anim::Canvas(dl);   // (picking on screen, the handle box, the motion path: over it, under the panels)
         // a custom menu being edited: the shared pieces it shows, as they will be over it (edited where they live)
         if (MenuWs() && !g_menuEd.empty()) if (Page* pg = PageOf(g_menuEd)) { g_titlePage = pg; DrawShared(dl, *pg, g_menuEd); g_titlePage = nullptr; }
         if ((editing || panel) && MenuWs())   // grids: the other cells faded, with sample items (the pieces are the first cell)

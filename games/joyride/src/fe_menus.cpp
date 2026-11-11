@@ -95,6 +95,7 @@ void Enter(const std::string& key) {   // (locked)
 void SetMenusEnabled(bool on) { g_enabled = on; }
 
 bool FeMenuInput(const std::string& screenPath, const std::string& code, int controller) {
+    if (uied::AnimTakesInput()) return true;   // animating: the menus underneath stay put (View > Game gets the keys)
     if (g_enabled && g_pageOn && !g_popup) {   // a REUI page stands in for the screen: its presses are the page's
         const std::string key = ScreenKey(screenPath);
         std::lock_guard<std::mutex> l(g_mu);
