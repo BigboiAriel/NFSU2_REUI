@@ -1274,7 +1274,19 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (editing && s.empty()) s = e.text;   // show the template where there's no value yet
         if (e.fontIdx >= 0 && e.wrap && e.w > 0 && e.scale > 0) s = WrapText(g_fonts[e.fontIdx], s, e.w / e.scale);
         if (e.fontIdx >= 0 && e.swapAnim && !editing && SwapText(dl, e, a, b, col, s)) return;
-        if (e.fontIdx >= 0) DrawText(dl, g_fonts[e.fontIdx], a, e.scale * Unit(), col, s, e.align, b.x - a.x);
+        if (e.fontIdx >= 0) {
+            const int v0 = dl->VtxBuffer.Size;
+            DrawText(dl, g_fonts[e.fontIdx], a, e.scale * Unit(), col, s, e.align, b.x - a.x);
+            if (e.rot != 0) {   // turned (as the game's tilted menus): its glyphs' corners about its box's centre (+ pivot)
+                const float r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r), ku = Unit();
+                const ImVec2 pv((a.x + b.x) / 2 + e.pivX * ku, (a.y + b.y) / 2 + e.pivY * ku);
+                for (int i = v0; i < dl->VtxBuffer.Size; ++i) {
+                    ImVec2& q = dl->VtxBuffer[i].pos;
+                    const float x = q.x - pv.x, y = q.y - pv.y;
+                    q = ImVec2(pv.x + x * cs - y * sn, pv.y + x * sn + y * cs);
+                }
+            }
+        }
     }
 }
 
@@ -1900,6 +1912,8 @@ static void PutElemS(std::string& o, int m, const Elem& e) {   // one element as
     if (e.type == E_IMAGE) {
         Pf(o, "texture=%s\npack=%s\nuv=%g %g %g %g\n", e.tex.c_str(), e.pack.c_str(), e.u0, e.v0, e.u1, e.v1);
         if (e.rot != 0) Pf(o, "rot=%g\n", e.rot);
+    } else if (e.type == E_TEXT && e.rot != 0) {
+        Pf(o, "rot=%g\n", e.rot);
     } else if (e.type == E_SHAPE) {
         Pf(o, "shape=%g %g %g %g %g\nfill=%g %g %g %g\n", e.rad[0], e.rad[1], e.rad[2], e.rad[3], e.stroke, e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3]);
         if (e.rot != 0) Pf(o, "rot=%g\n", e.rot);
@@ -3086,6 +3100,7 @@ static void Selected(Elem& e) {
         ImGui::SetNextItemWidth(160); if (ImGui::DragFloat("scale", &e.scale, 0.01f, 0.1f, 8.f, "%.2f")) g_dirty = true;
         ImGui::SameLine(); const char* al[] = { "left", "centre", "right" };
         ImGui::SetNextItemWidth(100); if (ImGui::Combo("align", &e.align, al, 3)) g_dirty = true;
+        ImGui::SameLine(); ImGui::SetNextItemWidth(110); if (ImGui::DragFloat("rotation", &e.rot, 0.25f, -360.f, 360.f, "%.1f deg")) g_dirty = true;
         ImGui::SetNextItemWidth(160); if (ImGui::DragFloat("box width (for centre/right)", &e.w, 0.5f, 0.f, 2000.f, "%.0f")) g_dirty = true;
         ImGui::SameLine(); if (ImGui::Checkbox("wrap", &e.wrap)) g_dirty = true;
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Break the text into lines to fit the box width (a long message from the game).");
