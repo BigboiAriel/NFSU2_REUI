@@ -24,7 +24,21 @@ namespace uied {
     void AnimSpeed(float speed);             // live clips play at this speed (slow motion to check them; 1 normally)
     void AnimLive(bool live);                // animation mode plays the layout live (triggers, stand-in menu values)
     void AnimKeysTest(float at);             // (tests) the focused element's shown keys copied and pasted at `at` ms
+    void AnimCopyMotionTest(const std::string& spec);   // (tests) "<element>.<movie clip>.<clip name>": copy motion as the page does
     bool ShowIfUsed(const char* prefix);     // an element of any layout shows by a token starting so ("menu.sel:")
+    // Copy motion from the game (animation mode): the host's movies (Flash), their clips (a label's frames) and the
+    // motion of each piece in a clip, frame by frame. The editor fits eased keys to a piece's motion.
+    struct MotionFrame { bool on = false; float x = 0, y = 0, sx = 1, sy = 1, rot = 0, a = 1, add[3] = { 0, 0, 0 }; };   // (world: movie pixels, degrees clockwise)
+    struct MotionClipInfo { std::string name; int first = 1, last = 1; };   // (frames, from 1)
+    struct MotionPiece { std::string name, image; std::vector<MotionFrame> frames; };   // image: its picture's name (lower case), or ""
+    struct MotionSource {
+        std::function<std::vector<std::string>()> movies;   // e.g. "screens/jra_menus/hangoutmainmenu" (empty: none yet)
+        // a movie's clips; fps: its frame rate; pxPerUnit: its pixels per editor unit (stage height / 480)
+        std::function<bool(const std::string& movie, std::vector<MotionClipInfo>& clips, float& fps, float& pxPerUnit, std::string& err)> clips;
+        // clip (an index into clips) played: every piece seen, with its frames (first .. last)
+        std::function<bool(const std::string& movie, int clip, std::vector<MotionPiece>& pieces, std::string& err)> sample;
+    };
+    extern MotionSource motionSource;
     bool Unsaved();                          // editor changes not saved yet
     // Game modes, each with its own overlay layout: the game connection's list, set before Init (NFSU2's by default:
     // the Mode numbering below). key: how layout files name it (an unknown key loads into mode 0); name: shown.

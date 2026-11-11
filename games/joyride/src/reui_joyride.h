@@ -51,6 +51,7 @@ void StartAnimMode(bool focusFirst, float ms = 0, bool play = false, bool bare =
     // focusFirst: its first element; the playhead at ms, playing; bare: only the timeline (tests)
 void SetAnimSpeed(float speed);   // live animation clips at this speed (slow motion to check them; 1 normally)
 void AnimKeysTest(float at);      // (tests) copy the focused element's shown keys, paste at `at` ms
+void AnimCopyMotionTest(const std::string& spec);   // (tests) "<element>.<movie clip>.<clip>": copy motion
 void SetAnimLive(bool live);      // animation mode: the layout played live with stand-in menu values (tests)
 bool FeDebugOpen();
 void SetFeDebugOpen(bool open);

@@ -5,6 +5,7 @@
 
 #include "assets_joyride.h"
 #include "fe_debug.h"
+#include "flash_motion.h"
 #include "log.h"
 #include "rex_overlay.h"
 #include "uied.h"
@@ -111,6 +112,7 @@ bool Create(rex::ui::Window* window, rex::ui::Presenter* presenter, rex::ui::Gra
     ImGuiContext* prev = ImGui::GetCurrentContext();
     ImGui::SetCurrentContext(reui_rex::OverlayContext(g_overlay.get()));
     assets_joyride::Install(data, gameData.empty() ? std::filesystem::path() : gameData / "data.bpk");
+    flash_motion::Install(data + "cache\\movies\\");   // (the picture cache keeps the movies there)
     uied::Init(data, data + "layout.txt", [](const char* line) { REXLOG_INFO("REUI: {}", line); });
     ImGui::SetCurrentContext(prev);
     REXLOG_INFO("REUI: ready ({}) - F6 opens the editor, F7 the menus / Flash commands page, F8 animation mode", data);
@@ -138,6 +140,7 @@ void SetEditorOpen(bool open) { g_open = open; }
 void SetAnimSpeed(float speed) { uied::AnimSpeed(speed); }
 void SetAnimLive(bool live) { uied::AnimLive(live); }
 void AnimKeysTest(float at) { uied::AnimKeysTest(at); }
+void AnimCopyMotionTest(const std::string& spec) { uied::AnimCopyMotionTest(spec); }
 void StartAnimMode(bool focusFirst, float ms, bool play, bool bare) {
     uied::SetAnimMode(true);
     if (focusFirst) uied::AnimFocus(0);

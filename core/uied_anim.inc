@@ -1058,6 +1058,198 @@ static void ElementsList() {   // (the right side of the panels window)
     ImGui::EndChild();
 }
 
+// ---------------------------------------------------------------- copy motion from the game
+// A piece's motion in one of the game's Flash clips (uied::motionSource: frame by frame), made into eased keys on the
+// clip being edited: relative to its rest frame (its place there is the element's own place), fitted per track - split
+// where the best ease is furthest off, then every key the neighbours can do without dropped (tools/fe/fe2reui.py).
+
+static const int kFitEases[] = { EZ_LINEAR, EZ_QOUT, EZ_QIN, EZ_QINOUT, EZ_OUT, EZ_IN, EZ_INOUT, EZ_BACK_OUT, EZ_BACK_IN, EZ_HOLD };
+static float FitEase(int e, float u) { Key k; k.ease = e; return Eased(k, u); }
+struct FitBest { float err; int ease; };
+static FitBest FitSeg(const std::vector<float>& v, int i, int j) {
+    if (j <= i + 1) return { 0.f, EZ_LINEAR };
+    FitBest b{ 1e30f, EZ_LINEAR };
+    for (int e : kFitEases) {
+        float m = 0;
+        for (int k = i; k <= j; ++k) m = std::max(m, fabsf(v[k] - (v[i] + (v[j] - v[i]) * FitEase(e, (float)(k - i) / (j - i)))));
+        if (m < b.err - 1e-9f) b = { m, e };
+    }
+    return b;
+}
+static void FitSplit(const std::vector<float>& v, int i, int j, float tol, std::vector<int>& starts) {
+    const FitBest b = FitSeg(v, i, j);
+    if (b.err <= tol || j - i <= 1) { starts.push_back(i); return; }
+    int worst = i + 1; float wv = -1;   // split at the frame it's furthest off
+    for (int k = i + 1; k < j; ++k) {
+        const float d = fabsf(v[k] - (v[i] + (v[j] - v[i]) * FitEase(b.ease, (float)(k - i) / (j - i))));
+        if (d > wv) { wv = d; worst = k; }
+    }
+    FitSplit(v, i, worst, tol, starts); FitSplit(v, worst, j, tol, starts);
+}
+static std::vector<Key> FitKeys(const std::vector<float>& v, float tol, float msPerFrame) {
+    std::vector<Key> out;
+    const int n = (int)v.size();
+    if (!n) return out;
+    const float lo = *std::min_element(v.begin(), v.end()), hi = *std::max_element(v.begin(), v.end());
+    if (n == 1 || hi - lo <= tol * 0.25f) { Key k; k.t = 0; k.v = v[0]; out.push_back(k); return out; }
+    std::vector<int> idx; FitSplit(v, 0, n - 1, tol, idx); idx.push_back(n - 1);
+    for (bool changed = true; changed && idx.size() > 2;) {   // drop the keys the keys around them can do without
+        changed = false;
+        for (size_t k = 1; k + 1 < idx.size(); ++k)
+            if (FitSeg(v, idx[k - 1], idx[k + 1]).err <= tol) { idx.erase(idx.begin() + k); changed = true; break; }
+    }
+    for (size_t k = 0; k < idx.size(); ++k) {
+        Key key; key.t = idx[k] * msPerFrame; key.v = v[idx[k]];
+        key.ease = k + 1 < idx.size() ? FitSeg(v, idx[k], idx[k + 1]).ease : EZ_LINEAR;
+        out.push_back(key);
+    }
+    return out;
+}
+// the piece's frames as track values (relative to its rest frame), fitted; false if it never shows
+static bool MotionToClip(const MotionPiece& pc, int rest, float ppu, float fps, Clip& c, int& keys, int& tracks) {
+    const int n = (int)pc.frames.size();
+    if (!n) return false;
+    int r = rest < 0 ? 0 : std::min(rest, n - 1);   // (a rest frame it isn't on: the nearest one it's on)
+    if (!pc.frames[r].on) {
+        int best = -1;
+        for (int d = 1; d < n && best < 0; ++d) { if (r + d < n && pc.frames[r + d].on) best = r + d; else if (r - d >= 0 && pc.frames[r - d].on) best = r - d; }
+        if (best < 0) return false;
+        r = best;
+    }
+    const MotionFrame r0 = pc.frames[r];
+    std::vector<MotionFrame> seq(pc.frames);
+    for (auto& f : seq) if (!f.on) { f = r0; f.a = 0; }
+    for (int i = n - 1; i >= 0; --i)   // while it's hidden it doesn't move: the values of the next frame it shows on
+        if (seq[i].a <= 0.004f) { const float a = seq[i].a; seq[i] = i + 1 < n ? seq[i + 1] : r0; seq[i].a = a; }
+    std::vector<float> v[P_NPROP];
+    float rotPrev = 0;
+    for (int i = 0; i < n; ++i) {
+        const MotionFrame& f = seq[i];
+        v[P_X].push_back((f.x - r0.x) / ppu); v[P_Y].push_back((f.y - r0.y) / ppu);
+        v[P_SX].push_back(r0.sx != 0 ? f.sx / r0.sx : f.sx); v[P_SY].push_back(r0.sy != 0 ? f.sy / r0.sy : f.sy);
+        float rot = f.rot - r0.rot;   // (unwrapped: no jumps of 360)
+        if (i) { while (rot - rotPrev > 180) rot -= 360; while (rot - rotPrev < -180) rot += 360; }
+        rotPrev = rot; v[P_ROT].push_back(rot);
+        v[P_ALPHA].push_back(r0.a > 0 ? std::min(1.f, f.a / r0.a) : f.a);
+        v[P_MR].push_back(1); v[P_MG].push_back(1); v[P_MB].push_back(1);
+        v[P_AR].push_back(f.add[0]); v[P_AG].push_back(f.add[1]); v[P_AB].push_back(f.add[2]);
+    }
+    const float tol0[P_NPROP] = { 0.5f, 0.5f, 0.008f, 0.008f, 0.3f, 0.025f, 0.01f, 0.01f, 0.01f, 0.03f, 0.03f, 0.03f };
+    for (auto& tr : c.tracks) tr.keys.clear();
+    keys = tracks = 0;
+    const float msPerFrame = 1000.f / std::max(1.f, fps);
+    for (int p = 0; p < P_NPROP; ++p) {
+        if (p == P_MR || p == P_MG || p == P_MB) continue;   // (Flash's colour multiply: not copied)
+        const float lo = *std::min_element(v[p].begin(), v[p].end()), hi = *std::max_element(v[p].begin(), v[p].end());
+        const float tol = std::max(tol0[p], 0.03f * (hi - lo));   // (3% of its own range: a big move needn't follow every pixel)
+        std::vector<Key> ks = FitKeys(v[p], tol, msPerFrame);
+        if (ks.size() == 1 && fabsf(ks[0].v - kProp[p].def) < tol * 0.25f) continue;   // (it stays as it is)
+        c.tracks[p].keys = ks; keys += (int)ks.size(); ++tracks;
+    }
+    c.length = std::max(33.f, (n - 1) * msPerFrame);
+    c.on = true;
+    return true;
+}
+
+static struct CopyMotionUi {
+    std::vector<std::string> movies; bool listed = false;
+    std::string movie, forElem;
+    char filter[64] = "";
+    std::vector<MotionClipInfo> clips; float fps = 30, ppu = 1.5f; std::string clipsFor;
+    int clip = -1; std::vector<MotionPiece> pieces; std::string piecesFor;
+    int piece = -1, rest = 0;   // rest: 0 auto (In: its last frame, the others: its first), 1 first, 2 last
+    std::string err;
+} g_cm;
+static std::string LowerS(std::string s) { for (auto& c : s) c = (char)tolower((unsigned char)c); return s; }
+static void CopyMotionSection(Elem& e, Clip* cur) {
+    if (!ImGui::CollapsingHeader("Copy motion from the game")) return;
+    MotionSource& ms = motionSource;
+    if (!ms.movies || !ms.clips || !ms.sample) { ImGui::TextDisabled("This game doesn't give its movies to the editor."); return; }
+    CopyMotionUi& u = g_cm;
+    if (!u.listed) { u.movies = ms.movies(); u.listed = true; }
+    if (u.movies.empty()) {
+        ImGui::TextDisabled("No movies yet: the picture cache keeps them (it's rebuilt once after an update - restart the game).");
+        if (ImGui::SmallButton("look again##cm")) u.listed = false;
+        return;
+    }
+    const std::string key = KeyOf(g_editMode, e);
+    if (u.forElem != key) {   // another element: its own movie (the one its picture is from), its piece
+        u.forElem = key; u.piecesFor.clear();
+        const std::string pk = LowerS(e.pack);
+        for (auto& m : u.movies) if (LowerS(m) == pk) { if (u.movie != m) { u.movie = m; u.clip = -1; } break; }
+    }
+    // the movie: a filter and the list
+    ImGui::SetNextItemWidth(-60);
+    ImGui::InputTextWithHint("##cmfilter", "filter the movies (e.g. jra_menus, medal)", u.filter, sizeof u.filter);
+    ImGui::SetNextItemWidth(-60);
+    if (ImGui::BeginCombo("movie##cm", u.movie.empty() ? "(pick a movie)" : u.movie.c_str(), ImGuiComboFlags_HeightLarge)) {
+        const std::string f = LowerS(u.filter);
+        int shown = 0;
+        for (auto& m : u.movies) {
+            if (!f.empty() && LowerS(m).find(f) == std::string::npos) continue;
+            if (++shown > 400) { ImGui::TextDisabled("(more: filter them)"); break; }
+            if (ImGui::Selectable(m.c_str(), m == u.movie)) { u.movie = m; u.clip = -1; }
+        }
+        ImGui::EndCombo();
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The game's Flash movies (%d). The one this element's picture is from is picked for you.", (int)u.movies.size());
+    if (u.movie.empty()) return;
+    if (u.clipsFor != u.movie) {
+        u.clipsFor = u.movie; u.clips.clear(); u.err.clear(); u.piecesFor.clear();
+        if (!ms.clips(u.movie, u.clips, u.fps, u.ppu, u.err)) u.clips.clear();
+        if (u.clip >= (int)u.clips.size()) u.clip = -1;
+    }
+    if (!u.err.empty()) { ImGui::TextColored(ImVec4(1, 0.5f, 0.4f, 1), "%s", u.err.c_str()); return; }
+    if (u.clips.empty()) { ImGui::TextDisabled("It has no clips (no labels or frames to play)."); return; }
+    ImGui::SetNextItemWidth(-60);
+    if (ImGui::BeginCombo("clip##cm", u.clip >= 0 ? u.clips[u.clip].name.c_str() : "(pick a clip)", ImGuiComboFlags_HeightLarge)) {
+        for (int i = 0; i < (int)u.clips.size(); ++i)
+            if (ImGui::Selectable((u.clips[i].name + "##c" + std::to_string(i)).c_str(), i == u.clip)) { u.clip = i; u.piecesFor.clear(); }
+        ImGui::EndCombo();
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A label of the movie (or of a sprite in it) up to the next one: the frames it plays (%g fps).", u.fps);
+    if (u.clip < 0) return;
+    const std::string pf = u.movie + "#" + std::to_string(u.clip);
+    if (u.piecesFor != pf) {   // the clip played: its pieces
+        u.piecesFor = pf; u.pieces.clear(); u.piece = -1;
+        if (!ms.sample(u.movie, u.clip, u.pieces, u.err)) u.pieces.clear();
+        const std::string tex = LowerS(e.tex);   // (the piece with this element's picture, if it's there)
+        for (int i = 0; i < (int)u.pieces.size() && u.piece < 0; ++i) if (!tex.empty() && u.pieces[i].image == tex) u.piece = i;
+        if (u.piece < 0 && !u.pieces.empty()) u.piece = 0;
+    }
+    if (!u.err.empty()) { ImGui::TextColored(ImVec4(1, 0.5f, 0.4f, 1), "%s", u.err.c_str()); return; }
+    if (u.pieces.empty()) { ImGui::TextDisabled("Nothing shows in that clip."); return; }
+    ImGui::SetNextItemWidth(-60);
+    if (ImGui::BeginCombo("piece##cm", u.pieces[u.piece].name.c_str(), ImGuiComboFlags_HeightLarge)) {
+        for (int i = 0; i < (int)u.pieces.size(); ++i) {
+            int on = 0; for (auto& f : u.pieces[i].frames) on += f.on;
+            const std::string lb = u.pieces[i].name + (on < (int)u.pieces[i].frames.size() ? "  (on " + std::to_string(on) + " frames)" : "") + "##p" + std::to_string(i);
+            if (ImGui::Selectable(lb.c_str(), i == u.piece)) u.piece = i;
+        }
+        ImGui::EndCombo();
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("What moves: a picture (by its name - the one this element shows is picked for you), a text field or a shape,\n[its place in the clip: instance names or depths].");
+    const char* rests[] = { "auto (In: its last frame, the others: its first)", "its first frame", "its last frame" };
+    ImGui::SetNextItemWidth(-60); ImGui::Combo("rest##cm", &u.rest, rests, 3);
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The frame where it's where the element is now: the keys are moves, scales and turns from there.\nAn In ends at rest; an Out, a Focus or a Press starts at rest.");
+    const MotionClipInfo& ci = u.clips[u.clip];
+    const int n = ci.last - ci.first + 1;
+    ImGui::TextDisabled("%d frames, %.0f ms", n, (n - 1) * 1000.f / u.fps);
+    if (!cur) return;
+    const bool has = Keys(*cur) > 0;
+    const std::string bl = (has ? "Replace the " : "Copy into the ") + cur->name + " clip";
+    if (ImGui::Button(bl.c_str())) {
+        const int rest = u.rest == 1 ? 0 : u.rest == 2 ? n - 1 : (cur->name == "In" ? n - 1 : 0);
+        int keys = 0, tracks = 0;
+        if (MotionToClip(u.pieces[u.piece], rest, u.ppu, u.fps, *cur, keys, tracks)) {
+            g.graph.fit = g.big.fit = true; g.focus = State::F_CLIP; g.tl1 = cur->length * 1.08f; g.tl0 = -cur->length * 0.08f;
+            Note("Copied " + std::to_string(keys) + " keys on " + std::to_string(tracks) + " tracks from " + GroupLeaf(u.movie) + ", " + ci.name.substr(0, ci.name.find("  (")) + ".");
+        } else Note("That piece never shows in the clip.");
+    }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The piece's motion over the clip as eased keys (move, scale, turn, alpha, colour +) on this element's\n%s clip%s.", cur->name.c_str(), has ? " - its keys are replaced" : "");
+    if (ImGui::GetTime() - g_noteAt < 4.0) ImGui::TextColored(ImVec4(0.55f, 0.85f, 1.f, 1.f), "%s", g_note.c_str());
+}
+
 // ---------------------------------------------------------------- animation page (left of the list)
 
 static void AnimPage() {   // (the left side of the panels window)
@@ -1232,14 +1424,7 @@ static void AnimPage() {   // (the left side of the panels window)
         ImGui::Checkbox("Count numbers up (text)", &p.countUp); FocusPlanned("Count up"); PlannedTag();
         ImGui::SetNextItemWidth(110); ImGui::DragFloat("over", &p.countMs, 5, 0, 5000, "%.0f ms"); FocusPlanned("Count up");
     }
-    if (ImGui::CollapsingHeader("Copy motion from the game (planned)")) {
-        const char* mv[] = { "(pick a movie)", "screens/jra_menus/hangoutmainmenu", "screens/jra_ingame/ingamepausemenu", "screens/online/pregamelobby" };
-        const char* cl[] = { "(pick a clip)", "in", "idle", "out", "onRollOver", "onRollOut", "onPress" };
-        ImGui::SetNextItemWidth(260); ImGui::Combo("movie", &p.flashMovie, mv, 4); FocusPlanned("Copy motion");
-        ImGui::SetNextItemWidth(160); ImGui::Combo("its clip", &p.flashClip, cl, 7); FocusPlanned("Copy motion");
-        ImGui::BeginDisabled(); ImGui::Button("Copy into this clip"); ImGui::EndDisabled(); PlannedTag();
-        ImGui::TextDisabled("Reads the Flash clip's frames, makes keys with fitted easing.");
-    }
+    CopyMotionSection(e, cur);
 }
 
 // ---------------------------------------------------------------- the panels window: the animation page | the element
@@ -1625,6 +1810,31 @@ void SetAnimMode(bool on) {
 }
 void AnimBare(bool bare) { anim::g.bare = bare; }
 void AnimSpeed(float speed) { anim::g_speed = std::max(0.01f, std::min(10.f, speed)); }
+void AnimCopyMotionTest(const std::string& spec) {   // (tests) "<element>.<movie clip>.<clip name>": as the page's button
+    int ei = -1, mc = -1; char cn[64] = "";
+    if (sscanf(spec.c_str(), "%d.%d.%63s", &ei, &mc, cn) != 3 || ei < 0 || ei >= (int)Elems().size()) { Log("anim test: bad copy-motion spec %s", spec.c_str()); return; }
+    AnimFocus(ei);
+    anim::ElemAnim* a = anim::Focused();
+    if (!a || !motionSource.movies) return;
+    for (int i = 0; i < (int)a->clips.size(); ++i) if (a->clips[i].name == cn) anim::g.clip = i;
+    anim::Clip* c = anim::CurClip();
+    Elem& e = Elems()[ei];
+    std::string movie, err;
+    for (auto& m : motionSource.movies()) if (anim::LowerS(m) == anim::LowerS(e.pack)) movie = m;
+    std::vector<MotionClipInfo> clips; float fps = 30, ppu = 1.5f;
+    std::vector<MotionPiece> ps;
+    if (movie.empty() || !motionSource.clips(movie, clips, fps, ppu, err) || mc >= (int)clips.size() || !motionSource.sample(movie, mc, ps, err) || ps.empty()) {
+        Log("anim test: copy motion: no movie / clip for %s (%s) %s", e.name.c_str(), e.pack.c_str(), err.c_str()); return;
+    }
+    int pi = 0; for (int i = 0; i < (int)ps.size(); ++i) if (ps[i].image == anim::LowerS(e.tex)) { pi = i; break; }
+    const int n = clips[mc].last - clips[mc].first + 1;
+    int keys = 0, tracks = 0;
+    const bool ok = anim::MotionToClip(ps[pi], c->name == "In" ? n - 1 : 0, ppu, fps, *c, keys, tracks);
+    Log("anim test: copy motion %s / %s / %s -> %s %s: %s, %d keys on %d tracks", movie.c_str(), clips[mc].name.c_str(), ps[pi].name.c_str(),
+        e.name.c_str(), c->name.c_str(), ok ? "ok" : "never shows", keys, tracks);
+    for (auto& tr : c->tracks) for (auto& k : tr.keys) Log("anim test:   %s %g ms %g (%s)", anim::kPropKey[tr.prop], k.t, k.v, anim::kEaseKey[k.ease]);
+    anim::g.graph.fit = anim::g.big.fit = true; anim::g.focus = anim::State::F_CLIP;
+}
 void AnimKeysTest(float at) {   // (tests: the focused element's shown keys copied, pasted at `at` ms)
     anim::PickAllShown(); anim::CopyKeys(false); anim::g.time = at; anim::PasteKeys();
 }

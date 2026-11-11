@@ -24,7 +24,8 @@ std::atomic<bool> g_stop{false};
 
 // ---------------------------------------------------------------- the menus' pictures
 
-constexpr int kCacheVersion = 2;   // 2: also keeps the menus' font movie (gfxfontlib.gfx: the game's fonts)
+constexpr int kCacheVersion = 3;   // 2: also keeps the menus' font movie (gfxfontlib.gfx: the game's fonts); 3: every menu movie
+                                   // (cache\movies\<movie>.gfx: animation mode's "Copy motion from the game")
 struct Img { uint64_t off; uint32_t size; };
 std::vector<Img> g_img;                   // by Tex::id (written by the scan before uied sees the index)
 std::filesystem::path g_bin;
@@ -126,6 +127,16 @@ bool BuildCache(const std::filesystem::path& bin, const std::filesystem::path& i
                     const std::wstring f = (bin.parent_path() / L"gfxfontlib.gfx").wstring();
                     if (FILE* o = _wfopen(f.c_str(), L"wb")) { fwrite(pack.data() + e.off, 1, (size_t)e.size, o); fclose(o); }
                 }
+        {   // the movie itself (its first .gfx), for copying its motion: cache\movies\<movie>.gfx (lower case)
+            int kept = 0;
+            for (auto& e : files) {
+                if (Lower(e.ext).compare(0, 3, "gfx") != 0 || e.off + e.size > pack.size() || kept++) continue;
+                std::error_code ec;
+                const std::filesystem::path f = bin.parent_path() / L"movies" / std::filesystem::path(Lower(movie) + ".gfx");
+                std::filesystem::create_directories(f.parent_path(), ec);
+                if (FILE* o = _wfopen(f.wstring().c_str(), L"wb")) { fwrite(pack.data() + e.off, 1, (size_t)e.size, o); fclose(o); }
+            }
+        }
         for (auto& e : files) {
             if (Lower(e.ext).compare(0, 3, "dds") != 0) continue;
             if (e.off + e.size > pack.size() || e.size < 128) { ++badImages; continue; }

@@ -35,6 +35,7 @@ namespace assets { Source source; }   // (set by the game before uied::Init)
 
 namespace uied {
 std::function<bool(const std::string&, std::string&)> tokens;
+MotionSource motionSource;
 int boardRows = 4; bool boardFollow = true; bool testMode = false; bool menuMode = false;
 std::function<gfx::Tex(const std::string&, float*, float*)> liveTexture;
 std::function<bool(gfx::Tex)> textureAlphaOk;
