@@ -17,8 +17,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <cstdarg>
-#include <cstdio>
 #include <cstring>
 #include <cstdint>
 #include <deque>
@@ -27,14 +25,22 @@
 
 namespace reui_rex {
 
-// (temporary: input diagnostics - reui_input_debug.txt next to the game, when reui_input_debug.on is there)
-static void InputDebug(const char* fmt, ...) {
-    static FILE* f = nullptr; static bool tried = false;
-    if (!tried) { tried = true; if (FILE* t = fopen("reui_input_debug.on", "rb")) { fclose(t); f = fopen("reui_input_debug.txt", "w"); } }
-    if (!f) return;
-    va_list ap; va_start(ap, fmt); vfprintf(f, fmt, ap); va_end(ap); fputc('\n', f); fflush(f);
-}
 
+// a key press's character (Windows virtual key, US layout), 0: none
+static unsigned CharOf(int vk, bool shift) {
+    if (vk >= 'A' && vk <= 'Z') return shift ? vk : vk - 'A' + 'a';
+    if (vk >= '0' && vk <= '9') return shift ? (unsigned)")!@#$%^&*("[vk - '0'] : vk;
+    if (vk >= 0x60 && vk <= 0x69) return '0' + (vk - 0x60);   // (number pad)
+    switch (vk) {
+    case 0x20: return ' ';
+    case 0x6A: return '*'; case 0x6B: return '+'; case 0x6D: return '-'; case 0x6E: return '.'; case 0x6F: return '/';
+    case 0xBA: return shift ? ':' : ';'; case 0xBB: return shift ? '+' : '='; case 0xBC: return shift ? '<' : ',';
+    case 0xBD: return shift ? '_' : '-'; case 0xBE: return shift ? '>' : '.'; case 0xBF: return shift ? '?' : '/';
+    case 0xC0: return shift ? '~' : '`'; case 0xDB: return shift ? '{' : '['; case 0xDC: return shift ? '|' : '\\';
+    case 0xDD: return shift ? '}' : ']'; case 0xDE: return shift ? '"' : '\'';
+    default: return 0;
+    }
+}
 static ImGuiKey KeyOf(int vk) {
     if (vk >= 'A' && vk <= 'Z') return (ImGuiKey)(ImGuiKey_A + (vk - 'A'));
     if (vk >= '0' && vk <= '9') return (ImGuiKey)(ImGuiKey_0 + (vk - '0'));
@@ -114,8 +120,7 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
         UpdateCursor();
         // typing: the game's window is SDL's, which sends typed characters only while its text input is on (off by
         // default; the SDK's own ImGui turns it on for itself only) - on while one of REUI's text boxes is being typed in
-        if (io.WantTextInput != textOn_ && s_.window) { textOn_ = io.WantTextInput; s_.window->SetTextInputActive(textOn_); InputDebug("text input %d (window says %d)", (int)textOn_, (int)s_.window->IsTextInputActive()); }
-        { static int lastActive = -1; const int act = ImGui::IsAnyItemActive() ? 1 : 0; if (act != lastActive) { lastActive = act; InputDebug("active widget %d, want text %d", act, (int)io.WantTextInput); } }
+        if (io.WantTextInput != textOn_ && s_.window) { textOn_ = io.WantTextInput; s_.window->SetTextInputActive(textOn_); }
         ImDrawData* dd = ImGui::GetDrawData();
         if (dd && dd->Textures) for (ImTextureData* t : *dd->Textures) UpdateTexture(t);
         if (dd && dd->CmdListsCount > 0 && w > 0 && h > 0) Render(dc, dd);
@@ -148,15 +153,16 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
     }
     int cursor_ = -2;
     bool textOn_ = false;   // (the window's text input: on for REUI)
+    bool realChars_ = false;  // the window's character events have reached REUI (else typing comes from key presses)
     SDL_Cursor* cursors_[ImGuiMouseCursor_COUNT] = {};
 
     // input: the window's events, given to REUI's context (and taken from the game while REUI wants them)
     void OnKeyDown(rex::ui::KeyEvent& e) override { Key(e, true); }
     void OnKeyUp(rex::ui::KeyEvent& e) override { Key(e, false); }
     void OnKeyChar(rex::ui::KeyEvent& e) override {
-        InputDebug("char %u wants %d", (unsigned)e.virtual_key(), (int)Wants());
         if (!Wants()) return;
         bool take = true;
+        realChars_ = true;   // (the window does send characters: no more made from key presses)
         With([&](ImGuiIO& io) { io.AddInputCharacter((unsigned)e.virtual_key()); take = Takes(io); });
         if (take) e.set_handled(true);
     }
@@ -179,7 +185,6 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
     bool Takes(const ImGuiIO& io) const { return !(s_.shareKeys && s_.shareKeys()) || io.WantTextInput; }
     void Key(rex::ui::KeyEvent& e, bool down) {
         int vk = (int)e.virtual_key();
-        InputDebug("key %d %s wants %d", vk, down ? "down" : "up", (int)Wants());
         if (down && s_.keyDown && s_.keyDown(vk)) { e.set_handled(true); return; }
         if (!Wants()) return;
         bool take = true;
@@ -189,6 +194,10 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
             io.AddKeyEvent(ImGuiMod_Alt, e.is_alt_pressed());
             ImGuiKey k = KeyOf(vk);
             if (k != ImGuiKey_None) io.AddKeyEvent(k, down);
+            // typing: the window's character events don't reach REUI (the SDK's own ImGui has them), so a REUI text box
+            // being typed in gets its characters from the key presses (US layout; Ctrl / Alt shortcuts aren't text)
+            if (down && io.WantTextInput && !realChars_ && !e.is_ctrl_pressed() && !e.is_alt_pressed())
+                if (unsigned c = CharOf(vk, e.is_shift_pressed())) io.AddInputCharacter(c);
             take = Takes(io);
         });
         if (take) e.set_handled(true);
