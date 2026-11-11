@@ -179,10 +179,11 @@ void FeMenusInit(const std::string& dataDir) {
         RunCommand(a.substr(3), tile);
         return true;
     };
-    uied::menuSound = [](int s) {   // the page's moves: the game's own menu sound (its movies' Audio.MENU_UP / MENU_DOWN)
+    uied::menuSound = [](int s) {   // the page's moves: the game's own sounds (its row lists play UI_Up / UI_Down)
         if (!g_pageOn) return;
-        if (s == uied::SND_UP || s == uied::SND_DOWN || s == uied::SND_LEFT || s == uied::SND_RIGHT)
-            FeSend(0, "Audio:playSound", { "\"UI_UpDown\"" });
+        const char* n = s == uied::SND_UP ? "UI_Up" : s == uied::SND_DOWN ? "UI_Down"
+                      : (s == uied::SND_LEFT || s == uied::SND_RIGHT) ? "UI_LeftRight" : nullptr;
+        if (n) FeSend(0, "Audio:playSound", { std::string("\"") + n + "\"" });
     };
 }
 
