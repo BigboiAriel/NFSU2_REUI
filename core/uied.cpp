@@ -2374,7 +2374,8 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "anim") e.anim = std::max(0, std::min(4, atoi(v.c_str())));
     else if (k == "bounce") sscanf(v.c_str(), "%f %f %f %f", &e.bounceScale, &e.bounceMs, &e.bounceGlow, &e.bounceAlpha);
     else if (k == "keys") e.keys = v;
-    else if (k == "aclip" || k == "akey" || k == "afocus" || k == "apress" || k == "ablend" || k == "adelay" || k == "astagger") anim::AnimKey(e, k, v);
+    else if (k == "aclip" || k == "akey" || k == "afocus" || k == "apress" || k == "ablend" || k == "adelay" || k == "astagger"
+             || k == "alocked" || k == "avalue" || k == "await" || k == "afx") anim::AnimKey(e, k, v);
     else if (k == "playon") e.playOn = v;
     else if (k == "flags") { e.flags.clear(); size_t p = 0; while (p <= v.size()) { size_t q = v.find(',', p); if (q == std::string::npos) q = v.size(); if (q > p) e.flags.push_back(v.substr(p, q - p)); p = q + 1; } }
 }
