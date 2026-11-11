@@ -61,12 +61,27 @@ struct Planned {
     bool countUp = false; float countMs = 600;
     int flashMovie = 0, flashClip = 0;
 };
-struct ElemAnim { std::vector<Clip> clips; Planned p; };
+// (live, not saved) what's playing over In / Idle: the state layer (Focus, Unfocus, Selected, Press) and Out
+struct Run {
+    bool inited = false;          // (set up as it comes up: its resting state for its focus)
+    int state = -1; double stateAt = 0;   // the state layer's clip (-1: none) and when it started (s)
+    bool focus = false, press = false;    // its trigger values last frame
+    double outAt = -1;            // its Out started (s): it's leaving
+    float from[P_NPROP] = {}; double blendAt = -1;   // a clip change: the pose it blends from, and since when
+    float last[P_NPROP] = {}; bool hasLast = false;  // the pose drawn last frame
+};
+struct ElemAnim {
+    std::vector<Clip> clips; Planned p;
+    std::string focusIf, pressIf;  // triggers: Focus / Unfocus / Selected follow focusIf ("menu.sel:2"), Press plays when pressIf comes on
+    float blend = 120;            // ms a change of clip eases over (from the pose it had)
+    Run run;
+};
 
 static const char* kClips[][2] = {
-    { "In", "when it shows" }, { "Idle", "while shown (after In)" }, { "Out", "before it hides" },
-    { "Focus", "when its menu row gets focus" }, { "Unfocus", "when the focus leaves" }, { "Press", "when it's pressed" },
-    { "Selected", "while its row is the picked one" }, { "Locked", "while it's locked" }, { "Value change", "when its live value changes" },
+    { "In", "when it shows" }, { "Idle", "while shown (after In)" }, { "Out", "before it hides (it stays drawn till Out ends)" },
+    { "Focus", "when its focus value comes on" }, { "Unfocus", "when its focus value goes off (its last frame: how it rests unfocused)" },
+    { "Press", "when its press value comes on" }, { "Selected", "while focused, after Focus (loop it)" },
+    { "Locked", "while it's locked (planned)" }, { "Value change", "when its live value changes (planned)" },
 };
 
 // Easing: 0..1 -> 0..1 (back / elastic go past the ends).
@@ -253,21 +268,115 @@ static float PreviewLen() {   // the longest clip of that name in the layout (th
     return len > 0 ? len : 1000.f;
 }
 static bool Previewing() { return g.on; }
+
+// ---- live: In / Idle underneath, the state layer's keyed tracks over them, Out's over everything; a clip change blends
+static double g_speed = 1;   // live clips' speed (AnimSpeed: slow motion to check them; 1 normally)
+static float MsSince(double since, double now) { return (float)((now - since) * 1000.0 * g_speed); }
+static int ClipIdx(const ElemAnim& a, const char* name) {
+    for (int i = 0; i < (int)a.clips.size(); ++i) if (a.clips[i].on && a.clips[i].name == name && Keys(a.clips[i])) return i;
+    return -1;
+}
+static void SampleVals(const Clip& c, float t, float v[P_NPROP]) { t = ClipTime(c, t); for (int p = 0; p < P_NPROP; ++p) v[p] = Value(c.tracks[p], t); }
+static void ToPose(const float* v, Pose& p) {
+    p.dx = v[P_X]; p.dy = v[P_Y]; p.sx = v[P_SX]; p.sy = v[P_SY]; p.rot = v[P_ROT]; p.a = std::max(0.f, v[P_ALPHA]);
+    p.mul[0] = v[P_MR]; p.mul[1] = v[P_MG]; p.mul[2] = v[P_MB];
+    p.add[0] = std::max(0.f, v[P_AR]); p.add[1] = std::max(0.f, v[P_AG]); p.add[2] = std::max(0.f, v[P_AB]);
+}
+static void StartBlend(ElemAnim& a, double now) {   // the next frames ease from the pose it has now
+    Run& r = a.run;
+    if (r.hasLast && a.blend > 0) { for (int p = 0; p < P_NPROP; ++p) r.from[p] = r.last[p]; r.blendAt = now; }
+}
+static void Switch(ElemAnim& a, int clip, double now, bool blend = true) {   // the state layer to `clip` (from its start)
+    if (blend) StartBlend(a, now);
+    a.run.state = clip; a.run.stateAt = now;
+}
+static void Rest(ElemAnim& a, int clip, double now, bool blend = true) {     // ... held at its end (a once clip's last frame)
+    Switch(a, clip, now, blend);
+    if (clip >= 0) a.run.stateAt = now - (a.clips[clip].length / 1000.0 + 1) / g_speed;
+}
+static void Triggers(const Elem& e, ElemAnim& a, double now) {
+    Run& r = a.run;
+    const int iFocus = ClipIdx(a, "Focus"), iUnf = ClipIdx(a, "Unfocus"), iSel = ClipIdx(a, "Selected"), iPress = ClipIdx(a, "Press");
+    const bool f = !a.focusIf.empty() && CondOk(a.focusIf, e.group), pr = !a.pressIf.empty() && CondOk(a.pressIf, e.group);
+    auto focusedRest = [&](bool blend) { if (iSel >= 0) Switch(a, iSel, now, blend); else Rest(a, iFocus, now, blend); };
+    if (!r.inited) {   // coming up: rests as its focus is (no Focus / Unfocus played, no blend)
+        r.inited = true; r.focus = f; r.press = pr; r.blendAt = -1;
+        if (f) { if (iFocus >= 0) Switch(a, iFocus, now, false); else focusedRest(false); }
+        else Rest(a, iUnf, now, false);
+        return;
+    }
+    if (f != r.focus) {
+        r.focus = f;
+        if (f) { if (iFocus >= 0) Switch(a, iFocus, now); else focusedRest(true); }
+        else Switch(a, iUnf, now);
+    }
+    if (pr && !r.press && iPress >= 0) Switch(a, iPress, now);
+    r.press = pr;
+    if (r.state >= 0 && r.state < (int)a.clips.size()) {   // a once clip that's done moves on
+        const Clip& c = a.clips[r.state];
+        if (c.loop == ONCE && MsSince(r.stateAt, now) >= c.length) {
+            if (r.state == iFocus && iSel >= 0 && r.focus) Switch(a, iSel, now, false);   // (Selected carries on from Focus)
+            else if (r.state == iPress) { if (r.focus) focusedRest(true); else Rest(a, iUnf, now); }
+        }
+    }
+}
+static void Hidden(ElemAnim& a) { a.run = Run(); }
+static bool Leaving(Elem& e) {
+    ElemAnim* a = e.an.p;
+    if (!a) return false;
+    const Clip* out = ClipNamed(a, "Out");
+    if (!out || e.shownSince < 0) { Hidden(*a); return false; }   // (no Out, or it wasn't up: gone now)
+    Run& r = a->run;
+    const double now = ImGui::GetTime();
+    if (r.outAt < 0) { r.outAt = now; StartBlend(*a, now); }
+    if (MsSince(r.outAt, now) >= out->length) { Hidden(*a); return false; }
+    return true;
+}
+static void Showing(Elem& e) {
+    ElemAnim* a = e.an.p;
+    if (!a || a->run.outAt < 0) return;
+    const double now = ImGui::GetTime();   // back during its Out: In again, from the pose it had
+    a->run.outAt = -1;
+    StartBlend(*a, now);
+    e.shownSince = now;
+}
 static bool PoseOf(Elem& e, bool editing, Pose& p) {
-    const ElemAnim* a = e.an.p;
+    ElemAnim* a = e.an.p;
     if (!a || editing) return false;
     if (g.on) {   // animation mode: the clip being edited, at the playhead
         const Clip* c = ClipNamed(a, PreviewName());
         if (!c) return false;
         Sample(*c, g.time, p); return true;
     }
-    const float t = (float)((ImGui::GetTime() - (e.shownSince >= 0 ? e.shownSince : ImGui::GetTime())) * 1000.0);
+    Run& r = a->run;
+    const double now = ImGui::GetTime();
+    const bool leaving = r.outAt >= 0;
+    if (!leaving) Triggers(e, *a, now);   // (frozen while it leaves)
+    float v[P_NPROP], s[P_NPROP];
+    for (int i = 0; i < P_NPROP; ++i) v[i] = kProp[i].def;
+    bool any = false;
+    const float t = MsSince(e.shownSince >= 0 ? e.shownSince : now, now);
     const Clip* in = ClipNamed(a, "In"), *idle = ClipNamed(a, "Idle");
-    if (in && (!idle || t < in->length)) { Sample(*in, t, p); return true; }
-    if (idle) { Sample(*idle, t - (in ? in->length : 0.f), p); return true; }
-    return false;
+    if (in && (!idle || t < in->length)) { SampleVals(*in, t, v); any = true; }
+    else if (idle) { SampleVals(*idle, t - (in ? in->length : 0.f), v); any = true; }
+    auto over = [&](const Clip& c, double since) {   // a layer: its keyed tracks over what's below
+        SampleVals(c, MsSince(since, now), s);
+        for (int i = 0; i < P_NPROP; ++i) if (!c.tracks[i].keys.empty()) v[i] = s[i];
+        any = true;
+    };
+    if (r.state >= 0 && r.state < (int)a->clips.size()) over(a->clips[r.state], r.stateAt);
+    if (leaving) if (const Clip* o = ClipNamed(a, "Out")) over(*o, r.outAt);
+    if (r.blendAt >= 0) {
+        float u = MsSince(r.blendAt, now) / std::max(1.f, a->blend);
+        if (u >= 1) r.blendAt = -1;
+        else { u = u * u * (3 - 2 * u); for (int i = 0; i < P_NPROP; ++i) v[i] = r.from[i] + (v[i] - r.from[i]) * u; any = true; }
+    }
+    for (int i = 0; i < P_NPROP; ++i) r.last[i] = v[i];
+    r.hasLast = true;
+    if (!any) return false;
+    ToPose(v, p);
+    return true;
 }
-
 // ---------------------------------------------------------------- saving: "aclip=<clip>;<ms>;<once|loop|pingpong>"
 // and "akey=<clip>;<track>;<ms> <value> <ease>[ <h1x> <h1y> <h2x> <h2y>];..." (a line per keyed track)
 
@@ -275,6 +384,9 @@ static const char* kPropKey[P_NPROP] = { "x", "y", "sx", "sy", "rot", "alpha", "
 static const char* kEaseKey[EZ_NEASE] = { "linear", "in", "out", "inout", "backin", "backout", "elastic", "bounce", "hold", "bezier", "qin", "qout", "qinout" };
 static const char* kLoopKey[3] = { "once", "loop", "pingpong" };
 static void PutAnim(std::string& o, const ElemAnim& a) {
+    if (!a.focusIf.empty()) Pf(o, "afocus=%s\n", a.focusIf.c_str());
+    if (!a.pressIf.empty()) Pf(o, "apress=%s\n", a.pressIf.c_str());
+    if (a.blend != 120) Pf(o, "ablend=%g\n", a.blend);
     for (auto& c : a.clips) {
         if (!Keys(c)) continue;
         Pf(o, "aclip=%s;%g;%s%s\n", c.name.c_str(), c.length, kLoopKey[std::max(0, std::min(2, c.loop))], c.on ? "" : ";off");
@@ -302,6 +414,11 @@ static Clip& ClipFor(Elem& e, const std::string& name) {   // (a name that isn't
     return e.an.p->clips.back();
 }
 static void AnimKey(Elem& e, const std::string& k, const std::string& v) {
+    if (k == "afocus" || k == "apress" || k == "ablend") {
+        if (!e.an.p) e.an.p = new ElemAnim(NewAnim());
+        if (k == "afocus") e.an.p->focusIf = v; else if (k == "apress") e.an.p->pressIf = v; else e.an.p->blend = std::max(0.f, (float)atof(v.c_str()));
+        return;
+    }
     std::vector<std::string> f = SplitSemi(v);
     if (f.empty() || f[0].empty()) return;
     Clip& c = ClipFor(e, f[0]);
@@ -772,7 +889,7 @@ static void AnimPage() {   // (the left side of the panels window)
                 ImGui::TableNextColumn();
                 ImGui::Checkbox("##on", &c.on); ImGui::SameLine();
                 if (ImGui::Selectable(c.name.c_str(), g.clip == i)) { g.clip = i; g.focus = State::F_CLIP; g.graph.fit = g.big.fit = true; g.tl1 = c.length * 1.08f; g.tl0 = -c.length * 0.08f; }
-                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Plays %s%s", c.trigger.c_str(), i <= 1 ? "" : " (planned: the trigger)");
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Plays %s", c.trigger.c_str());
                 ImGui::TableNextColumn(); ImGui::SetNextItemWidth(70);
                 if (ImGui::DragFloat("##len", &c.length, 5, 33, 20000, "%.0f ms")) { g.clip = i; }
                 ImGui::TableNextColumn(); ImGui::SetNextItemWidth(90);
@@ -783,7 +900,29 @@ static void AnimPage() {   // (the left side of the panels window)
             ImGui::EndTable();
         }
         ImGui::BeginDisabled(); ImGui::Button("+ Custom clip"); ImGui::EndDisabled(); PlannedTag();
-        ImGui::TextDisabled("Playing: In and Idle. The other triggers and blending between clips: planned.");
+        ImGui::TextDisabled("Live: In, then Idle. Focus / Unfocus / Selected / Press by the triggers below, over them;");
+        ImGui::TextDisabled("Out before it hides. Changes blend. Locked, Value change: planned.");
+    }
+    // ---- triggers
+    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+    if (ImGui::CollapsingHeader("Triggers")) {
+        char fb[128], pb[128];   // (ImGui keeps its own copy while one's being typed in)
+        snprintf(fb, sizeof fb, "%s", an->focusIf.c_str()); snprintf(pb, sizeof pb, "%s", an->pressIf.c_str());
+        ImGui::SetNextItemWidth(-60);
+        if (ImGui::InputTextWithHint("focus##trig", "a value, e.g. menu.sel:2", fb, sizeof fb)) an->focusIf = fb;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("While this is on it's focused: Focus plays, then Selected loops. When it goes off, Unfocus plays,\nand Unfocus's last frame is how it rests while unfocused. A show-only-while value (! for not).\nMenus REUI drives: menu.sel:<row> (0 is the top row).");
+        ImGui::SetNextItemWidth(-60);
+        if (ImGui::InputTextWithHint("press##trig", "a value, e.g. menu.press:2", pb, sizeof pb)) an->pressIf = pb;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Press plays each time this comes on (then it goes back to how it rests).\nMenus REUI drives: menu.press:<row> (select on that row), menu.press (any row), menu.back (back).");
+        static int row = 1;
+        ImGui::SetNextItemWidth(80); ImGui::InputInt("##trow", &row); row = std::max(1, std::min(64, row));
+        ImGui::SameLine();
+        if (ImGui::Button("Use menu row")) { an->focusIf = "menu.sel:" + std::to_string(row - 1); an->pressIf = "menu.press:" + std::to_string(row - 1); }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Focus follows that row of the menu (1: the top one), Press its select.");
+        ImGui::SetNextItemWidth(120); ImGui::DragFloat("blend##trig", &an->blend, 2, 0, 2000, "%.0f ms");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("A change of clip (Focus, Unfocus, Press, Out...) eases from the pose it had over this long. 0: it jumps.");
+        ImGui::TextDisabled("Out plays when its show-only-while goes off; it stays drawn till Out ends.");
+        ImGui::TextDisabled("Preview a clip: pick it above (the timeline plays it on every element).");
     }
     // ---- tracks
     ImGui::SetNextItemOpen(true, ImGuiCond_Once);
@@ -851,8 +990,6 @@ static void AnimPage() {   // (the left side of the panels window)
     if (ImGui::CollapsingHeader("Timing (planned)")) {
         ImGui::SetNextItemWidth(120); ImGui::DragFloat("delay", &p.delay, 5, 0, 5000, "%.0f ms"); FocusPlanned("Delay"); PlannedTag();
         ImGui::SetNextItemWidth(120); ImGui::DragFloat("stagger per child", &p.stagger, 5, 0, 2000, "%.0f ms"); FocusPlanned("Stagger"); PlannedTag();
-        ImGui::SetNextItemWidth(120); ImGui::DragFloat("blend into the next clip", &p.blendIn, 5, 0, 2000, "%.0f ms"); FocusPlanned("Clip blending"); PlannedTag();
-        ImGui::Checkbox("Play Out before hiding", &p.outBeforeHide); FocusPlanned("Out before hide"); PlannedTag();
         ImGui::Checkbox("Wait for the previous screen's Out", &p.waitPrevOut); FocusPlanned("Screen transitions"); PlannedTag();
     }
     if (ImGui::CollapsingHeader("Effects (planned)")) {
@@ -1198,9 +1335,10 @@ AnimBox::~AnimBox() { delete p; }
 bool AnimModeOn() { return anim::g.on; }
 bool ShowIfUsed(const char* prefix) {
     const size_t n = strlen(prefix);
-    for (auto& l : g_layout) for (auto& e : l) {
-        const std::string& s = !e.showIf.empty() && e.showIf[0] == '!' ? e.showIf.substr(1) : e.showIf;
-        if (s.compare(0, n, prefix) == 0) return true;
+    auto uses = [&](const std::string& c) { const std::string& s = !c.empty() && c[0] == '!' ? c.substr(1) : c; return s.compare(0, n, prefix) == 0; };
+    for (auto& l : g_layout) for (auto& e : l) {   // (its show-only-while, or its clips' triggers)
+        if (uses(e.showIf)) return true;
+        if (e.an.p && (uses(e.an.p->focusIf) || uses(e.an.p->pressIf))) return true;
     }
     return false;
 }
@@ -1211,6 +1349,7 @@ void SetAnimMode(bool on) {
     if (Elems().empty() && g_nowMode >= 0 && g_nowMode < NumModes() && !g_layout[g_nowMode].empty()) { g_editMode = g_nowMode; g_sel = -1; }
 }
 void AnimBare(bool bare) { anim::g.bare = bare; }
+void AnimSpeed(float speed) { anim::g_speed = std::max(0.01f, std::min(10.f, speed)); }
 void AnimPlayhead(float ms, bool play) { anim::g.time = std::max(0.f, ms); anim::g.playing = play; anim::g.loop = true; }
 void AnimFocus(int index) {
     if (index < 0 || index >= (int)Elems().size()) return;

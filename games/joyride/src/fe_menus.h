@@ -10,7 +10,8 @@
 namespace reui_joyride {
 bool FeMenuInput(const std::string& screenPath, const std::string& code, int controller);   // (the game thread) true: taken
 void FeMenuFrame();                                                // every REUI frame
-bool FeMenuToken(const std::string& key, std::string& out);        // menu.sel:<row>, menu.unsel:<row>, menu.row, menu.on
+bool FeMenuToken(const std::string& key, std::string& out);        // menu.sel:<row>, menu.unsel:<row>, menu.row, menu.on,
+                                                                   // menu.press:<row> / menu.press / menu.back (on for 0.2 s after one)
 void SetMenusEnabled(bool on);
 void FeMenuCall(const std::string& method, const std::string& args);   // each call seen (popups opening / closing)
 bool FeMenuHides(const std::string& screenKey);   // a popup is over a driven screen: its REUI layout steps aside

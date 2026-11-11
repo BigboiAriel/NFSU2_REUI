@@ -49,6 +49,7 @@ struct FeBridge {
 void SetFeBridge(const FeBridge& bridge);
 void StartAnimMode(bool focusFirst, float ms = 0, bool play = false, bool bare = false);   // animation mode (F8);
     // focusFirst: its first element; the playhead at ms, playing; bare: only the timeline (tests)
+void SetAnimSpeed(float speed);   // live animation clips at this speed (slow motion to check them; 1 normally)
 bool FeDebugOpen();
 void SetFeDebugOpen(bool open);
 

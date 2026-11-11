@@ -588,12 +588,13 @@ static bool ValueOf(const std::string& key, float& out) {
     char* end = nullptr; out = strtof(v.c_str(), &end);
     return end != v.c_str();
 }
-static bool ShowIfOk(const Elem& e) {
-    if (e.showIf.empty()) return true;
-    bool neg = e.showIf[0] == '!';
-    std::string v, key = neg ? e.showIf.substr(1) : e.showIf;
+// a show-only-while style condition ("key" / "!key"): its value is set and not "0" (empty: true)
+static bool CondOk(const std::string& cond, const std::string& group) {
+    if (cond.empty()) return true;
+    bool neg = cond[0] == '!';
+    std::string v, key = neg ? cond.substr(1) : cond;
     if (key.compare(0, 11, "page.prompt") == 0 || key == "page.title") {   // (REUI's own: the menu's prompts / header text)
-        g_tokGroup = e.group;
+        g_tokGroup = group;
         if (key == "page.title") v = g_titleNow = TitleFor(e.group); else PageToken(key, v);
         bool set = !v.empty() && v != "0";
         return neg ? !set : set;
@@ -601,6 +602,7 @@ static bool ShowIfOk(const Elem& e) {
     bool set = tokens && tokens(key, v) && !v.empty() && v != "0";
     return neg ? !set : set;
 }
+static bool ShowIfOk(const Elem& e) { return CondOk(e.showIf, e.group); }
 // 0..1 along the element's bind range (-1: no value now)
 static float BindFrac(const Elem& e) {
     float v;
@@ -1010,6 +1012,8 @@ namespace anim {   // (uied_anim.inc) an element's clips now: the change they ma
 struct Pose { float dx = 0, dy = 0, sx = 1, sy = 1, rot = 0, a = 1, mul[3] = { 1, 1, 1 }, add[3] = { 0, 0, 0 }; };
 static bool PoseOf(Elem& e, bool editing, Pose& p);   // false: nothing playing on it
 static bool Previewing();   // animation mode is on: every element shows (its show-only-while rule waits)
+static bool Leaving(Elem& e);    // its show-only-while went off: true while its Out clip plays (it's still drawn)
+static void Showing(Elem& e);    // it's shown (back during an Out: In starts again)
 }
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
@@ -1017,8 +1021,13 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     g_tokGroup = e.group;
     if (!editing && !e.flags.empty() && FlagsHide(e)) return;
     struct AnimSave { Elem& e; bool on = false; float scale = 1, x = 0, y = 0; ~AnimSave() { if (on) { e.scale = scale; e.x = x; e.y = y; } } } animSave{ e };
-    if (!ShowIfOk(e)) { e.shownSince = -1; if (!editing && !anim::Previewing()) return; }
-    else if (e.shownSince < 0 && e.playOn.empty()) e.shownSince = ImGui::GetTime();   // (play on: only when its value comes on)
+    if (!ShowIfOk(e)) {
+        if (!editing && !anim::Previewing()) { if (!anim::Leaving(e)) { e.shownSince = -1; return; } }   // (Out: drawn till it ends)
+        else e.shownSince = -1;
+    } else {
+        if (!editing) anim::Showing(e);
+        if (e.shownSince < 0 && e.playOn.empty()) e.shownSince = ImGui::GetTime();   // (play on: only when its value comes on)
+    }
     if (!e.playOn.empty() && !editing) {   // replays from its start when its value comes on (pressed)
         std::string v; bool on = tokens && tokens(e.playOn, v) && !v.empty() && v != "0";
         if (on && !e.playWas) e.shownSince = ImGui::GetTime();
@@ -2106,7 +2115,7 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "anim") e.anim = std::max(0, std::min(4, atoi(v.c_str())));
     else if (k == "bounce") sscanf(v.c_str(), "%f %f %f %f", &e.bounceScale, &e.bounceMs, &e.bounceGlow, &e.bounceAlpha);
     else if (k == "keys") e.keys = v;
-    else if (k == "aclip" || k == "akey") anim::AnimKey(e, k, v);
+    else if (k == "aclip" || k == "akey" || k == "afocus" || k == "apress" || k == "ablend") anim::AnimKey(e, k, v);
     else if (k == "playon") e.playOn = v;
     else if (k == "flags") { e.flags.clear(); size_t p = 0; while (p <= v.size()) { size_t q = v.find(',', p); if (q == std::string::npos) q = v.size(); if (q > p) e.flags.push_back(v.substr(p, q - p)); p = q + 1; } }
 }

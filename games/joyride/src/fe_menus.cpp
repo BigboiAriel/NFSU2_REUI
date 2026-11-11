@@ -6,6 +6,7 @@
 #include <imgui.h>
 
 #include <atomic>
+#include <chrono>
 #include <map>
 #include <mutex>
 #include <string>
@@ -32,6 +33,10 @@ std::map<std::string, int> g_last;   // each screen's row when it was left by a 
 std::atomic<bool> g_enabled{true}, g_drive{false};   // allowed (cvar); and a layout draws a driven menu
 std::atomic<bool> g_popup{false};  // a Flash popup is up (its buttons on): it has the controller, REUI's screen steps aside
 double g_enteredAt = -1;          // (REUI's clock) when the driven screen came up
+// presses, for Press clips (menu.press:<row> / menu.press / menu.back): on for a moment after each (the game thread's clock)
+int g_pressRow = -1; double g_pressAt = -1e9, g_backAt = -1e9;
+double Now() { return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(); }
+const double kPressOn = 0.2;      // s a press reads on (a few frames, whatever the frame rate)
 
 void Enter(const std::string& key) {   // (locked)
     if (key == g_key) return;
@@ -60,8 +65,10 @@ bool FeMenuInput(const std::string& screenPath, const std::string& code, int con
         if (g_sel != was) FeSend(1, std::string(m->rowControl) + ".setIndex", { std::to_string(g_sel) });
         return true;
     }
+    if (code == "BACK") { g_backAt = Now(); return false; }   // (the movie's, as before: just noted)
     if (code == "ADVANCE") {   // the movie on our row, then the press: the game does the rest
         g_last[key] = g_sel;
+        g_pressRow = g_sel; g_pressAt = Now();
         FeSend(1, std::string(m->rowControl) + ".setIndex", { std::to_string(g_sel) });
         FeSend(1, "_root.inputEventHandler", { "\"ADVANCE\"", std::to_string(controller) });
         return true;
@@ -92,6 +99,11 @@ bool FeMenuHides(const std::string& screenKey) { return g_popup && g_enabled && 
 bool FeMenuToken(const std::string& key, std::string& out) {
     if (key.rfind("menu.", 0) != 0) return false;
     std::lock_guard<std::mutex> l(g_mu);
+    if (key == "menu.press" || key.rfind("menu.press:", 0) == 0) {   // (not tied to the screen: the game moves on at once)
+        const bool on = Now() - g_pressAt < kPressOn && (key.size() == 10 || atoi(key.c_str() + 11) == g_pressRow);
+        out = on ? "1" : "0"; return true;
+    }
+    if (key == "menu.back") { out = Now() - g_backAt < kPressOn ? "1" : "0"; return true; }
     const bool on = g_enabled && g_drive && !g_popup && !g_key.empty() && g_key == FeTopScreen();
     // the highlight waits for the screen's own fade-in (0.33 s), then shows with its row
     const bool settled = on && g_enteredAt >= 0 && ImGui::GetTime() - g_enteredAt >= 0.33;
