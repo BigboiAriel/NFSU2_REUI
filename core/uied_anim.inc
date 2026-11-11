@@ -585,8 +585,9 @@ static void Graph(const char* id, ImVec2 size, View& v) {
 // ---------------------------------------------------------------- the workspace's windows: moved and sized by hand,
 // their edges snapping to each other's and the screen's; kept (as fractions of the screen) in <REUI>\anim_windows.txt
 
-enum { WIN_ELEMS, WIN_PAGE, WIN_GRAPH, WIN_TL, WIN_N };
-static const char* kWinKey[WIN_N] = { "elements", "animation", "graph", "timeline" };
+// (the animation page and the element list: one window, a divider between them - `split`, the page's share of its width)
+enum { WIN_SIDE, WIN_GRAPH, WIN_TL, WIN_N };
+static const char* kWinKey[WIN_N] = { "panels", "graph", "timeline" };
 struct WinRect { float x = 0, y = 0, w = 0, h = 0; bool set = false; };
 struct WinState {
     WinRect r[WIN_N];             // where each one is (fractions of the screen)
@@ -595,6 +596,7 @@ struct WinState {
     ImVec2 now[WIN_N][2]; bool shown[WIN_N] = {}, shownLast[WIN_N] = {};   // this frame's (pixels), for snapping
     ImVec2 last[WIN_N][2];        // last frame's
     bool drag[WIN_N] = {}; ImVec2 dragTo[WIN_N];   // moved by our own grip (a window without a title bar): where to
+    float split = -1;             // the side window's divider (-1: the standard one)
 };
 static WinState w_;
 static std::string WinFile() { return dataDir + "anim_windows.txt"; }
@@ -602,21 +604,37 @@ static void WinLoad() {
     w_.loaded = true;
     FILE* f = fopen(WinFile().c_str(), "r");
     if (!f) return;
-    char key[64]; float x, y, w, h;
-    while (fscanf(f, "%63s %f %f %f %f", key, &x, &y, &w, &h) == 5)
+    char line[256], key[64]; float x, y, w, h;
+    WinRect oldPage, oldList;   // (before 2026-11-10's merge: "animation" and "elements" were two windows)
+    while (fgets(line, sizeof line, f)) {
+        const int n = sscanf(line, "%63s %f %f %f %f", key, &x, &y, &w, &h);
+        if (n == 2 && !strcmp(key, "split")) { w_.split = x; continue; }
+        if (n != 5) continue;
         for (int i = 0; i < WIN_N; ++i) if (!strcmp(key, kWinKey[i])) w_.r[i] = { x, y, w, h, true };
+        if (!strcmp(key, "animation")) oldPage = { x, y, w, h, true };
+        if (!strcmp(key, "elements")) oldList = { x, y, w, h, true };
+    }
     fclose(f);
+    if (!w_.r[WIN_SIDE].set && (oldPage.set || oldList.set)) {   // the two old windows' area, the divider where they met
+        const WinRect& p = oldPage.set ? oldPage : oldList; const WinRect& l = oldList.set ? oldList : oldPage;
+        const float x0 = std::min(p.x, l.x), y0 = std::min(p.y, l.y), x1 = std::max(p.x + p.w, l.x + l.w), y1 = std::max(p.y + p.h, l.y + l.h);
+        w_.r[WIN_SIDE] = { x0, y0, x1 - x0, y1 - y0, true };
+        if (oldPage.set && oldList.set && x1 > x0) w_.split = (p.x + p.w - x0) / (x1 - x0);
+        w_.dirty = true;
+    }
 }
 static void WinSave() {
     w_.dirty = false;
     FILE* f = fopen(WinFile().c_str(), "w");
     if (!f) return;
     for (int i = 0; i < WIN_N; ++i) if (w_.r[i].set) fprintf(f, "%s %.5f %.5f %.5f %.5f\n", kWinKey[i], w_.r[i].x, w_.r[i].y, w_.r[i].w, w_.r[i].h);
+    if (w_.split > 0) fprintf(f, "split %.5f\n", w_.split);
     fclose(f);
 }
 static void WinReset() {   // back to the standard layout (Frame's defaults)
     for (auto& r : w_.r) r.set = false;
     for (bool& f : w_.force) f = true;
+    w_.split = -1;
     remove(WinFile().c_str());
 }
 // a window of the workspace: placed at its own rect (or `defPos` / `defSize` until it has one); when the person drags
@@ -690,8 +708,8 @@ static void WinFrameEnd() {   // (after every window of the frame)
     }
     if (w_.dirty && !ImGui::IsMouseDown(0)) WinSave();
 }
-static void ElementsPanel(ImVec2 pos, ImVec2 size) {
-    WinBegin(WIN_ELEMS, "Elements##anim", pos, size);
+static void ElementsList() {   // (the right side of the panels window)
+    ImGui::TextUnformatted("Elements");
     ImGui::TextDisabled("%s layout - %d elements", ModeName(g_editMode), (int)Elems().size());
     {   // which layout (a dropdown: it follows the editor's pick, tabs would pick their first one)
         std::vector<const char*> names;
@@ -729,17 +747,15 @@ static void ElementsPanel(ImVec2 pos, ImVec2 size) {
     }
     if (order.empty()) ImGui::TextDisabled("No elements in this layout.");
     ImGui::EndChild();
-    ImGui::End();
 }
 
 // ---------------------------------------------------------------- animation page (left of the list)
 
-static void AnimPage(ImVec2 pos, ImVec2 size) {
+static void AnimPage() {   // (the left side of the panels window)
     const int idx = FocusedIndex();
     ElemAnim* an = Focused();
-    if (idx < 0 || !an) return;
+    if (idx < 0 || !an) { ImGui::TextDisabled("Pick an element in the list to animate it."); return; }
     Elem& e = Elems()[idx];
-    WinBegin(WIN_PAGE, "Animation##anim", pos, size);
     ImGui::Text("%s", e.name.c_str()); ImGui::SameLine(); ImGui::TextDisabled("%s%s%s", TypeKey(e.type), e.group.empty() ? "" : "  in ", e.group.c_str());
     ImGui::TextDisabled("Saved with the layout. In plays when it shows, then Idle loops.");
     Clip* cur = CurClip();
@@ -869,6 +885,40 @@ static void AnimPage(ImVec2 pos, ImVec2 size) {
         ImGui::BeginDisabled(); ImGui::Button("Copy into this clip"); ImGui::EndDisabled(); PlannedTag();
         ImGui::TextDisabled("Reads the Flash clip's frames, makes keys with fitted easing.");
     }
+}
+
+// ---------------------------------------------------------------- the panels window: the animation page | the element
+// list, a divider between them (dragged; kept with the windows)
+
+static void SidePanel(ImVec2 pos, ImVec2 size, float defSplit) {
+    WinBegin(WIN_SIDE, "Animation##anim", pos, size);
+    ImGuiIO& io = ImGui::GetIO();
+    const ImVec2 avail = ImGui::GetContentRegionAvail();
+    const float u = ImGui::GetFontSize() / 13.f, divW = 8 * u, minW = 90 * u;
+    const float split = w_.split > 0 ? w_.split : defSplit;
+    const float leftW = std::max(std::min(minW, avail.x * 0.5f), std::min(avail.x * split - divW * 0.5f, avail.x - divW - minW));
+    ImGui::BeginChild("##apage", ImVec2(std::max(1.f, leftW), avail.y));
+    AnimPage();
+    ImGui::EndChild();
+    ImGui::SameLine(0, 0);
+    // the divider: drag it to share the width
+    const ImVec2 d0 = ImGui::GetCursorScreenPos();
+    ImGui::InvisibleButton("##asplit", ImVec2(divW, std::max(1.f, avail.y)));
+    const bool hot = ImGui::IsItemHovered() || ImGui::IsItemActive();
+    if (hot) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    if (ImGui::IsItemHovered() && !ImGui::IsItemActive()) ImGui::SetTooltip("Drag to share the width between the page and the list (double-click: the standard split).");
+    if (ImGui::IsItemActive() && avail.x > 0) {
+        const float left = d0.x - leftW;   // (the page's left edge)
+        w_.split = std::max(0.05f, std::min(0.95f, (io.MousePos.x - left) / avail.x));
+        w_.dirty = true;
+    }
+    if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) { w_.split = -1; w_.dirty = true; }
+    ImGui::GetWindowDrawList()->AddLine(ImVec2(d0.x + divW * 0.5f, d0.y), ImVec2(d0.x + divW * 0.5f, d0.y + avail.y),
+                                        hot ? IM_COL32(110, 170, 255, 255) : ImGui::GetColorU32(ImGuiCol_Separator), hot ? 2.f : 1.f);
+    ImGui::SameLine(0, 0);
+    ImGui::BeginChild("##aelems", ImVec2(0, avail.y));
+    ElementsList();
+    ImGui::EndChild();
     ImGui::End();
 }
 
@@ -1130,8 +1180,7 @@ static void Frame() {
         const float graphH = g.expanded ? 0.f : H * kGraph;
         const float listW = W * kList, pageW = W * kPage;
         const float topH = H - tlH - graphH;
-        ElementsPanel(ImVec2(W - listW, 0), ImVec2(listW, topH));
-        if (FocusedIndex() >= 0) AnimPage(ImVec2(W - listW - pageW, 0), ImVec2(pageW, topH));
+        SidePanel(ImVec2(W - listW - pageW, 0), ImVec2(listW + pageW, topH), kPage / (kPage + kList));
         if (graphH > 0) GraphPanel(ImVec2(W - listW - pageW, topH), ImVec2(listW + pageW, graphH));
         Timeline(ImVec2(0, H - tlH), ImVec2(W, tlH));
     }
