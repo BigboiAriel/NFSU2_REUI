@@ -1217,6 +1217,7 @@ static struct CopyMotionUi {
 } g_cm;
 // the Flash clip as the game draws it, in a box on the page: each piece's picture where it is on the frame (turned,
 // scaled, faded); the picked piece outlined; a click picks the piece under the mouse
+static bool g_cmShow = false;   // (tests: the section opened and scrolled to once)
 static struct MotionPreview { float frame = 0; bool play = true; std::string boundsFor; ImVec2 lo, hi; } g_mpv;
 static void PreviewCorners(const MotionPiece& pc, const MotionFrame& f, ImVec2 c[4], ImVec2 o, float k) {   // (box corners on screen)
     const float r = f.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
@@ -1280,7 +1281,6 @@ static void MotionPreviewBox(std::vector<MotionPiece>& ps, int& picked, int fram
     if (hov && under >= 0 && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) picked = under;
 }
 
-static bool g_cmShow = false;   // (tests: the section opened and scrolled to once)
 static void CopyMotionSection(Elem& e, Clip* cur) {
     if (g_cmShow) ImGui::SetNextItemOpen(true);
     if (!ImGui::CollapsingHeader("Copy motion from the game")) return;
