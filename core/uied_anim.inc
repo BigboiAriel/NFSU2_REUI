@@ -2289,7 +2289,7 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
     else ImGui::DragFloat("##ms", &g.time, 2, 0, 100000, "%.0f ms");
     ImGui::SameLine(); ImGui::TextDisabled("/ %s", TimeText(len).c_str());
     ImGui::SameLine(); ImGui::Checkbox("loop", &g.loop);
-    ImGui::SameLine(); ImGui::Checkbox("frames (60 fps)", &g.frames);
+    ImGui::SameLine(); ImGui::Checkbox("frames", &g.frames);
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Show and snap key times to frames at 60 fps - off: milliseconds.\nPlayback isn't stepped: curves are read at the exact time of each drawn frame, so 120 / 144 Hz get the in-between values.\n(The game's Flash menus run at 30 fps: Flash frame N is frame 2N here.)");
     ImGui::SameLine();
     if (g.autoKey) ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.6f, 0.15f, 0.15f, 1.f));
@@ -2348,8 +2348,8 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("The keys of animation mode.");
         ShortcutPopups();
     }
-    const float bw = ImGui::CalcTextSize("Exit animation mode").x + 20;
-    const float rightX = ImGui::GetWindowContentRegionMax().x - bw - ImGui::CalcTextSize(" Collapse ").x - ImGui::CalcTextSize(" Hide panels ").x - ImGui::CalcTextSize(" Reset windows ").x - ImGui::CalcTextSize(" Live ").x - 90;
+    const float bw = ImGui::CalcTextSize(" Exit ").x + 12;
+    const float rightX = ImGui::GetWindowContentRegionMax().x - bw - ImGui::CalcTextSize(" Collapse ").x - ImGui::CalcTextSize(" Hide panels ").x - ImGui::CalcTextSize(" Live ").x - 64;
     {   // the empty part of the row: a move handle too
         ImGui::SameLine();
         const float gapW = rightX - ImGui::GetCursorPosX() - ImGui::GetStyle().ItemSpacing.x;
@@ -2368,9 +2368,8 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Hide / show the element list, animation page and graph (H): the whole screen to watch.");
     ImGui::SameLine(); if (ImGui::Button(g.expanded ? " Collapse " : " Expand ")) { g.expanded = !g.expanded; g.big.fit = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("A taller timeline with a big keys + curves graph.");
-    ImGui::SameLine(); if (ImGui::Button(" Reset windows ")) WinReset();
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The windows back where they start. Drag a window by its title bar (the timeline: the grip\nat its left end or the empty part of its top row), size it from its edges; its edges snap to\nthe other windows' and the screen's.");
-    ImGui::SameLine(); if (ImGui::Button("Exit animation mode")) { g.on = false; if (g.live) { g.live = false; SimRestart(); } }
+    ImGui::SameLine(); if (ImGui::Button(" Exit ")) { g.on = false; if (g.live) { g.live = false; SimRestart(); } }
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Leave animation mode (F8).");
     if (g.live) {   // ---- the stand-in menu
         ImGui::TextColored(ImVec4(0.45f, 0.8f, 1.f, 1.f), "Live"); ImGui::SameLine();
         int row = g.simRow + 1;

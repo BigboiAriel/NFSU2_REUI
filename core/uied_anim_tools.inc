@@ -1191,7 +1191,7 @@ static void LayoutCombo() {
         if (g_layouts.count(g.layoutName) && ImGui::Button("Delete this one")) { g_layouts.erase(g.layoutName); g.layoutName = "Standard"; w_.dirty = true; }
         ImGui::EndCombo();
     }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Window layouts: Standard, Big graph, Screen timing (a tall dope sheet), Watch (panels hidden), and your own.");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Window layouts: Standard (the windows back where they start), Big graph, Screen timing (a tall dope sheet),\nWatch (panels hidden), and your own. Drag a window by its title bar (the timeline: the grip at its left end or the\nempty part of its top row), size it from its edges; its edges snap to the other windows' and the screen's.");
 }
 
 // ================================================================ the test script (--jrt_reui_anim_test): a step every few
@@ -1203,7 +1203,15 @@ static void TestLog(const char* fmt, ...) {
     Log("anim test: %s", line);
     if (FILE* f = TestOut()) { fprintf(f, "%s\n", line); fclose(f); }
 }
-static int ElemNamed(const std::string& n) { auto& els = Elems(); for (int i = 0; i < (int)els.size(); ++i) if (els[i].name == n || els[i].group + "/" + els[i].name == n) return i; return -1; }
+static int ElemNamed(const std::string& n) {   // (in the layout being edited, or else the first layout that has it: edited now)
+    for (int pass = 0; pass < 2; ++pass)
+        for (int mm = 0; mm < NumModes(); ++mm) {
+            if ((pass == 0) != (mm == g_editMode)) continue;
+            auto& els = g_layout[mm];
+            for (int i = 0; i < (int)els.size(); ++i) if (els[i].name == n || els[i].group + "/" + els[i].name == n) { if (g_editMode != mm) { g_editMode = mm; g_sel = -1; } return i; }
+        }
+    return -1;
+}
 static std::string TracksText(const Clip& c) {
     std::string s;
     for (auto& tr : c.tracks) {
