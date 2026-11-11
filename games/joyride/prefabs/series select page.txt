@@ -1681,7 +1681,48 @@ akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 57 mcLocked
+name=info 57 mcInfoTitle
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcInfoTitle._visible
+x=158.967
+y=-170.267
+w=373.333
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=commonwidgets_i3e
+pack=controls/commonwidgets
+uv=0 0 1 1
+layer=68
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 58 txtTitle
+anchor=1
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcInfoTitle._visible && flash:_level0.feScreen.mcInfoArea.mcInfoTitle.mcTxtTitle._visible && flash:_level0.feScreen.mcInfoArea.mcInfoTitle.mcTxtTitle.txtTitle._visible
+x=151.75
+y=40.85
+w=438.233
+h=0
+scale=0.863
+color=0.2 0.2 0.2 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcInfoTitle.mcTxtTitle.txtTitle.text}
+align=0
+wrap=1
+layer=69
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 59 mcLocked
 anchor=4
 group=series select
 showif=flash:_level0.feScreen.mcInfoArea._currentframe=2 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcLocked._visible
@@ -1696,13 +1737,13 @@ texture=hangoutcupselect_i58
 pack=screens/jra_menus/hangoutcupselect
 uv=0 0 1 1
 rot=-2
-layer=68
+layer=70
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 58 mcLocked
+name=info 60 mcLocked
 anchor=4
 group=series select
 showif=flash:_level0.feScreen.mcInfoArea._currentframe=2 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcLocked._visible
@@ -1717,13 +1758,13 @@ texture=hangoutcupselect_i5a
 pack=screens/jra_menus/hangoutcupselect
 uv=0 0 1 1
 rot=-2
-layer=69
+layer=71
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 59 mcLocked
+name=info 61 mcLocked
 anchor=1
 group=series select
 showif=flash:_level0.feScreen.mcInfoArea._currentframe=2 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcLocked._visible
@@ -1739,13 +1780,13 @@ text={loc:SCREEN_TRACKSELECT_TRACK_LOCKED}
 align=1
 rot=-1
 wrap=1
-layer=70
+layer=72
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 60 mcLocked
+name=info 62 mcLocked
 anchor=4
 group=series select
 showif=flash:_level0.feScreen.mcInfoArea._currentframe=2 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcLocked._visible
@@ -1760,7 +1801,7 @@ texture=hangoutcupselect_i64
 pack=screens/jra_menus/hangoutcupselect
 uv=0 0 1 1
 rot=-2
-layer=71
+layer=73
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
