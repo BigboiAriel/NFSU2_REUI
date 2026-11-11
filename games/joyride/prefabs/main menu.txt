@@ -23,8 +23,6 @@ uv=0 0 1 1
 layer=1
 aclip=In;466.667;once
 akey=In;alpha;0 0 linear;100 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 hold;100 1 linear;300 0 linear
 
 [element]
 mode=frontend
@@ -45,8 +43,6 @@ fill=0 0 0 0.8
 layer=1
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;133.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 hold;100 1 linear;300 0 linear
 
 [element]
 mode=frontend
@@ -68,8 +64,6 @@ align=0
 layer=2
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -91,8 +85,6 @@ align=0
 layer=3
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -114,8 +106,6 @@ align=0
 layer=4
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -137,8 +127,6 @@ uv=0 0 1 1
 layer=5
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -160,8 +148,6 @@ uv=0 0 1 1
 layer=2
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -183,8 +169,6 @@ align=0
 layer=3
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -206,8 +190,6 @@ align=0
 layer=4
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -229,8 +211,6 @@ align=0
 layer=3
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -252,8 +232,6 @@ align=0
 layer=4
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -275,8 +253,6 @@ uv=0 0 1 1
 layer=2
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -298,8 +274,6 @@ align=0
 layer=3
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -321,8 +295,6 @@ align=0
 layer=4
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -344,8 +316,6 @@ align=0
 layer=3
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -367,8 +337,6 @@ align=0
 layer=4
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -390,8 +358,6 @@ uv=0 0 1 1
 layer=2
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -413,8 +379,6 @@ align=0
 layer=3
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -436,8 +400,6 @@ align=0
 layer=4
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -459,8 +421,6 @@ align=0
 layer=3
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -482,8 +442,6 @@ align=0
 layer=4
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -505,8 +463,6 @@ uv=0 0 1 1
 layer=2
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -528,8 +484,6 @@ align=0
 layer=3
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -551,8 +505,6 @@ align=0
 layer=4
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -574,8 +526,6 @@ align=0
 layer=3
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -597,15 +547,33 @@ align=0
 layer=4
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
+
+[element]
+mode=frontend
+type=motion
+name=row 1 motion
+anchor=4
+group=main menu/row 1
+showif=screen:jra_menus/hangoutmainmenu
+x=-275.4
+y=-67.067
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=1
+layer=0
+apress=menu.press:0
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
+akey=Press;sy;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
 
 [element]
 mode=frontend
 type=image
 name=row 1 highlight
 anchor=4
-group=main menu
+group=main menu/row 1
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=-67.067
@@ -627,15 +595,13 @@ aclip=Press;200;once
 akey=Press;ar;0 0.45 qout;200 0 linear
 akey=Press;ag;0 0.45 qout;200 0 linear
 akey=Press;ab;0 0.45 qout;200 0 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=image
 name=row 1 highlight sheen
 anchor=4
-group=main menu
+group=main menu/row 1
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=-45.467
@@ -660,8 +626,6 @@ akey=Selected;y;0 0 hold;9600 0 linear;9966.667 0 hold
 akey=Selected;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 clip=row 1 highlight;0.008 0.11 0.979 0.758
 
 [element]
@@ -669,7 +633,7 @@ mode=frontend
 type=image
 name=row 1 highlight A
 anchor=4
-group=main menu
+group=main menu/row 1
 showif=screen:jra_menus/hangoutmainmenu
 x=-371.6
 y=-64
@@ -683,24 +647,18 @@ pack=screens/jra_menus/hangoutmainmenu
 uv=0 0 1 1
 layer=7
 afocus=menu.sel:0
-apress=menu.press:0
 aclip=Focus;233.333;once
 akey=Focus;sx;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 akey=Focus;sy;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Press;260;once
-akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 1 highlight shadow
 anchor=4
-group=main menu
+group=main menu/row 1
 showif=screen:jra_menus/hangoutmainmenu
 x=-351.4
 y=-68.735
@@ -717,15 +675,13 @@ afocus=menu.sel:0
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 1 highlight text
 anchor=4
-group=main menu
+group=main menu/row 1
 showif=screen:jra_menus/hangoutmainmenu
 x=-352.733
 y=-70.068
@@ -742,15 +698,33 @@ afocus=menu.sel:0
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
+
+[element]
+mode=frontend
+type=motion
+name=row 2 motion
+anchor=4
+group=main menu/row 2
+showif=screen:jra_menus/hangoutmainmenu
+x=-275.4
+y=-40.4
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=1
+layer=0
+apress=menu.press:1
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
+akey=Press;sy;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
 
 [element]
 mode=frontend
 type=image
 name=row 2 highlight
 anchor=4
-group=main menu
+group=main menu/row 2
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=-40.4
@@ -772,15 +746,13 @@ aclip=Press;200;once
 akey=Press;ar;0 0.45 qout;200 0 linear
 akey=Press;ag;0 0.45 qout;200 0 linear
 akey=Press;ab;0 0.45 qout;200 0 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=image
 name=row 2 highlight sheen
 anchor=4
-group=main menu
+group=main menu/row 2
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=-18.8
@@ -805,8 +777,6 @@ akey=Selected;y;0 0 hold;9600 0 linear;9966.667 0 hold
 akey=Selected;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 clip=row 2 highlight;0.008 0.11 0.979 0.758
 
 [element]
@@ -814,7 +784,7 @@ mode=frontend
 type=image
 name=row 2 highlight A
 anchor=4
-group=main menu
+group=main menu/row 2
 showif=screen:jra_menus/hangoutmainmenu
 x=-371.6
 y=-37.333
@@ -828,24 +798,18 @@ pack=screens/jra_menus/hangoutmainmenu
 uv=0 0 1 1
 layer=7
 afocus=menu.sel:1
-apress=menu.press:1
 aclip=Focus;233.333;once
 akey=Focus;sx;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 akey=Focus;sy;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Press;260;once
-akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 2 highlight shadow
 anchor=4
-group=main menu
+group=main menu/row 2
 showif=screen:jra_menus/hangoutmainmenu
 x=-351.4
 y=-42.068
@@ -862,15 +826,13 @@ afocus=menu.sel:1
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 2 highlight text
 anchor=4
-group=main menu
+group=main menu/row 2
 showif=screen:jra_menus/hangoutmainmenu
 x=-352.733
 y=-43.402
@@ -887,15 +849,33 @@ afocus=menu.sel:1
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
+
+[element]
+mode=frontend
+type=motion
+name=row 3 motion
+anchor=4
+group=main menu/row 3
+showif=screen:jra_menus/hangoutmainmenu
+x=-275.4
+y=-13.733
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=1
+layer=0
+apress=menu.press:2
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
+akey=Press;sy;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
 
 [element]
 mode=frontend
 type=image
 name=row 3 highlight
 anchor=4
-group=main menu
+group=main menu/row 3
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=-13.733
@@ -917,15 +897,13 @@ aclip=Press;200;once
 akey=Press;ar;0 0.45 qout;200 0 linear
 akey=Press;ag;0 0.45 qout;200 0 linear
 akey=Press;ab;0 0.45 qout;200 0 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=image
 name=row 3 highlight sheen
 anchor=4
-group=main menu
+group=main menu/row 3
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=7.867
@@ -950,8 +928,6 @@ akey=Selected;y;0 0 hold;9600 0 linear;9966.667 0 hold
 akey=Selected;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 clip=row 3 highlight;0.008 0.11 0.979 0.758
 
 [element]
@@ -959,7 +935,7 @@ mode=frontend
 type=image
 name=row 3 highlight A
 anchor=4
-group=main menu
+group=main menu/row 3
 showif=screen:jra_menus/hangoutmainmenu
 x=-371.6
 y=-10.667
@@ -973,24 +949,18 @@ pack=screens/jra_menus/hangoutmainmenu
 uv=0 0 1 1
 layer=7
 afocus=menu.sel:2
-apress=menu.press:2
 aclip=Focus;233.333;once
 akey=Focus;sx;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 akey=Focus;sy;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Press;260;once
-akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 3 highlight shadow
 anchor=4
-group=main menu
+group=main menu/row 3
 showif=screen:jra_menus/hangoutmainmenu
 x=-351.4
 y=-15.402
@@ -1007,15 +977,13 @@ afocus=menu.sel:2
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 3 highlight text
 anchor=4
-group=main menu
+group=main menu/row 3
 showif=screen:jra_menus/hangoutmainmenu
 x=-352.733
 y=-16.735
@@ -1032,15 +1000,33 @@ afocus=menu.sel:2
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
+
+[element]
+mode=frontend
+type=motion
+name=row 4 motion
+anchor=4
+group=main menu/row 4
+showif=screen:jra_menus/hangoutmainmenu
+x=-275.4
+y=12.933
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=1
+layer=0
+apress=menu.press:3
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
+akey=Press;sy;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
 
 [element]
 mode=frontend
 type=image
 name=row 4 highlight
 anchor=4
-group=main menu
+group=main menu/row 4
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=12.933
@@ -1062,15 +1048,13 @@ aclip=Press;200;once
 akey=Press;ar;0 0.45 qout;200 0 linear
 akey=Press;ag;0 0.45 qout;200 0 linear
 akey=Press;ab;0 0.45 qout;200 0 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=image
 name=row 4 highlight sheen
 anchor=4
-group=main menu
+group=main menu/row 4
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=34.533
@@ -1095,8 +1079,6 @@ akey=Selected;y;0 0 hold;9600 0 linear;9966.667 0 hold
 akey=Selected;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 clip=row 4 highlight;0.008 0.11 0.979 0.758
 
 [element]
@@ -1104,7 +1086,7 @@ mode=frontend
 type=image
 name=row 4 highlight A
 anchor=4
-group=main menu
+group=main menu/row 4
 showif=screen:jra_menus/hangoutmainmenu
 x=-371.6
 y=16
@@ -1118,24 +1100,18 @@ pack=screens/jra_menus/hangoutmainmenu
 uv=0 0 1 1
 layer=7
 afocus=menu.sel:3
-apress=menu.press:3
 aclip=Focus;233.333;once
 akey=Focus;sx;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 akey=Focus;sy;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Press;260;once
-akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 4 highlight shadow
 anchor=4
-group=main menu
+group=main menu/row 4
 showif=screen:jra_menus/hangoutmainmenu
 x=-351.4
 y=11.265
@@ -1152,15 +1128,13 @@ afocus=menu.sel:3
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 4 highlight text
 anchor=4
-group=main menu
+group=main menu/row 4
 showif=screen:jra_menus/hangoutmainmenu
 x=-352.733
 y=9.932
@@ -1177,15 +1151,33 @@ afocus=menu.sel:3
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
+
+[element]
+mode=frontend
+type=motion
+name=row 5 motion
+anchor=4
+group=main menu/row 5
+showif=screen:jra_menus/hangoutmainmenu
+x=-275.4
+y=39.6
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=1
+layer=0
+apress=menu.press:4
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
+akey=Press;sy;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
 
 [element]
 mode=frontend
 type=image
 name=row 5 highlight
 anchor=4
-group=main menu
+group=main menu/row 5
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=39.6
@@ -1207,15 +1199,13 @@ aclip=Press;200;once
 akey=Press;ar;0 0.45 qout;200 0 linear
 akey=Press;ag;0 0.45 qout;200 0 linear
 akey=Press;ab;0 0.45 qout;200 0 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=image
 name=row 5 highlight sheen
 anchor=4
-group=main menu
+group=main menu/row 5
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=61.2
@@ -1240,8 +1230,6 @@ akey=Selected;y;0 0 hold;9600 0 linear;9966.667 0 hold
 akey=Selected;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 clip=row 5 highlight;0.008 0.11 0.979 0.758
 
 [element]
@@ -1249,7 +1237,7 @@ mode=frontend
 type=image
 name=row 5 highlight A
 anchor=4
-group=main menu
+group=main menu/row 5
 showif=screen:jra_menus/hangoutmainmenu
 x=-371.6
 y=42.667
@@ -1263,24 +1251,18 @@ pack=screens/jra_menus/hangoutmainmenu
 uv=0 0 1 1
 layer=7
 afocus=menu.sel:4
-apress=menu.press:4
 aclip=Focus;233.333;once
 akey=Focus;sx;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 akey=Focus;sy;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Press;260;once
-akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 5 highlight shadow
 anchor=4
-group=main menu
+group=main menu/row 5
 showif=screen:jra_menus/hangoutmainmenu
 x=-351.4
 y=37.932
@@ -1297,15 +1279,13 @@ afocus=menu.sel:4
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 5 highlight text
 anchor=4
-group=main menu
+group=main menu/row 5
 showif=screen:jra_menus/hangoutmainmenu
 x=-352.733
 y=36.598
@@ -1322,15 +1302,33 @@ afocus=menu.sel:4
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
+
+[element]
+mode=frontend
+type=motion
+name=row 6 motion
+anchor=4
+group=main menu/row 6
+showif=screen:jra_menus/hangoutmainmenu
+x=-275.4
+y=66.267
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=1
+layer=0
+apress=menu.press:5
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
+akey=Press;sy;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
 
 [element]
 mode=frontend
 type=image
 name=row 6 highlight
 anchor=4
-group=main menu
+group=main menu/row 6
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=66.267
@@ -1352,15 +1350,13 @@ aclip=Press;200;once
 akey=Press;ar;0 0.45 qout;200 0 linear
 akey=Press;ag;0 0.45 qout;200 0 linear
 akey=Press;ab;0 0.45 qout;200 0 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=image
 name=row 6 highlight sheen
 anchor=4
-group=main menu
+group=main menu/row 6
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=87.867
@@ -1385,8 +1381,6 @@ akey=Selected;y;0 0 hold;9600 0 linear;9966.667 0 hold
 akey=Selected;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 clip=row 6 highlight;0.008 0.11 0.979 0.758
 
 [element]
@@ -1394,7 +1388,7 @@ mode=frontend
 type=image
 name=row 6 highlight A
 anchor=4
-group=main menu
+group=main menu/row 6
 showif=screen:jra_menus/hangoutmainmenu
 x=-371.6
 y=69.333
@@ -1408,24 +1402,18 @@ pack=screens/jra_menus/hangoutmainmenu
 uv=0 0 1 1
 layer=7
 afocus=menu.sel:5
-apress=menu.press:5
 aclip=Focus;233.333;once
 akey=Focus;sx;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 akey=Focus;sy;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Press;260;once
-akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 6 highlight shadow
 anchor=4
-group=main menu
+group=main menu/row 6
 showif=screen:jra_menus/hangoutmainmenu
 x=-351.4
 y=64.598
@@ -1442,15 +1430,13 @@ afocus=menu.sel:5
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 6 highlight text
 anchor=4
-group=main menu
+group=main menu/row 6
 showif=screen:jra_menus/hangoutmainmenu
 x=-352.733
 y=63.265
@@ -1467,15 +1453,33 @@ afocus=menu.sel:5
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
+
+[element]
+mode=frontend
+type=motion
+name=row 7 motion
+anchor=4
+group=main menu/row 7
+showif=screen:jra_menus/hangoutmainmenu
+x=-275.4
+y=92.933
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=1
+layer=0
+apress=menu.press:6
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
+akey=Press;sy;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
 
 [element]
 mode=frontend
 type=image
 name=row 7 highlight
 anchor=4
-group=main menu
+group=main menu/row 7
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=92.933
@@ -1497,15 +1501,13 @@ aclip=Press;200;once
 akey=Press;ar;0 0.45 qout;200 0 linear
 akey=Press;ag;0 0.45 qout;200 0 linear
 akey=Press;ab;0 0.45 qout;200 0 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=image
 name=row 7 highlight sheen
 anchor=4
-group=main menu
+group=main menu/row 7
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=114.533
@@ -1530,8 +1532,6 @@ akey=Selected;y;0 0 hold;9600 0 linear;9966.667 0 hold
 akey=Selected;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 clip=row 7 highlight;0.008 0.11 0.979 0.758
 
 [element]
@@ -1539,7 +1539,7 @@ mode=frontend
 type=image
 name=row 7 highlight A
 anchor=4
-group=main menu
+group=main menu/row 7
 showif=screen:jra_menus/hangoutmainmenu
 x=-371.6
 y=96
@@ -1553,24 +1553,18 @@ pack=screens/jra_menus/hangoutmainmenu
 uv=0 0 1 1
 layer=7
 afocus=menu.sel:6
-apress=menu.press:6
 aclip=Focus;233.333;once
 akey=Focus;sx;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 akey=Focus;sy;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Press;260;once
-akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 7 highlight shadow
 anchor=4
-group=main menu
+group=main menu/row 7
 showif=screen:jra_menus/hangoutmainmenu
 x=-351.4
 y=91.265
@@ -1587,15 +1581,13 @@ afocus=menu.sel:6
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 7 highlight text
 anchor=4
-group=main menu
+group=main menu/row 7
 showif=screen:jra_menus/hangoutmainmenu
 x=-352.733
 y=89.932
@@ -1612,15 +1604,33 @@ afocus=menu.sel:6
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
+
+[element]
+mode=frontend
+type=motion
+name=row 8 motion
+anchor=4
+group=main menu/row 8
+showif=screen:jra_menus/hangoutmainmenu
+x=-275.4
+y=119.6
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=1
+layer=0
+apress=menu.press:7
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
+akey=Press;sy;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
 
 [element]
 mode=frontend
 type=image
 name=row 8 highlight
 anchor=4
-group=main menu
+group=main menu/row 8
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=119.6
@@ -1642,15 +1652,13 @@ aclip=Press;200;once
 akey=Press;ar;0 0.45 qout;200 0 linear
 akey=Press;ag;0 0.45 qout;200 0 linear
 akey=Press;ab;0 0.45 qout;200 0 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=image
 name=row 8 highlight sheen
 anchor=4
-group=main menu
+group=main menu/row 8
 showif=screen:jra_menus/hangoutmainmenu
 x=-275.4
 y=141.2
@@ -1675,8 +1683,6 @@ akey=Selected;y;0 0 hold;9600 0 linear;9966.667 0 hold
 akey=Selected;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 clip=row 8 highlight;0.008 0.11 0.979 0.758
 
 [element]
@@ -1684,7 +1690,7 @@ mode=frontend
 type=image
 name=row 8 highlight A
 anchor=4
-group=main menu
+group=main menu/row 8
 showif=screen:jra_menus/hangoutmainmenu
 x=-371.6
 y=122.667
@@ -1698,24 +1704,18 @@ pack=screens/jra_menus/hangoutmainmenu
 uv=0 0 1 1
 layer=7
 afocus=menu.sel:7
-apress=menu.press:7
 aclip=Focus;233.333;once
 akey=Focus;sx;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 akey=Focus;sy;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Press;260;once
-akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 8 highlight shadow
 anchor=4
-group=main menu
+group=main menu/row 8
 showif=screen:jra_menus/hangoutmainmenu
 x=-351.4
 y=117.932
@@ -1732,15 +1732,13 @@ afocus=menu.sel:7
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
 type=text
 name=row 8 highlight text
 anchor=4
-group=main menu
+group=main menu/row 8
 showif=screen:jra_menus/hangoutmainmenu
 x=-352.733
 y=116.598
@@ -1757,8 +1755,6 @@ afocus=menu.sel:7
 ablend=0
 aclip=Unfocus;33;once
 akey=Unfocus;alpha;0 0 hold
-aclip=Out;300;once
-akey=Out;alpha;0 1 linear;200 0 linear
 
 [element]
 mode=frontend
@@ -1784,8 +1780,6 @@ apress=menu.press
 aclip=Press;260;once
 akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
 akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 hold;100 1 linear;300 0 linear
 
 [element]
 mode=frontend
@@ -1807,8 +1801,6 @@ align=0
 layer=2
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;133.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 hold;100 1 linear;300 0 linear
 
 [element]
 mode=frontend
@@ -1834,8 +1826,6 @@ apress=menu.back
 aclip=Press;260;once
 akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
 akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 hold;100 1 linear;300 0 linear
 
 [element]
 mode=frontend
@@ -1857,5 +1847,22 @@ align=0
 layer=2
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;133.333 1 linear
-aclip=Out;300;once
-akey=Out;alpha;0 1 hold;100 1 linear;300 0 linear
+
+[element]
+mode=frontend
+type=motion
+name=main menu motion
+anchor=4
+group=main menu
+showif=screen:jra_menus/hangoutmainmenu
+x=-269.333
+y=18.667
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=1
+layer=0
+aclip=Out;250;once
+akey=Out;x;0 0 qin;250 -24 linear
+akey=Out;alpha;0 1 linear;250 0 linear

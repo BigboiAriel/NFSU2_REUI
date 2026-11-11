@@ -286,7 +286,8 @@ static std::string Expand(const std::string& s, int row = 0) {
 }
 
 // ---------------------------------------------------------------- overlay
-enum { E_IMAGE = 0, E_TEXT = 1, E_SHAPE = 2 };
+enum { E_IMAGE = 0, E_TEXT = 1, E_SHAPE = 2,
+       E_MOTION = 3 };   // a group's motion: not drawn; its clips move / scale / turn / fade / tint its group about its point
 // Gradients as the editor keeps them: stops with a colour, or a colour token (its colour now, times the stop's
 // opacity); a gradient can instead use a gradient token's stops (tok). Resolved to shapes::Gradient when drawn.
 struct UStop { float t = 0; float c[4] = {1, 1, 1, 1}; std::string tok; };
@@ -381,7 +382,7 @@ struct Elem {
     UGrad strokeGrad, fillGrad;           // gradients (shapes.h modes): with one, its colours replace the colour (alpha still fades)
 };
 static float Clamp01f(float v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
-static const char* TypeKey(int t) { return t == 1 ? "text" : t == 2 ? "shape" : "image"; }
+static const char* TypeKey(int t) { return t == 1 ? "text" : t == 2 ? "shape" : t == 3 ? "motion" : "image"; }
 struct FlagDef { std::string key, label, tip; int group = 0; bool hideMissing = false, live = false; std::function<bool()> hide; };
 static std::vector<FlagDef> g_flagDefs;   // registered ones (live) and ones known from the layout file
 static FlagDef* FlagOf(const std::string& k) { for (auto& f : g_flagDefs) if (f.key == k) return &f; return nullptr; }
@@ -1012,8 +1013,59 @@ namespace anim {   // (uied_anim.inc) an element's clips now: the change they ma
 struct Pose { float dx = 0, dy = 0, sx = 1, sy = 1, rot = 0, a = 1, mul[3] = { 1, 1, 1 }, add[3] = { 0, 0, 0 }; };
 static bool PoseOf(Elem& e, bool editing, Pose& p);   // false: nothing playing on it
 static bool Previewing();   // animation mode is on: every element shows (its show-only-while rule waits)
-static bool Leaving(Elem& e);    // its show-only-while went off: true while its Out clip plays (it's still drawn)
+static bool Leaving(Elem& e, bool kept);   // its show-only-while went off: true while its Out clip plays (it's still drawn) -
+                                           // or kept: its group's motion is leaving (it stays, frozen, till that ends)
 static void Showing(Elem& e);    // it's shown (back during an Out: In starts again)
+}
+// ---- group motion: a "motion" element's clips (In, triggers, Out...) move every element of its group (and the groups in
+// it) about its point - scale, turn and move with it, fade and tint - after the element's own clips; inner groups first
+static std::vector<Elem>* LayoutOf(const Elem& e) {
+    for (auto& l : g_layout) if (!l.empty() && &e >= &l.front() && &e <= &l.back()) return &l;
+    return nullptr;
+}
+static void MotionsOf(const Elem& e, std::vector<Elem*>& out) {   // the motion elements over it, inner groups first
+    out.clear();
+    if (e.type == E_MOTION && e.group.empty()) return;
+    std::vector<Elem>* l = LayoutOf(e);
+    if (!l) return;
+    for (auto& c : *l) if (c.type == E_MOTION && &c != &e && c.an.p && InGroup(e.group, c.group) && (e.type != E_MOTION || c.group != e.group)) out.push_back(&c);
+    std::sort(out.begin(), out.end(), [](const Elem* x, const Elem* y) { return x->group.size() > y->group.size(); });
+}
+struct MotionPose { anim::Pose p; ImVec2 at; };
+static int MotionPoses(Elem& e, bool editing, MotionPose* out, int max) {
+    if (editing || e.group.empty()) return 0;
+    static std::vector<Elem*> cs; MotionsOf(e, cs);
+    struct Cached { int frame = -1; bool posed = false; anim::Pose p; };
+    static std::unordered_map<const Elem*, Cached> cache;   // (a motion's pose: worked out once a frame)
+    const int frame = ImGui::GetFrameCount();
+    int n = 0;
+    for (Elem* c : cs) {
+        if (n >= max) break;
+        Cached& k = cache[c];
+        if (k.frame != frame) { k.frame = frame; k.p = anim::Pose(); k.posed = anim::PoseOf(*c, false, k.p); }
+        if (!k.posed) continue;
+        ImVec2 a, b; ElemRect(*c, a, b);
+        const float u = Unit();
+        out[n].p = k.p; out[n].at = ImVec2((a.x + b.x) / 2 + c->pivX * u, (a.y + b.y) / 2 + c->pivY * u);
+        ++n;
+    }
+    return n;
+}
+static bool MotionLeaving(Elem& e) {   // a motion over it is playing its Out: it stays (as it is) till that ends
+    if (e.group.empty()) return false;
+    static std::vector<Elem*> cs; MotionsOf(e, cs);
+    std::vector<Elem*> mine(cs);   // (Leaving below may look up motions again)
+    for (Elem* c : mine) if (!ShowIfOk(*c) && anim::Leaving(*c, MotionLeaving(*c))) return true;   // (an outer group's keeps it)
+    return false;
+}
+static void DrawMotionMarker(ImDrawList* dl, Elem& e) {   // (editing / animation mode: where a group's motion turns it)
+    ImVec2 a, b; ElemRect(e, a, b);
+    const float u = Unit();
+    const ImVec2 p((a.x + b.x) / 2 + e.pivX * u, (a.y + b.y) / 2 + e.pivY * u);
+    const ImU32 c = IM_COL32(255, 165, 60, 230);
+    dl->AddCircle(p, 7, c, 0, 2.f);
+    dl->AddLine(ImVec2(p.x - 12, p.y), ImVec2(p.x + 12, p.y), c, 1.5f);
+    dl->AddLine(ImVec2(p.x, p.y - 12), ImVec2(p.x, p.y + 12), c, 1.5f);
 }
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
@@ -1022,7 +1074,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!editing && !e.flags.empty() && FlagsHide(e)) return;
     struct AnimSave { Elem& e; bool on = false; float scale = 1, x = 0, y = 0; ~AnimSave() { if (on) { e.scale = scale; e.x = x; e.y = y; } } } animSave{ e };
     if (!ShowIfOk(e)) {
-        if (!editing && !anim::Previewing()) { if (!anim::Leaving(e)) { e.shownSince = -1; return; } }   // (Out: drawn till it ends)
+        if (!editing && !anim::Previewing()) { if (!anim::Leaving(e, MotionLeaving(e))) { e.shownSince = -1; return; } }   // (Out: drawn till it ends)
         else e.shownSince = -1;
     } else {
         if (!editing) anim::Showing(e);
@@ -1033,6 +1085,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (on && !e.playWas) e.shownSince = ImGui::GetTime();
         e.playWas = on;
     }
+    if (e.type == E_MOTION) { if (editing || anim::Previewing()) DrawMotionMarker(dl, e); return; }   // (only its clips act)
     if (e.row > boardRows) return;               // past the rows shown (also while editing)
     bool mine = false;
     if (!RowShown(e, mine) && !editing) return;   // (while editing, rows nobody fills are drawn so they can be placed)
@@ -1116,7 +1169,6 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         poseKeep{ e, e.rot, e.pivX, e.pivY, { e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3] } };
     anim::Pose pose;
     const bool posed = anim::PoseOf(e, editing, pose);
-    const bool poseAdd = posed && e.type == E_IMAGE && pose.add[0] + pose.add[1] + pose.add[2] > 0.004f;
     if (posed) {
         if (pose.a <= 0.004f) return;
         poseKeep.on = true;
@@ -1141,6 +1193,42 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         for (int i = 0; i < 3; ++i) e.fillCol[i] = std::min(1.f, e.fillCol[i] * pose.mul[i]);
         e.fillCol[3] *= std::min(1.f, pose.a);
     }
+    bool grouped = false;
+    {   // its groups' motion (inner groups first): about the motion element's point
+        MotionPose mp[4];
+        const int nm = MotionPoses(e, editing, mp, 4);
+        const float k = Unit();
+        for (int i = 0; i < nm; ++i) {
+            const anim::Pose& gp = mp[i].p; const ImVec2 P = mp[i].at;
+            if (gp.a <= 0.004f) return;
+            poseKeep.on = grouped = true;
+            const float r = gp.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
+            auto T = [&](ImVec2 q) {   // a point of it: scaled and turned about the motion's point, then moved
+                const float x = (q.x - P.x) * gp.sx, y = (q.y - P.y) * gp.sy;
+                return ImVec2(P.x + x * cs - y * sn + gp.dx * k, P.y + x * sn + y * cs + gp.dy * k);
+            };
+            if (e.type == E_TEXT) {
+                const ImVec2 c1 = T(ImVec2((a.x + b.x) / 2, (a.y + b.y) / 2));
+                if (!animSave.on) { animSave.on = true; animSave.scale = e.scale; animSave.x = e.x; animSave.y = e.y; }
+                e.scale *= gp.sx;
+                ImVec2 a1, b1; ElemRect(e, a1, b1);
+                e.x += (c1.x - (a1.x + b1.x) / 2) / k; e.y += (c1.y - (a1.y + b1.y) / 2) / k;
+                ElemRect(e, a, b);
+            } else {   // (its own turning point carried round; its box scaled about it)
+                const ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), pv(c.x + e.pivX * k, c.y + e.pivY * k), pv1 = T(pv);
+                a = ImVec2(pv1.x + (a.x - pv.x) * gp.sx, pv1.y + (a.y - pv.y) * gp.sy);
+                b = ImVec2(pv1.x + (b.x - pv.x) * gp.sx, pv1.y + (b.y - pv.y) * gp.sy);
+                e.pivX *= gp.sx; e.pivY *= gp.sy;
+            }
+            e.rot += gp.rot;
+            ImVec4 cv = ImGui::ColorConvertU32ToFloat4(col);
+            cv.x = std::min(1.f, cv.x * gp.mul[0]); cv.y = std::min(1.f, cv.y * gp.mul[1]); cv.z = std::min(1.f, cv.z * gp.mul[2]); cv.w *= std::min(1.f, gp.a);
+            col = ImGui::ColorConvertFloat4ToU32(cv);
+            for (int j = 0; j < 3; ++j) { e.fillCol[j] = std::min(1.f, e.fillCol[j] * gp.mul[j]); pose.add[j] += gp.add[j]; }
+            e.fillCol[3] *= std::min(1.f, gp.a);
+        }
+    }
+    const bool poseAdd = (posed || grouped) && e.type == E_IMAGE && pose.add[0] + pose.add[1] + pose.add[2] > 0.004f;
     GameObject go; bool following = false;
     if ((e.type == E_IMAGE || e.type == E_SHAPE) && e.follow) {   // (a shape: the game object's box, its fill tinted by the game's colour)
         following = FollowBox(e, go, a, b);
@@ -2042,7 +2130,7 @@ static void Save() {
 }
 static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // one "key=value" of an [element]
     if (k == "mode") { for (int m = 0; m < NumModes(); ++m) if (v == modes[m].key) e.mode = m; }
-    else if (k == "type") e.type = v == "text" ? E_TEXT : v == "shape" ? E_SHAPE : E_IMAGE;
+    else if (k == "type") e.type = v == "text" ? E_TEXT : v == "shape" ? E_SHAPE : v == "motion" ? E_MOTION : E_IMAGE;
     else if (k == "shape") { int n = sscanf(v.c_str(), "%f %f %f %f %f", &e.rad[0], &e.rad[1], &e.rad[2], &e.rad[3], &e.stroke); (void)n; e.radLink = e.rad[0] == e.rad[1] && e.rad[1] == e.rad[2] && e.rad[2] == e.rad[3]; }
     else if (k == "fill") sscanf(v.c_str(), "%f %f %f %f", &e.fillCol[0], &e.fillCol[1], &e.fillCol[2], &e.fillCol[3]);
     else if (k == "filltoken") { char n[64] = {}; float a = 1; if (sscanf(v.c_str(), "%63s %f", n, &a) >= 1) { e.fillTok = n; e.fillTokA = a; } }
@@ -3128,6 +3216,15 @@ static void Selected(Elem& e) {
         ImGui::SameLine(); ImGui::TextDisabled("(higher = on top)");
     }
     ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("position", &e.x, 0.5f, -2000.f, 2000.f, "%.0f")) g_dirty = true;
+    if (e.type == E_MOTION) {
+        ImGui::TextDisabled("Group motion: not drawn. Its clips (animation mode, F8) move, scale, turn, fade and tint");
+        ImGui::TextDisabled("every element of its group \"%s\" (and the groups inside it) about this point.", e.group.c_str());
+        static char sb[96]; snprintf(sb, sizeof sb, "%s", e.showIf.c_str());
+        ImGui::SetNextItemWidth(220);
+        if (ImGui::InputTextWithHint("show only while", "value key (its In plays when it comes on)", sb, sizeof sb)) { e.showIf = sb; g_dirty = true; }
+        ImGui::PopID();
+        return;
+    }
     if (e.type == E_IMAGE) {
         ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("size", &e.w, 0.5f, 1.f, 2000.f, "%.0f")) g_dirty = true;
         if (e.texIdx >= 0) { ImGui::SameLine(); if (ImGui::SmallButton("texture's own size")) { e.w = g_tex[e.texIdx].w; e.h = g_tex[e.texIdx].h; g_dirty = true; } }

@@ -67,6 +67,7 @@ struct Run {
     int state = -1; double stateAt = 0;   // the state layer's clip (-1: none) and when it started (s)
     bool focus = false, press = false;    // its trigger values last frame
     double outAt = -1;            // its Out started (s): it's leaving
+    bool frozen = false;          // its group's motion is leaving: kept as it is (no triggers) till that ends
     float from[P_NPROP] = {}; double blendAt = -1;   // a clip change: the pose it blends from, and since when
     float last[P_NPROP] = {}; bool hasLast = false;  // the pose drawn last frame
 };
@@ -322,22 +323,26 @@ static void Triggers(const Elem& e, ElemAnim& a, double now) {
     }
 }
 static void Hidden(ElemAnim& a) { a.run = Run(); }
-static bool Leaving(Elem& e) {
+static bool Leaving(Elem& e, bool kept) {   // kept: a group motion over it is leaving (it stays till that's done)
+    if (e.shownSince < 0) { if (e.an.p) Hidden(*e.an.p); return false; }   // (it wasn't up: stays gone)
     ElemAnim* a = e.an.p;
-    if (!a) return false;
+    if (!a) return kept;
     const Clip* out = ClipNamed(a, "Out");
-    if (!out || e.shownSince < 0) { Hidden(*a); return false; }   // (no Out, or it wasn't up: gone now)
     Run& r = a->run;
+    if (!out) {   // no Out of its own: gone now, or (kept) as it is, frozen
+        if (kept) { r.frozen = true; return true; }
+        Hidden(*a); return false;
+    }
     const double now = ImGui::GetTime();
     if (r.outAt < 0) { r.outAt = now; StartBlend(*a, now); }
-    if (MsSince(r.outAt, now) >= out->length) { Hidden(*a); return false; }
+    if (MsSince(r.outAt, now) >= out->length && !kept) { Hidden(*a); return false; }   // (kept: holds Out's end)
     return true;
 }
 static void Showing(Elem& e) {
     ElemAnim* a = e.an.p;
-    if (!a || a->run.outAt < 0) return;
-    const double now = ImGui::GetTime();   // back during its Out: In again, from the pose it had
-    a->run.outAt = -1;
+    if (!a || (a->run.outAt < 0 && !a->run.frozen)) return;
+    const double now = ImGui::GetTime();   // back during an Out: In again, from the pose it had
+    a->run.outAt = -1; a->run.frozen = false;
     StartBlend(*a, now);
     e.shownSince = now;
 }
@@ -352,7 +357,7 @@ static bool PoseOf(Elem& e, bool editing, Pose& p) {
     Run& r = a->run;
     const double now = ImGui::GetTime();
     const bool leaving = r.outAt >= 0;
-    if (!leaving) Triggers(e, *a, now);   // (frozen while it leaves)
+    if (!leaving && !r.frozen) Triggers(e, *a, now);   // (frozen while it leaves)
     float v[P_NPROP], s[P_NPROP];
     for (int i = 0; i < P_NPROP; ++i) v[i] = kProp[i].def;
     bool any = false;
@@ -832,6 +837,31 @@ static void WinFrameEnd() {   // (after every window of the frame)
     }
     if (w_.dirty && !ImGui::IsMouseDown(0)) WinSave();
 }
+// a group's motion element (focused; made if it has none: at the middle of the group's elements, shown as they are)
+static void FocusMotion(const std::string& grp) {
+    auto& els = Elems();
+    for (int i = 0; i < (int)els.size(); ++i)
+        if (els[i].type == E_MOTION && els[i].group == grp) { g.elemKey = KeyOf(g_editMode, els[i]); g_sel = i; g.focus = State::F_ELEMENT; g.graph.fit = g.big.fit = true; return; }
+    ImVec2 lo(1e9f, 1e9f), hi(-1e9f, -1e9f);
+    std::string show; bool first = true;
+    for (auto& o : els) {
+        if (!InGroup(o.group, grp) || o.type == E_MOTION) continue;
+        ImVec2 a, b; ElemRect(o, a, b);
+        lo = ImVec2(std::min(lo.x, std::min(a.x, b.x)), std::min(lo.y, std::min(a.y, b.y)));
+        hi = ImVec2(std::max(hi.x, std::max(a.x, b.x)), std::max(hi.y, std::max(a.y, b.y)));
+        if (first) { show = o.showIf; first = false; } else if (o.showIf != show && !show.empty()) show = "";   // (shared one only)
+    }
+    if (first) return;
+    Elem c;
+    c.type = E_MOTION; c.mode = g_editMode; c.texIdx = c.fontIdx = -2; c.shownSince = -1;
+    c.name = GroupLeaf(grp) + " motion"; c.group = grp; c.showIf = show;
+    c.anchor = 4; c.x = c.y = 0; c.w = c.h = 12; c.visible = true;
+    ImVec2 a, b; ElemRect(c, a, b);
+    c.x = ((lo.x + hi.x) / 2 - (a.x + b.x) / 2) / Unit(); c.y = ((lo.y + hi.y) / 2 - (a.y + b.y) / 2) / Unit();
+    els.push_back(c);
+    g_dirty = true;
+    g.elemKey = KeyOf(g_editMode, els.back()); g_sel = (int)els.size() - 1; g.focus = State::F_ELEMENT; g.graph.fit = g.big.fit = true;
+}
 static void ElementsList() {   // (the right side of the panels window)
     ImGui::TextUnformatted("Elements");
     ImGui::TextDisabled("%s layout - %d elements", ModeName(g_editMode), (int)Elems().size());
@@ -858,7 +888,13 @@ static void ElementsList() {   // (the right side of the panels window)
         const Elem& e = els[i];
         if (e.group != lastGroup) {
             lastGroup = e.group;
-            if (!e.group.empty()) ImGui::TextColored(ImVec4(1.f, 0.65f, 0.3f, 1), "%s", e.group.c_str());
+            if (!e.group.empty()) {   // a group: click to animate it as one (its motion element)
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.f, 0.65f, 0.3f, 1));
+                const bool click = ImGui::Selectable((e.group + "##ag" + std::to_string(i)).c_str(), false);
+                ImGui::PopStyleColor();
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Click: animate the group as one - its motion element (made at the group's middle if it has none).\nIts clips move, scale, turn, fade and tint every element in it, about that point.");
+                if (click) FocusMotion(e.group);
+            }
         }
         const std::string key = KeyOf(g_editMode, e);
         int nk = 0; if (e.an.p) for (auto& c : e.an.p->clips) nk += Keys(c);
@@ -881,6 +917,25 @@ static void AnimPage() {   // (the left side of the panels window)
     if (idx < 0 || !an) { ImGui::TextDisabled("Pick an element in the list to animate it."); return; }
     Elem& e = Elems()[idx];
     ImGui::Text("%s", e.name.c_str()); ImGui::SameLine(); ImGui::TextDisabled("%s%s%s", TypeKey(e.type), e.group.empty() ? "" : "  in ", e.group.c_str());
+    if (e.type == E_MOTION) {   // a group's motion: its point is the pivot
+        ImGui::TextColored(ImVec4(1.f, 0.65f, 0.3f, 1), "Group motion");
+        ImGui::SameLine(); ImGui::TextDisabled("its clips move every element of \"%s\" about its point (the orange cross)", GroupLeaf(e.group).c_str());
+        ImGui::SetNextItemWidth(160);
+        if (ImGui::DragFloat2("point##mot", &e.x, 0.5f, -2000.f, 2000.f, "%.1f")) g_dirty = true;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Where the group scales and turns about (units from the screen's middle).");
+        ImGui::SameLine();
+        if (ImGui::SmallButton("group's middle")) {
+            ImVec2 lo(1e9f, 1e9f), hi(-1e9f, -1e9f); bool any = false;
+            for (auto& o : Elems()) {
+                if (!InGroup(o.group, e.group) || o.type == E_MOTION) continue;
+                ImVec2 a, b; ElemRect(o, a, b); any = true;
+                lo = ImVec2(std::min(lo.x, std::min(a.x, b.x)), std::min(lo.y, std::min(a.y, b.y)));
+                hi = ImVec2(std::max(hi.x, std::max(a.x, b.x)), std::max(hi.y, std::max(a.y, b.y)));
+            }
+            if (any) { ImVec2 a, b; ElemRect(e, a, b); e.x += ((lo.x + hi.x) / 2 - (a.x + b.x) / 2) / Unit(); e.y += ((lo.y + hi.y) / 2 - (a.y + b.y) / 2) / Unit(); e.pivX = e.pivY = 0; g_dirty = true; }
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Its point to the middle of the group's elements.");
+    }
     ImGui::TextDisabled("Saved with the layout. In plays when it shows, then Idle loops.");
     Clip* cur = CurClip();
     // ---- states
