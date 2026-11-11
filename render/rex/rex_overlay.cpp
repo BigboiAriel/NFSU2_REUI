@@ -12,7 +12,6 @@
 #include <rex/ui/window_listener.h>
 
 #include <imgui.h>
-#include <imgui_internal.h>   // (GetActiveID: the input diagnostics)
 
 #include <SDL3/SDL_mouse.h>   // (the game's window is SDL's: REUI's cursor shapes - resize arrows, the text beam)
 
@@ -116,7 +115,7 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
         // typing: the game's window is SDL's, which sends typed characters only while its text input is on (off by
         // default; the SDK's own ImGui turns it on for itself only) - on while one of REUI's text boxes is being typed in
         if (io.WantTextInput != textOn_ && s_.window) { textOn_ = io.WantTextInput; s_.window->SetTextInputActive(textOn_); InputDebug("text input %d (window says %d)", (int)textOn_, (int)s_.window->IsTextInputActive()); }
-        { static int lastActive = -1; const int act = ImGui::GetActiveID() != 0; if (act != lastActive) { lastActive = act; InputDebug("active widget %d, want text %d", act, (int)io.WantTextInput); } }
+        { static int lastActive = -1; const int act = ImGui::IsAnyItemActive() ? 1 : 0; if (act != lastActive) { lastActive = act; InputDebug("active widget %d, want text %d", act, (int)io.WantTextInput); } }
         ImDrawData* dd = ImGui::GetDrawData();
         if (dd && dd->Textures) for (ImTextureData* t : *dd->Textures) UpdateTexture(t);
         if (dd && dd->CmdListsCount > 0 && w > 0 && h > 0) Render(dc, dd);
