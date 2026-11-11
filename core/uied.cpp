@@ -1358,15 +1358,19 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         struct ClipPop { ImDrawList* dl; bool on; ~ClipPop() { if (on) dl->PopClipRect(); } } clipPop{ dl, wipeClip };
         if (fxOn && (fx.shadow || fx.glow || fx.blur > 0.01f)) {
             const float ku = Unit(); float keep[4] = { e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3] };
+            // (a shape's own opacity: its fill's, faded as the element is - its colour is its stroke's, often clear)
+            const float shapeA = keep[3] * (e.col[3] > 0.001f ? std::min(1.f, fxAlpha / e.col[3]) : 1.f);
             auto pass = [&](const float* c, float alpha, float rad, ImVec2 off) {
+                const float ca = e.col[3]; e.col[3] = 0;   // (no fade of the fill by its own colour: the tap's alpha is all)
+                struct Back { float& v; float was; ~Back() { v = was; } } back{ e.col[3], ca };
                 FxTaps(rad, off, FxCol(c, alpha), [&](ImVec2 o, ImU32 c4) {
                     const ImVec4 v = ImGui::ColorConvertU32ToFloat4(c4);
                     e.fillCol[0] = v.x; e.fillCol[1] = v.y; e.fillCol[2] = v.z; e.fillCol[3] = v.w;
                     DrawShape(dl, e, ImVec2(a.x + o.x, a.y + o.y), ImVec2(b.x + o.x, b.y + o.y), c4, false);
                 });
             };
-            if (fx.shadow) pass(fx.scol, fxAlpha * keep[3], fx.sblur * ku, ImVec2(fx.sdx * ku, fx.sdy * ku));
-            if (fx.glow) { float gc[4] = { fx.gcol[0], fx.gcol[1], fx.gcol[2], fx.gcol[3] * fx.gstr }; pass(gc, fxAlpha * keep[3], fx.gsize * ku, ImVec2(0, 0)); }
+            if (fx.shadow) pass(fx.scol, shapeA, fx.sblur * ku, ImVec2(fx.sdx * ku, fx.sdy * ku));
+            if (fx.glow) { float gc[4] = { fx.gcol[0], fx.gcol[1], fx.gcol[2], fx.gcol[3] * fx.gstr }; pass(gc, shapeA, fx.gsize * ku, ImVec2(0, 0)); }
             for (int i = 0; i < 4; ++i) e.fillCol[i] = keep[i];
             if (fx.blur > 0.01f) {   // (its own soft copies in place of it)
                 FxTaps(fx.blur * ku, ImVec2(0, 0), IM_COL32_WHITE, [&](ImVec2 o, ImU32 c4) {

@@ -727,6 +727,7 @@ static void CopyKeys(bool cut) {
     g_kclip.from = (fi >= 0 ? Elems()[fi].name : std::string("?")) + ", " + c->name;
     if (cut) for (auto& tr : c->tracks) tr.keys.erase(std::remove_if(tr.keys.begin(), tr.keys.end(), [](const Key& k) { return k.sel; }), tr.keys.end());
     Note(std::string(cut ? "Cut " : "Copied ") + std::to_string(g_kclip.keys.size()) + " key" + (g_kclip.keys.size() == 1 ? "" : "s") + " (" + g_kclip.from + ").");
+    if (cut) g_dirty = true;
 }
 static void PasteKeys() {
     Clip* c = CurClip();
@@ -752,6 +753,7 @@ static void PasteKeys() {
     g.graph.fit = g.big.fit = true;
     Note("Pasted " + std::to_string(g_kclip.keys.size()) + " key" + (g_kclip.keys.size() == 1 ? "" : "s") + " at " + TimeText(at) +
          (onto >= 0 ? std::string(" onto ") + kProp[onto].name : std::string()) + " (from " + g_kclip.from + ").");
+    g_dirty = true;   // (an undo step, even when the focus changed this frame)
 }
 static void PickAllShown() {   // every key of the tracks the graph shows
     Clip* c = CurClip();
