@@ -288,7 +288,11 @@ std::string ScreenKey(const std::string& path) {
 void SetFeBridge(const FeBridge& b) { g_bridge = b; }
 void FeSend(int dir, const std::string& method, const std::vector<std::string>& args) { if (g_bridge.send) g_bridge.send(dir, method, args); }
 
-void FeInit(const std::string& dataDir) { g_cmdsFile = dataDir + "fe_commands.txt"; FeMenusInit(dataDir); }
+std::string g_callsFile;   // <REUI>\fe_calls.txt: every call written as it's seen, while <REUI>\fe_calls.on is there (debugging)
+void FeInit(const std::string& dataDir) {
+    g_cmdsFile = dataDir + "fe_commands.txt"; FeMenusInit(dataDir);
+    if (FILE* f = fopen((dataDir + "fe_calls.on").c_str(), "rb")) { fclose(f); g_callsFile = dataDir + "fe_calls.txt"; }
+}
 
 const std::string& FeTopScreen() { return g_top; }
 
@@ -323,11 +327,14 @@ void FeFrame() {
     }
     if (g_bridge.calls) {
         uint64_t next = g_next;
+        FILE* df = g_callsFile.empty() ? nullptr : fopen(g_callsFile.c_str(), "ab");
         for (auto& c : g_bridge.calls(g_next, next)) {
+            if (df) fprintf(df, "%9.3f %s %s(%s)%s\n", c.t, c.dir ? "game->page" : "page->game", c.method.c_str(), c.args.c_str(), c.sent ? " [sent]" : "");
             if (c.dir == 0) g_seenCalls[c.method]++;
             if (c.dir == 0) FeMenuCall(c.method, c.args);
             if (!g_pause) g_log.push_back(c);
         }
+        if (df) fclose(df);
         g_next = next;
         while (g_log.size() > 5000) g_log.pop_front();
     }
