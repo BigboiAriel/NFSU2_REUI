@@ -496,6 +496,27 @@ akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
+name=row lock selected
+anchor=4
+group=track select/rows
+showif=ferows.sel={tile} && flash:_level0.feScreen.mcRowControlArea.mcHighlight.mcInfo.mcLocked._visible
+x=-198.733
+y=-67.069
+w=17.067
+h=23.467
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i7
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+afterlabel=1
+layer=9
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
 name=info 0 mcTrackInfo
 anchor=4
 group=track select
@@ -557,12 +578,12 @@ akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 [element]
 type=text
 name=info 3 txtDenominator1
-anchor=4
+anchor=1
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcCollectables._visible && flash:_level0.feScreen.mcTrackInfo.mcCollectables.txtDenominator1._visible
-x=106.933
-y=146.512
-w=0
+x=139.4
+y=374.241
+w=64.933
 h=0
 scale=0.767
 color=1 1 1 0.498
@@ -570,6 +591,7 @@ visible=1
 font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.mcCollectables.txtDenominator1.text}
 align=0
+wrap=1
 layer=14
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
@@ -597,12 +619,12 @@ akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 [element]
 type=text
 name=info 5 txtDenominator0
-anchor=4
+anchor=1
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcCollectables._visible && flash:_level0.feScreen.mcTrackInfo.mcCollectables.txtDenominator0._visible
-x=106.267
-y=145.845
-w=0
+x=138.733
+y=373.574
+w=64.933
 h=0
 scale=0.767
 color=0.655 0.4 0.4 1
@@ -610,6 +632,7 @@ visible=1
 font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.mcCollectables.txtDenominator0.text}
 align=0
+wrap=1
 layer=16
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
@@ -640,10 +663,10 @@ name=info 7 mcTrackInfo
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible
-x=153.4
-y=-78.2
-w=400
-h=310.667
+x=146.733
+y=61.133
+w=352
+h=32
 scale=1
 color=1 1 1 1
 visible=1
@@ -656,7 +679,107 @@ akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 8 mcSWFHolder
+name=info 8 mcTrackInfo
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible
+x=146.733
+y=-0.2
+w=352
+h=32
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i41
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=19
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 9 mcTrackInfo
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible
+x=153.4
+y=11.8
+w=400
+h=16
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i40
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=20
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 10 mcTrackInfo
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible
+x=-39.933
+y=-106.867
+w=13.333
+h=253.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i3f
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=21
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 11 mcTrackInfo
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible
+x=346.733
+y=-106.867
+w=13.333
+h=253.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i3e
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=22
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 12 mcTrackInfo
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible
+x=153.4
+y=-225.533
+w=400
+h=16
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i3d
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=23
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 13 mcSWFHolder
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcSWFHolder._visible
@@ -671,13 +794,13 @@ texture=movie:{flash:_level0.feScreen.mcTrackInfo.mcSWFHolder._url}
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
 rot=1
-layer=19
+layer=24
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 9 txtTimeLabel
+name=info 14 txtTimeLabel
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.txtTimeLabel._visible
@@ -691,13 +814,13 @@ visible=1
 font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.txtTimeLabel.text}
 align=0
-layer=20
+layer=25
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 10 txtTime
+name=info 15 txtTime
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.txtTime._visible
@@ -711,106 +834,6 @@ visible=1
 font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.txtTime.text}
 align=0
-layer=21
-aclip=In;466.667;once
-akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-
-[element]
-type=image
-name=info 11 mcDifficultyRating
-anchor=4
-group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
-x=244.067
-y=30.8
-w=146.667
-h=26.667
-scale=1
-color=1 1 1 1
-visible=1
-texture=hangouttrackselect_i47
-pack=screens/jra_menus/hangouttrackselect
-uv=0 0 1 1
-layer=22
-aclip=In;466.667;once
-akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-
-[element]
-type=image
-name=info 12 mcDifficultyRating
-anchor=4
-group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
-x=184.067
-y=30.8
-w=26.667
-h=26.667
-scale=1
-color=1 1 1 1
-visible=1
-texture=hangouttrackselect_i49
-pack=screens/jra_menus/hangouttrackselect
-uv=0 0 1 1
-layer=23
-aclip=In;466.667;once
-akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-
-[element]
-type=image
-name=info 13 mcDifficultyRating
-anchor=4
-group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=3 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
-x=214.067
-y=30.8
-w=26.667
-h=26.667
-scale=1
-color=1 1 1 1
-visible=1
-texture=hangouttrackselect_i49
-pack=screens/jra_menus/hangouttrackselect
-uv=0 0 1 1
-layer=24
-aclip=In;466.667;once
-akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-
-[element]
-type=image
-name=info 14 mcDifficultyRating
-anchor=4
-group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=3 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
-x=184.067
-y=30.8
-w=26.667
-h=26.667
-scale=1
-color=1 1 1 1
-visible=1
-texture=hangouttrackselect_i49
-pack=screens/jra_menus/hangouttrackselect
-uv=0 0 1 1
-layer=25
-aclip=In;466.667;once
-akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-
-[element]
-type=image
-name=info 15 mcDifficultyRating
-anchor=4
-group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=4 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
-x=244.067
-y=30.8
-w=26.667
-h=26.667
-scale=1
-color=1 1 1 1
-visible=1
-texture=hangouttrackselect_i49
-pack=screens/jra_menus/hangouttrackselect
-uv=0 0 1 1
 layer=26
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
@@ -820,15 +843,15 @@ type=image
 name=info 16 mcDifficultyRating
 anchor=4
 group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=4 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
-x=214.067
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=184.067
 y=30.8
 w=26.667
 h=26.667
 scale=1
 color=1 1 1 1
 visible=1
-texture=hangouttrackselect_i49
+texture=hangouttrackselect_i47
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
 layer=27
@@ -840,15 +863,15 @@ type=image
 name=info 17 mcDifficultyRating
 anchor=4
 group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=4 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
-x=184.067
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=214.067
 y=30.8
 w=26.667
 h=26.667
 scale=1
 color=1 1 1 1
 visible=1
-texture=hangouttrackselect_i49
+texture=hangouttrackselect_i47
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
 layer=28
@@ -860,15 +883,15 @@ type=image
 name=info 18 mcDifficultyRating
 anchor=4
 group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=5 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
-x=274.067
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=244.067
 y=30.8
 w=26.667
 h=26.667
 scale=1
 color=1 1 1 1
 visible=1
-texture=hangouttrackselect_i49
+texture=hangouttrackselect_i47
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
 layer=29
@@ -880,15 +903,15 @@ type=image
 name=info 19 mcDifficultyRating
 anchor=4
 group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=5 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
-x=244.067
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=274.067
 y=30.8
 w=26.667
 h=26.667
 scale=1
 color=1 1 1 1
 visible=1
-texture=hangouttrackselect_i49
+texture=hangouttrackselect_i47
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
 layer=30
@@ -900,15 +923,15 @@ type=image
 name=info 20 mcDifficultyRating
 anchor=4
 group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=5 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
-x=214.067
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=304.067
 y=30.8
 w=26.667
 h=26.667
 scale=1
 color=1 1 1 1
 visible=1
-texture=hangouttrackselect_i49
+texture=hangouttrackselect_i47
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
 layer=31
@@ -920,7 +943,7 @@ type=image
 name=info 21 mcDifficultyRating
 anchor=4
 group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=5 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
 x=184.067
 y=30.8
 w=26.667
@@ -940,8 +963,8 @@ type=image
 name=info 22 mcDifficultyRating
 anchor=4
 group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=6 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
-x=304.067
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=3 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=214.067
 y=30.8
 w=26.667
 h=26.667
@@ -960,8 +983,8 @@ type=image
 name=info 23 mcDifficultyRating
 anchor=4
 group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=6 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
-x=274.067
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=3 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=184.067
 y=30.8
 w=26.667
 h=26.667
@@ -980,7 +1003,7 @@ type=image
 name=info 24 mcDifficultyRating
 anchor=4
 group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=6 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=4 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
 x=244.067
 y=30.8
 w=26.667
@@ -1000,7 +1023,7 @@ type=image
 name=info 25 mcDifficultyRating
 anchor=4
 group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=6 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=4 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
 x=214.067
 y=30.8
 w=26.667
@@ -1020,7 +1043,7 @@ type=image
 name=info 26 mcDifficultyRating
 anchor=4
 group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=6 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=4 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
 x=184.067
 y=30.8
 w=26.667
@@ -1036,8 +1059,188 @@ aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
+type=image
+name=info 27 mcDifficultyRating
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=5 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=274.067
+y=30.8
+w=26.667
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i49
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=38
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 28 mcDifficultyRating
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=5 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=244.067
+y=30.8
+w=26.667
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i49
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=39
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 29 mcDifficultyRating
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=5 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=214.067
+y=30.8
+w=26.667
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i49
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=40
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 30 mcDifficultyRating
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=5 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=184.067
+y=30.8
+w=26.667
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i49
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=41
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 31 mcDifficultyRating
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=6 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=304.067
+y=30.8
+w=26.667
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i49
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=42
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 32 mcDifficultyRating
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=6 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=274.067
+y=30.8
+w=26.667
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i49
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=43
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 33 mcDifficultyRating
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=6 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=244.067
+y=30.8
+w=26.667
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i49
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=44
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 34 mcDifficultyRating
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=6 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=214.067
+y=30.8
+w=26.667
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i49
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=45
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 35 mcDifficultyRating
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._currentframe=6 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcDifficultyRating._visible
+x=184.067
+y=30.8
+w=26.667
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i49
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=46
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
 type=text
-name=info 27 txtDifficulty
+name=info 36 txtDifficulty
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.txtDifficulty._visible
@@ -1051,13 +1254,13 @@ visible=1
 font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.txtDifficulty.text}
 align=0
-layer=38
+layer=47
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 28 txtLapsLabel
+name=info 37 txtLapsLabel
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcLaps._visible && flash:_level0.feScreen.mcTrackInfo.mcLaps.txtLapsLabel._visible
@@ -1071,13 +1274,13 @@ visible=1
 font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.mcLaps.txtLapsLabel.text}
 align=0
-layer=39
+layer=48
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 29 txtLaps
+name=info 38 txtLaps
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcLaps._visible && flash:_level0.feScreen.mcTrackInfo.mcLaps.txtLaps._visible
@@ -1091,13 +1294,13 @@ visible=1
 font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.mcLaps.txtLaps.text}
 align=0
-layer=40
+layer=49
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 30 mcInfinity
+name=info 39 mcInfinity
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcLaps._visible && flash:_level0.feScreen.mcTrackInfo.mcLaps.mcInfinity._visible
@@ -1111,19 +1314,19 @@ visible=1
 texture=hangouttrackselect_i4f
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
-layer=41
+layer=50
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 31 mcLocked
+name=info 40 mcLocked
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcLocked._visible
 x=111.3
 y=-49.433
-w=262.4
+w=262.399
 h=50.667
 scale=1
 color=1 1 1 1
@@ -1131,13 +1334,13 @@ visible=1
 texture=hangouttrackselect_i53
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
-layer=42
+layer=51
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 32 mcLocked
+name=info 41 mcLocked
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcLocked._visible
@@ -1151,19 +1354,19 @@ visible=1
 texture=hangouttrackselect_i55
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
-layer=43
+layer=52
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 33 mcLocked
-anchor=4
+name=info 42 mcLocked
+anchor=1
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcLocked._visible
 x=112.023
-y=-52.592
-w=0
+y=172.07
+w=278.933
 h=0
 scale=0.959
 color=1 1 1 1
@@ -1172,13 +1375,14 @@ font=$XR_MAIN_HEADER
 text={loc:SCREEN_TRACKSELECT_TRACK_LOCKED}
 align=1
 rot=1
-layer=44
+wrap=1
+layer=53
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 34 mcLocked
+name=info 43 mcLocked
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcLocked._visible
@@ -1192,19 +1396,19 @@ visible=1
 texture=hangouttrackselect_i5f
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
-layer=45
+layer=54
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 35 txtTitle3
-anchor=4
+name=info 44 txtTitle3
+anchor=1
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.txtTitle3._visible
-x=-18.443
-y=-185.194
-w=0
+x=173.676
+y=37.167
+w=384.239
 h=0
 scale=1.102
 color=0.522 0.522 0.522 0.4
@@ -1213,19 +1417,20 @@ font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.txtTitle3.text}
 align=0
 rot=1
-layer=46
+wrap=1
+layer=55
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 36 txtTitle2
-anchor=4
+name=info 45 txtTitle2
+anchor=1
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.txtTitle2._visible
-x=-20.443
-y=-187.194
-w=0
+x=171.676
+y=35.167
+w=384.239
 h=0
 scale=1.102
 color=0.2 0.2 0.2 0.247
@@ -1234,19 +1439,20 @@ font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.txtTitle2.text}
 align=0
 rot=1
-layer=47
+wrap=1
+layer=56
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 37 txtTitle1
-anchor=4
+name=info 46 txtTitle1
+anchor=1
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.txtTitle1._visible
-x=-21.11
-y=-187.86
-w=0
+x=171.01
+y=34.5
+w=384.239
 h=0
 scale=1.102
 color=1 1 1 1
@@ -1255,34 +1461,14 @@ font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.txtTitle1.text}
 align=0
 rot=1
-layer=48
-aclip=In;466.667;once
-akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-
-[element]
-type=text
-name=info 38 txtTitle0
-anchor=4
-group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.txtTitle0._visible
-x=-20.443
-y=-187.194
-w=0
-h=0
-scale=1.102
-color=1 1 1 1
-visible=1
-font=$XR_MAIN_HEADER
-text={flash:_level0.feScreen.mcTrackInfo.txtTitle0.text}
-align=0
-rot=1
-layer=49
+wrap=1
+layer=57
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 40 mcTrackInfo
+name=info 48 mcTrackInfo
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=1 && flash:_level0.feScreen.mcTrackInfo._visible
@@ -1296,13 +1482,13 @@ visible=1
 texture=hangouttrackselect_i68
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
-layer=50
+layer=58
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 41 mcTrackInfo
+name=info 49 mcTrackInfo
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible
@@ -1316,13 +1502,13 @@ visible=1
 texture=hangouttrackselect_i6a
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
-layer=51
+layer=59
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 42 mcCollectables
+name=info 50 mcCollectables
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcCollectables._visible
@@ -1336,13 +1522,13 @@ visible=1
 texture=hangouttrackselect_i2c
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
-layer=52
+layer=60
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 43 txtNumerator1
+name=info 51 txtNumerator1
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcCollectables._visible && flash:_level0.feScreen.mcTrackInfo.mcCollectables.txtNumerator1._visible
@@ -1356,19 +1542,19 @@ visible=1
 font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.mcCollectables.txtNumerator1.text}
 align=2
-layer=53
+layer=61
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 44 txtDenominator1
-anchor=4
+name=info 52 txtDenominator1
+anchor=1
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcCollectables._visible && flash:_level0.feScreen.mcTrackInfo.mcCollectables.txtDenominator1._visible
-x=95.6
-y=107.845
-w=0
+x=128.067
+y=335.574
+w=64.933
 h=0
 scale=0.767
 color=1 1 1 0.498
@@ -1376,13 +1562,14 @@ visible=1
 font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.mcCollectables.txtDenominator1.text}
 align=0
-layer=54
+wrap=1
+layer=62
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 45 txtNumerator0
+name=info 53 txtNumerator0
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcCollectables._visible && flash:_level0.feScreen.mcTrackInfo.mcCollectables.txtNumerator0._visible
@@ -1396,19 +1583,19 @@ visible=1
 font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.mcCollectables.txtNumerator0.text}
 align=2
-layer=55
+layer=63
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 46 txtDenominator0
-anchor=4
+name=info 54 txtDenominator0
+anchor=1
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcCollectables._visible && flash:_level0.feScreen.mcTrackInfo.mcCollectables.txtDenominator0._visible
-x=94.933
-y=107.178
-w=0
+x=127.4
+y=334.907
+w=64.933
 h=0
 scale=0.767
 color=0.655 0.4 0.4 1
@@ -1416,33 +1603,94 @@ visible=1
 font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.mcCollectables.txtDenominator0.text}
 align=0
-layer=56
+wrap=1
+layer=64
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 47 mcTrackInfo
+name=info 55 mcTrackInfo
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible
 x=153.4
-y=-76.867
+y=41.8
 w=400
-h=253.333
+h=16
 scale=1
 color=1 1 1 1
 visible=1
 texture=hangouttrackselect_i40
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
-layer=57
+layer=65
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 48 mcSWFHolder
+name=info 56 mcTrackInfo
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible
+x=-39.933
+y=-76.867
+w=13.333
+h=253.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i3f
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=66
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 57 mcTrackInfo
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible
+x=346.733
+y=-76.867
+w=13.333
+h=253.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i3e
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=67
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 58 mcTrackInfo
+anchor=4
+group=track select
+showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible
+x=153.4
+y=-195.533
+w=400
+h=16
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangouttrackselect_i3d
+pack=screens/jra_menus/hangouttrackselect
+uv=0 0 1 1
+layer=68
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 59 mcSWFHolder
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcSWFHolder._visible
@@ -1457,19 +1705,19 @@ texture=movie:{flash:_level0.feScreen.mcTrackInfo.mcSWFHolder._url}
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
 rot=1
-layer=58
+layer=69
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 49 mcLocked
+name=info 60 mcLocked
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcLocked._visible
 x=111.3
 y=-19.433
-w=262.4
+w=262.399
 h=50.667
 scale=1
 color=1 1 1 1
@@ -1477,13 +1725,13 @@ visible=1
 texture=hangouttrackselect_i53
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
-layer=59
+layer=70
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 50 mcLocked
+name=info 61 mcLocked
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcLocked._visible
@@ -1497,19 +1745,19 @@ visible=1
 texture=hangouttrackselect_i55
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
-layer=60
+layer=71
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 51 mcLocked
-anchor=4
+name=info 62 mcLocked
+anchor=1
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcLocked._visible
 x=112.023
-y=-22.592
-w=0
+y=202.07
+w=278.933
 h=0
 scale=0.959
 color=1 1 1 1
@@ -1518,13 +1766,14 @@ font=$XR_MAIN_HEADER
 text={loc:SCREEN_TRACKSELECT_TRACK_LOCKED}
 align=1
 rot=1
-layer=61
+wrap=1
+layer=72
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 52 mcLocked
+name=info 63 mcLocked
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.mcLocked._visible
@@ -1538,19 +1787,19 @@ visible=1
 texture=hangouttrackselect_i5f
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
-layer=62
+layer=73
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 53 txtTitle3
-anchor=4
+name=info 64 txtTitle3
+anchor=1
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.txtTitle3._visible
-x=-18.443
-y=-155.194
-w=0
+x=173.676
+y=67.167
+w=384.239
 h=0
 scale=1.102
 color=0.522 0.522 0.522 0.4
@@ -1559,19 +1808,20 @@ font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.txtTitle3.text}
 align=0
 rot=1
-layer=63
+wrap=1
+layer=74
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 54 txtTitle2
-anchor=4
+name=info 65 txtTitle2
+anchor=1
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.txtTitle2._visible
-x=-20.443
-y=-157.194
-w=0
+x=171.676
+y=65.167
+w=384.239
 h=0
 scale=1.102
 color=0.2 0.2 0.2 0.247
@@ -1580,19 +1830,20 @@ font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.txtTitle2.text}
 align=0
 rot=1
-layer=64
+wrap=1
+layer=75
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=text
-name=info 55 txtTitle1
-anchor=4
+name=info 66 txtTitle1
+anchor=1
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.txtTitle1._visible
-x=-21.11
-y=-157.86
-w=0
+x=171.01
+y=64.5
+w=384.239
 h=0
 scale=1.102
 color=1 1 1 1
@@ -1601,34 +1852,14 @@ font=$XR_MAIN_HEADER
 text={flash:_level0.feScreen.mcTrackInfo.txtTitle1.text}
 align=0
 rot=1
-layer=65
-aclip=In;466.667;once
-akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
-
-[element]
-type=text
-name=info 56 txtTitle0
-anchor=4
-group=track select
-showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible && flash:_level0.feScreen.mcTrackInfo.txtTitle0._visible
-x=-20.443
-y=-157.194
-w=0
-h=0
-scale=1.102
-color=1 1 1 1
-visible=1
-font=$XR_MAIN_HEADER
-text={flash:_level0.feScreen.mcTrackInfo.txtTitle0.text}
-align=0
-rot=1
-layer=66
+wrap=1
+layer=76
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
 [element]
 type=image
-name=info 58 mcTrackInfo
+name=info 68 mcTrackInfo
 anchor=4
 group=track select
 showif=flash:_level0.feScreen.mcTrackInfo._currentframe=2 && flash:_level0.feScreen.mcTrackInfo._visible
@@ -1642,7 +1873,7 @@ visible=1
 texture=hangouttrackselect_i68
 pack=screens/jra_menus/hangouttrackselect
 uv=0 0 1 1
-layer=67
+layer=77
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 

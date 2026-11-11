@@ -494,6 +494,27 @@ layer=9
 aclip=In;466.667;once
 akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
 
+[element]
+type=image
+name=row lock selected
+anchor=4
+group=game mode/rows
+showif=ferows.sel={tile} && flash:_level0.feScreen.mcRowControlArea.mcHighlight.mcInfo.mcLocked._visible
+x=-198.733
+y=-67.069
+w=17.067
+h=23.467
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutgamemode_i7
+pack=screens/jra_menus/hangoutgamemode
+uv=0 0 1 1
+afterlabel=1
+layer=9
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
 [page]
 group=game mode
 start=0
