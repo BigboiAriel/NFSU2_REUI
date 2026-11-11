@@ -350,6 +350,8 @@ struct Elem {
                                           // menus' arrows); its opacity times bounceAlpha at the peak (the map's LT / RT: 1.7)
     std::string keys;                     // anim 3: "period ms;t sx sy a;t sx sy a;..." - size and alpha multipliers, linear, looping
     AnimBox an;                           // animation mode's clips (In plays when it shows, then Idle; the rest: planned)
+    std::string clipTo;                   // images: drawn only inside another element of the layout (by name) - its box,
+    float clipBox[4] = { 0, 0, 1, 1 };    // these fractions of it (x0 y0 x1 y1), turned with it (a sheen inside a bar)
     double shownSince = -1;               // (running) when its show-only-while value last came on: animations start there
     std::string playOn;                   // a value key: its animation (re)starts each time it comes on (a button press: bindheld.<event>)
     bool playWas = false;                 // (running) that value last frame
@@ -1242,7 +1244,51 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             dl->PopTextureID();
         }
         else if (tx) {
+            // its mask (clip): the other element's box (the fractions of it), turned as it is - its corners, in order
+            ImVec2 mask[4]; bool masked = false;
+            if (!e.clipTo.empty() && g_drawList)
+                for (auto& o : *g_drawList) {
+                    if (&o == &e || o.name != e.clipTo) continue;
+                    ImVec2 ta, tb; ElemRect(o, ta, tb);
+                    const float r = o.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r), ku = Unit();
+                    const ImVec2 pv((ta.x + tb.x) / 2 + o.pivX * ku, (ta.y + tb.y) / 2 + o.pivY * ku);
+                    const float fx[4] = { e.clipBox[0], e.clipBox[2], e.clipBox[2], e.clipBox[0] }, fy[4] = { e.clipBox[1], e.clipBox[1], e.clipBox[3], e.clipBox[3] };
+                    for (int k = 0; k < 4; ++k) {
+                        const float x = ta.x + fx[k] * (tb.x - ta.x) - pv.x, y = ta.y + fy[k] * (tb.y - ta.y) - pv.y;
+                        mask[k] = ImVec2(pv.x + x * cs - y * sn, pv.y + x * sn + y * cs);
+                    }
+                    masked = true;
+                    break;
+                }
             auto quad = [&](ImU32 c4) {
+                if (masked) {   // its quad cut to the mask (Sutherland-Hodgman: the mask is convex), drawn as a fan
+                    const float r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r), ku = Unit();
+                    const ImVec2 c((a.x + b.x) / 2, (a.y + b.y) / 2), hw((b.x - a.x) / 2, (b.y - a.y) / 2), pv(c.x + e.pivX * ku, c.y + e.pivY * ku);
+                    auto P = [&](float x, float y) { x += c.x - pv.x; y += c.y - pv.y; return ImVec2(pv.x + x * cs - y * sn, pv.y + x * sn + y * cs); };
+                    struct V { ImVec2 p, uv; };
+                    std::vector<V> poly = { { P(-hw.x, -hw.y), uv0 }, { P(hw.x, -hw.y), ImVec2(uv1.x, uv0.y) }, { P(hw.x, hw.y), uv1 }, { P(-hw.x, hw.y), ImVec2(uv0.x, uv1.y) } };
+                    const ImVec2 mc((mask[0].x + mask[2].x) / 2, (mask[0].y + mask[2].y) / 2);
+                    for (int k = 0; k < 4 && !poly.empty(); ++k) {
+                        const ImVec2 m0 = mask[k], m1 = mask[(k + 1) % 4];
+                        auto side = [&](ImVec2 q) { return (m1.x - m0.x) * (q.y - m0.y) - (m1.y - m0.y) * (q.x - m0.x); };
+                        const float in = side(mc) >= 0 ? 1.f : -1.f;   // (the mask's middle is inside every edge)
+                        std::vector<V> out;
+                        for (size_t j = 0; j < poly.size(); ++j) {
+                            const V& p0 = poly[j]; const V& p1 = poly[(j + 1) % poly.size()];
+                            const float d0 = side(p0.p) * in, d1 = side(p1.p) * in;
+                            if (d0 >= 0) out.push_back(p0);
+                            if ((d0 >= 0) != (d1 >= 0)) {
+                                const float t = d0 / (d0 - d1);
+                                out.push_back({ ImVec2(p0.p.x + (p1.p.x - p0.p.x) * t, p0.p.y + (p1.p.y - p0.p.y) * t),
+                                                ImVec2(p0.uv.x + (p1.uv.x - p0.uv.x) * t, p0.uv.y + (p1.uv.y - p0.uv.y) * t) });
+                            }
+                        }
+                        poly.swap(out);
+                    }
+                    for (size_t j = 1; j + 1 < poly.size(); ++j)   // (a triangle as a quad with its last corner twice)
+                        dl->AddImageQuad(gfx::Id(tx), poly[0].p, poly[j].p, poly[j + 1].p, poly[j + 1].p, poly[0].uv, poly[j].uv, poly[j + 1].uv, poly[j + 1].uv, c4);
+                    return;
+                }
                 if (e.rot == 0) { dl->AddImage(gfx::Id(tx), a, b, uv0, uv1, c4); return; }
                 float r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
                 float ku = Unit();
@@ -1912,6 +1958,7 @@ static void PutElemS(std::string& o, int m, const Elem& e) {   // one element as
     if (e.type == E_IMAGE) {
         Pf(o, "texture=%s\npack=%s\nuv=%g %g %g %g\n", e.tex.c_str(), e.pack.c_str(), e.u0, e.v0, e.u1, e.v1);
         if (e.rot != 0) Pf(o, "rot=%g\n", e.rot);
+        if (!e.clipTo.empty()) Pf(o, "clip=%s;%g %g %g %g\n", Esc(e.clipTo).c_str(), e.clipBox[0], e.clipBox[1], e.clipBox[2], e.clipBox[3]);
     } else if (e.type == E_TEXT && e.rot != 0) {
         Pf(o, "rot=%g\n", e.rot);
     } else if (e.type == E_SHAPE) {
@@ -2032,6 +2079,11 @@ static void ElemKey(Elem& e, const std::string& k, const std::string& v) {   // 
     else if (k == "swapanim") e.swapAnim = atoi(v.c_str()) != 0;
     else if (k == "kit") e.kit = Unesc(v);
     else if (k == "showif") e.showIf = v;
+    else if (k == "clip") {   // "<element>;x0 y0 x1 y1"
+        const size_t semi = v.find(';');
+        e.clipTo = Unesc(v.substr(0, semi));
+        if (semi != std::string::npos) sscanf(v.c_str() + semi + 1, "%f %f %f %f", &e.clipBox[0], &e.clipBox[1], &e.clipBox[2], &e.clipBox[3]);
+    }
     else if (k == "bind") e.bind = v;
     else if (k == "bindkind") e.bindKind = std::max(0, std::min(6, atoi(v.c_str())));
     else if (k == "bindrange") sscanf(v.c_str(), "%f %f", &e.bindMin, &e.bindMax);
@@ -3034,6 +3086,11 @@ static void Selected(Elem& e) {
         ImGui::SetNextItemWidth(220); if (ImGui::DragFloat("rotation", &e.rot, 0.5f, -360.f, 360.f, "%.1f deg")) g_dirty = true;
         ImGui::SameLine(); if (ImGui::SmallButton("+90")) { e.rot = fmodf(e.rot + 90, 360); g_dirty = true; }
         ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("pivot (from centre)", &e.pivX, 0.25f, -2000.f, 2000.f, "%.1f")) g_dirty = true;
+        {   char buf[128]; snprintf(buf, sizeof buf, "%s", e.clipTo.c_str());
+            ImGui::SetNextItemWidth(160);
+            if (ImGui::InputText("clip to (element)", buf, sizeof buf)) { e.clipTo = buf; g_dirty = true; }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Drawn only inside that element (by name): its box, or the part of it below, turned with it.\nAs the game's masks: a sheen sweeping inside a bar.");
+            if (!e.clipTo.empty()) { ImGui::SetNextItemWidth(220); if (ImGui::DragFloat4("clip box (x0 y0 x1 y1 of it)", e.clipBox, 0.002f, -1.f, 2.f, "%.3f")) g_dirty = true; } }
         if (ImGui::Checkbox("minimap", &e.minimap)) g_dirty = true;
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Drawn as the game's minimap: the track map around your car (round, in this box), turned\nheading-up when the game's radar option is on, with the game's icons (racers, shops, events,\nyour car) and other mods' markers (the multiplayer mod's players). Its texture and UV aren't used.\nAdd the frame and north arrow as images ({map_north} turns the arrow; {map_heading} turns your own\narrow if you hide the game's). Flag it \"replace: minimap\" to hide the stock one.");
         if (e.minimap) {

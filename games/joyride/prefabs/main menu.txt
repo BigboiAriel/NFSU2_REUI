@@ -596,6 +596,35 @@ layer=6
 [element]
 mode=frontend
 type=image
+name=row 1 highlight sheen
+anchor=4
+group=main menu
+showif=menu.sel:0
+x=-277.913
+y=-45.48
+w=96
+h=115.2
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i25
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+rot=-2
+layer=6
+aclip=In;10000;once
+akey=In;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=In;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=In;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+aclip=Idle;10000;loop
+akey=Idle;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=Idle;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=Idle;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+clip=row 1 highlight;0.008 0.11 0.979 0.758
+
+[element]
+mode=frontend
+type=image
 name=row 1 highlight A
 anchor=4
 group=main menu
@@ -674,6 +703,35 @@ pack=screens/jra_menus/hangoutmainmenu
 uv=0 0 1 1
 rot=-2
 layer=6
+
+[element]
+mode=frontend
+type=image
+name=row 2 highlight sheen
+anchor=4
+group=main menu
+showif=menu.sel:1
+x=-276.98
+y=-18.813
+w=96
+h=115.2
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i25
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+rot=-2
+layer=6
+aclip=In;10000;once
+akey=In;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=In;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=In;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+aclip=Idle;10000;loop
+akey=Idle;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=Idle;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=Idle;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+clip=row 2 highlight;0.008 0.11 0.979 0.758
 
 [element]
 mode=frontend
@@ -760,6 +818,35 @@ layer=6
 [element]
 mode=frontend
 type=image
+name=row 3 highlight sheen
+anchor=4
+group=main menu
+showif=menu.sel:2
+x=-276.046
+y=7.854
+w=96
+h=115.2
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i25
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+rot=-2
+layer=6
+aclip=In;10000;once
+akey=In;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=In;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=In;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+aclip=Idle;10000;loop
+akey=Idle;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=Idle;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=Idle;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+clip=row 3 highlight;0.008 0.11 0.979 0.758
+
+[element]
+mode=frontend
+type=image
 name=row 3 highlight A
 anchor=4
 group=main menu
@@ -838,6 +925,35 @@ pack=screens/jra_menus/hangoutmainmenu
 uv=0 0 1 1
 rot=-2
 layer=6
+
+[element]
+mode=frontend
+type=image
+name=row 4 highlight sheen
+anchor=4
+group=main menu
+showif=menu.sel:3
+x=-275.113
+y=34.52
+w=96
+h=115.2
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i25
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+rot=-2
+layer=6
+aclip=In;10000;once
+akey=In;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=In;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=In;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+aclip=Idle;10000;loop
+akey=Idle;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=Idle;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=Idle;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+clip=row 4 highlight;0.008 0.11 0.979 0.758
 
 [element]
 mode=frontend
@@ -924,6 +1040,35 @@ layer=6
 [element]
 mode=frontend
 type=image
+name=row 5 highlight sheen
+anchor=4
+group=main menu
+showif=menu.sel:4
+x=-274.18
+y=61.187
+w=96
+h=115.2
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i25
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+rot=-2
+layer=6
+aclip=In;10000;once
+akey=In;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=In;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=In;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+aclip=Idle;10000;loop
+akey=Idle;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=Idle;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=Idle;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+clip=row 5 highlight;0.008 0.11 0.979 0.758
+
+[element]
+mode=frontend
+type=image
 name=row 5 highlight A
 anchor=4
 group=main menu
@@ -1002,6 +1147,35 @@ pack=screens/jra_menus/hangoutmainmenu
 uv=0 0 1 1
 rot=-2
 layer=6
+
+[element]
+mode=frontend
+type=image
+name=row 6 highlight sheen
+anchor=4
+group=main menu
+showif=menu.sel:5
+x=-273.246
+y=87.854
+w=96
+h=115.2
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i25
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+rot=-2
+layer=6
+aclip=In;10000;once
+akey=In;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=In;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=In;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+aclip=Idle;10000;loop
+akey=Idle;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=Idle;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=Idle;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+clip=row 6 highlight;0.008 0.11 0.979 0.758
 
 [element]
 mode=frontend
@@ -1088,6 +1262,35 @@ layer=6
 [element]
 mode=frontend
 type=image
+name=row 7 highlight sheen
+anchor=4
+group=main menu
+showif=menu.sel:6
+x=-272.313
+y=114.52
+w=96
+h=115.2
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i25
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+rot=-2
+layer=6
+aclip=In;10000;once
+akey=In;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=In;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=In;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+aclip=Idle;10000;loop
+akey=Idle;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=Idle;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=Idle;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+clip=row 7 highlight;0.008 0.11 0.979 0.758
+
+[element]
+mode=frontend
+type=image
 name=row 7 highlight A
 anchor=4
 group=main menu
@@ -1166,6 +1369,35 @@ pack=screens/jra_menus/hangoutmainmenu
 uv=0 0 1 1
 rot=-2
 layer=6
+
+[element]
+mode=frontend
+type=image
+name=row 8 highlight sheen
+anchor=4
+group=main menu
+showif=menu.sel:7
+x=-271.38
+y=141.187
+w=96
+h=115.2
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i25
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+rot=-2
+layer=6
+aclip=In;10000;once
+akey=In;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=In;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=In;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+aclip=Idle;10000;loop
+akey=Idle;x;0 -225.862 hold;9600 -225.862 linear;9966.667 229.194 hold
+akey=Idle;y;0 7.887 hold;9600 7.887 linear;9966.667 -8.004 hold
+akey=Idle;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+clip=row 8 highlight;0.008 0.11 0.979 0.758
 
 [element]
 mode=frontend
