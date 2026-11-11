@@ -168,6 +168,17 @@ void RunCommand(std::string cmd, int tile) {
 void FeMenusInit(const std::string& dataDir) {
     g_dataDir = dataDir;
     for (auto& m : kMenus) uied::standInKeys.push_back(m.key);
+    // the front end's other screens (main.swf's _global.SCREEN table) a page can stand in for
+    for (const char* k : { "jra_menus/hangoutgamemode", "jra_menus/hangoutdifficulty", "jra_menus/hangoutselectvehicle",
+                           "jra_menus/hangoutselectvehicleadvance", "jra_menus/hangouttrackselect", "jra_menus/hangoutcupselect",
+                           "jra_menus/optionsmenu", "jra_menus/howtoplaymenu", "jra_menus/hangoutonlinegametype",
+                           "jra_menus/selectleaderboardactivity", "jra_menus/hangoutonlinelobbytype", "options/natalaudio",
+                           "options/natalvideo", "options/optionscontroller", "misc/creditsscreen", "postevent/postrace",
+                           "jra_ingame/ingamepausemenu", "jra_ingame/ingamepausemenuonline" })
+        uied::standInKeys.push_back(k);
+    uied::menuMove = [](const std::string& cmd, int tile) {   // a grid's "on move": the movie's own list follows (its sound)
+        if (cmd.compare(0, 3, "fe:") == 0) RunCommand(cmd.substr(3), tile);
+    };
     uied::menuAction = [](const std::string& a) {
         if (a.compare(0, 3, "fe:") != 0) return false;
         const int tile = uied::MenuSelectedTile();

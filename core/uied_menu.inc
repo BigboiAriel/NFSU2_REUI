@@ -61,6 +61,8 @@ struct Widget {
     bool vertical = false;               // carousel: its tiles in one column (rows of them on screen), up / down scroll it
                                          // (the game's Body Parts list)
     float stagger = 0;                   // grids: each tile's In waits this much longer than the one before (ms; 0: together)
+    std::string moveCmd;                 // grids: a host command run as the cursor moves ({tile}: where to; Joy Ride: the movie's
+                                         // own list follows - "fe:@mcRowControlArea.mcRowControl.setIndex({tile})", which plays its sound)
 };
 static int CarSlots(const Widget& w) { return std::max(1, w.vertical ? w.rows : w.cols); }   // (a carousel's slots on screen)
 static bool GridLike(const Widget& w) { return w.type == W_GRID || w.type == W_CAROUSEL || w.type == W_LISTBOX; }   // (tiles, drawn per cell)
@@ -112,6 +114,7 @@ struct Page {
                                          // {page.prompt.N} / list:page.prompt; none: its parent menu's
     std::vector<std::string> shared;     // shared pieces (groups: the glyph bar, the performance bar...) drawn over this menu
                                          // and its sub menus, with what its parent menus show
+    std::string startTile;               // a value naming the tile it opens on (the game's own list's: "flash:_level0.feScreen.mStartingIndex")
     std::string standIn;                 // a game screen it opens in place of (the host's key: Joy Ride's Flash screen,
                                          // "jra_menus/hangoutmainmenu"); "" none. The host opens / closes it (MenuPageFor)
 };
@@ -326,6 +329,7 @@ static struct MenuState {
     struct GridSt { int sel = -1, top = 0; float scroll = 0; bool locked = false; int wantCol = -1; int pressTile = -1; double pressAt = -100; };   // each grid's cursor (item), top row,
                              // shown scroll; locked: left / right change its slider / picker tile (B lets go)
     std::map<std::string, GridSt> grids;
+    bool moved = false;      // the cursor was moved since the page opened (a page's start tile stops following then)
 } g_menu;
 // Fades (menuFade seconds; 0 = none): a page fades in as the menu opens, out as it closes (the game showing through),
 // and pages cross-fade when one opens another / goes back. customMenus off: no page stands in for the game's menus
@@ -555,7 +559,9 @@ static bool GridMove(Widget& w, int dx, int dy) {
         }
     }
     st.sel = ns; GridKeepVisible(w, st, n);
-    Snd(dy < 0 ? SND_UP : dy > 0 ? SND_DOWN : dx < 0 ? SND_LEFT : SND_RIGHT);
+    g_menu.moved = true;
+    if (!w.moveCmd.empty() && menuMove) menuMove(w.moveCmd, ns);   // (the game's own list follows: its sound)
+    else Snd(dy < 0 ? SND_UP : dy > 0 ? SND_DOWN : dx < 0 ? SND_LEFT : SND_RIGHT);
     return true;
 }
 static void MenuGo(const std::string& page, bool over = false);
@@ -879,6 +885,12 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 }
                 Elem e = src;
                 anim::CopyLoad(src, idx, e);   // (its clips go on from last frame)
+                {   // {tile}: this tile's number (0 = the first) in its show-if, text and texture
+                    auto put = [&](std::string& x) { for (size_t k; (k = x.find("{tile}")) != std::string::npos;) x.replace(k, 6, std::to_string(idx)); };
+                    if (e.showIf.find("{tile}") != std::string::npos) put(e.showIf);
+                    if (e.text.find("{tile}") != std::string::npos) put(e.text);
+                    if (e.tex.find("{tile}") != std::string::npos) { put(e.tex); e.texIdx = -1; }
+                }
                 bool rowP = RowPiece(src);   // (slider / picker pieces: already laid out across the row)
                 bool wideP = e.type != E_TEXT && e.w > 3 * e.h;   // (a bar / box: stretches across a whole-row tile)
                 float kp = rowP ? 1.f : sxp;
@@ -1087,6 +1099,7 @@ std::string MenuBodyPartsPage() { if (customMenus) for (auto& p : g_pages) if (p
 std::string MenuSpecialtiesPage() { if (customMenus) for (auto& p : g_pages) if (p.specialties) return p.group; return std::string(); }
 bool MenuIsOpen() { return g_menu.open; }
 std::function<bool(const std::string& action)> menuAction;
+std::function<void(const std::string& cmd, int tile)> menuMove;
 std::vector<std::string> standInKeys;
 std::string MenuPageFor(const std::string& key) {
     if (customMenus && !key.empty()) for (auto& p : g_pages) if (p.standIn == key) return p.group;
@@ -1191,6 +1204,13 @@ void MenuFrame(const MenuInput& in, double dt) {
     if (!g_menu.open) return;
     Page* p = MenuPage(); if (!p) { MenuClose(); return; }
     g_menu.t += dt;
+    if (!p->startTile.empty() && !g_menu.moved && ImGui::GetTime() - g_menuOpenAt < 2.0) {   // (where the game's own list starts)
+        std::string v;
+        if (tokens && tokens(p->startTile, v) && !v.empty() && isdigit((unsigned char)v[0])) {
+            const int want = atoi(v.c_str());
+            if (want != MenuSelectedTile()) MenuSelectTile(want);
+        }
+    }
     auto rows = PageRows(*p);
     int n = (int)rows.size();
     if (n) g_menu.sel = std::max(0, std::min(n - 1, g_menu.sel));
@@ -1690,6 +1710,13 @@ static void GridPanel(Widget& w) {
     }
     ImGui::SetNextItemWidth(120);
     if (ImGui::DragFloat("stagger (ms)", &w.stagger, 1.f, 0.f, 1000.f, "%.0f")) { w.stagger = std::max(0.f, w.stagger); g_dirty = true; }
+    if (menuMove) {
+        static char mv[512]; static std::string mvFor = "\x01";
+        if (mvFor != w.group || !ImGui::IsAnyItemActive()) { snprintf(mv, sizeof mv, "%s", w.moveCmd.c_str()); mvFor = w.group; }
+        ImGui::SetNextItemWidth(-90);
+        if (ImGui::InputTextWithHint("on move", "a game command (fe:...)", mv, sizeof mv)) { w.moveCmd = mv; g_dirty = true; }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Run as the cursor moves ({tile}: the tile it moves to): the game's own list following it\n(fe:@mcRowControlArea.mcRowControl.setIndex({tile}) - its own sound plays, so REUI plays none).");
+    }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Each tile's In clips start this much after the tile before (the rows coming in one after another).\nPieces with Focus / Unfocus / Selected / Press clips play them as their own tile is picked / accepted.");
 }
 static const char* kWMake[] = { "(not a widget)", "Grid (rows x columns)", "Carousel (scrolls left / right)", "List box (rows scroll up / down)" };
@@ -2068,6 +2095,11 @@ static void MenuBar() {
                     ImGui::EndCombo();
                 }
                 if (ImGui::IsItemHovered()) ImGui::SetTooltip("Opens instead of that game screen while it's up, and takes its controller (up / down /\nleft / right / select; back stays the game's). Give its tiles game commands.");
+                static char st[256]; static const Page* stFor = nullptr;
+                if (stFor != pg || !ImGui::IsAnyItemActive()) { snprintf(st, sizeof st, "%s", pg->startTile.c_str()); stFor = pg; }
+                ImGui::SetNextItemWidth(180);
+                if (ImGui::InputTextWithHint("opens on", "a value (flash:...)", st, sizeof st)) { pg->startTile = st; g_dirty = true; }
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("The tile it opens on: a value's number (the game's own list's start, flash:_level0.feScreen.mStartingIndex).");
             }
             if (!moved) if (Page* pg = PageOf(g)) SharedMenu(*pg);
             if (!moved) if (Page* pg = PageOf(g)) SwapsMenu(*pg);
@@ -2174,6 +2206,7 @@ static void SaveWidgetProps(FILE* f, const Widget& w) {
         fprintf(f, "grid=%d %d %g %g %g %g %g %g %d %d %g %g %g %g %d %d\n", w.cols, w.rows, w.gw, w.gh, w.gx, w.gy, w.refW, w.refH, w.scalePieces ? 1 : 0, w.startAt, c.ox, c.oy, w.spX, w.spY, w.totalRows, w.rowSpace ? 1 : 0);
         if (w.stagger > 0) fprintf(f, "stagger=%g\n", w.stagger);
         if (w.wrap && w.type != W_CAROUSEL) fprintf(f, "gwrap=1\n");
+        if (!w.moveCmd.empty()) fprintf(f, "gmove=%s\n", Esc(w.moveCmd).c_str());
         // its tiles: "tile=<label>" starts one, the lines after it are its own
         for (int i = 0, n = std::min((int)w.tiles.size(), GridTileCount(w)); i < n; ++i) {
             const Widget& t = w.tiles[i];
@@ -2211,6 +2244,7 @@ static void SaveMenus(FILE* f) {
         if (p.perfUpgrade) fprintf(f, "perfupgrademenu=1\n");
         if (!p.title.empty()) fprintf(f, "title=%s\n", Esc(p.title).c_str());
         if (!p.standIn.empty()) fprintf(f, "standin=%s\n", Esc(p.standIn).c_str());
+        if (!p.startTile.empty()) fprintf(f, "starttile=%s\n", Esc(p.startTile).c_str());
         for (auto& pr : p.prompts) fprintf(f, "prompt=%s;%s\n", pr.first.c_str(), Esc(pr.second).c_str());
         for (auto& x : p.shared) fprintf(f, "shared=%s\n", Esc(x).c_str());
         for (auto& x : p.feSwaps) fprintf(f, "feswap=%s %s\n", x.first.c_str(), x.second.c_str());
@@ -2228,6 +2262,7 @@ static bool LoadWidgetKey(Widget& w, const std::string& k, const std::string& v)
     else if (k == "num") sscanf(v.c_str(), "%f %f %f %f", &w.min, &w.max, &w.step, &w.value);
     else if (k == "stagger") w.stagger = std::max(0.f, (float)atof(v.c_str()));
     else if (k == "gwrap") w.wrap = atoi(v.c_str()) != 0;
+    else if (k == "gmove") w.moveCmd = Unesc(v);
     else if (k == "carousel") { int c = 1, r = 0, h = 1, vt = 0; sscanf(v.c_str(), "%d %d %d %d", &c, &r, &h, &vt); w.centred = c != 0; w.wrap = r != 0; w.selStill = h != 0; w.vertical = vt != 0; }
     else if (k == "tile") { Widget t; t.type = W_BUTTON; t.label = Unesc(v); w.tiles.push_back(t); }
     else if (k.size() > 1 && k[0] == 't' && !w.tiles.empty()) {   // the last tile's
@@ -2271,6 +2306,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "perfupgrademenu") p.perfUpgrade = atoi(v.c_str()) != 0;
         else if (k == "title") p.title = Unesc(v);
         else if (k == "standin") p.standIn = Unesc(v);
+        else if (k == "starttile") p.startTile = Unesc(v);
         else if (k == "prompt") { size_t c = v.find(';'); if (c != std::string::npos) p.prompts.push_back({v.substr(0, c), Unesc(v.substr(c + 1))}); }
         else if (k == "shared" || k == "glyphbar") p.shared.push_back(Unesc(v));   // (glyphbar: the first builds)
         else if (k == "feswap") { char a[96] = {}, b[96] = {}; if (sscanf(v.c_str(), "%95s %95s", a, b) == 2) p.feSwaps.push_back({a, b}); }
@@ -2300,6 +2336,7 @@ static void PrefabMenusSave(FILE* f, const std::string& group) {
         fprintf(f, "\n[page]\ngroup=%s\nstart=0\nselcolor=%d %g %g %g %g\n", Esc(p.group).c_str(), p.useSel ? 1 : 0, p.selCol[0], p.selCol[1], p.selCol[2], p.selCol[3]);
         if (!p.title.empty()) fprintf(f, "title=%s\n", Esc(p.title).c_str());
         if (!p.standIn.empty()) fprintf(f, "standin=%s\n", Esc(p.standIn).c_str());
+        if (!p.startTile.empty()) fprintf(f, "starttile=%s\n", Esc(p.startTile).c_str());
         for (auto& pr : p.prompts) fprintf(f, "prompt=%s;%s\n", pr.first.c_str(), Esc(pr.second).c_str());
         for (auto& x : p.shared) fprintf(f, "shared=%s\n", Esc(x).c_str());
     }

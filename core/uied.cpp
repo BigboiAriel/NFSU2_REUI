@@ -266,14 +266,22 @@ static std::string g_tokGroup;   // the group of the element being drawn (the me
 static bool PageToken(const std::string& key, std::string& v);   // {page.prompt...}: the menu's button prompts
 static std::string TitleFor(const std::string& group);           // {page.title}: the header text of a group's menu
 // {key} -> live value. In an element bound to leaderboard row N, {name} {pos} ... mean that row's ({rN.name} ...).
+// Tokens nest: the inner ones first ({loc:{flash:_level0.feScreen.mDifficultyInfo.{menu.tile}.NAME}}).
+static size_t TokenEnd(const std::string& s, size_t open) {   // the '}' matching s[open] == '{' (npos: none)
+    int depth = 0;
+    for (size_t k = open; k < s.size(); ++k) { if (s[k] == '{') ++depth; else if (s[k] == '}' && --depth == 0) return k; }
+    return std::string::npos;
+}
 static std::string Expand(const std::string& s, int row = 0) {
     std::string out;
     for (size_t i = 0; i < s.size(); ++i) {
         if (s[i] == '{') {
-            size_t e = s.find('}', i);
+            size_t e = TokenEnd(s, i);
             if (e != std::string::npos) {
                 std::string key = s.substr(i + 1, e - i - 1), v;
+                if (key.find('{') != std::string::npos) key = Expand(key, row);   // (its inner tokens)
                 if (key == "page.title") v = g_titleNow;
+                else if (key == "menu.tile") v = std::to_string(MenuSelectedTile());   // (the open page's selected tile)
                 else if (key.compare(0, 11, "page.prompt") == 0) PageToken(key, v);
                 else if (key == "clock") { time_t now = time(nullptr); tm* lt = localtime(&now); char b[16]; strftime(b, sizeof b, "%H:%M", lt); v = b; }
                 else if (row > 0 && key.find('.') == std::string::npos && tokens && tokens("r" + std::to_string(row) + "." + key, v)) {}
@@ -592,19 +600,43 @@ static bool ValueOf(const std::string& key, float& out) {
     return end != v.c_str();
 }
 namespace anim { static bool SimToken(const std::string& key, std::string& out); }   // (animation mode's live preview: stand-in menu values)
-// a show-only-while style condition ("key" / "!key"): its value is set and not "0" (empty: true)
-static bool CondOk(const std::string& cond, const std::string& group) {
-    if (cond.empty()) return true;
+// a show-only-while style condition ("key" / "!key"): its value is set and not "0" / "false" (empty: true);
+// "key=value": its value is that. Tokens in it are filled in first ("flash:...mCupInfo.{...ID}.0.IS_LOCKED").
+static bool Truthy(const std::string& v) { return !v.empty() && v != "0" && v != "false"; }
+static bool CondOk(const std::string& condIn, const std::string& group) {
+    if (condIn.empty()) return true;
+    if (condIn.find("&&") != std::string::npos) {   // "a && b": both
+        size_t at = 0;
+        for (;;) {
+            const size_t k = condIn.find("&&", at);
+            std::string part = condIn.substr(at, k == std::string::npos ? std::string::npos : k - at);
+            while (!part.empty() && part.back() == ' ') part.pop_back();
+            while (!part.empty() && part[0] == ' ') part.erase(0, 1);
+            if (!part.empty() && !CondOk(part, group)) return false;
+            if (k == std::string::npos) return true;
+            at = k + 2;
+        }
+    }
+    const std::string cond = condIn.find('{') != std::string::npos ? Expand(condIn) : condIn;
     bool neg = cond[0] == '!';
     std::string v, key = neg ? cond.substr(1) : cond;
+    {   // a comparison: key=value
+        const size_t eq = key.find('=');
+        if (eq != std::string::npos && eq > 0) {
+            const std::string want = key.substr(eq + 1); key.resize(eq);
+            if (key == "menu.tile") v = std::to_string(MenuSelectedTile());
+            else if (!anim::SimToken(key, v) && !(tokens && tokens(key, v))) v.clear();
+            return (v == want) != neg;
+        }
+    }
     if (key.compare(0, 11, "page.prompt") == 0 || key == "page.title") {   // (REUI's own: the menu's prompts / header text)
         g_tokGroup = group;
         if (key == "page.title") v = g_titleNow = TitleFor(group); else PageToken(key, v);
         bool set = !v.empty() && v != "0";
         return neg ? !set : set;
     }
-    if (anim::SimToken(key, v)) { const bool on = !v.empty() && v != "0"; return neg ? !on : on; }
-    bool set = tokens && tokens(key, v) && !v.empty() && v != "0";
+    if (anim::SimToken(key, v)) { const bool on = Truthy(v); return neg ? !on : on; }
+    bool set = tokens && tokens(key, v) && Truthy(v);
     return neg ? !set : set;
 }
 static bool ShowIfOk(const Elem& e) { return CondOk(e.showIf, e.group); }
@@ -626,6 +658,27 @@ static gfx::Tex NamedTex(const std::string& name, int px, float& su, float& sv) 
     int fam, id;
     if (IconRef(name, fam, id)) return iconTexture ? iconTexture(fam, id, px) : nullptr;
     if (vecart::IsRef(name)) return vecart::Texture(vecart::RefName(name), px);
+    if (name.compare(0, 6, "movie:") == 0) {   // a movie's first picture: "movie:assets/cup/thumbnails%5Flocked/granprix%5F50.gfx"
+        static std::unordered_map<std::string, int> byMovie;
+        static size_t byMovieFor = 0;
+        if (byMovieFor != g_tex.size()) { byMovie.clear(); byMovieFor = g_tex.size(); }
+        auto it = byMovie.find(name);
+        if (it == byMovie.end()) {
+            std::string m;   // (URL escapes undone, lower case, / for \, no extension)
+            for (size_t k = 6; k < name.size(); ++k) {
+                if (name[k] == '%' && k + 2 < name.size()) { m += (char)strtol(name.substr(k + 1, 2).c_str(), nullptr, 16); k += 2; }
+                else m += name[k] == '\\' ? '/' : (char)tolower((unsigned char)name[k]);
+            }
+            const size_t dot = m.rfind('.'); if (dot != std::string::npos && m.find('/', dot) == std::string::npos) m.resize(dot);
+            int found = -1;
+            for (size_t k = 0; k < g_tex.size() && found < 0; ++k) {
+                std::string pk = g_tex[k].pack; for (auto& c : pk) c = c == '\\' ? '/' : (char)tolower((unsigned char)c);
+                if (pk == m) found = (int)k;
+            }
+            it = byMovie.emplace(name, found).first;
+        }
+        return TexOf(it->second);
+    }
     static std::unordered_map<std::string, int> found;
     static size_t foundFor = 0;   // (indices into the texture list: forgotten when it's rescanned)
     if (foundFor != g_tex.size()) { found.clear(); foundFor = g_tex.size(); }
@@ -1282,6 +1335,10 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
                               : vec ? vecart::Texture(vecart::RefName(e.tex), onScreen) : TexOf(e.texIdx);
         float su = 1, sv = 1;   // a live texture padded to a power of two: the picture is its top-left part
         bool noAlpha = false;   // a live texture with nothing in its alpha (a track map): drawn with the element's alpha only
+        if (!tx && !icon && texVal) {   // a texture a value names: the game's pictures by name, or "movie:<url>" (its first picture)
+            std::string tn = Expand(e.tex);
+            if (!tn.empty() && tn.find('{') == std::string::npos) tx = NamedTex(tn, onScreen, su, sv);
+        }
         if (!tx && !icon && e.texIdx < 0 && liveTexture && !e.tex.empty()) {
             std::string tn = texVal ? Expand(e.tex) : e.tex;
             if (!tn.empty() && tn.find('{') == std::string::npos) tx = liveTexture(tn, &su, &sv);

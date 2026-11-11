@@ -1,0 +1,1808 @@
+# NFSU2_REUI prefab
+# The front end's difficulty screen (Championship Series / Stunt Park) as a menu page: it stands in for hangOutDifficulty,
+# its rows a Grid from the main menu page's Row 1, its cups read live from the movie (tools/fe/difficulty_page.py in the
+# Joy Ride port). Add it in the Menus workspace.
+root=difficulty
+
+
+
+[element]
+mode=frontend
+type=image
+name=paper
+anchor=4
+group=difficulty
+x=-269.333
+y=18.667
+w=362.667
+h=541.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=menubackground_i1
+pack=controls/menubackground
+uv=0 0 1 1
+layer=1
+aclip=In;466.667;once
+akey=In;alpha;0 0 linear;100 1 linear
+
+
+
+[element]
+mode=frontend
+type=shape
+name=button bar
+anchor=4
+group=difficulty
+x=0
+y=215.667
+w=1386.667
+h=48.667
+scale=1
+color=0 0 0 0
+visible=1
+shape=0 0 0 0 0
+fill=0 0 0 0.8
+layer=1
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=title shadow
+anchor=4
+group=difficulty
+x=-380
+y=-152.76
+w=0
+h=0
+scale=1.246
+color=0.5 0.04 0.04 0.3
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SCREEN_TRACKSELECT_TRACK_DIFFICULTY}
+align=0
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=title light
+anchor=4
+group=difficulty
+x=-380.667
+y=-153.426
+w=0
+h=0
+scale=1.246
+color=0.85 0.8 0.57 1
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SCREEN_TRACKSELECT_TRACK_DIFFICULTY}
+align=0
+layer=3
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=title
+anchor=4
+group=difficulty
+x=-381.333
+y=-154.093
+w=0
+h=0
+scale=1.246
+color=0.5 0.04 0.04 1
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SCREEN_TRACKSELECT_TRACK_DIFFICULTY}
+align=0
+layer=4
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=image
+name=title specks
+anchor=4
+group=difficulty
+x=-328.667
+y=-162.667
+w=143.96
+h=92.72
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i34
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=5
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=image
+name=row stripe
+anchor=4
+group=difficulty/rows
+tileparity=1
+x=-305.067
+y=-65
+w=296
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i1
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=row light
+anchor=4
+group=difficulty/rows
+role=label
+x=-353.734
+y=-66.402
+w=0
+h=0
+scale=0.614
+color=1 1 1 0.7
+visible=1
+font=$XR_TITLE
+text=Championship Series
+align=0
+layer=3
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=row
+anchor=4
+group=difficulty/rows
+role=label
+x=-354.4
+y=-67.069
+w=0
+h=0
+scale=0.614
+color=0.224 0.216 0.208 1
+visible=1
+font=$XR_TITLE
+text=Championship Series
+align=0
+layer=4
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=motion
+name=row motion
+anchor=4
+group=difficulty/rows
+x=-278.067
+y=-65.734
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=1
+layer=0
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
+akey=Press;sy;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
+
+
+
+[element]
+mode=frontend
+type=image
+name=row highlight
+anchor=4
+group=difficulty/rows
+x=-278.067
+y=-65.734
+w=354.667
+h=54.4
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i22
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=6
+ablend=0
+aclip=Unfocus;33;once
+akey=Unfocus;alpha;0 0 hold
+aclip=Press;200;once
+akey=Press;ar;0 0.45 qout;200 0 linear
+akey=Press;ag;0 0.45 qout;200 0 linear
+akey=Press;ab;0 0.45 qout;200 0 linear
+
+
+
+[element]
+mode=frontend
+type=image
+name=row highlight sheen
+anchor=4
+group=difficulty/rows
+x=-278.067
+y=-44.134
+w=96
+h=115.2
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i25
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=6
+ablend=0
+aclip=Focus;10000;once
+akey=Focus;x;0 -226 hold;9600 -226 linear;9966.667 229.333 hold
+akey=Focus;y;0 0 hold;9600 0 linear;9966.667 0 hold
+akey=Focus;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+aclip=Selected;10000;loop
+akey=Selected;x;0 -226 hold;9600 -226 linear;9966.667 229.333 hold
+akey=Selected;y;0 0 hold;9600 0 linear;9966.667 0 hold
+akey=Selected;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+aclip=Unfocus;33;once
+akey=Unfocus;alpha;0 0 hold
+clip=row highlight;0.008 0.11 0.979 0.758
+
+
+
+[element]
+mode=frontend
+type=image
+name=row highlight A
+anchor=4
+group=difficulty/rows
+x=-374.267
+y=-62.667
+w=22.333
+h=22.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i29
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=7
+aclip=Focus;233.333;once
+akey=Focus;sx;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
+akey=Focus;sy;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
+aclip=Unfocus;33;once
+akey=Unfocus;alpha;0 0 hold
+
+
+
+[element]
+mode=frontend
+type=text
+name=row highlight shadow
+anchor=4
+group=difficulty/rows
+role=label
+x=-354.067
+y=-67.402
+w=0
+h=0
+scale=0.614
+color=0 0 0 0.25
+visible=1
+font=$XR_TITLE
+text=Championship Series
+align=0
+layer=7
+ablend=0
+aclip=Unfocus;33;once
+akey=Unfocus;alpha;0 0 hold
+
+
+
+[element]
+mode=frontend
+type=text
+name=row highlight text
+anchor=4
+group=difficulty/rows
+role=label
+x=-355.4
+y=-68.735
+w=0
+h=0
+scale=0.614
+color=1 1 1 1
+visible=1
+font=$XR_TITLE
+text=Championship Series
+align=0
+layer=8
+ablend=0
+aclip=Unfocus;33;once
+akey=Unfocus;alpha;0 0 hold
+
+
+
+[element]
+mode=frontend
+type=image
+name=callout A
+anchor=4
+group=difficulty
+x=-367
+y=207.867
+w=21.333
+h=21.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=icons_i1c
+pack=controls/icons
+uv=0 0 1 1
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+apress=menu.press
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
+akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=callout select
+anchor=4
+group=difficulty
+x=-351.733
+y=207.796
+w=0
+h=0
+scale=0.385
+color=1 1 1 1
+visible=1
+font=$XR_NORMAL_BOLD
+text={loc:BUTTON_SELECT}
+align=0
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=image
+name=callout B
+anchor=4
+group=difficulty
+x=-293.6
+y=208.2
+w=21.333
+h=21.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=icons_i19
+pack=controls/icons
+uv=0 0 1 1
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+apress=menu.back
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
+akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=callout back
+anchor=4
+group=difficulty
+x=-278.467
+y=207.796
+w=0
+h=0
+scale=0.385
+color=1 1 1 1
+visible=1
+font=$XR_NORMAL_BOLD
+text={loc:BUTTON_BACK}
+align=0
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+
+
+
+[element]
+type=text
+name=game mode
+anchor=4
+group=difficulty
+x=-381.333
+y=-179.997
+w=0
+h=0
+scale=0.618
+color=0.224 0.216 0.208 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcRowControlArea.mcTitle.txtGamemode.text}
+align=0
+layer=5
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=row lock
+anchor=4
+group=difficulty/rows
+showif=flash:_level0.feScreen.mDifficultyInfo.{tile}.IS_LOCKED
+x=-198.733
+y=-67.069
+w=17.067
+h=23.467
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i7
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+afterlabel=1
+layer=9
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cups panel
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=157.933
+y=8.667
+w=429.333
+h=405.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i23
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=10
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cups banner
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=153.8
+y=-177.267
+w=373.333
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=commonwidgets_i3e
+pack=controls/commonwidgets
+uv=0 0 1 1
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cups banner text
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=146.6
+y=-192.812
+w=0
+h=0
+scale=0.908
+color=0.2 0.2 0.2 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcTitle.mcTxtTitle.txtTitle.text}
+align=1
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 1 card
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=32.333
+y=-115.733
+w=128
+h=88
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i2a
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 1 picture
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=32.667
+y=-115.733
+w=108.667
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+texture=movie:{flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcThumbnail._url}
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 1 medal 1
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcPlacement._currentframe=2
+x=-16.133
+y=-131.867
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i2f
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 1 medal 2
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcPlacement._currentframe=3
+x=-16.133
+y=-131.867
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i33
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 1 medal 3
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcPlacement._currentframe=4
+x=-16.133
+y=-131.867
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i36
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 1 medal 4
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcPlacement._currentframe=5
+x=-15.533
+y=-141.867
+w=45.333
+h=45.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i39
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 1 place shadow
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=-4
+y=-143.51
+w=0
+h=0
+scale=0.595
+color=0 0 0 0.5
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcPlacement.txtPlacement0.text}
+align=2
+rot=1.8
+layer=14
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 1 place
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=-4.667
+y=-144.844
+w=0
+h=0
+scale=0.595
+color=0 0 0 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcPlacement.txtPlacement0.text}
+align=2
+rot=1.8
+layer=15
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 1 name light
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=106.6
+y=-125.11
+w=0
+h=0
+scale=0.719
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcCupName.txtName0.text}
+align=0
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 1 name
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && !flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcCupName.txtName0.textColor=10066329
+x=105.933
+y=-125.777
+w=0
+h=0
+scale=0.719
+color=0.2 0.2 0.2 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcCupName.txtName0.text}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 1 name locked
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcCupName.txtName0.textColor=10066329
+x=105.933
+y=-125.777
+w=0
+h=0
+scale=0.719
+color=0.6 0.6 0.6 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcCupName.txtName0.text}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 1 class label light
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=106.067
+y=-105.051
+w=0
+h=0
+scale=0.479
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SELECT_CLASS_COLON}
+align=0
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 1 class label
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=105.4
+y=-105.718
+w=0
+h=0
+scale=0.479
+color=0.576 0.576 0.576 1
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SELECT_CLASS_COLON}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 1 class light
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=146.933
+y=-105.051
+w=0
+h=0
+scale=0.479
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcClassName.txtClass0.text}
+align=0
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 1 class
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=146.267
+y=-105.718
+w=0
+h=0
+scale=0.479
+color=0.576 0.576 0.576 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries0.mcClassName.txtClass0.text}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 2 card
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=32.333
+y=-39.267
+w=128
+h=88
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i2a
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 2 picture
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=32.667
+y=-39.267
+w=108.667
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+texture=movie:{flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcThumbnail._url}
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 2 medal 1
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcPlacement._currentframe=2
+x=-16.133
+y=-55.4
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i2f
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 2 medal 2
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcPlacement._currentframe=3
+x=-16.133
+y=-55.4
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i33
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 2 medal 3
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcPlacement._currentframe=4
+x=-16.133
+y=-55.4
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i36
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 2 medal 4
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcPlacement._currentframe=5
+x=-15.533
+y=-65.4
+w=45.333
+h=45.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i39
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 2 place shadow
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=-4
+y=-67.044
+w=0
+h=0
+scale=0.595
+color=0 0 0 0.5
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcPlacement.txtPlacement0.text}
+align=2
+rot=1.8
+layer=14
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 2 place
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=-4.667
+y=-68.377
+w=0
+h=0
+scale=0.595
+color=0 0 0 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcPlacement.txtPlacement0.text}
+align=2
+rot=1.8
+layer=15
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 2 name light
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=106.6
+y=-48.643
+w=0
+h=0
+scale=0.719
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcCupName.txtName0.text}
+align=0
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 2 name
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && !flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcCupName.txtName0.textColor=10066329
+x=105.933
+y=-49.31
+w=0
+h=0
+scale=0.719
+color=0.2 0.2 0.2 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcCupName.txtName0.text}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 2 name locked
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcCupName.txtName0.textColor=10066329
+x=105.933
+y=-49.31
+w=0
+h=0
+scale=0.719
+color=0.6 0.6 0.6 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcCupName.txtName0.text}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 2 class label light
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=106.067
+y=-28.584
+w=0
+h=0
+scale=0.479
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SELECT_CLASS_COLON}
+align=0
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 2 class label
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=105.4
+y=-29.251
+w=0
+h=0
+scale=0.479
+color=0.576 0.576 0.576 1
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SELECT_CLASS_COLON}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 2 class light
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=146.933
+y=-28.584
+w=0
+h=0
+scale=0.479
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcClassName.txtClass0.text}
+align=0
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 2 class
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=146.267
+y=-29.251
+w=0
+h=0
+scale=0.479
+color=0.576 0.576 0.576 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries1.mcClassName.txtClass0.text}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 3 card
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=32.333
+y=34.4
+w=128
+h=88
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i2a
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 3 picture
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=32.667
+y=34.4
+w=108.667
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+texture=movie:{flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcThumbnail._url}
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 3 medal 1
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcPlacement._currentframe=2
+x=-16.133
+y=18.267
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i2f
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 3 medal 2
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcPlacement._currentframe=3
+x=-16.133
+y=18.267
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i33
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 3 medal 3
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcPlacement._currentframe=4
+x=-16.133
+y=18.267
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i36
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 3 medal 4
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcPlacement._currentframe=5
+x=-15.533
+y=8.267
+w=45.333
+h=45.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i39
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 3 place shadow
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=-4
+y=6.623
+w=0
+h=0
+scale=0.595
+color=0 0 0 0.5
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcPlacement.txtPlacement0.text}
+align=2
+rot=1.8
+layer=14
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 3 place
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=-4.667
+y=5.29
+w=0
+h=0
+scale=0.595
+color=0 0 0 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcPlacement.txtPlacement0.text}
+align=2
+rot=1.8
+layer=15
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 3 name light
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=106.6
+y=25.023
+w=0
+h=0
+scale=0.719
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcCupName.txtName0.text}
+align=0
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 3 name
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && !flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcCupName.txtName0.textColor=10066329
+x=105.933
+y=24.357
+w=0
+h=0
+scale=0.719
+color=0.2 0.2 0.2 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcCupName.txtName0.text}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 3 name locked
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcCupName.txtName0.textColor=10066329
+x=105.933
+y=24.357
+w=0
+h=0
+scale=0.719
+color=0.6 0.6 0.6 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcCupName.txtName0.text}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 3 class label light
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=106.067
+y=45.082
+w=0
+h=0
+scale=0.479
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SELECT_CLASS_COLON}
+align=0
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 3 class label
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=105.4
+y=44.416
+w=0
+h=0
+scale=0.479
+color=0.576 0.576 0.576 1
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SELECT_CLASS_COLON}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 3 class light
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=146.933
+y=45.082
+w=0
+h=0
+scale=0.479
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcClassName.txtClass0.text}
+align=0
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 3 class
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=146.267
+y=44.416
+w=0
+h=0
+scale=0.479
+color=0.576 0.576 0.576 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries2.mcClassName.txtClass0.text}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 4 card
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=32.333
+y=128.333
+w=128
+h=88
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i2a
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 4 picture
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=32.667
+y=128.333
+w=108.667
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+texture=movie:{flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcThumbnail._url}
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 4 medal 1
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcPlacement._currentframe=2
+x=-16.133
+y=112.2
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i2f
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 4 medal 2
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcPlacement._currentframe=3
+x=-16.133
+y=112.2
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i33
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 4 medal 3
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcPlacement._currentframe=4
+x=-16.133
+y=112.2
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i36
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cup 4 medal 4
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcPlacement._currentframe=5
+x=-15.533
+y=102.2
+w=45.333
+h=45.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i39
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 4 place shadow
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=-4
+y=100.556
+w=0
+h=0
+scale=0.595
+color=0 0 0 0.5
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcPlacement.txtPlacement0.text}
+align=2
+rot=1.8
+layer=14
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 4 place
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=-4.667
+y=99.223
+w=0
+h=0
+scale=0.595
+color=0 0 0 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcPlacement.txtPlacement0.text}
+align=2
+rot=1.8
+layer=15
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 4 name light
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=106.6
+y=118.957
+w=0
+h=0
+scale=0.719
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcCupName.txtName0.text}
+align=0
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 4 name
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && !flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcCupName.txtName0.textColor=10066329
+x=105.933
+y=118.29
+w=0
+h=0
+scale=0.719
+color=0.2 0.2 0.2 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcCupName.txtName0.text}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 4 name locked
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup && flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcCupName.txtName0.textColor=10066329
+x=105.933
+y=118.29
+w=0
+h=0
+scale=0.719
+color=0.6 0.6 0.6 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcCupName.txtName0.text}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 4 class label light
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=106.067
+y=139.016
+w=0
+h=0
+scale=0.479
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SELECT_CLASS_COLON}
+align=0
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 4 class label
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=105.4
+y=138.349
+w=0
+h=0
+scale=0.479
+color=0.576 0.576 0.576 1
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SELECT_CLASS_COLON}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 4 class light
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=146.933
+y=139.016
+w=0
+h=0
+scale=0.479
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcClassName.txtClass0.text}
+align=0
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=cup 4 class
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=146.267
+y=138.349
+w=0
+h=0
+scale=0.479
+color=0.576 0.576 0.576 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcCupInfo.mcCupSeries3.mcClassName.txtClass0.text}
+align=0
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=cups specks
+anchor=4
+group=difficulty
+showif=flash:_level0.feScreen.mIsInCup
+x=204.267
+y=16.4
+w=216
+h=328
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutdifficulty_i46
+pack=screens/jra_menus/hangoutdifficulty
+uv=0 0 1 1
+layer=16
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[page]
+group=difficulty
+start=0
+selcolor=0 1 1 1 1
+standin=jra_menus/hangoutdifficulty
+starttile=flash:_level0.feScreen.mStartingIndex
+
+[widget]
+group=difficulty/rows
+type=grid
+bind=
+desc=
+action=
+grid=1 3 296 80 -453.067 -78.3333 296 26.6667 1 0 -453.067 -38.3333 0 0 0 1
+stagger=50
+gwrap=1
+gmove=fe:@mcRowControlArea.mcRowControl.setIndex({tile})
+tile={loc:{flash:_level0.feScreen.mDifficultyInfo.0.NAME}}
+taction=fe:@onSelect()
+tile={loc:{flash:_level0.feScreen.mDifficultyInfo.1.NAME}}
+taction=fe:@onSelect()
+tile={loc:{flash:_level0.feScreen.mDifficultyInfo.2.NAME}}
+taction=fe:@onSelect()
+num=0 1 0.05 0
