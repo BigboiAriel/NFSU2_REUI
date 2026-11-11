@@ -1151,6 +1151,60 @@ static bool MotionToClip(const MotionPiece& pc, int rest, float ppu, float fps, 
     return true;
 }
 
+// ---- every element at once: the clip's pieces paired with the layout's elements that show the same picture. The
+// piece picked and the focused element are the anchor (they fix where the clip's pixels are on screen); every other
+// element takes the nearest unused piece with its picture (in units, after that offset)
+static std::string LowerS(std::string s) { for (auto& c : s) c = (char)tolower((unsigned char)c); return s; }
+struct MotionPair { int elem, piece; float dist; };
+static ImVec2 PieceAt(const MotionPiece& pc, int rest, float ppu) {   // its rest position (units; the nearest frame it's on)
+    const int n = (int)pc.frames.size();
+    int r = std::max(0, std::min(rest, n - 1));
+    for (int d = 0; d < n; ++d) { if (r + d < n && pc.frames[r + d].on) { r += d; break; } if (r - d >= 0 && pc.frames[r - d].on) { r -= d; break; } }
+    return ImVec2(pc.frames[r].x / ppu, pc.frames[r].y / ppu);
+}
+static ImVec2 ElemAt(Elem& e) {   // its centre (units from the screen's middle)
+    ImVec2 a, b; ElemRect(e, a, b);
+    const ImVec2 D = ImGui::GetIO().DisplaySize; const float k = Unit();
+    return ImVec2(((a.x + b.x) / 2 - D.x / 2) / k, ((a.y + b.y) / 2 - D.y / 2) / k);
+}
+static std::string TopGroup(const std::string& g) { return g.substr(0, g.find('/')); }
+static std::vector<MotionPair> MatchPieces(int anchorElem, int anchorPiece, const std::vector<MotionPiece>& ps, int rest, float ppu, bool wholeLayout) {
+    std::vector<MotionPair> out;
+    auto& els = Elems();
+    if (anchorElem < 0 || anchorElem >= (int)els.size() || anchorPiece < 0 || anchorPiece >= (int)ps.size()) return out;
+    const ImVec2 ea = ElemAt(els[anchorElem]), pa = PieceAt(ps[anchorPiece], rest, ppu);
+    const ImVec2 off(ea.x - pa.x, ea.y - pa.y);
+    const std::string scope = TopGroup(els[anchorElem].group);
+    std::vector<bool> usedP(ps.size(), false), usedE(els.size(), false);
+    out.push_back({ anchorElem, anchorPiece, 0.f }); usedP[anchorPiece] = usedE[anchorElem] = true;
+    std::vector<MotionPair> cand;
+    for (int i = 0; i < (int)els.size(); ++i) {
+        Elem& e = els[i];
+        if (usedE[i] || e.type == E_MOTION || e.tex.empty()) continue;
+        if (!wholeLayout && TopGroup(e.group) != scope) continue;
+        const std::string tex = LowerS(e.tex);
+        const ImVec2 at = ElemAt(e);
+        for (int j = 0; j < (int)ps.size(); ++j) {
+            if (ps[j].image != tex) continue;
+            const ImVec2 p = PieceAt(ps[j], rest, ppu);
+            cand.push_back({ i, j, hypotf(p.x + off.x - at.x, p.y + off.y - at.y) });
+        }
+    }
+    std::sort(cand.begin(), cand.end(), [](const MotionPair& a, const MotionPair& b) { return a.dist < b.dist; });
+    for (auto& c : cand) if (!usedE[c.elem] && !usedP[c.piece]) { usedE[c.elem] = usedP[c.piece] = true; out.push_back(c); }
+    return out;
+}
+static int ApplyPairs(const std::vector<MotionPair>& pairs, const std::vector<MotionPiece>& ps, const std::string& clipName, int rest, float ppu, float fps, int& keys) {
+    int done = 0; keys = 0;
+    for (auto& pr : pairs) {
+        Clip& c = ClipFor(Elems()[pr.elem], clipName);
+        int k = 0, t = 0;
+        if (MotionToClip(ps[pr.piece], rest, ppu, fps, c, k, t)) { ++done; keys += k; }
+    }
+    if (done) g_dirty = true;
+    return done;
+}
+
 static struct CopyMotionUi {
     std::vector<std::string> movies; bool listed = false;
     std::string movie, forElem;
@@ -1158,9 +1212,9 @@ static struct CopyMotionUi {
     std::vector<MotionClipInfo> clips; float fps = 30, ppu = 1.5f; std::string clipsFor;
     int clip = -1; std::vector<MotionPiece> pieces; std::string piecesFor;
     int piece = -1, rest = 0;   // rest: 0 auto (Out: its first frame, the others: their last), 1 first, 2 last
+    bool wholeLayout = false;     // every element at once: in the whole layout (else the focused element's outermost group)
     std::string err;
 } g_cm;
-static std::string LowerS(std::string s) { for (auto& c : s) c = (char)tolower((unsigned char)c); return s; }
 static void CopyMotionSection(Elem& e, Clip* cur) {
     if (!ImGui::CollapsingHeader("Copy motion from the game")) return;
     MotionSource& ms = motionSource;
@@ -1247,6 +1301,37 @@ static void CopyMotionSection(Elem& e, Clip* cur) {
         } else Note("That piece never shows in the clip.");
     }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The piece's motion over the clip as eased keys (move, scale, turn, alpha, colour +) on this element's\n%s clip%s.", cur->name.c_str(), has ? " - its keys are replaced" : "");
+    {   // ---- every element at once
+        ImGui::SeparatorText("Every element at once");
+        const int rest = u.rest == 1 ? 0 : u.rest == 2 ? n - 1 : (cur->name == "Out" ? 0 : n - 1);
+        const std::string scope = TopGroup(e.group);
+        int sc = u.wholeLayout ? 1 : 0;
+        const std::string g0 = "its group (" + (scope.empty() ? std::string("no group") : scope) + ")";
+        const char* scopes[] = { g0.c_str(), "the whole layout" };
+        ImGui::SetNextItemWidth(-60); if (ImGui::Combo("in##cmall", &sc, scopes, 2)) u.wholeLayout = sc == 1;
+        const int fi = FocusedIndex();
+        const std::vector<MotionPair> pairs = MatchPieces(fi, u.piece, u.pieces, rest, u.ppu, u.wholeLayout);
+        int withPic = 0, usedPic = 0;
+        for (auto& pc : u.pieces) withPic += !pc.image.empty();
+        for (auto& pr : pairs) usedPic += !u.pieces[pr.piece].image.empty();
+        ImGui::TextDisabled("%d element%s match the clip's pictures (%d of its %d picture pieces left over).", (int)pairs.size(), pairs.size() == 1 ? "" : "s",
+                            withPic - usedPic, withPic);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Elements showing a picture the clip moves, each with the nearest piece of it - placed by the piece picked\nabove and this element (they're the pair that fixes where the clip is on screen). Text and shapes aren't matched.");
+        if (ImGui::TreeNode("the pairs##cmall")) {
+            for (auto& pr : pairs) ImGui::TextDisabled("%s  <-  %s%s", Elems()[pr.elem].name.c_str(), u.pieces[pr.piece].name.c_str(), pr.dist > 20 ? "  (far: check it)" : "");
+            ImGui::TreePop();
+        }
+        const std::string al = "Copy into all " + std::to_string(pairs.size()) + " (their " + cur->name + " clips)";
+        ImGui::BeginDisabled(pairs.empty());
+        if (ImGui::Button(al.c_str())) {
+            int keys = 0;
+            const int done = ApplyPairs(pairs, u.pieces, cur->name, rest, u.ppu, u.fps, keys);
+            g.graph.fit = g.big.fit = true; g.focus = State::F_CLIP; g.tl1 = cur->length * 1.08f; g.tl0 = -cur->length * 0.08f;
+            Note("Copied into " + std::to_string(done) + " elements' " + cur->name + " clips (" + std::to_string(keys) + " keys) from " + GroupLeaf(u.movie) + ".");
+        }
+        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) ImGui::SetTooltip("Each of them gets its piece's motion on its own %s clip (their keys there are replaced).\nOpen \"the pairs\" to see who gets what.", cur->name.c_str());
+    }
     if (ImGui::GetTime() - g_noteAt < 4.0) ImGui::TextColored(ImVec4(0.55f, 0.85f, 1.f, 1.f), "%s", g_note.c_str());
 }
 
@@ -1813,6 +1898,8 @@ void AnimSpeed(float speed) { anim::g_speed = std::max(0.01f, std::min(10.f, spe
 void AnimCopyMotionTest(const std::string& spec) {   // (tests) "<element>.<movie clip>.<clip name>": as the page's button
     int ei = -1, mc = -1; char cn[64] = "";
     if (sscanf(spec.c_str(), "%d.%d.%63s", &ei, &mc, cn) != 3 || ei < 0 || ei >= (int)Elems().size()) { Log("anim test: bad copy-motion spec %s", spec.c_str()); return; }
+    bool all = false;   // "<...>.all": every element at once (the page's second button)
+    { const size_t l = strlen(cn); if (l > 4 && !strcmp(cn + l - 4, ".all")) { cn[l - 4] = 0; all = true; } }
     AnimFocus(ei);
     anim::ElemAnim* a = anim::Focused();
     if (!a || !motionSource.movies) return;
@@ -1829,7 +1916,10 @@ void AnimCopyMotionTest(const std::string& spec) {   // (tests) "<element>.<movi
     int pi = 0; for (int i = 0; i < (int)ps.size(); ++i) if (ps[i].image == anim::LowerS(e.tex)) { pi = i; break; }
     const int n = clips[mc].last - clips[mc].first + 1;
     int keys = 0, tracks = 0;
-    const bool ok = anim::MotionToClip(ps[pi], c->name == "Out" ? 0 : n - 1, ppu, fps, *c, keys, tracks);
+    const int rest = c->name == "Out" ? 0 : n - 1;
+    std::vector<anim::MotionPair> pairs;
+    if (all) pairs = anim::MatchPieces(ei, pi, ps, rest, ppu, false);
+    const bool ok = all ? anim::ApplyPairs(pairs, ps, c->name, rest, ppu, fps, keys) > 0 : anim::MotionToClip(ps[pi], rest, ppu, fps, *c, keys, tracks);
     FILE* f = fopen((dataDir + "anim_test.txt").c_str(), "w");   // (also in a file: the game's log may not be flushed)
     auto out = [&](const char* fmt, ...) {
         char line[512]; va_list ap; va_start(ap, fmt); vsnprintf(line, sizeof line, fmt, ap); va_end(ap);
@@ -1837,6 +1927,7 @@ void AnimCopyMotionTest(const std::string& spec) {   // (tests) "<element>.<movi
     };
     out("anim test: copy motion %s / %s / %s -> %s %s: %s, %d keys on %d tracks", movie.c_str(), clips[mc].name.c_str(), ps[pi].name.c_str(),
         e.name.c_str(), c->name.c_str(), ok ? "ok" : "never shows", keys, tracks);
+    for (auto& pr : pairs) out("anim test:   pair %s <- %s (%.1f units off)", Elems()[pr.elem].name.c_str(), ps[pr.piece].name.c_str(), pr.dist);
     for (auto& tr : c->tracks) for (auto& k : tr.keys) out("anim test:   %s %g ms %g (%s)", anim::kPropKey[tr.prop], k.t, k.v, anim::kEaseKey[k.ease]);
     if (f) fclose(f);
     anim::g.graph.fit = anim::g.big.fit = true; anim::g.focus = anim::State::F_CLIP;
