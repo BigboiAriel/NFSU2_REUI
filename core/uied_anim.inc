@@ -1301,6 +1301,7 @@ static void CopyMotionSection(Elem& e, Clip* cur) {
     }
     // the movie: a filter and the list
     ImGui::SetNextItemWidth(-60);
+    if (g_cmShow) ImGui::SetKeyboardFocusHere();   // (tests: typing goes into the filter)
     ImGui::InputTextWithHint("##cmfilter", "filter the movies (e.g. jra_menus, medal)", u.filter, sizeof u.filter);
     ImGui::SetNextItemWidth(-60);
     if (ImGui::BeginCombo("movie##cm", u.movie.empty() ? "(pick a movie)" : u.movie.c_str(), ImGuiComboFlags_HeightLarge)) {

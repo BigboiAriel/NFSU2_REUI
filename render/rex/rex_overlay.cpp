@@ -49,7 +49,7 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
     explicit Overlay(const OverlaySetup& s) : s_(s) {}
     ~Overlay() override {
         if (s_.presenter) s_.presenter->RemoveUIDrawerFromUIThread(this);
-        if (s_.window) s_.window->RemoveInputListener(this);
+        if (s_.window) { if (textOn_) s_.window->SetTextInputActive(false); s_.window->RemoveInputListener(this); }
         ImGuiContext* prev = ImGui::GetCurrentContext();
         if (ctx_) {
             ImGui::SetCurrentContext(ctx_);
@@ -102,6 +102,9 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
         if (s_.frame) s_.frame();
         ImGui::Render();
         UpdateCursor();
+        // typing: the game's window is SDL's, which sends typed characters only while its text input is on (off by
+        // default; the SDK's own ImGui turns it on for itself only) - on while one of REUI's text boxes is being typed in
+        if (io.WantTextInput != textOn_ && s_.window) { textOn_ = io.WantTextInput; s_.window->SetTextInputActive(textOn_); }
         ImDrawData* dd = ImGui::GetDrawData();
         if (dd && dd->Textures) for (ImTextureData* t : *dd->Textures) UpdateTexture(t);
         if (dd && dd->CmdListsCount > 0 && w > 0 && h > 0) Render(dc, dd);
@@ -133,6 +136,7 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
         SDL_SetCursor(cursors_[want] ? cursors_[want] : SDL_GetDefaultCursor());
     }
     int cursor_ = -2;
+    bool textOn_ = false;   // (the window's text input: on for REUI)
     SDL_Cursor* cursors_[ImGuiMouseCursor_COUNT] = {};
 
     // input: the window's events, given to REUI's context (and taken from the game while REUI wants them)
