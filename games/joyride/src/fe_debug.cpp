@@ -305,6 +305,31 @@ bool FeToken(const std::string& key, std::string& out) {
     if (key.rfind("flash:", 0) == 0) {   // a movie variable: {flash:_level0.feScreen.mDifficultyInfo.0.NAME}
         out.clear(); if (g_bridge.get) g_bridge.get(key.substr(6), out); return true;
     }
+    if (key.rfind("ferows.", 0) == 0) {   // the screen's RowControl list (list:ferows), as the movie shows it now
+        // (its rows on screen: row_mcRowControl_<i> clips, mStartIndex the first one's item; the game keeps the controls)
+        static const std::string A = "_level0.feScreen.mcRowControlArea.", R = A + "mcRowControl.";
+        auto num = [&](const std::string& path) { std::string v; if (g_bridge.get) g_bridge.get(path, v); return v.empty() ? -1 : atoi(v.c_str()); };
+        const std::string k = key.substr(7);
+        out.clear();
+        if (k == "count") {
+            const int start = num(R + "mStartIndex"), disp = num(R + "mParams.DISPLAY_ROWS"), mx = num(R + "mParams.MAX_ROWS");
+            out = std::to_string(start < 0 || disp < 0 || mx < 0 ? 0 : std::max(0, std::min(disp, mx - start)));
+        } else if (k == "sel") {
+            const int sel = num(R + "mSelectedIndex"), start = num(R + "mStartIndex");
+            if (sel >= 0 && start >= 0) out = std::to_string(sel - start);
+        } else if (k == "start") {
+            const int start = num(R + "mStartIndex"); if (start >= 0) out = std::to_string(start);
+        } else if (isdigit((unsigned char)k[0])) {
+            const int n = atoi(k.c_str());
+            const size_t dot = k.find('.');
+            if (dot == std::string::npos && n >= 1 && g_bridge.get) g_bridge.get(A + "row_mcRowControl_" + std::to_string(n - 1) + ".txtValue0.text", out);
+            else if (dot != std::string::npos && k.substr(dot) == ".on" && n >= 1 && g_bridge.get) {   // (on: not locked)
+                std::string v; g_bridge.get(A + "row_mcRowControl_" + std::to_string(n - 1) + ".mcLocked._visible", v);
+                out = v == "true" ? "0" : "1";
+            }
+        }
+        return true;
+    }
     if (FeMenuToken(key, out)) return true;
     if (key == "screens") {
         out.clear();

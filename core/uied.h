@@ -196,4 +196,6 @@ namespace uied {
     extern std::function<void(const std::string& cmd, int tile)> menuMove;
     int MenuSelectedTile();                            // the open page's selected grid tile (-1 none)
     void MenuSelectTile(int tile);                     // ... set (the cursor back where the game's menu was left)
+    bool MenuGameKeeps();                              // the open page leaves the controller to the game (its "the game keeps the controls")
+    void MenuPressed();                                // ... the game took a press: the selected tile's Press clips
 }

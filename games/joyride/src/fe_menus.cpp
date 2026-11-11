@@ -46,6 +46,7 @@ const double kPressOn = 0.2;      // s a press reads on (a few frames, whatever 
 // go to the page (one a frame, each a press and a release); back stays the movie's. The page's tiles run the game's own
 // calls ("fe:" commands, below).
 std::atomic<bool> g_pageOn{false};   // a page is open for the screen on top (the game thread asks)
+std::atomic<bool> g_pageKeeps{false}; // ... and the game keeps its controls (the page's "the game keeps the controls")
 std::string g_pageScreen;            // (locked) that screen
 std::deque<std::string> g_events;    // (locked) its presses, for REUI's frame
 bool g_ownOpen = false;              // (REUI's thread) the open page is ours (opened for a screen)
@@ -95,6 +96,11 @@ bool FeMenuInput(const std::string& screenPath, const std::string& code, int con
     if (g_enabled && g_pageOn && !g_popup) {   // a REUI page stands in for the screen: its presses are the page's
         const std::string key = ScreenKey(screenPath);
         std::lock_guard<std::mutex> l(g_mu);
+        if (key == g_pageScreen && g_pageKeeps) {   // a page the game keeps the controls of: all its own; a pick's Press clips
+            if (code == "ADVANCE" && g_events.size() < 16) g_events.push_back("PRESS");
+            if (code == "BACK") g_backAt = Now();
+            return false;
+        }
         if (key == g_pageScreen) {
             if (code == "UP" || code == "DOWN" || code == "LEFT" || code == "RIGHT" || code == "ADVANCE") {
                 if (g_events.size() < 16) g_events.push_back(code);
@@ -224,9 +230,17 @@ void PageFrame(const std::string& top) {   // (REUI's thread) the page standing 
     }
     const bool on = !page.empty() && uied::MenuIsOpen() && uied::MenuTopPage() == page;
     { std::lock_guard<std::mutex> l(g_mu); g_pageScreen = on ? top : std::string(); }
+    g_pageKeeps = on && uied::MenuGameKeeps();
     g_pageOn = on;
     if (!on) return;
     uied::MenuInput in;
+    if (g_pageKeeps) {   // (the game moves its own list; the page follows it - list:ferows' sel)
+        bool press = false;
+        { std::lock_guard<std::mutex> l(g_mu); for (auto& e : g_events) press |= e == "PRESS"; g_events.clear(); }
+        if (press) uied::MenuPressed();
+        uied::MenuFrame(in, ImGui::GetIO().DeltaTime);
+        return;
+    }
     if (g_pulse) g_pulse = false;   // (a press, then a frame let go: each of the game's events is one press)
     else {
         std::string ev;

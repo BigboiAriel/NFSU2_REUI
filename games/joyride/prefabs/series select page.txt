@@ -1,0 +1,1616 @@
+# NFSU2_REUI prefab
+# The front end's series select screen (hangoutcupselect) as a menu page: its rows a live list of the movie's own (list:ferows; the game keeps
+# the controls), its info panel read live from the movie (tools/fe/mirror_page.py in the Joy Ride port). Add it in the
+# Menus workspace.
+root=series select
+
+
+
+[element]
+mode=frontend
+type=image
+name=paper
+anchor=4
+group=series select
+x=-269.333
+y=18.667
+w=362.667
+h=541.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=menubackground_i1
+pack=controls/menubackground
+uv=0 0 1 1
+layer=1
+aclip=In;466.667;once
+akey=In;alpha;0 0 linear;100 1 linear
+
+
+
+[element]
+mode=frontend
+type=shape
+name=button bar
+anchor=4
+group=series select
+x=0
+y=215.667
+w=1386.667
+h=48.667
+scale=1
+color=0 0 0 0
+visible=1
+shape=0 0 0 0 0
+fill=0 0 0 0.8
+layer=1
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=title shadow
+anchor=4
+group=series select
+x=-380
+y=-152.76
+w=0
+h=0
+scale=1.246
+color=0.5 0.04 0.04 0.3
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SELECT_CUP}
+align=0
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=title light
+anchor=4
+group=series select
+x=-380.667
+y=-153.426
+w=0
+h=0
+scale=1.246
+color=0.85 0.8 0.57 1
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SELECT_CUP}
+align=0
+layer=3
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=title
+anchor=4
+group=series select
+x=-381.333
+y=-154.093
+w=0
+h=0
+scale=1.246
+color=0.5 0.04 0.04 1
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SELECT_CUP}
+align=0
+layer=4
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=image
+name=title specks
+anchor=4
+group=series select
+x=-328.667
+y=-162.667
+w=143.96
+h=92.72
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i34
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=5
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=image
+name=row stripe
+anchor=4
+group=series select/rows
+tileparity=1
+x=-305.067
+y=-65
+w=296
+h=26.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i1
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=row light
+anchor=4
+group=series select/rows
+role=label
+x=-353.734
+y=-66.402
+w=0
+h=0
+scale=0.614
+color=1 1 1 0.7
+visible=1
+font=$XR_TITLE
+text=Championship Series
+align=0
+layer=3
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=row
+anchor=4
+group=series select/rows
+role=label
+x=-354.4
+y=-67.069
+w=0
+h=0
+scale=0.614
+color=0.224 0.216 0.208 1
+visible=1
+font=$XR_TITLE
+text=Championship Series
+align=0
+layer=4
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=motion
+name=row motion
+anchor=4
+group=series select/rows
+x=-278.067
+y=-65.734
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=1
+layer=0
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
+akey=Press;sy;0 1 qout;60 0.94 qinout;160 1.03 qout;260 1 linear
+
+
+
+[element]
+mode=frontend
+type=image
+name=row highlight
+anchor=4
+group=series select/rows
+x=-278.067
+y=-65.734
+w=354.667
+h=54.4
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i22
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=6
+ablend=0
+aclip=Unfocus;33;once
+akey=Unfocus;alpha;0 0 hold
+aclip=Press;200;once
+akey=Press;ar;0 0.45 qout;200 0 linear
+akey=Press;ag;0 0.45 qout;200 0 linear
+akey=Press;ab;0 0.45 qout;200 0 linear
+
+
+
+[element]
+mode=frontend
+type=image
+name=row highlight sheen
+anchor=4
+group=series select/rows
+x=-278.067
+y=-44.134
+w=96
+h=115.2
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i25
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=6
+ablend=0
+aclip=Focus;10000;once
+akey=Focus;x;0 -226 hold;9600 -226 linear;9966.667 229.333 hold
+akey=Focus;y;0 0 hold;9600 0 linear;9966.667 0 hold
+akey=Focus;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+aclip=Selected;10000;loop
+akey=Selected;x;0 -226 hold;9600 -226 linear;9966.667 229.333 hold
+akey=Selected;y;0 0 hold;9600 0 linear;9966.667 0 hold
+akey=Selected;alpha;0 0 hold;9600 0.3 linear;9966.667 0.75 hold;10000 0 hold
+aclip=Unfocus;33;once
+akey=Unfocus;alpha;0 0 hold
+clip=row highlight;0.008 0.11 0.979 0.758
+
+
+
+[element]
+mode=frontend
+type=image
+name=row highlight A
+anchor=4
+group=series select/rows
+x=-374.267
+y=-62.667
+w=22.333
+h=22.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutmainmenu_i29
+pack=screens/jra_menus/hangoutmainmenu
+uv=0 0 1 1
+layer=7
+aclip=Focus;233.333;once
+akey=Focus;sx;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
+akey=Focus;sy;0 0.16 linear;133.333 1.1 linear;233.333 1 qout
+aclip=Unfocus;33;once
+akey=Unfocus;alpha;0 0 hold
+
+
+
+[element]
+mode=frontend
+type=text
+name=row highlight shadow
+anchor=4
+group=series select/rows
+role=label
+x=-354.067
+y=-67.402
+w=0
+h=0
+scale=0.614
+color=0 0 0 0.25
+visible=1
+font=$XR_TITLE
+text=Championship Series
+align=0
+layer=7
+ablend=0
+aclip=Unfocus;33;once
+akey=Unfocus;alpha;0 0 hold
+
+
+
+[element]
+mode=frontend
+type=text
+name=row highlight text
+anchor=4
+group=series select/rows
+role=label
+x=-355.4
+y=-68.735
+w=0
+h=0
+scale=0.614
+color=1 1 1 1
+visible=1
+font=$XR_TITLE
+text=Championship Series
+align=0
+layer=8
+ablend=0
+aclip=Unfocus;33;once
+akey=Unfocus;alpha;0 0 hold
+
+
+
+[element]
+mode=frontend
+type=image
+name=callout A
+anchor=4
+group=series select
+x=-367
+y=207.867
+w=21.333
+h=21.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=icons_i1c
+pack=controls/icons
+uv=0 0 1 1
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+apress=menu.press
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
+akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=callout select
+anchor=4
+group=series select
+x=-351.733
+y=207.796
+w=0
+h=0
+scale=0.385
+color=1 1 1 1
+visible=1
+font=$XR_NORMAL_BOLD
+text={loc:BUTTON_SELECT}
+align=0
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+
+
+
+[element]
+mode=frontend
+type=image
+name=callout B
+anchor=4
+group=series select
+x=-293.6
+y=208.2
+w=21.333
+h=21.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=icons_i19
+pack=controls/icons
+uv=0 0 1 1
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+apress=menu.back
+aclip=Press;260;once
+akey=Press;sx;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
+akey=Press;sy;0 1 qout;50 0.8 qinout;140 1.1 qout;260 1 linear
+
+
+
+[element]
+mode=frontend
+type=text
+name=callout back
+anchor=4
+group=series select
+x=-278.467
+y=207.796
+w=0
+h=0
+scale=0.385
+color=1 1 1 1
+visible=1
+font=$XR_NORMAL_BOLD
+text={loc:BUTTON_BACK}
+align=0
+layer=2
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;133.333 1 linear
+
+
+
+[element]
+type=text
+name=game mode
+anchor=4
+group=series select
+x=-381.333
+y=-179.997
+w=0
+h=0
+scale=0.618
+color=0.224 0.216 0.208 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcRowControlArea.mcTitle.txtGamemode.text}
+align=0
+layer=10
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=row lock
+anchor=4
+group=series select/rows
+showif=flash:_level0.feScreen.mcRowControlArea.row_mcRowControl_{tile}.mcLocked._visible
+x=-198.733
+y=-67.069
+w=17.067
+h=23.467
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i7
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+afterlabel=1
+layer=9
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 0 mcInfoArea
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible
+x=158.333
+y=-0.5
+w=429.333
+h=360
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i24
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=11
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 1 mcSWFArea
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcSWFArea._visible
+x=149.499
+y=18.534
+w=354
+h=121.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=movie:{flash:_level0.feScreen.mcInfoArea.mcSWFArea._url}
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+rot=-1
+layer=12
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 2 mcInfoArea
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible
+x=149.133
+y=18.133
+w=378.533
+h=150.6
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i29
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=13
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 3 txtName1
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcTrack0._visible && flash:_level0.feScreen.mcInfoArea.mcTrack0.txtName1._visible
+x=-12.847
+y=99.474
+w=0
+h=0
+scale=0.479
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcTrack0.txtName1.text}
+align=0
+rot=-1
+layer=14
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 4 txtName0
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcTrack0._visible && flash:_level0.feScreen.mcInfoArea.mcTrack0.txtName0._visible
+x=-13.525
+y=98.819
+w=0
+h=0
+scale=0.479
+color=0.475 0.475 0.475 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcTrack0.txtName0.text}
+align=0
+rot=-1
+layer=15
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 5 mcTrack0
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcTrack0._visible
+x=-22.857
+y=99.296
+w=8
+h=8
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i2d
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+rot=-1
+layer=16
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 6 txtName1
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcTrack1._visible && flash:_level0.feScreen.mcInfoArea.mcTrack1.txtName1._visible
+x=96.386
+y=96.741
+w=0
+h=0
+scale=0.479
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcTrack1.txtName1.text}
+align=0
+rot=-1
+layer=17
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 7 txtName0
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcTrack1._visible && flash:_level0.feScreen.mcInfoArea.mcTrack1.txtName0._visible
+x=95.708
+y=96.086
+w=0
+h=0
+scale=0.479
+color=0.475 0.475 0.475 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcTrack1.txtName0.text}
+align=0
+rot=-1
+layer=18
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 8 mcTrack1
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcTrack1._visible
+x=86.376
+y=96.563
+w=8
+h=8
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i2d
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+rot=-1
+layer=19
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 9 txtName1
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcTrack2._visible && flash:_level0.feScreen.mcInfoArea.mcTrack2.txtName1._visible
+x=221.72
+y=94.408
+w=0
+h=0
+scale=0.479
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcTrack2.txtName1.text}
+align=0
+rot=-1
+layer=20
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 10 txtName0
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcTrack2._visible && flash:_level0.feScreen.mcInfoArea.mcTrack2.txtName0._visible
+x=221.041
+y=93.753
+w=0
+h=0
+scale=0.479
+color=0.475 0.475 0.475 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcTrack2.txtName0.text}
+align=0
+rot=-1
+layer=21
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 11 mcTrack2
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcTrack2._visible
+x=211.709
+y=94.23
+w=8
+h=8
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i2d
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+rot=-1
+layer=22
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 12 mcInfoArea
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible
+x=146.283
+y=41.483
+w=352.567
+h=195.433
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i30
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=23
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 13 mcCupHeaderInfo
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible
+x=35.467
+y=-109.3
+w=128
+h=86.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i32
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=24
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 14 mcThumbnail
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcThumbnail._visible
+x=35.8
+y=-109.3
+w=108.667
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+texture=movie:{flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcThumbnail._url}
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=25
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 15 txtPlacement1
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=1 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement1._visible
+x=-14.224
+y=-136.883
+w=0
+h=0
+scale=0.575
+color=0 0 0 0.498
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement1.text}
+align=1
+rot=1.81
+layer=26
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 16 txtPlacement0
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=1 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement0._visible
+x=-14.891
+y=-138.216
+w=0
+h=0
+scale=0.575
+color=0 0 0 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement0.text}
+align=1
+rot=1.81
+layer=27
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 17 mcPlacement
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=2 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible
+x=-13
+y=-125.4
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i37
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=28
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 18 txtPlacement1
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=2 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement1._visible
+x=-14.224
+y=-136.883
+w=0
+h=0
+scale=0.575
+color=1 1 1 0.298
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement1.text}
+align=1
+rot=1.81
+layer=29
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 19 txtPlacement0
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=2 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement0._visible
+x=-14.891
+y=-138.216
+w=0
+h=0
+scale=0.575
+color=0.267 0.212 0.016 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement0.text}
+align=1
+rot=1.81
+layer=30
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 20 mcPlacement
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=3 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible
+x=-13
+y=-125.4
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i3b
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=31
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 21 txtPlacement1
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=3 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement1._visible
+x=-14.224
+y=-136.883
+w=0
+h=0
+scale=0.575
+color=1 1 1 0.298
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement1.text}
+align=1
+rot=1.81
+layer=32
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 22 txtPlacement0
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=3 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement0._visible
+x=-14.891
+y=-138.216
+w=0
+h=0
+scale=0.575
+color=0.227 0.22 0.22 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement0.text}
+align=1
+rot=1.81
+layer=33
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 23 mcPlacement
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=4 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible
+x=-13
+y=-125.4
+w=56
+h=77.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i3e
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=34
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 24 txtPlacement1
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=4 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement1._visible
+x=-14.224
+y=-136.883
+w=0
+h=0
+scale=0.575
+color=1 1 1 0.298
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement1.text}
+align=1
+rot=1.81
+layer=35
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 25 txtPlacement0
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=4 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement0._visible
+x=-14.891
+y=-138.216
+w=0
+h=0
+scale=0.575
+color=0.247 0.149 0.067 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement0.text}
+align=1
+rot=1.81
+layer=36
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 26 mcPlacement
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=5 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible
+x=-12.433
+y=-135.4
+w=45.333
+h=45.333
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i41
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=37
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 27 txtPlacement1
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=5 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement1._visible
+x=-14.224
+y=-136.883
+w=0
+h=0
+scale=0.575
+color=1 1 1 0.298
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement1.text}
+align=1
+rot=1.81
+layer=38
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 28 txtPlacement0
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._currentframe=5 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement0._visible
+x=-14.891
+y=-138.216
+w=0
+h=0
+scale=0.575
+color=0.2 0.2 0.2 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcPlacement.txtPlacement0.text}
+align=1
+rot=1.81
+layer=39
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 29 mcGrandPrize
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize._visible
+x=111.767
+y=-111.551
+w=0
+h=0
+scale=0.479
+color=0.502 0.502 0.502 0.498
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SELECT_CUP_GRAND_PRIZE}
+align=0
+layer=40
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 30 txtPrizeValue3
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize.txtPrizeValue3._visible
+x=235.534
+y=-111.841
+w=0
+h=0
+scale=0.575
+color=0.596 0.239 0.133 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize.txtPrizeValue3.text}
+align=0
+layer=41
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 31 txtPrizeValue1
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize.txtPrizeValue1._visible
+x=235.3
+y=-111.608
+w=0
+h=0
+scale=0.575
+color=0.502 0.153 0.047 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize.txtPrizeValue1.text}
+align=0
+layer=42
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 32 txtPrizeValue2
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize.txtPrizeValue2._visible
+x=237.034
+y=-110.841
+w=0
+h=0
+scale=0.575
+color=0.753 0.306 0.169 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize.txtPrizeValue2.text}
+align=0
+layer=43
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 33 txtPrizeValue0
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize.txtPrizeValue0._visible
+x=236.034
+y=-111.574
+w=0
+h=0
+scale=0.575
+color=0.502 0.153 0.047 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize.txtPrizeValue0.text}
+align=0
+layer=44
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 34 mcGrandPrize
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcGrandPrize._visible
+x=222.233
+y=-111.433
+w=30.4
+h=30.4
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i4a
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=45
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 35 mcDifficulty
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._visible
+x=260.233
+y=-86.667
+w=91.667
+h=16.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i4d
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=46
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 36 mcDifficulty
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._visible
+x=222.733
+y=-86.667
+w=16.667
+h=16.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i4f
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=47
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 37 mcDifficulty
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._visible
+x=111.767
+y=-87.451
+w=0
+h=0
+scale=0.479
+color=0.502 0.502 0.502 0.498
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SCREEN_ONLINE_TRACKVOTE_TRACK_DIFFICULTY}
+align=0
+layer=48
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 38 mcDifficulty
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._currentframe=2 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._visible
+x=241.5
+y=-86.667
+w=16.667
+h=16.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i4f
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=49
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 39 mcDifficulty
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._currentframe=3 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._visible
+x=260.233
+y=-86.667
+w=16.667
+h=16.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i4f
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=50
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 40 mcDifficulty
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._currentframe=3 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._visible
+x=241.5
+y=-86.667
+w=16.667
+h=16.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i4f
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=51
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 41 mcDifficulty
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._currentframe=4 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._visible
+x=279
+y=-86.667
+w=16.667
+h=16.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i4f
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=52
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 42 mcDifficulty
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._currentframe=4 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._visible
+x=260.233
+y=-86.667
+w=16.667
+h=16.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i4f
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=53
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 43 mcDifficulty
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._currentframe=4 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._visible
+x=241.5
+y=-86.667
+w=16.667
+h=16.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i4f
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=54
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 44 mcDifficulty
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._currentframe=5 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._visible
+x=297.733
+y=-86.667
+w=16.667
+h=16.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i4f
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=55
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 45 mcDifficulty
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._currentframe=5 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._visible
+x=279
+y=-86.667
+w=16.667
+h=16.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i4f
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=56
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 46 mcDifficulty
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._currentframe=5 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._visible
+x=260.233
+y=-86.667
+w=16.667
+h=16.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i4f
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=57
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 47 mcDifficulty
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._currentframe=5 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcDifficulty._visible
+x=241.5
+y=-86.667
+w=16.667
+h=16.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i4f
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+layer=58
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 48 mcClassInfo
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcClassInfo._visible
+x=111.767
+y=-135.951
+w=0
+h=0
+scale=0.479
+color=0.502 0.502 0.502 0.498
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SELECT_CLASS_COLON}
+align=0
+layer=59
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 49 txtClass
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcClassInfo._visible && flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcClassInfo.txtClass._visible
+x=215.767
+y=-134.775
+w=0
+h=0
+scale=0.575
+color=0.475 0.475 0.475 1
+visible=1
+font=$XR_MAIN_HEADER
+text={flash:_level0.feScreen.mcInfoArea.mcCupHeaderInfo.mcClassInfo.txtClass.text}
+align=0
+layer=60
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 50 mcLocked
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._currentframe=2 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcLocked._visible
+x=116.923
+y=44.108
+w=262.4
+h=50.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i58
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+rot=-2
+layer=61
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 51 mcLocked
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._currentframe=2 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcLocked._visible
+x=19.292
+y=40.146
+w=2
+h=2.799
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i5a
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+rot=-2
+layer=62
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=text
+name=info 52 mcLocked
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._currentframe=2 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcLocked._visible
+x=118.932
+y=46.414
+w=0
+h=0
+scale=0.959
+color=1 1 1 1
+visible=1
+font=$XR_MAIN_HEADER
+text={loc:SCREEN_TRACKSELECT_TRACK_LOCKED}
+align=1
+rot=-1
+layer=63
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[element]
+type=image
+name=info 53 mcLocked
+anchor=4
+group=series select
+showif=flash:_level0.feScreen.mcInfoArea._currentframe=2 && flash:_level0.feScreen.mcInfoArea._visible && flash:_level0.feScreen.mcInfoArea.mcLocked._visible
+x=111.639
+y=45.627
+w=144
+h=50.667
+scale=1
+color=1 1 1 1
+visible=1
+texture=hangoutcupselect_i64
+pack=screens/jra_menus/hangoutcupselect
+uv=0 0 1 1
+rot=-2
+layer=64
+aclip=In;466.667;once
+akey=In;alpha;0 0 hold;100 0 linear;433.333 1 linear
+
+[page]
+group=series select
+start=0
+selcolor=0 1 1 1 1
+standin=jra_menus/hangoutcupselect
+gamekeeps=1
+
+[widget]
+group=series select/rows
+type=grid
+bind=list:ferows
+desc=
+action=
+grid=1 8 296 213.333 -453.067 -78.3333 296 26.6667 1 0 -453.067 28.3333 0 0 0 1
+stagger=50
+num=0 1 0.05 0

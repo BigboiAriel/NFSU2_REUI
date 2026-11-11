@@ -117,6 +117,8 @@ struct Page {
     std::string startTile;               // a value naming the tile it opens on (the game's own list's: "flash:_level0.feScreen.mStartingIndex")
     std::string standIn;                 // a game screen it opens in place of (the host's key: Joy Ride's Flash screen,
                                          // "jra_menus/hangoutmainmenu"); "" none. The host opens / closes it (MenuPageFor)
+    bool gameKeeps = false;              // the game keeps the controls: the host feeds it none (its own list moves, plays its
+                                         // sounds, picks); the page shows it (a live list's <key>.sel) - MenuGameKeeps
 };
 static std::vector<Widget> g_widgets;
 static std::vector<Page> g_pages;
@@ -1190,6 +1192,16 @@ int MenuSelectedTile() {
     auto items = GridItems(*rows[g_menu.sel].w);
     return items.empty() ? -1 : GridState(*rows[g_menu.sel].w, (int)items.size()).sel;
 }
+bool MenuGameKeeps() { Page* p = g_menu.open ? MenuPage() : nullptr; return p && p->gameKeeps; }
+void MenuPressed() {   // the game took a press: the selected tile's Press clips (a page the game keeps the controls of)
+    Page* p = g_menu.open ? MenuPage() : nullptr; if (!p) return;
+    auto rows = PageRows(*p);
+    if (rows.empty() || g_menu.sel < 0 || g_menu.sel >= (int)rows.size() || !GridLike(*rows[g_menu.sel].w)) return;
+    Widget& w = *rows[g_menu.sel].w;
+    auto items = GridItems(w); if (items.empty()) return;
+    auto& st = GridState(w, (int)items.size());
+    st.pressTile = st.sel; st.pressAt = ImGui::GetTime();
+}
 void MenuSelectTile(int tile) {
     Page* p = g_menu.open ? MenuPage() : nullptr; if (!p) return;
     auto rows = PageRows(*p);
@@ -2100,6 +2112,8 @@ static void MenuBar() {
                 ImGui::SetNextItemWidth(180);
                 if (ImGui::InputTextWithHint("opens on", "a value (flash:...)", st, sizeof st)) { pg->startTile = st; g_dirty = true; }
                 if (ImGui::IsItemHovered()) ImGui::SetTooltip("The tile it opens on: a value's number (the game's own list's start, flash:_level0.feScreen.mStartingIndex).");
+                if (ImGui::Checkbox("the game keeps the controls", &pg->gameKeeps)) g_dirty = true;
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("The screen's controller stays the game's: its own list moves, scrolls, plays its sounds and picks;\nthe page only shows it (a live list with <key>.sel: Joy Ride's list:ferows).");
             }
             if (!moved) if (Page* pg = PageOf(g)) SharedMenu(*pg);
             if (!moved) if (Page* pg = PageOf(g)) SwapsMenu(*pg);
@@ -2236,6 +2250,7 @@ static void SaveMenus(FILE* f) {
         if (p.raceDialogMp) fprintf(f, "racedlgmp=1\n");
         if (p.garage) fprintf(f, "garagemenu=1\n");
         if (p.carSelect) fprintf(f, "carselect=1\n");
+        if (p.gameKeeps) fprintf(f, "gamekeeps=1\n");
         if (p.parts) fprintf(f, "partsmenu=1\n");
         if (p.perfParts) fprintf(f, "perfpartsmenu=1\n");
         if (p.specialties) fprintf(f, "specialtiesmenu=1\n");
@@ -2298,6 +2313,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "racedlgmp") p.raceDialogMp = atoi(v.c_str()) != 0;
         else if (k == "garagemenu") p.garage = atoi(v.c_str()) != 0;
         else if (k == "carselect") p.carSelect = atoi(v.c_str()) != 0;
+        else if (k == "gamekeeps") p.gameKeeps = atoi(v.c_str()) != 0;
         else if (k == "partsmenu") p.parts = atoi(v.c_str()) != 0;
         else if (k == "perfpartsmenu") p.perfParts = atoi(v.c_str()) != 0;
         else if (k == "specialtiesmenu") p.specialties = atoi(v.c_str()) != 0;
