@@ -2,7 +2,7 @@
 // REUI's own menu screens over the game's Flash ones (fe_menus.cpp). A layout that redraws a Flash menu screen takes
 // its controller there: the game's events for that screen (_root.inputEventHandler("UP" / "DOWN" / "ADVANCE", pad))
 // come here first. Up / down move REUI's selection (its rows show it with showif menu.sel:<row> / menu.unsel:<row>)
-// with the game's own sounds; on "ADVANCE" the Flash menu is set to the same row (its RowControl.setIndex) and gets
+// (the movie's row follows, playing its own sounds); on "ADVANCE" the Flash menu is set to the same row (its RowControl.setIndex) and gets
 // the press, so the game itself does what was picked (its own calls, screens and checks). Other events (back, ...)
 // go to the movie as before.
 #include <string>

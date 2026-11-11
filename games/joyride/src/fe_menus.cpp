@@ -55,10 +55,9 @@ bool FeMenuInput(const std::string& screenPath, const std::string& code, int con
     if (code == "UP" || code == "DOWN") {
         const int was = g_sel, d = code == "UP" ? -1 : 1;
         g_sel = m->wrap ? (g_sel + d + m->rows) % m->rows : std::max(0, std::min(m->rows - 1, g_sel + d));
-        if (g_sel != was) {
-            FeSend(0, "Audio:playSound", { code == "UP" ? "\"UI_Up\"" : "\"UI_Down\"" });   // (the movie's own)
-            FeSend(1, std::string(m->rowControl) + ".setIndex", { std::to_string(g_sel) });   // (its own highlight follows, unseen)
-        }
+        // the movie's own row follows (unseen; it's what a popup over it shows) - and its RowControl plays the move's
+        // sound (UI_Up / UI_Down), as when it moves itself
+        if (g_sel != was) FeSend(1, std::string(m->rowControl) + ".setIndex", { std::to_string(g_sel) });
         return true;
     }
     if (code == "ADVANCE") {   // the movie on our row, then the press: the game does the rest
