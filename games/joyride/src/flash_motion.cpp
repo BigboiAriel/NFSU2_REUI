@@ -395,7 +395,9 @@ void Install(const std::string& movieDir) {
     uied::motionSource.clips = [](const std::string& movie, std::vector<uied::MotionClipInfo>& clips, float& fps, float& pxPerUnit, std::string& err) {
         auto mv = Load(movie, err);
         if (!mv) return false;
-        clips = mv->clips; fps = (float)mv->fps; pxPerUnit = (float)(mv->stageH / 480.0);
+        // (a movie loaded into another plays at the host's frame rate - the menus' main.swf / ingamemain.swf: 30 fps -
+        // whatever its own header says: most say Flash's default 12)
+        clips = mv->clips; fps = 30.f; pxPerUnit = (float)(mv->stageH / 480.0);
         return true;
     };
     uied::motionSource.sample = [](const std::string& movie, int clip, std::vector<uied::MotionPiece>& pieces, std::string& err) {

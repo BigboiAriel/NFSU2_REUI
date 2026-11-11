@@ -1157,7 +1157,7 @@ static struct CopyMotionUi {
     char filter[64] = "";
     std::vector<MotionClipInfo> clips; float fps = 30, ppu = 1.5f; std::string clipsFor;
     int clip = -1; std::vector<MotionPiece> pieces; std::string piecesFor;
-    int piece = -1, rest = 0;   // rest: 0 auto (In: its last frame, the others: its first), 1 first, 2 last
+    int piece = -1, rest = 0;   // rest: 0 auto (Out: its first frame, the others: their last), 1 first, 2 last
     std::string err;
 } g_cm;
 static std::string LowerS(std::string s) { for (auto& c : s) c = (char)tolower((unsigned char)c); return s; }
@@ -1229,9 +1229,9 @@ static void CopyMotionSection(Elem& e, Clip* cur) {
         ImGui::EndCombo();
     }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("What moves: a picture (by its name - the one this element shows is picked for you), a text field or a shape,\n[its place in the clip: instance names or depths].");
-    const char* rests[] = { "auto (In: its last frame, the others: its first)", "its first frame", "its last frame" };
+    const char* rests[] = { "auto (Out: its first frame, the others: their last)", "its first frame", "its last frame" };
     ImGui::SetNextItemWidth(-60); ImGui::Combo("rest##cm", &u.rest, rests, 3);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The frame where it's where the element is now: the keys are moves, scales and turns from there.\nAn In ends at rest; an Out, a Focus or a Press starts at rest.");
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The frame where it's where the element is now: the keys are moves, scales and turns from there.\nIn, Focus, Press... end at rest (a pop lands on it); Out starts at rest.");
     const MotionClipInfo& ci = u.clips[u.clip];
     const int n = ci.last - ci.first + 1;
     ImGui::TextDisabled("%d frames, %.0f ms", n, (n - 1) * 1000.f / u.fps);
@@ -1239,7 +1239,7 @@ static void CopyMotionSection(Elem& e, Clip* cur) {
     const bool has = Keys(*cur) > 0;
     const std::string bl = (has ? "Replace the " : "Copy into the ") + cur->name + " clip";
     if (ImGui::Button(bl.c_str())) {
-        const int rest = u.rest == 1 ? 0 : u.rest == 2 ? n - 1 : (cur->name == "In" ? n - 1 : 0);
+        const int rest = u.rest == 1 ? 0 : u.rest == 2 ? n - 1 : (cur->name == "Out" ? 0 : n - 1);
         int keys = 0, tracks = 0;
         if (MotionToClip(u.pieces[u.piece], rest, u.ppu, u.fps, *cur, keys, tracks)) {
             g.graph.fit = g.big.fit = true; g.focus = State::F_CLIP; g.tl1 = cur->length * 1.08f; g.tl0 = -cur->length * 0.08f;
@@ -1829,10 +1829,16 @@ void AnimCopyMotionTest(const std::string& spec) {   // (tests) "<element>.<movi
     int pi = 0; for (int i = 0; i < (int)ps.size(); ++i) if (ps[i].image == anim::LowerS(e.tex)) { pi = i; break; }
     const int n = clips[mc].last - clips[mc].first + 1;
     int keys = 0, tracks = 0;
-    const bool ok = anim::MotionToClip(ps[pi], c->name == "In" ? n - 1 : 0, ppu, fps, *c, keys, tracks);
-    Log("anim test: copy motion %s / %s / %s -> %s %s: %s, %d keys on %d tracks", movie.c_str(), clips[mc].name.c_str(), ps[pi].name.c_str(),
+    const bool ok = anim::MotionToClip(ps[pi], c->name == "Out" ? 0 : n - 1, ppu, fps, *c, keys, tracks);
+    FILE* f = fopen((dataDir + "anim_test.txt").c_str(), "w");   // (also in a file: the game's log may not be flushed)
+    auto out = [&](const char* fmt, ...) {
+        char line[512]; va_list ap; va_start(ap, fmt); vsnprintf(line, sizeof line, fmt, ap); va_end(ap);
+        Log("%s", line); if (f) fprintf(f, "%s\n", line);
+    };
+    out("anim test: copy motion %s / %s / %s -> %s %s: %s, %d keys on %d tracks", movie.c_str(), clips[mc].name.c_str(), ps[pi].name.c_str(),
         e.name.c_str(), c->name.c_str(), ok ? "ok" : "never shows", keys, tracks);
-    for (auto& tr : c->tracks) for (auto& k : tr.keys) Log("anim test:   %s %g ms %g (%s)", anim::kPropKey[tr.prop], k.t, k.v, anim::kEaseKey[k.ease]);
+    for (auto& tr : c->tracks) for (auto& k : tr.keys) out("anim test:   %s %g ms %g (%s)", anim::kPropKey[tr.prop], k.t, k.v, anim::kEaseKey[k.ease]);
+    if (f) fclose(f);
     anim::g.graph.fit = anim::g.big.fit = true; anim::g.focus = anim::State::F_CLIP;
 }
 void AnimKeysTest(float at) {   // (tests: the focused element's shown keys copied, pasted at `at` ms)
