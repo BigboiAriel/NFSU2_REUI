@@ -127,6 +127,7 @@ static void KeyAt(Clip& c, int prop, float v) {
 }
 static bool CanvasBegin(int part, float ux, float uy, ImVec2 m, int modal = 0) {   // (also the test script's)
     const int fi = FocusedIndex(); Clip* c = CurClip();
+    if (!ImGui::IsMousePosValid(&m)) return false;
     Box b;
     if (fi < 0 || !c || !BoxOf(fi, b)) return false;
     Elem& e = Elems()[fi];
@@ -141,7 +142,7 @@ static bool CanvasBegin(int part, float ux, float uy, ImVec2 m, int modal = 0) {
     return true;
 }
 static void CanvasDragTo(ImVec2 m, bool shift, bool ctrl) {
-    if (!g_cd.active) return;
+    if (!g_cd.active || !ImGui::IsMousePosValid(&m)) return;   // (the mouse off the window: nothing)
     Clip* c = CurClip(); const int fi = FocusedIndex();
     if (!c || fi != g_cd.elem) { g_cd.active = false; g.dragOn = false; return; }
     Elem& e = Elems()[fi];
@@ -202,6 +203,7 @@ static void CanvasEnd(bool cancel) {
 static void StartModal(int which) {   // G / S / R: grab, scale, rotate the focused element with the mouse
     if (g_cd.active) return;
     const ImVec2 m = ImGui::GetIO().MousePos;
+    if (!ImGui::IsMousePosValid(&m)) { Note("G / S / R: put the mouse over the game first (it moves the element from there)."); return; }
     const int part = which == 'G' ? H_MOVE : which == 'S' ? H_CORNER : H_ROTATE;
     if (!CanvasBegin(part, 1, 1, m, which)) { Note("G / S / R: focus an element that's on screen first."); return; }
     Note(which == 'G' ? "Grab: move the mouse; click or Enter keeps it, Esc puts it back (Shift: one axis)." :
@@ -1327,6 +1329,12 @@ static void TestStep(const std::string& step) {
     else if (cmd == "tab") { g.pageTab = arg(1) == "graph" ? 1 : 0; TestLog("panel tab %s", arg(1).c_str()); }
     else if (cmd == "graphtab") { g.graphTab = arg(1) == "speed" ? 1 : 0; g.normalise = arg(2) == "norm"; g.graph.fit = true; TestLog("graph %s %s", arg(1).c_str(), arg(2).c_str()); }
     else if (cmd == "layout") { LayoutApply(arg(1)); TestLog("layout %s", arg(1).c_str()); }
+    else if (cmd == "savelayout") {   // as the layouts' "Save current as" (written to anim_windows.txt once the mouse is up)
+        NamedLayout& l = g_layouts[arg(1)];
+        for (int i = 0; i < WIN_N; ++i) l.r[i] = w_.r[i];
+        l.split = w_.split; l.screen = g.screen; g.layoutName = arg(1); w_.dirty = true;
+        TestLog("saved layout %s (%d of your own)", arg(1).c_str(), (int)g_layouts.size());
+    }
     else if (cmd == "custom") { if (fi >= 0) { Clip& k = ClipFor(Elems()[fi], arg(1)); k.on = true; } TestLog("custom clip %s on %s", arg(1).c_str(), fname.c_str()); }
     else if (cmd == "flow") { if (ElemAnim* an = Focused()) { Flow f; f.from = arg(1); f.to = arg(2); f.cond = arg(3); f.blend = num(4, 120); an->flows.push_back(f); g_dirty = true; } TestLog("flow %s -> %s when '%s'", arg(1).c_str(), arg(2).c_str(), arg(3).c_str()); }
     else if (cmd == "status") TestLog("status: time %g, %s mode, focused %s, clip %s, live %d, G/S/R %d, auto key %d", g.time, g.screen ? "Screen" : "Element", fname.c_str(), PreviewName().c_str(), (int)g.live, g_cd.active ? g_cd.modal : 0, (int)g.autoKey);
