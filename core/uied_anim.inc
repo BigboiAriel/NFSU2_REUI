@@ -78,7 +78,8 @@ struct ElemAnim {
 };
 
 static const char* kClips[][2] = {
-    { "In", "when it shows" }, { "Idle", "while shown (after In)" }, { "Out", "before it hides (it stays drawn till Out ends)" },
+    { "In", "when it shows" }, { "Idle", "while shown (after In)" },
+    { "Out", "before it hides (it stays drawn till Out ends; on top of how it is: scale / alpha multiply, moves add)" },
     { "Focus", "when its focus value comes on" }, { "Unfocus", "when its focus value goes off (its last frame: how it rests unfocused)" },
     { "Press", "when its press value comes on" }, { "Selected", "while focused, after Focus (loop it)" },
     { "Locked", "while it's locked (planned)" }, { "Value change", "when its live value changes (planned)" },
@@ -359,13 +360,19 @@ static bool PoseOf(Elem& e, bool editing, Pose& p) {
     const Clip* in = ClipNamed(a, "In"), *idle = ClipNamed(a, "Idle");
     if (in && (!idle || t < in->length)) { SampleVals(*in, t, v); any = true; }
     else if (idle) { SampleVals(*idle, t - (in ? in->length : 0.f), v); any = true; }
-    auto over = [&](const Clip& c, double since) {   // a layer: its keyed tracks over what's below
+    // a layer: its keyed tracks over what's below - in place of it, or (relative: Out, leaving from wherever it is) on top
+    // of it: scale, alpha and colour x multiply, move, rotation and colour + add
+    auto over = [&](const Clip& c, double since, bool relative) {
         SampleVals(c, MsSince(since, now), s);
-        for (int i = 0; i < P_NPROP; ++i) if (!c.tracks[i].keys.empty()) v[i] = s[i];
+        for (int i = 0; i < P_NPROP; ++i) {
+            if (c.tracks[i].keys.empty()) continue;
+            const bool mul = i == P_SX || i == P_SY || i == P_ALPHA || i == P_MR || i == P_MG || i == P_MB;
+            v[i] = !relative ? s[i] : mul ? v[i] * s[i] : v[i] + s[i];
+        }
         any = true;
     };
-    if (r.state >= 0 && r.state < (int)a->clips.size()) over(a->clips[r.state], r.stateAt);
-    if (leaving) if (const Clip* o = ClipNamed(a, "Out")) over(*o, r.outAt);
+    if (r.state >= 0 && r.state < (int)a->clips.size()) over(a->clips[r.state], r.stateAt, false);
+    if (leaving) if (const Clip* o = ClipNamed(a, "Out")) over(*o, r.outAt, true);
     if (r.blendAt >= 0) {
         float u = MsSince(r.blendAt, now) / std::max(1.f, a->blend);
         if (u >= 1) r.blendAt = -1;
