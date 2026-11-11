@@ -1201,7 +1201,7 @@ static FILE* TestOut(bool fresh = false) { return fopen((dataDir + "anim_test.tx
 static void TestLog(const char* fmt, ...) {
     char line[1024]; va_list ap; va_start(ap, fmt); vsnprintf(line, sizeof line, fmt, ap); va_end(ap);
     Log("anim test: %s", line);
-    if (FILE* f = TestOut()) { fprintf(f, "%s\n", line); fclose(f); }
+    if (FILE* f = TestOut()) { fprintf(f, "%7.2f %s\n", ImGui::GetTime(), line); fclose(f); }
 }
 static int ElemNamed(const std::string& n) {   // (in the layout being edited, or else the first layout that has it: edited now)
     for (int pass = 0; pass < 2; ++pass)
@@ -1275,6 +1275,7 @@ static void TestStep(const std::string& step) {
         int h = 0; for (int i = 0; i < HT_N; ++i) if (arg(1) == kHandleKey[i]) h = i;
         if (!c) return;
         for (auto& tr : c->tracks) for (auto& k : tr.keys) k.sel = false;
+        g.focus = State::F_CLIP;   // (every keyed track)
         SetHandleType(*c, h);
         std::string hs;
         for (auto& tr : c->tracks) for (size_t i = 0; i + 1 < tr.keys.size(); ++i) { char b[96]; snprintf(b, sizeof b, " %s[%zu] h1 %.2f,%.3f h2 %.2f,%.3f;", kPropKey[tr.prop], i, tr.keys[i].h1x, tr.keys[i].h1y, tr.keys[i].h2x, tr.keys[i].h2y); hs += b; }
@@ -1325,6 +1326,8 @@ static void TestStep(const std::string& step) {
     else if (cmd == "layout") { LayoutApply(arg(1)); TestLog("layout %s", arg(1).c_str()); }
     else if (cmd == "custom") { if (fi >= 0) { Clip& k = ClipFor(Elems()[fi], arg(1)); k.on = true; } TestLog("custom clip %s on %s", arg(1).c_str(), fname.c_str()); }
     else if (cmd == "flow") { if (ElemAnim* an = Focused()) { Flow f; f.from = arg(1); f.to = arg(2); f.cond = arg(3); f.blend = num(4, 120); an->flows.push_back(f); g_dirty = true; } TestLog("flow %s -> %s when '%s'", arg(1).c_str(), arg(2).c_str(), arg(3).c_str()); }
+    else if (cmd == "press") { g.simPressAt = ImGui::GetTime(); TestLog("press (live)"); }
+    else if (cmd == "row") { g.simRow = (int)num(1); TestLog("focus row %d (live)", g.simRow); }
     else if (cmd == "state") { if (ElemAnim* an = Focused()) TestLog("%s now: %s", fname.c_str(), StateNow(*an).c_str()); }
     else if (cmd == "dump") { if (fi >= 0) { std::string t = AnimText(Elems()[fi].an.p); for (auto& ch : t) if (ch == '\n') ch = '|'; TestLog("%s: %s", fname.c_str(), t.c_str()); } }
     else if (cmd == "undo") { Undo(); TestLog("undo -> %s", CurClip() ? TracksText(*CurClip()).c_str() : "-"); }

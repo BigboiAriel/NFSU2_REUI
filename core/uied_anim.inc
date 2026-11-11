@@ -457,6 +457,9 @@ static void Triggers(const Elem& e, ElemAnim& a, double now) {
             if (own) Switch(a, ClipIdxAny(a, own->to), now, true, own->blend);
             else if (r.state == iFocus && iSel >= 0 && r.focus) Switch(a, iSel, now, false);   // (Selected carries on from Focus)
             else if (r.state == iPress) { if (r.focus) focusedRest(true); else Rest(a, iUnf, now); }
+            else if (r.state != iFocus && r.state != iUnf && r.state != iSel) {   // (a custom clip, done: back to how it rests)
+                if (r.focus) focusedRest(true); else Rest(a, iUnf, now);
+            }
         }
     }
     if (!a.flows.empty()) {   // the state graph's own transitions: their condition coming on, while their clip plays
