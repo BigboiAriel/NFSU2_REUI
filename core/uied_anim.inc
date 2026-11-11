@@ -1533,15 +1533,23 @@ static void FromGameSection() {
     ImGui::BeginChild("##fglist", ImVec2(230, h - ImGui::GetFrameHeightWithSpacing()), REUI_CHILD_BORDERS);
     {
         const std::string f = LowerS(u.filter);
-        int shown = 0;
-        for (auto& m : u.movies) {
-            if (!f.empty() && LowerS(m).find(f) == std::string::npos) continue;
-            if (++shown > 600) { ImGui::TextDisabled("(more: filter them)"); break; }
-            if (ImGui::Selectable((GroupLeaf(m) + "##" + m).c_str(), m == u.movie)) { u.movie = m; u.clip = -1; }
-            if (m == u.movie && u.scrollList) { ImGui::SetScrollHereY(0.5f); u.scrollList = false; }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", m.c_str());
+        std::vector<int> rows;
+        for (int i = 0; i < (int)u.movies.size(); ++i) if (f.empty() || LowerS(u.movies[i]).find(f) != std::string::npos) rows.push_back(i);
+        const float rh = ImGui::GetTextLineHeightWithSpacing();
+        if (u.scrollList) {   // (picked from outside the list: scrolled to it)
+            for (size_t r = 0; r < rows.size(); ++r) if (u.movies[rows[r]] == u.movie) { ImGui::SetScrollY(std::max(0.f, r * rh - ImGui::GetWindowHeight() / 2)); break; }
+            u.scrollList = false;
         }
-        if (!shown) ImGui::TextDisabled("(none match)");
+        ImGuiListClipper clip; clip.Begin((int)rows.size(), rh);
+        while (clip.Step())
+            for (int r = clip.DisplayStart; r < clip.DisplayEnd; ++r) {
+                const std::string& m = u.movies[rows[r]];
+                const std::string dir = m.find('/') != std::string::npos ? GroupLeaf(m.substr(0, m.rfind('/'))) : "";
+                if (ImGui::Selectable((GroupLeaf(m) + "##" + m).c_str(), m == u.movie)) { u.movie = m; u.clip = -1; }
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", m.c_str());
+                if (!dir.empty()) { ImGui::SameLine(); ImGui::TextDisabled("%s", dir.c_str()); }
+            }
+        if (rows.empty()) ImGui::TextDisabled("(none match)");
     }
     ImGui::EndChild();
     ImGui::EndGroup();
@@ -2237,6 +2245,7 @@ void FromGameTest(const std::string& spec) {   // (tests) "<movie name>.<clip>.<
         Log("%s", line); if (f) fprintf(f, "%s\n", line);
     };
     out("from the game test: %s / %s: %d added - %s", u.movie.c_str(), u.clips[clip].name.c_str(), added, u.msg.c_str());
+    out("from the game test: modes now %d, edit %d (of %d); show %d, edit on screen %d, index %d", g_nowMode, g_editMode, NumModes(), (int)g_show, (int)g_edit, (int)g_state);
     for (size_t i = first; i < Elems().size(); ++i) {
         const Elem& e = Elems()[i];
         int keys = 0; if (e.an.p) for (auto& c : e.an.p->clips) keys += anim::Keys(c);
