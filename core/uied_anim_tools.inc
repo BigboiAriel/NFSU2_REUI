@@ -1196,7 +1196,7 @@ static void LayoutCombo() {
 
 // ================================================================ the test script (--jrt_reui_anim_test): a step every few
 // frames, its results to <REUI>\anim_test.txt
-static std::deque<std::string> g_test; static int g_testWait = 0;
+static std::deque<std::string> g_test; static int g_testWait = 0; static double g_testUntil = 0;   // (steps: 2 frames and 50 ms apart at least)
 static FILE* TestOut(bool fresh = false) { return fopen((dataDir + "anim_test.txt").c_str(), fresh ? "w" : "a"); }
 static void TestLog(const char* fmt, ...) {
     char line[1024]; va_list ap; va_start(ap, fmt); vsnprintf(line, sizeof line, fmt, ap); va_end(ap);
@@ -1331,14 +1331,15 @@ static void TestStep(const std::string& step) {
     else if (cmd == "state") { if (ElemAnim* an = Focused()) TestLog("%s now: %s", fname.c_str(), StateNow(*an).c_str()); }
     else if (cmd == "dump") { if (fi >= 0) { std::string t = AnimText(Elems()[fi].an.p); for (auto& ch : t) if (ch == '\n') ch = '|'; TestLog("%s: %s", fname.c_str(), t.c_str()); } }
     else if (cmd == "undo") { Undo(); TestLog("undo -> %s", CurClip() ? TracksText(*CurClip()).c_str() : "-"); }
-    else if (cmd == "wait") g_testWait = (int)num(1, 30);
+    else if (cmd == "wait") g_testUntil = ImGui::GetTime() + num(1, 500) / 1000.0;   // wait:<ms>
     else TestLog("unknown step %s", step.c_str());
 }
 static void TestTick() {
     if (g_test.empty()) return;
     if (g_testWait > 0) { --g_testWait; return; }
+    if (ImGui::GetTime() < g_testUntil) return;
     const std::string s = g_test.front(); g_test.pop_front();
-    g_testWait = 6;
+    g_testWait = 2; g_testUntil = std::max(g_testUntil, ImGui::GetTime() + 0.05);
     TestStep(s);
     if (g_test.empty()) TestLog("done");
 }
