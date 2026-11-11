@@ -204,6 +204,10 @@ struct State {
     View graph, big; float tl0 = -50, tl1 = 650;
     char filter[64] = "";
     int dragKey = -1, dragTrack = -1, dragHandle = 0; ImVec2 dragStart; float dragT = 0, dragV = 0;
+    // live: the clips play as in the game (In, triggers, Out, blends) with stand-in menu values instead of the playhead
+    bool live = false, simShown = true;
+    int simRow = 0;                    // the focused menu row (-1: none)
+    double simPressAt = -1e9, simBackAt = -1e9;
 };
 static State g;
 
@@ -262,14 +266,75 @@ static void Sample(const Clip& c, float t, Pose& p) {
 }
 // the clip animation mode shows on every element: the one picked on the timeline (by name)
 static std::string PreviewName() { const Clip* c = CurClip(); return c ? c->name : std::string(kClips[std::max(0, std::min(8, g.clip))][0]); }
-static float PreviewLen() {   // the longest clip of that name in the layout (the timeline's range)
+// ---- delay and stagger: how long an element's In waits - its own delay, and its place in the staggered groups over it
+// (a group's motion element: astagger ms a step, its members top to bottom; a group inside counts as one member)
+static float StaggerStep(const Elem& m, const Elem& e) {   // e's place among m's group's members (0: first)
+    struct Units { int frame = -1; std::vector<std::pair<std::string, float>> order; };   // (member key, its top)
+    static std::unordered_map<const Elem*, Units> cache;
+    Units& u = cache[&m];
+    auto keyOf = [&](const Elem& o) {   // an element of the group itself, or the group inside it that holds it
+        if (o.group == m.group) return "#" + std::to_string((size_t)&o);
+        const std::string rest = o.group.substr(m.group.size() + 1);
+        return rest.substr(0, rest.find('/'));
+    };
+    if (u.frame != ImGui::GetFrameCount()) {
+        u.frame = ImGui::GetFrameCount(); u.order.clear();
+        std::vector<Elem>* l = LayoutOf(m);
+        if (l) for (auto& o : *l) {
+            if (o.type == E_MOTION || !InGroup(o.group, m.group)) continue;
+            ImVec2 a, b; ElemRect(o, a, b);
+            const std::string k = keyOf(o);
+            auto it = std::find_if(u.order.begin(), u.order.end(), [&](const std::pair<std::string, float>& x) { return x.first == k; });
+            if (it == u.order.end()) u.order.push_back({ k, std::min(a.y, b.y) }); else it->second = std::min(it->second, std::min(a.y, b.y));
+        }
+        std::stable_sort(u.order.begin(), u.order.end(), [](const std::pair<std::string, float>& x, const std::pair<std::string, float>& y) { return x.second < y.second - 0.5f; });
+    }
+    const std::string k = keyOf(e);
+    for (size_t i = 0; i < u.order.size(); ++i) if (u.order[i].first == k) return (float)i;
+    return 0;
+}
+static float InDelay(const Elem& e) {
+    float d = e.an.p ? e.an.p->p.delay : 0.f;
+    if (e.type == E_MOTION && e.group.empty()) return d;
+    static std::vector<Elem*> cs; MotionsOf(e, cs);
+    std::vector<Elem*> ms(cs);
+    for (Elem* m : ms) if (m->an.p && m->an.p->p.stagger > 0) d += StaggerStep(*m, e) * m->an.p->p.stagger;   // (MotionsOf: not its own)
+    return d;
+}
+static float PreviewLen() {   // the longest clip of that name in the layout (the timeline's range; In: with its wait)
     const std::string n = PreviewName();
     float len = 0;
-    for (auto& e : Elems()) if (const Clip* c = ClipNamed(e.an.p, n)) len = std::max(len, c->length);
+    for (auto& e : Elems()) if (const Clip* c = ClipNamed(e.an.p, n)) len = std::max(len, c->length + (n == "In" ? InDelay(e) : 0.f));
     if (len <= 0) { const int i = FocusedIndex(); if (i >= 0 && Elems()[i].an.p) for (auto& c : Elems()[i].an.p->clips) if (c.name == n) len = c.length; }
     return len > 0 ? len : 1000.f;
 }
-static bool Previewing() { return g.on; }
+static bool Previewing() { return g.on && !g.live; }
+// ---- live (animation mode): stand-in menu values (menu.sel / unsel / row / on / press / back) and the layout shown or left
+static bool SimToken(const std::string& key, std::string& out) {
+    if (!g.on || !g.live || key.rfind("menu.", 0) != 0) return false;
+    const double now = ImGui::GetTime();
+    const bool pressed = now - g.simPressAt < 0.2;
+    if (key == "menu.on") out = g.simShown ? "1" : "0";
+    else if (key == "menu.row") out = g.simRow >= 0 ? std::to_string(g.simRow) : "";
+    else if (key.rfind("menu.sel:", 0) == 0) out = g.simShown && g.simRow >= 0 && atoi(key.c_str() + 9) == g.simRow ? "1" : "0";
+    else if (key.rfind("menu.unsel:", 0) == 0) out = g.simShown && atoi(key.c_str() + 11) != g.simRow ? "1" : "0";
+    else if (key == "menu.press") out = pressed ? "1" : "0";
+    else if (key.rfind("menu.press:", 0) == 0) out = pressed && atoi(key.c_str() + 11) == g.simRow ? "1" : "0";
+    else if (key == "menu.back") out = now - g.simBackAt < 0.2 ? "1" : "0";
+    else return false;
+    return true;
+}
+static bool ShownNow(const Elem& e) {   // (live: everything shows, but for menu values, till Leave)
+    if (!g.on || !g.live) return ShowIfOk(e);
+    if (!g.simShown) return false;
+    const std::string& c = e.showIf;
+    const bool menu = c.rfind("menu.", 0) == 0 || c.rfind("!menu.", 0) == 0;
+    return !menu || ShowIfOk(e);
+}
+static void SimRestart() {   // every element of the layout up again from the start: In plays
+    for (auto& e : Elems()) { if (e.an.p) e.an.p->run = Run(); e.shownSince = -1; }
+    g.simShown = true;
+}
 
 // ---- live: In / Idle underneath, the state layer's keyed tracks over them, Out's over everything; a clip change blends
 static double g_speed = 1;   // live clips' speed (AnimSpeed: slow motion to check them; 1 normally)
@@ -351,10 +416,10 @@ static void Showing(Elem& e) {
 static bool PoseOf(Elem& e, bool editing, Pose& p) {
     ElemAnim* a = e.an.p;
     if (!a || editing) return false;
-    if (g.on) {   // animation mode: the clip being edited, at the playhead
+    if (g.on && !g.live) {   // animation mode: the clip being edited, at the playhead (In: after its wait)
         const Clip* c = ClipNamed(a, PreviewName());
         if (!c) return false;
-        Sample(*c, g.time, p); return true;
+        Sample(*c, g.time - (c->name == "In" ? InDelay(e) : 0.f), p); return true;
     }
     Run& r = a->run;
     const double now = ImGui::GetTime();
@@ -363,7 +428,7 @@ static bool PoseOf(Elem& e, bool editing, Pose& p) {
     float v[P_NPROP], s[P_NPROP];
     for (int i = 0; i < P_NPROP; ++i) v[i] = kProp[i].def;
     bool any = false;
-    const float t = MsSince(e.shownSince >= 0 ? e.shownSince : now, now);
+    const float t = MsSince(e.shownSince >= 0 ? e.shownSince : now, now) - InDelay(e);   // (In waits its delay / stagger)
     const Clip* in = ClipNamed(a, "In"), *idle = ClipNamed(a, "Idle");
     if (in && (!idle || t < in->length)) { SampleVals(*in, t, v); any = true; }
     else if (idle) { SampleVals(*idle, t - (in ? in->length : 0.f), v); any = true; }
@@ -391,6 +456,15 @@ static bool PoseOf(Elem& e, bool editing, Pose& p) {
     ToPose(v, p);
     return true;
 }
+static std::string StateNow(const ElemAnim& a) {   // (live: what's playing on it now)
+    const Run& r = a.run;
+    if (r.outAt >= 0) return "Out";
+    if (r.frozen) return "kept (its group is leaving)";
+    if (!r.inited) return "-";
+    std::string s = r.state >= 0 && r.state < (int)a.clips.size() ? a.clips[r.state].name : "In / Idle";
+    if (!a.focusIf.empty()) s += r.focus ? " (focused)" : " (not focused)";
+    return s;
+}
 // ---------------------------------------------------------------- saving: "aclip=<clip>;<ms>;<once|loop|pingpong>"
 // and "akey=<clip>;<track>;<ms> <value> <ease>[ <h1x> <h1y> <h2x> <h2y>];..." (a line per keyed track)
 
@@ -401,6 +475,8 @@ static void PutAnim(std::string& o, const ElemAnim& a) {
     if (!a.focusIf.empty()) Pf(o, "afocus=%s\n", a.focusIf.c_str());
     if (!a.pressIf.empty()) Pf(o, "apress=%s\n", a.pressIf.c_str());
     if (a.blend != 120) Pf(o, "ablend=%g\n", a.blend);
+    if (a.p.delay > 0) Pf(o, "adelay=%g\n", a.p.delay);
+    if (a.p.stagger > 0) Pf(o, "astagger=%g\n", a.p.stagger);
     for (auto& c : a.clips) {
         if (!Keys(c)) continue;
         Pf(o, "aclip=%s;%g;%s%s\n", c.name.c_str(), c.length, kLoopKey[std::max(0, std::min(2, c.loop))], c.on ? "" : ";off");
@@ -428,9 +504,12 @@ static Clip& ClipFor(Elem& e, const std::string& name) {   // (a name that isn't
     return e.an.p->clips.back();
 }
 static void AnimKey(Elem& e, const std::string& k, const std::string& v) {
-    if (k == "afocus" || k == "apress" || k == "ablend") {
+    if (k == "afocus" || k == "apress" || k == "ablend" || k == "adelay" || k == "astagger") {
         if (!e.an.p) e.an.p = new ElemAnim(NewAnim());
-        if (k == "afocus") e.an.p->focusIf = v; else if (k == "apress") e.an.p->pressIf = v; else e.an.p->blend = std::max(0.f, (float)atof(v.c_str()));
+        ElemAnim& a = *e.an.p;
+        const float f = std::max(0.f, (float)atof(v.c_str()));
+        if (k == "afocus") a.focusIf = v; else if (k == "apress") a.pressIf = v; else if (k == "ablend") a.blend = f;
+        else if (k == "adelay") a.p.delay = f; else a.p.stagger = f;
         return;
     }
     std::vector<std::string> f = SplitSemi(v);
@@ -1051,9 +1130,16 @@ static void AnimPage() {   // (the left side of the panels window)
         ImGui::Checkbox("Follow its group's animation", &p.followGroup); FocusPlanned("Group transform"); PlannedTag();
         ImGui::TextDisabled("Group: %s", e.group.empty() ? "(none)" : e.group.c_str());
     }
-    if (ImGui::CollapsingHeader("Timing (planned)")) {
-        ImGui::SetNextItemWidth(120); ImGui::DragFloat("delay", &p.delay, 5, 0, 5000, "%.0f ms"); FocusPlanned("Delay"); PlannedTag();
-        ImGui::SetNextItemWidth(120); ImGui::DragFloat("stagger per child", &p.stagger, 5, 0, 2000, "%.0f ms"); FocusPlanned("Stagger"); PlannedTag();
+    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+    if (ImGui::CollapsingHeader("Timing")) {
+        ImGui::SetNextItemWidth(120); ImGui::DragFloat("delay##tm", &p.delay, 5, 0, 5000, "%.0f ms"); p.delay = std::max(0.f, p.delay);
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Its In waits this long after it shows (held at In's first frame).");
+        if (e.type == E_MOTION) {
+            ImGui::SetNextItemWidth(120); ImGui::DragFloat("stagger##tm", &p.stagger, 2, 0, 2000, "%.0f ms a step"); p.stagger = std::max(0.f, p.stagger);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Its group's members start their In this much apart, top to bottom (a group inside it counts as one member).\nThe game's lists: about 100 ms (3 Flash frames).");
+        } else ImGui::TextDisabled("Stagger: on a group's motion element (click the group's heading in the list).");
+        const float w = InDelay(e);
+        if (w > 0) ImGui::TextDisabled("Its In waits %.0f ms in all (its delay and its groups' stagger).", w);
         ImGui::Checkbox("Wait for the previous screen's Out", &p.waitPrevOut); FocusPlanned("Screen transitions"); PlannedTag();
     }
     if (ImGui::CollapsingHeader("Effects (planned)")) {
@@ -1191,20 +1277,51 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
         if (ImGui::Combo("clip", &g.clip, names.data(), (int)names.size())) { g.focus = State::F_CLIP; g.graph.fit = g.big.fit = true; }
     }
     const float bw = ImGui::CalcTextSize("Exit animation mode").x + 20;
-    const float rightX = ImGui::GetWindowContentRegionMax().x - bw - ImGui::CalcTextSize(" Collapse ").x - ImGui::CalcTextSize(" Hide panels ").x - ImGui::CalcTextSize(" Reset windows ").x - 70;
+    const float rightX = ImGui::GetWindowContentRegionMax().x - bw - ImGui::CalcTextSize(" Collapse ").x - ImGui::CalcTextSize(" Hide panels ").x - ImGui::CalcTextSize(" Reset windows ").x - ImGui::CalcTextSize(" Live ").x - 90;
     {   // the empty part of the row: a move handle too
         ImGui::SameLine();
         const float gapW = rightX - ImGui::GetCursorPosX() - ImGui::GetStyle().ItemSpacing.x;
         if (gapW > 8) { ImGui::InvisibleButton("##tlmove", ImVec2(gapW, ImGui::GetFrameHeight())); moveGrip(false); }
     }
     ImGui::SameLine(std::max(ImGui::GetCursorPosX(), rightX));
+    {   // live: the clips as in the game (triggers, blends, Out), with stand-in menu values
+        const bool was = g.live;
+        if (was) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.15f, 0.55f, 0.85f, 1.f));
+        if (ImGui::Button(" Live ")) { g.live = !g.live; g.playing = false; SimRestart(); }
+        if (was) ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Play the layout as the game does - In, the triggers (Focus, Press...), blends, stagger and Out -\nwith stand-in menu values you set below, instead of one clip at the playhead.");
+    }
+    ImGui::SameLine();
     if (ImGui::Button(g.bare ? " Panels " : " Hide panels ")) g.bare = !g.bare;
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Hide / show the element list, animation page and graph (H): the whole screen to watch.");
     ImGui::SameLine(); if (ImGui::Button(g.expanded ? " Collapse " : " Expand ")) { g.expanded = !g.expanded; g.big.fit = true; }
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("A taller timeline with a big keys + curves graph.");
     ImGui::SameLine(); if (ImGui::Button(" Reset windows ")) WinReset();
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("The windows back where they start. Drag a window by its title bar (the timeline: the grip\nat its left end or the empty part of its top row), size it from its edges; its edges snap to\nthe other windows' and the screen's.");
-    ImGui::SameLine(); if (ImGui::Button("Exit animation mode")) g.on = false;
+    ImGui::SameLine(); if (ImGui::Button("Exit animation mode")) { g.on = false; if (g.live) { g.live = false; SimRestart(); } }
+    if (g.live) {   // ---- the stand-in menu
+        ImGui::TextColored(ImVec4(0.45f, 0.8f, 1.f, 1.f), "Live"); ImGui::SameLine();
+        int row = g.simRow + 1;
+        ImGui::SetNextItemWidth(90);
+        if (ImGui::InputInt("focus row##sim", &row)) g.simRow = std::max(0, std::min(64, row)) - 1;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The menu row that's selected (menu.sel:<row>): 1 is the top row, 0 none. Up / Down arrows.");
+        ImGui::SameLine(); if (ImGui::Button("Select##sim")) g.simPressAt = ImGui::GetTime();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("A select on the focused row (menu.press, menu.press:<row>): Press plays. Enter.");
+        ImGui::SameLine(); if (ImGui::Button("Back##sim")) g.simBackAt = ImGui::GetTime();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Back (menu.back). Backspace.");
+        ImGui::SameLine(); if (ImGui::Button(g.simShown ? "Leave##sim" : "Show##sim")) g.simShown = !g.simShown;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Leave: the screen goes (Out plays, groups' too). Show: it comes back (In again). Q / E.");
+        ImGui::SameLine(); if (ImGui::Button("Restart##sim")) SimRestart();
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Everything from its In again (with its delay / stagger).");
+        ImGui::SameLine(); ImGui::SetNextItemWidth(80);
+        {
+            const float speeds[] = { 1.f, 0.5f, 0.25f, 0.1f }; const char* names[] = { "100%", "50%", "25%", "10%" };
+            int cur = 0; for (int i = 0; i < 4; ++i) if (fabs(g_speed - speeds[i]) < 0.001) cur = i;
+            if (ImGui::Combo("speed##sim", &cur, names, 4)) g_speed = speeds[cur];
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Slow motion, to see a clip or a blend closely (also in the game till you change it back).");
+        }
+        if (an) { ImGui::SameLine(); ImGui::TextDisabled("%s: %s", Elems()[FocusedIndex()].name.c_str(), StateNow(*an).c_str()); }
+    }
     // ---- rows: names | ruler + keys
     const float nameW = 190, rowH = ImGui::GetTextLineHeight() + 6, rulerH = ImGui::GetTextLineHeight() + 8;
     ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -1346,13 +1463,21 @@ static void Frame() {
         if (fi >= 0 && g.elemKey == lastKey && text != lastText) g_dirty = true;
         lastKey = fi >= 0 ? g.elemKey : std::string(); lastText.swap(text);
     }
-    if (g.playing) {
+    if (g.playing && !g.live) {
         const float len = PreviewLen();
         g.time += io.DeltaTime * 1000.f;
         if (g.time > len) { if (g.loop) g.time = fmodf(g.time, std::max(1.f, len)); else { g.time = len; g.playing = false; } }
     }
     if (ImGui::IsKeyPressed(ImGuiKey_Space, false) && !io.WantTextInput && ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) g.playing = !g.playing;
     if (ImGui::IsKeyPressed(ImGuiKey_H, false) && !io.WantTextInput && ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) g.bare = !g.bare;
+    if (g.live && !io.WantTextInput) {   // the stand-in menu's keys
+        if (ImGui::IsKeyPressed(ImGuiKey_UpArrow)) g.simRow = std::max(0, g.simRow - 1);
+        if (ImGui::IsKeyPressed(ImGuiKey_DownArrow)) g.simRow = std::min(63, g.simRow + 1);
+        if (ImGui::IsKeyPressed(ImGuiKey_Enter, false)) g.simPressAt = ImGui::GetTime();
+        if (ImGui::IsKeyPressed(ImGuiKey_Backspace, false)) g.simBackAt = ImGui::GetTime();
+        if (ImGui::IsKeyPressed(ImGuiKey_Q, false)) g.simShown = false;
+        if (ImGui::IsKeyPressed(ImGuiKey_E, false)) g.simShown = true;
+    }
     if (g.focus == State::F_NONE && FocusedIndex() < 0 && g_sel >= 0 && g_sel < (int)Elems().size()) {   // start on the editor's pick
         g.elemKey = KeyOf(g_editMode, Elems()[g_sel]); g.focus = State::F_ELEMENT;
     }
@@ -1414,6 +1539,7 @@ void SetAnimMode(bool on) {
 }
 void AnimBare(bool bare) { anim::g.bare = bare; }
 void AnimSpeed(float speed) { anim::g_speed = std::max(0.01f, std::min(10.f, speed)); }
+void AnimLive(bool live) { if (anim::g.live != live) { anim::g.live = live; anim::SimRestart(); } }
 void AnimPlayhead(float ms, bool play) { anim::g.time = std::max(0.f, ms); anim::g.playing = play; anim::g.loop = true; }
 void AnimFocus(int index) {
     if (index < 0 || index >= (int)Elems().size()) return;

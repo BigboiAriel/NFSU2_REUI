@@ -589,6 +589,7 @@ static bool ValueOf(const std::string& key, float& out) {
     char* end = nullptr; out = strtof(v.c_str(), &end);
     return end != v.c_str();
 }
+namespace anim { static bool SimToken(const std::string& key, std::string& out); }   // (animation mode's live preview: stand-in menu values)
 // a show-only-while style condition ("key" / "!key"): its value is set and not "0" (empty: true)
 static bool CondOk(const std::string& cond, const std::string& group) {
     if (cond.empty()) return true;
@@ -600,6 +601,7 @@ static bool CondOk(const std::string& cond, const std::string& group) {
         bool set = !v.empty() && v != "0";
         return neg ? !set : set;
     }
+    if (anim::SimToken(key, v)) { const bool on = !v.empty() && v != "0"; return neg ? !on : on; }
     bool set = tokens && tokens(key, v) && !v.empty() && v != "0";
     return neg ? !set : set;
 }
@@ -1016,6 +1018,7 @@ static bool Previewing();   // animation mode is on: every element shows (its sh
 static bool Leaving(Elem& e, bool kept);   // its show-only-while went off: true while its Out clip plays (it's still drawn) -
                                            // or kept: its group's motion is leaving (it stays, frozen, till that ends)
 static void Showing(Elem& e);    // it's shown (back during an Out: In starts again)
+static bool ShownNow(const Elem& e);   // its show-only-while now (animation mode's live preview: shown till Leave)
 }
 // ---- group motion: a "motion" element's clips (In, triggers, Out...) move every element of its group (and the groups in
 // it) about its point - scale, turn and move with it, fade and tint - after the element's own clips; inner groups first
@@ -1055,7 +1058,7 @@ static bool MotionLeaving(Elem& e) {   // a motion over it is playing its Out: i
     if (e.group.empty()) return false;
     static std::vector<Elem*> cs; MotionsOf(e, cs);
     std::vector<Elem*> mine(cs);   // (Leaving below may look up motions again)
-    for (Elem* c : mine) if (!ShowIfOk(*c) && anim::Leaving(*c, MotionLeaving(*c))) return true;   // (an outer group's keeps it)
+    for (Elem* c : mine) if (!anim::ShownNow(*c) && anim::Leaving(*c, MotionLeaving(*c))) return true;   // (an outer group's keeps it)
     return false;
 }
 static void DrawMotionMarker(ImDrawList* dl, Elem& e) {   // (editing / animation mode: where a group's motion turns it)
@@ -1073,7 +1076,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     g_tokGroup = e.group;
     if (!editing && !e.flags.empty() && FlagsHide(e)) return;
     struct AnimSave { Elem& e; bool on = false; float scale = 1, x = 0, y = 0; ~AnimSave() { if (on) { e.scale = scale; e.x = x; e.y = y; } } } animSave{ e };
-    if (!ShowIfOk(e)) {
+    if (!anim::ShownNow(e)) {
         if (!editing && !anim::Previewing()) { if (!anim::Leaving(e, MotionLeaving(e))) { e.shownSince = -1; return; } }   // (Out: drawn till it ends)
         else e.shownSince = -1;
     } else {

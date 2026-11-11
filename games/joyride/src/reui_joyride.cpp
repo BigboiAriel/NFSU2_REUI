@@ -136,6 +136,7 @@ void SetMode(const std::string& key) {
 }
 void SetEditorOpen(bool open) { g_open = open; }
 void SetAnimSpeed(float speed) { uied::AnimSpeed(speed); }
+void SetAnimLive(bool live) { uied::AnimLive(live); }
 void StartAnimMode(bool focusFirst, float ms, bool play, bool bare) {
     uied::SetAnimMode(true);
     if (focusFirst) uied::AnimFocus(0);
