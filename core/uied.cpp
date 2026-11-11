@@ -1073,7 +1073,18 @@ static void ApplyTokSwap(Elem& e);
 // follow the tile being the selected one, Press its accept - and In waits the grid's stagger for its place.
 static struct TileCtx { bool on = false, sel = false, press = false; float inDelay = 0; } g_tileCtx;
 namespace anim {   // (uied_anim.inc) an element's clips now: the change they make to it this frame
-struct Pose { float dx = 0, dy = 0, sx = 1, sy = 1, rot = 0, a = 1, mul[3] = { 1, 1, 1 }, add[3] = { 0, 0, 0 }; };
+struct Pose { float dx = 0, dy = 0, sx = 1, sy = 1, rot = 0, a = 1, mul[3] = { 1, 1, 1 }, add[3] = { 0, 0, 0 };
+              float fx = 1, blur = 0, reveal = 1; };   // (the effects' tracks: their strength, blur added (units), the wipe's part shown)
+// An element's effects (its animation page's Effects): drawn as extra passes of the element itself - its shadow and glow
+// as its silhouette (images: WhiteOf; text / shapes: their own drawing) in a colour, soft edges as copies on rings around
+// it (rex draws no shaders: a blur is made of taps), its own blur the same; a wipe shows a part of its box.
+struct Fx {
+    bool shadow = false; float sdx = 0, sdy = 0, sblur = 0, scol[4] = { 0, 0, 0, 0.6f };
+    bool glow = false; float gsize = 0, gstr = 1, gcol[4] = { 1, 1, 1, 0.8f };
+    float blur = 0;        // its own (units)
+    int wipe = 0;          // 0 none; 1 left -> right, 2 right -> left, 3 top -> bottom, 4 bottom -> top, 5 from the middle out
+};
+static bool FxOf(const Elem& e, const Pose* pose, Fx& fx);   // false: none
 static bool PoseOf(Elem& e, bool editing, Pose& p);   // false: nothing playing on it
 static bool Previewing();   // animation mode is on: every element shows (its show-only-while rule waits)
 static bool Leaving(Elem& e, bool kept);   // its show-only-while went off: true while its Out clip plays (it's still drawn) -
@@ -1135,6 +1146,36 @@ static void DrawMotionMarker(ImDrawList* dl, Elem& e) {   // (editing / animatio
     dl->AddCircle(p, 7, c, 0, 2.f);
     dl->AddLine(ImVec2(p.x - 12, p.y), ImVec2(p.x + 12, p.y), c, 1.5f);
     dl->AddLine(ImVec2(p.x, p.y - 12), ImVec2(p.x, p.y + 12), c, 1.5f);
+}
+// An effect's soft copy: the drawing at `off` spread over a disc of radius rad (px) - the centre and two rings of taps, each
+// as opaque as makes the middle about col's alpha (rex has no blur shader: a blur here is copies)
+template <class F> static void FxTaps(float rad, ImVec2 off, ImU32 col, F&& draw) {
+    if (rad < 0.75f) { draw(off, col); return; }
+    ImVec4 c = ImGui::ColorConvertU32ToFloat4(col);
+    const int ring = rad > 6 ? 12 : 8, n = 1 + 2 * ring;
+    c.w = 1.f - powf(1.f - std::min(0.995f, c.w), 1.f / n);
+    const ImU32 tc = ImGui::ColorConvertFloat4ToU32(c);
+    draw(off, tc);
+    for (int r = 1; r <= 2; ++r)
+        for (int i = 0; i < ring; ++i) {
+            const float ang = (i + (r == 1 ? 0.5f : 0.f)) * 6.2831853f / ring, d = rad * r / 2;
+            draw(ImVec2(off.x + cosf(ang) * d, off.y + sinf(ang) * d), tc);
+        }
+}
+static ImU32 FxCol(const float* c, float alpha) { const float k[4] = { c[0], c[1], c[2], std::min(1.f, std::max(0.f, c[3] * alpha)) }; return Col(k); }
+// a wipe: the part of its box (a, b) shown - false: none of it
+static bool WipeRect(int mode, float r, ImVec2 a, ImVec2 b, ImVec2& lo, ImVec2& hi) {
+    lo = a; hi = b; r = std::max(0.f, std::min(1.f, r));
+    const float w = b.x - a.x, h = b.y - a.y;
+    switch (mode) {
+        case 1: hi.x = a.x + w * r; break;
+        case 2: lo.x = b.x - w * r; break;
+        case 3: hi.y = a.y + h * r; break;
+        case 4: lo.y = b.y - h * r; break;
+        case 5: lo.x = a.x + w * (1 - r) / 2; hi.x = b.x - w * (1 - r) / 2; break;
+        default: break;
+    }
+    return r > 0.001f;
 }
 static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     if (!e.visible) return;
@@ -1308,7 +1349,36 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             col = Col(c);
         }
     }
+    anim::Fx fx; const bool fxOn = anim::FxOf(e, posed ? &pose : nullptr, fx);
+    const float fxReveal = posed ? pose.reveal : 1.f, fxAlpha = ImGui::ColorConvertU32ToFloat4(col).w;
     if (e.type == E_SHAPE) {
+        // its effects: shadow / glow as the shape in their colour (offset, soft), its own blur as soft copies, a wipe as a clip
+        bool wipeClip = false;
+        if (fxOn && fx.wipe > 0) { ImVec2 lo, hi; if (!WipeRect(fx.wipe, fxReveal, a, b, lo, hi)) return; dl->PushClipRect(lo, hi, true); wipeClip = true; }
+        struct ClipPop { ImDrawList* dl; bool on; ~ClipPop() { if (on) dl->PopClipRect(); } } clipPop{ dl, wipeClip };
+        if (fxOn && (fx.shadow || fx.glow || fx.blur > 0.01f)) {
+            const float ku = Unit(); float keep[4] = { e.fillCol[0], e.fillCol[1], e.fillCol[2], e.fillCol[3] };
+            auto pass = [&](const float* c, float alpha, float rad, ImVec2 off) {
+                FxTaps(rad, off, FxCol(c, alpha), [&](ImVec2 o, ImU32 c4) {
+                    const ImVec4 v = ImGui::ColorConvertU32ToFloat4(c4);
+                    e.fillCol[0] = v.x; e.fillCol[1] = v.y; e.fillCol[2] = v.z; e.fillCol[3] = v.w;
+                    DrawShape(dl, e, ImVec2(a.x + o.x, a.y + o.y), ImVec2(b.x + o.x, b.y + o.y), c4, false);
+                });
+            };
+            if (fx.shadow) pass(fx.scol, fxAlpha * keep[3], fx.sblur * ku, ImVec2(fx.sdx * ku, fx.sdy * ku));
+            if (fx.glow) { float gc[4] = { fx.gcol[0], fx.gcol[1], fx.gcol[2], fx.gcol[3] * fx.gstr }; pass(gc, fxAlpha * keep[3], fx.gsize * ku, ImVec2(0, 0)); }
+            for (int i = 0; i < 4; ++i) e.fillCol[i] = keep[i];
+            if (fx.blur > 0.01f) {   // (its own soft copies in place of it)
+                FxTaps(fx.blur * ku, ImVec2(0, 0), IM_COL32_WHITE, [&](ImVec2 o, ImU32 c4) {
+                    const float t = ImGui::ColorConvertU32ToFloat4(c4).w;
+                    e.fillCol[3] = keep[3] * t;
+                    ImVec4 cv = ImGui::ColorConvertU32ToFloat4(col); cv.w *= t;
+                    DrawShape(dl, e, ImVec2(a.x + o.x, a.y + o.y), ImVec2(b.x + o.x, b.y + o.y), ImGui::ColorConvertFloat4ToU32(cv), editing);
+                });
+                e.fillCol[3] = keep[3];
+                return;
+            }
+        }
         float bf = (e.bindKind == 1 || e.bindKind == 2) ? BindFrac(e) : -1.f;   // a meter: the shape drawn as long as its value
         if (bf >= 0.f) bf = e.cutLo + (e.cutHi - e.cutLo) * bf;
         if (bf >= 0.f && e.bindKind == 1) { if (bf <= 0.001f && !editing) return; b.x = a.x + (b.x - a.x) * std::max(bf, editing ? 0.02f : 0.f); }
@@ -1468,8 +1538,26 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
                 dl->AddImageQuad(gfx::Id(tx), P(-hw.x, -hw.y), P(hw.x, -hw.y), P(hw.x, hw.y), P(-hw.x, hw.y),
                                  uv0, ImVec2(uv1.x, uv0.y), uv1, ImVec2(uv0.x, uv1.y), c4);
             };
-            quad(col);
-            if (poseAdd) {   // a clip's colour +: its white silhouette over it, as opaque as the add (towards white / the add's tint)
+            bool fxDrawn = false, wipeNone = false;
+            if (fxOn) {
+                ImVec2 lo, hi;
+                if (fx.wipe > 0 && !masked) {   // a wipe: its quad cut to the part of its box shown (the mask's way)
+                    if (!WipeRect(fx.wipe, fxReveal, a, b, lo, hi)) fxDrawn = wipeNone = true;
+                    else { mask[0] = lo; mask[1] = ImVec2(hi.x, lo.y); mask[2] = hi; mask[3] = ImVec2(lo.x, hi.y); masked = true; }
+                }
+                const float ku = Unit(); const ImVec2 a0 = a, b0 = b;
+                auto at = [&](ImVec2 off, ImU32 c4) { a = ImVec2(a0.x + off.x, a0.y + off.y); b = ImVec2(b0.x + off.x, b0.y + off.y); quad(c4); };
+                if (!wipeNone && (fx.shadow || fx.glow)) {   // its silhouette (WhiteOf) in their colour; no silhouette: the picture tinted
+                    gfx::Tex keep = tx;
+                    if (gfx::Tex sil = e.texIdx >= 0 && !e.additive ? WhiteOf(e.texIdx) : nullptr) tx = sil;
+                    if (fx.shadow) FxTaps(fx.sblur * ku, ImVec2(fx.sdx * ku, fx.sdy * ku), FxCol(fx.scol, fxAlpha), at);
+                    if (fx.glow) { const float gc[4] = { fx.gcol[0], fx.gcol[1], fx.gcol[2], fx.gcol[3] * fx.gstr }; FxTaps(fx.gsize * ku, ImVec2(0, 0), FxCol(gc, fxAlpha), at); }
+                    tx = keep; a = a0; b = b0;
+                }
+                if (!wipeNone && fx.blur > 0.01f) { FxTaps(fx.blur * ku, ImVec2(0, 0), col, at); a = a0; b = b0; fxDrawn = true; }
+            }
+            if (!fxDrawn) quad(col);
+            if (!wipeNone && poseAdd) {   // a clip's colour +: its white silhouette over it, as opaque as the add (towards white / the add's tint)
                 const float al = ImGui::ColorConvertU32ToFloat4(col).w;
                 const float k = std::min(1.f, std::max(pose.add[0], std::max(pose.add[1], pose.add[2])));
                 const float ca[4] = { std::min(1.f, pose.add[0] / k), std::min(1.f, pose.add[1] / k), std::min(1.f, pose.add[2] / k), al * k };
@@ -1492,7 +1580,15 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (e.fontIdx >= 0 && e.swapAnim && !editing && SwapText(dl, e, a, b, col, s)) return;
         if (e.fontIdx >= 0) {
             const int v0 = dl->VtxBuffer.Size;
-            DrawText(dl, g_fonts[e.fontIdx], a, e.scale * Unit(), col, s, e.align, b.x - a.x);
+            bool wipeClip = false;
+            if (fxOn && fx.wipe > 0) { ImVec2 lo, hi; if (!WipeRect(fx.wipe, fxReveal, a, b, lo, hi)) return; dl->PushClipRect(lo, hi, true); wipeClip = true; }
+            const float ku = Unit();
+            auto txt = [&](ImVec2 off, ImU32 c4) { DrawText(dl, g_fonts[e.fontIdx], ImVec2(a.x + off.x, a.y + off.y), e.scale * ku, c4, s, e.align, b.x - a.x); };
+            if (fxOn && fx.shadow) FxTaps(fx.sblur * ku, ImVec2(fx.sdx * ku, fx.sdy * ku), FxCol(fx.scol, fxAlpha), txt);
+            if (fxOn && fx.glow) { const float gc[4] = { fx.gcol[0], fx.gcol[1], fx.gcol[2], fx.gcol[3] * fx.gstr }; FxTaps(fx.gsize * ku, ImVec2(0, 0), FxCol(gc, fxAlpha), txt); }
+            if (fxOn && fx.blur > 0.01f) FxTaps(fx.blur * ku, ImVec2(0, 0), col, txt);
+            else DrawText(dl, g_fonts[e.fontIdx], a, e.scale * Unit(), col, s, e.align, b.x - a.x);
+            if (wipeClip) dl->PopClipRect();
             if (e.rot != 0) {   // turned (as the game's tilted menus): its glyphs' corners about its box's centre (+ pivot)
                 const float r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r), ku = Unit();
                 const ImVec2 pv((a.x + b.x) / 2 + e.pivX * ku, (a.y + b.y) / 2 + e.pivY * ku);
@@ -2543,6 +2639,8 @@ static void LayerRange(int& lo, int& hi) {
 static std::vector<std::string> GroupNames();
 static void RebaseGroup(const std::string& g, const std::string& to);
 static void LinksRebase(const std::string& from, const std::string& to);
+static void Undo(); static void Redo(); static void UndoCommit(bool evenIfBusy);   // (below: animation mode uses them too)
+static size_t UndoCount(); static size_t RedoCount();
 #include "uied_menu.inc"
 #include "uied_links.inc"
 #include "uied_anim.inc"
@@ -2614,6 +2712,9 @@ static void Redo() {
     PutSnapKeepPick(g_redo.back()); g_redo.pop_back();
     g_dirty = true; g_base = TakeSnap(); g_baseGen = g_dirty.gen;
 }
+
+static size_t UndoCount() { return g_undo.size(); }
+static size_t RedoCount() { return g_redo.size(); }
 
 // ---------------------------------------------------------------- several elements picked
 static void DeleteSelected() {
