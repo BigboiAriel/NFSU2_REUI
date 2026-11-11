@@ -479,9 +479,115 @@ static void Graph(const char* id, ImVec2 size, View& v) {
 
 // ---------------------------------------------------------------- elements list (right edge)
 
+
+// ---------------------------------------------------------------- the workspace's windows: moved and sized by hand,
+// their edges snapping to each other's and the screen's; kept (as fractions of the screen) in <REUI>\anim_windows.txt
+
+enum { WIN_ELEMS, WIN_PAGE, WIN_GRAPH, WIN_TL, WIN_N };
+static const char* kWinKey[WIN_N] = { "elements", "animation", "graph", "timeline" };
+struct WinRect { float x = 0, y = 0, w = 0, h = 0; bool set = false; };
+struct WinState {
+    WinRect r[WIN_N];             // where each one is (fractions of the screen)
+    bool loaded = false, force[WIN_N] = {}, dirty = false;
+    ImVec2 disp;                  // the screen they were last placed on
+    ImVec2 now[WIN_N][2]; bool shown[WIN_N] = {}, shownLast[WIN_N] = {};   // this frame's (pixels), for snapping
+    ImVec2 last[WIN_N][2];        // last frame's
+};
+static WinState w_;
+static std::string WinFile() { return dataDir + "anim_windows.txt"; }
+static void WinLoad() {
+    w_.loaded = true;
+    FILE* f = fopen(WinFile().c_str(), "r");
+    if (!f) return;
+    char key[64]; float x, y, w, h;
+    while (fscanf(f, "%63s %f %f %f %f", key, &x, &y, &w, &h) == 5)
+        for (int i = 0; i < WIN_N; ++i) if (!strcmp(key, kWinKey[i])) w_.r[i] = { x, y, w, h, true };
+    fclose(f);
+}
+static void WinSave() {
+    w_.dirty = false;
+    FILE* f = fopen(WinFile().c_str(), "w");
+    if (!f) return;
+    for (int i = 0; i < WIN_N; ++i) if (w_.r[i].set) fprintf(f, "%s %.5f %.5f %.5f %.5f\n", kWinKey[i], w_.r[i].x, w_.r[i].y, w_.r[i].w, w_.r[i].h);
+    fclose(f);
+}
+static void WinReset() {   // back to the standard layout (Frame's defaults)
+    for (auto& r : w_.r) r.set = false;
+    for (bool& f : w_.force) f = true;
+    remove(WinFile().c_str());
+}
+// a window of the workspace: placed at its own rect (or `defPos` / `defSize` until it has one); when the person drags
+// or sizes it, the moving edges snap (within 10 px) to the screen's edges and the other windows' edges
+static bool WinBegin(int id, const char* title, ImVec2 defPos, ImVec2 defSize, ImGuiWindowFlags extra = 0) {
+    ImGuiIO& io = ImGui::GetIO();
+    const ImVec2 D = io.DisplaySize;
+    if (!w_.loaded) WinLoad();
+    WinRect& r = w_.r[id];
+    const bool dispChanged = D.x != w_.disp.x || D.y != w_.disp.y;
+    if (!r.set) { r = { defPos.x / D.x, defPos.y / D.y, defSize.x / D.x, defSize.y / D.y, true }; w_.force[id] = true; }
+    if (w_.force[id] || dispChanged || !w_.shownLast[id]) {   // (placed by us: first showing, a reset, a new screen size)
+        ImGui::SetNextWindowPos(ImVec2(r.x * D.x, r.y * D.y), ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(r.w * D.x, r.h * D.y), ImGuiCond_Always);
+    }
+    const bool placed = w_.force[id] || dispChanged || !w_.shownLast[id];
+    w_.force[id] = false;
+    const bool open = ImGui::Begin(title, nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | extra);
+    ImVec2 p = ImGui::GetWindowPos(), sz = ImGui::GetWindowSize();
+    const ImVec2 lp = w_.last[id][0], ls = w_.last[id][1];
+    const bool moved = p.x != lp.x || p.y != lp.y, sized = sz.x != ls.x || sz.y != ls.y;
+    if (!placed && (moved || sized) && ImGui::IsMouseDown(0)) {   // the person is moving / sizing it: snap
+        const float T = 10.f * ImGui::GetFontSize() / 13.f;
+        std::vector<float> xs = { 0.f, D.x }, ys = { 0.f, D.y };
+        std::vector<std::pair<float, float>> xr = { { -1e9f, 1e9f }, { -1e9f, 1e9f } }, yr = xr;   // (each edge's span along the other axis)
+        for (int j = 0; j < WIN_N; ++j) {
+            if (j == id || !w_.shownLast[j]) continue;
+            const ImVec2 jp = w_.last[j][0], js = w_.last[j][1];
+            for (float x : { jp.x, jp.x + js.x }) { xs.push_back(x); xr.push_back({ jp.y, jp.y + js.y }); }
+            for (float y : { jp.y, jp.y + js.y }) { ys.push_back(y); yr.push_back({ jp.x, jp.x + js.x }); }
+        }
+        // the nearest target for an edge at `e` (0 if none within T); spans must meet (with T to spare)
+        auto nearest = [&](float e, const std::vector<float>& ts, const std::vector<std::pair<float, float>>& span, float lo, float hi) {
+            float best = 0, bd = T;
+            for (size_t k = 0; k < ts.size(); ++k) {
+                if (span[k].second < lo - T || span[k].first > hi + T) continue;
+                const float d = ts[k] - e;
+                if (fabsf(d) < bd) { bd = fabsf(d); best = d; }
+            }
+            return best;
+        };
+        if (moved && !sized) {   // dragged: the whole window shifts to the closer of its two edges' snaps
+            float dl = nearest(p.x, xs, xr, p.y, p.y + sz.y), dr = nearest(p.x + sz.x, xs, xr, p.y, p.y + sz.y);
+            float dt = nearest(p.y, ys, yr, p.x, p.x + sz.x), db = nearest(p.y + sz.y, ys, yr, p.x, p.x + sz.x);
+            const float dx = dl == 0 ? dr : dr == 0 ? dl : fabsf(dl) < fabsf(dr) ? dl : dr;
+            const float dy = dt == 0 ? db : db == 0 ? dt : fabsf(dt) < fabsf(db) ? dt : db;
+            p = ImVec2(p.x + dx, p.y + dy);
+        } else if (sized) {   // sized: only the edges that moved snap
+            float L = p.x, R = p.x + sz.x, Tp = p.y, B = p.y + sz.y;
+            if (p.x != lp.x) L += nearest(L, xs, xr, Tp, B);
+            if (p.x + sz.x != lp.x + ls.x) R += nearest(R, xs, xr, Tp, B);
+            if (p.y != lp.y) Tp += nearest(Tp, ys, yr, L, R);
+            if (p.y + sz.y != lp.y + ls.y) B += nearest(B, ys, yr, L, R);
+            p = ImVec2(L, Tp); sz = ImVec2(std::max(60.f, R - L), std::max(40.f, B - Tp));
+            ImGui::SetWindowSize(sz);
+        }
+        ImGui::SetWindowPos(p);
+        r = { p.x / D.x, p.y / D.y, sz.x / D.x, sz.y / D.y, true };
+        w_.dirty = true;
+    }
+    w_.now[id][0] = p; w_.now[id][1] = sz; w_.shown[id] = true;
+    return open;
+}
+static void WinFrameEnd() {   // (after every window of the frame)
+    const ImVec2 D = ImGui::GetIO().DisplaySize;
+    w_.disp = D;
+    for (int i = 0; i < WIN_N; ++i) {
+        w_.shownLast[i] = w_.shown[i]; w_.shown[i] = false;
+        w_.last[i][0] = w_.now[i][0]; w_.last[i][1] = w_.now[i][1];
+    }
+    if (w_.dirty && !ImGui::IsMouseDown(0)) WinSave();
+}
 static void ElementsPanel(ImVec2 pos, ImVec2 size) {
-    ImGui::SetNextWindowPos(pos); ImGui::SetNextWindowSize(size);
-    ImGui::Begin("Elements##anim", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings);
+    WinBegin(WIN_ELEMS, "Elements##anim", pos, size);
     ImGui::TextDisabled("%s layout - %d elements", ModeName(g_editMode), (int)Elems().size());
     {   // which layout (a dropdown: it follows the editor's pick, tabs would pick their first one)
         std::vector<const char*> names;
@@ -529,8 +635,7 @@ static void AnimPage(ImVec2 pos, ImVec2 size) {
     ElemAnim* an = Focused();
     if (idx < 0 || !an) return;
     Elem& e = Elems()[idx];
-    ImGui::SetNextWindowPos(pos); ImGui::SetNextWindowSize(size);
-    ImGui::Begin("Animation##anim", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings);
+    WinBegin(WIN_PAGE, "Animation##anim", pos, size);
     ImGui::Text("%s", e.name.c_str()); ImGui::SameLine(); ImGui::TextDisabled("%s%s%s", TypeKey(e.type), e.group.empty() ? "" : "  in ", e.group.c_str());
     ImGui::TextDisabled("Saved with the layout. In plays when it shows, then Idle loops.");
     Clip* cur = CurClip();
@@ -665,8 +770,7 @@ static void AnimPage(ImVec2 pos, ImVec2 size) {
 // ---------------------------------------------------------------- graph window (under both panels)
 
 static void GraphPanel(ImVec2 pos, ImVec2 size) {
-    ImGui::SetNextWindowPos(pos); ImGui::SetNextWindowSize(size);
-    ImGui::Begin("Keys and curves##anim", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings);
+    WinBegin(WIN_GRAPH, "Keys and curves##anim", pos, size);
     Clip* c = CurClip();
     std::string what = !c ? "-" : g.focus == State::F_TRACK && g.track >= 0 ? std::string(kProp[g.track].name)
                      : g.focus == State::F_PLANNED ? g.planned + " (planned)" : c->name + " clip: all its keyed tracks";
@@ -681,9 +785,8 @@ static void GraphPanel(ImVec2 pos, ImVec2 size) {
 // ---------------------------------------------------------------- timeline (bottom)
 
 static void Timeline(ImVec2 pos, ImVec2 size) {
-    ImGui::SetNextWindowPos(pos); ImGui::SetNextWindowSize(size);
     if (g.bare) ImGui::SetNextWindowBgAlpha(0.35f);   // (hidden panels: the timeline is see-through and short)
-    ImGui::Begin("Timeline##anim", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
+    WinBegin(WIN_TL, "Timeline##anim", pos, size, ImGuiWindowFlags_NoScrollbar);
     Clip* c = CurClip();
     ElemAnim* an = Focused();
     const float len = PreviewLen();
@@ -711,10 +814,12 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
         if (ImGui::Combo("clip", &g.clip, names.data(), (int)names.size())) { g.focus = State::F_CLIP; g.graph.fit = g.big.fit = true; }
     }
     const float bw = ImGui::CalcTextSize("Exit animation mode").x + 20;
-    ImGui::SameLine(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - bw - ImGui::CalcTextSize(" Collapse ").x - ImGui::CalcTextSize(" Hide panels ").x - 52));
+    ImGui::SameLine(std::max(ImGui::GetCursorPosX(), ImGui::GetWindowContentRegionMax().x - bw - ImGui::CalcTextSize(" Collapse ").x - ImGui::CalcTextSize(" Hide panels ").x - ImGui::CalcTextSize(" Reset windows ").x - 70));
     if (ImGui::Button(g.bare ? " Panels " : " Hide panels ")) g.bare = !g.bare;
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("Hide / show the element list, animation page and graph (H): the whole screen to watch.");
     ImGui::SameLine(); if (ImGui::Button(g.expanded ? " Collapse " : " Expand ")) { g.expanded = !g.expanded; g.big.fit = true; }
+    ImGui::SameLine(); if (ImGui::Button(" Reset windows ")) WinReset();
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The windows back where they start. Drag a window by its title bar, size it from its edges;\nits edges snap to the other windows' and the screen's.");
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("A taller timeline with a big keys + curves graph.");
     ImGui::SameLine(); if (ImGui::Button("Exit animation mode")) g.on = false;
     // ---- rows: names | ruler + keys
@@ -869,14 +974,31 @@ static void Frame() {
     }
     const float W = io.DisplaySize.x, H = io.DisplaySize.y, u = ImGui::GetFontSize() / 13.f;
     const float tlH = g.expanded ? H * 0.5f : std::min(H * 0.3f, (g.bare ? 96 : 170) * u);
-    if (g.bare) { Timeline(ImVec2(0, H - tlH), ImVec2(W, tlH)); return; }
-    const float graphH = g.expanded ? 0.f : std::min(H * 0.32f, 280 * u);
-    const float listW = std::min(W * 0.22f, 300 * u), pageW = std::min(W * 0.28f, 400 * u);
-    const float topH = H - tlH - graphH;
-    ElementsPanel(ImVec2(W - listW, 0), ImVec2(listW, topH));
-    if (FocusedIndex() >= 0) AnimPage(ImVec2(W - listW - pageW, 0), ImVec2(pageW, topH));
-    if (graphH > 0) GraphPanel(ImVec2(W - listW - pageW, topH), ImVec2(listW + pageW, graphH));
-    Timeline(ImVec2(0, H - tlH), ImVec2(W, tlH));
+    {   // the timeline's height follows Expand / Hide panels (it keeps its place, width and bottom edge)
+        static int was = -1;
+        const int now = (g.expanded ? 1 : 0) | (g.bare ? 2 : 0);
+        if (was >= 0 && now != was && w_.r[WIN_TL].set) {
+            WinRect& r = w_.r[WIN_TL];
+            const float bottom = r.y + r.h;
+            r.h = tlH / H; r.y = std::max(0.f, bottom - r.h);
+            w_.force[WIN_TL] = true; w_.dirty = true;
+        }
+        was = now;
+    }
+    const bool titleOnly = io.ConfigWindowsMoveFromTitleBarOnly;   // (dragging inside a window - the graph, the rows - isn't a move)
+    io.ConfigWindowsMoveFromTitleBarOnly = true;
+    if (g.bare) Timeline(ImVec2(0, H - tlH), ImVec2(W, tlH));
+    else {
+        const float graphH = g.expanded ? 0.f : std::min(H * 0.32f, 280 * u);
+        const float listW = std::min(W * 0.22f, 300 * u), pageW = std::min(W * 0.28f, 400 * u);
+        const float topH = H - tlH - graphH;
+        ElementsPanel(ImVec2(W - listW, 0), ImVec2(listW, topH));
+        if (FocusedIndex() >= 0) AnimPage(ImVec2(W - listW - pageW, 0), ImVec2(pageW, topH));
+        if (graphH > 0) GraphPanel(ImVec2(W - listW - pageW, topH), ImVec2(listW + pageW, graphH));
+        Timeline(ImVec2(0, H - tlH), ImVec2(W, tlH));
+    }
+    WinFrameEnd();
+    io.ConfigWindowsMoveFromTitleBarOnly = titleOnly;
 }
 
 } // namespace anim

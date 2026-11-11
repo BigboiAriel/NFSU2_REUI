@@ -13,6 +13,8 @@
 
 #include <imgui.h>
 
+#include <SDL3/SDL_mouse.h>   // (the game's window is SDL's: REUI's cursor shapes - resize arrows, the text beam)
+
 #include <algorithm>
 #include <chrono>
 #include <cstring>
@@ -71,7 +73,8 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
         ImGuiIO& io = ImGui::GetIO();
         io.IniFilename = nullptr;
         io.BackendRendererName = "reui_rex";
-        io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures | ImGuiBackendFlags_RendererHasVtxOffset;
+        io.BackendFlags |= ImGuiBackendFlags_RendererHasTextures | ImGuiBackendFlags_RendererHasVtxOffset |
+                           ImGuiBackendFlags_HasMouseCursors;   // (windows size from any edge)
         ImGui::StyleColorsDark();
         if (s_.fonts) s_.fonts();
         if (io.Fonts->Fonts.empty()) io.Fonts->AddFontDefault();
@@ -98,12 +101,39 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
         ImGui::NewFrame();
         if (s_.frame) s_.frame();
         ImGui::Render();
+        UpdateCursor();
         ImDrawData* dd = ImGui::GetDrawData();
         if (dd && dd->Textures) for (ImTextureData* t : *dd->Textures) UpdateTexture(t);
         if (dd && dd->CmdListsCount > 0 && w > 0 && h > 0) Render(dc, dd);
         ImGui::SetCurrentContext(prev);
         s_.presenter->RequestUIPaintFromUIThread();   // (keeps animating while nothing else repaints)
     }
+
+    // the mouse cursor's shape while REUI has the mouse (ImGui's: resize arrows over window edges, the text beam...);
+    // the window's own otherwise
+    void UpdateCursor() {
+        ImGuiIO& io = ImGui::GetIO();
+        const int want = Wants() && io.WantCaptureMouse ? (int)ImGui::GetMouseCursor() : -2;
+        if (want == cursor_) return;
+        cursor_ = want;
+        if (want < 0 || want >= ImGuiMouseCursor_COUNT) { SDL_SetCursor(SDL_GetDefaultCursor()); return; }
+        SDL_SystemCursor sc = SDL_SYSTEM_CURSOR_DEFAULT;
+        switch (want) {
+        case ImGuiMouseCursor_TextInput: sc = SDL_SYSTEM_CURSOR_TEXT; break;
+        case ImGuiMouseCursor_ResizeAll: sc = SDL_SYSTEM_CURSOR_MOVE; break;
+        case ImGuiMouseCursor_ResizeNS: sc = SDL_SYSTEM_CURSOR_NS_RESIZE; break;
+        case ImGuiMouseCursor_ResizeEW: sc = SDL_SYSTEM_CURSOR_EW_RESIZE; break;
+        case ImGuiMouseCursor_ResizeNESW: sc = SDL_SYSTEM_CURSOR_NESW_RESIZE; break;
+        case ImGuiMouseCursor_ResizeNWSE: sc = SDL_SYSTEM_CURSOR_NWSE_RESIZE; break;
+        case ImGuiMouseCursor_Hand: sc = SDL_SYSTEM_CURSOR_POINTER; break;
+        case ImGuiMouseCursor_NotAllowed: sc = SDL_SYSTEM_CURSOR_NOT_ALLOWED; break;
+        default: break;
+        }
+        if (!cursors_[want]) cursors_[want] = SDL_CreateSystemCursor(sc);
+        SDL_SetCursor(cursors_[want] ? cursors_[want] : SDL_GetDefaultCursor());
+    }
+    int cursor_ = -2;
+    SDL_Cursor* cursors_[ImGuiMouseCursor_COUNT] = {};
 
     // input: the window's events, given to REUI's context (and taken from the game while REUI wants them)
     void OnKeyDown(rex::ui::KeyEvent& e) override { Key(e, true); }
