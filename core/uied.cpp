@@ -2867,6 +2867,30 @@ static void MoveInList(int dir) {
     if (g_selGroup.empty() && newSel >= 0) g_sel = newSel;
     g_dirty = true;
 }
+// A group turned by `delta` degrees about `about` (on screen) as one piece: each member's turning point (its box's
+// middle + its pivot) swung round it, and its own rotation turned the same (images, shapes and text turn).
+static void RotateGroup(const std::vector<int>& mem, float delta, ImVec2 about) {
+    const float r = delta * 3.14159265f / 180, cs = cosf(r), sn = sinf(r), k = Unit();
+    for (int i : mem) {
+        Elem& e = Elems()[i];
+        ImVec2 a, b; ElemRect(e, a, b);
+        const float dx = (a.x + b.x) / 2 + e.pivX * k - about.x, dy = (a.y + b.y) / 2 + e.pivY * k - about.y;
+        e.x += (dx * cs - dy * sn - dx) / k;
+        e.y += (dx * sn + dy * cs - dy) / k;
+        e.rot = fmodf(e.rot + delta, 360.f);
+        if (e.rot > 180) e.rot -= 360; else if (e.rot < -180) e.rot += 360;
+    }
+    g_dirty = true;
+}
+static ImVec2 GroupMiddle(const std::vector<int>& mem) {   // (its members' boxes, as they are now)
+    ImVec2 lo(1e9f, 1e9f), hi(-1e9f, -1e9f);
+    for (int i : mem) {
+        ImVec2 a, b; ElemRect(Elems()[i], a, b);
+        lo = ImVec2(std::min(lo.x, std::min(a.x, b.x)), std::min(lo.y, std::min(a.y, b.y)));
+        hi = ImVec2(std::max(hi.x, std::max(a.x, b.x)), std::max(hi.y, std::max(a.y, b.y)));
+    }
+    return ImVec2((lo.x + hi.x) / 2, (lo.y + hi.y) / 2);
+}
 static void GroupPanel() {
     std::string g = g_selGroup;
     std::vector<int> mem; for (int i = 0; i < (int)Elems().size(); ++i) if (InGroup(Elems()[i].group, g)) mem.push_back(i);
@@ -2935,6 +2959,25 @@ static void GroupPanel() {
         ImGui::SameLine(); if (ImGui::SmallButton("to front##grp")) { int d = hi + 1 - glo; for (int i : mem) Elems()[i].layer += d; g_dirty = true; }
         ImGui::SameLine(); if (ImGui::SmallButton("to back##grp")) { int d = lo - 1 - ghi; for (int i : mem) Elems()[i].layer += d; g_dirty = true; }
         if (ghi != glo) { ImGui::SameLine(); ImGui::TextDisabled("(layers %d..%d)", glo, ghi); }
+    }
+    // rotation: the members turned together about the group's middle (its first member's rotation stands for the
+    // group's; the change goes to all of them, their places swung round with it)
+    {
+        static ImVec2 about; static std::string aboutFor;
+        const float cur = Elems()[mem[0]].rot;
+        float v = cur;
+        ImGui::SetNextItemWidth(160);
+        const bool changed = ImGui::DragFloat("rotation##grp", &v, 0.25f, -180.f, 180.f, "%.1f deg");
+        if (ImGui::IsItemActivated() || aboutFor != g) { about = GroupMiddle(mem); aboutFor = g; }   // (fixed while dragging)
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Turns the whole group about its middle: each element's place swings round and its own rotation\nturns the same. Shown: its first element's rotation. Ctrl + click to type an angle.");
+        if (changed && v != cur) RotateGroup(mem, v - cur, about);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("straighten##grp") && cur != 0) RotateGroup(mem, -cur, GroupMiddle(mem));
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Turns it back so its first element is at 0 degrees.");
+        for (float step : { -90.f, 90.f }) {
+            ImGui::SameLine();
+            if (ImGui::SmallButton(step < 0 ? "-90##grp" : "+90##grp")) RotateGroup(mem, step, GroupMiddle(mem));
+        }
     }
     // move: the first element's position stands for the group's; the change goes to all of them
     float pos[2] = { Elems()[mem[0]].x, Elems()[mem[0]].y };
