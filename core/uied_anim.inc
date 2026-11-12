@@ -2061,7 +2061,7 @@ static void AnimPage() {   // (the left side of the panels window)
         ImGui::PopTextWrapPos();
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("The diamond before each box: a key here (filled), keys elsewhere (half), none (empty) - click to add / remove.\nClick a name: show that track in the graph. Right-click a box: its keys. I: key them all here.");
         // a value: its diamond, its name (click: graph it), its box (shown x `k`; right-click: its keys)
-        auto field = [&](int p, const char* label, float k, const char* fmt, float speed, int link = -1, float labelW = 0) {
+        auto field = [&](int p, const char* label, float k, const char* fmt, float speed, int link = -1, float labelW = 0, float rightW = 0) {
             Track& tr = cur->tracks[p];
             ImGui::PushID(p);
             KeyDiamond(*cur, p, ImGui::GetFrameHeight());
@@ -2075,7 +2075,7 @@ static void AnimPage() {   // (the left side of the panels window)
             if (ImGui::IsItemClicked()) { g.focus = State::F_TRACK; g.track = p; g.graph.fit = g.big.fit = true; }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s (%s): click to show it in the graph. %d key%s.", kProp[p].name, kProp[p].unit, (int)tr.keys.size(), tr.keys.size() == 1 ? "" : "s");
             if (labelW > 0) ImGui::SameLine(lx + labelW + 4); else ImGui::SameLine(0, 4);   // (one a line: the boxes line up)
-            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SetNextItemWidth(rightW > 0 ? -rightW : -FLT_MIN);   // (rightW: room left at its right, as Scale's link button)
             const float was = Value(tr, g.time);
             float shown = was * k;
             if (ImGui::DragFloat("##v", &shown, speed, 0, 0, fmt)) {
@@ -2124,17 +2124,24 @@ static void AnimPage() {   // (the left side of the panels window)
         // Position
         heading("Position");
         fields("##pos", { { P_X, "x:", 1, "%.1f", 0.5f, -1 }, { P_Y, "y:", 1, "%.1f", 0.5f, -1 } });
-        // Scale (link: both alike)
+        // Scale: x, y and the link button at y's right (linked: both alike)
+        heading("Scale");
         {
-            const char* lk = g.scaleLink ? "linked" : "link";
-            heading("Scale", ImGui::CalcTextSize(lk).x + ImGui::GetStyle().FramePadding.x * 2 + 8);
-            ImGui::SameLine(0, 8);
-            if (g.scaleLink) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
-            if (ImGui::SmallButton(lk)) g.scaleLink = !g.scaleLink;
-            if (g.scaleLink) ImGui::PopStyleColor();
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip(g.scaleLink ? "Linked: changing x or y changes the other too, keeping their ratio. Click to unlink." : "Link x and y: changing one changes the other, keeping their ratio.");
+            const ImGuiStyle& st = ImGui::GetStyle();
+            const float bw = ImGui::CalcTextSize("linked").x + st.FramePadding.x * 2, gap = 4;
+            const int cols = ImGui::GetContentRegionAvail().x >= fieldW("x:") * 2 + bw + gap ? 2 : 1;
+            if (ImGui::BeginTable("##scale", cols, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_PadOuterX)) {
+                ImGui::TableNextColumn(); field(P_SX, "x:", 1, "%.3f", 0.005f, P_SY, 0, cols == 1 ? bw + gap : 0);
+                ImGui::TableNextColumn(); field(P_SY, "y:", 1, "%.3f", 0.005f, P_SX, 0, bw + gap);
+                ImGui::SameLine(0, gap);
+                const char* lk = g.scaleLink ? "linked##lk" : "link##lk";
+                if (g.scaleLink) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+                if (ImGui::Button(lk, ImVec2(bw, 0))) g.scaleLink = !g.scaleLink;
+                if (g.scaleLink) ImGui::PopStyleColor();
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip(g.scaleLink ? "Linked: changing x or y changes the other too, keeping their ratio. Click to unlink." : "Link x and y: changing one changes the other, keeping their ratio.");
+                ImGui::EndTable();
+            }
         }
-        fields("##scale", { { P_SX, "x:", 1, "%.3f", 0.005f, P_SY }, { P_SY, "y:", 1, "%.3f", 0.005f, P_SX } });
         // Rotation, Opacity
         ImGui::Spacing();
         fields("##rotop", { { P_ROT, "Rotation:", 1, "%.1f\xC2\xB0", 0.5f, -1 }, { P_ALPHA, "Opacity:", 100, "%.0f%%", 0.5f, -1 } });
