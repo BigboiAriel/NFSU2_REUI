@@ -254,7 +254,7 @@ struct State {
     std::string focusTrigger;     // (the state graph: a trigger's field to go to on the page)
     std::string pathKey;          // an element's motion path pinned on screen (held 800 ms): its keys' easing edited there
     bool scaleLink = false;
-    bool scrollToTracks = false;  // (the test script: the page scrolled to the Tracks section)       // the Tracks page: Scale x and y linked (one changes the other, keeping their ratio)
+    int scrollTo = 0;             // (the test script: the page scrolled to 1 the Tracks section, 2 its Colour)
 };
 static State g;
 
@@ -2053,7 +2053,7 @@ static void AnimPage() {   // (the left side of the panels window)
         ImGui::TextDisabled("Preview a clip: pick it above (the timeline plays it on every element).");
     }
     // ---- tracks
-    if (g.scrollToTracks) { ImGui::SetScrollHereY(0.0f); g.scrollToTracks = false; ImGui::SetNextItemOpen(true); }
+    if (g.scrollTo) { if (g.scrollTo == 1) { ImGui::SetScrollHereY(0.0f); g.scrollTo = 0; } ImGui::SetNextItemOpen(true); }
     else ImGui::SetNextItemOpen(true, ImGuiCond_Once);
     if (cur && ImGui::CollapsingHeader("Tracks", ImGuiTreeNodeFlags_None)) {
         ImGui::PushTextWrapPos(0.0f);
@@ -2061,11 +2061,12 @@ static void AnimPage() {   // (the left side of the panels window)
         ImGui::PopTextWrapPos();
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("The diamond before each box: a key here (filled), keys elsewhere (half), none (empty) - click to add / remove.\nClick a name: show that track in the graph. Right-click a box: its keys. I: key them all here.");
         // a value: its diamond, its name (click: graph it), its box (shown x `k`; right-click: its keys)
-        auto field = [&](int p, const char* label, float k, const char* fmt, float speed, int link = -1) {
+        auto field = [&](int p, const char* label, float k, const char* fmt, float speed, int link = -1, float labelW = 0) {
             Track& tr = cur->tracks[p];
             ImGui::PushID(p);
             KeyDiamond(*cur, p, ImGui::GetFrameHeight());
             ImGui::SameLine(0, 3);
+            const float lx = ImGui::GetCursorPosX();
             const bool on = g.focus == State::F_TRACK && g.track == p;
             ImGui::AlignTextToFramePadding();
             if (on) ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 190, 110, 255));
@@ -2073,7 +2074,7 @@ static void AnimPage() {   // (the left side of the panels window)
             if (on) ImGui::PopStyleColor();
             if (ImGui::IsItemClicked()) { g.focus = State::F_TRACK; g.track = p; g.graph.fit = g.big.fit = true; }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s (%s): click to show it in the graph. %d key%s.", kProp[p].name, kProp[p].unit, (int)tr.keys.size(), tr.keys.size() == 1 ? "" : "s");
-            ImGui::SameLine(0, 4);
+            if (labelW > 0) ImGui::SameLine(lx + labelW + 4); else ImGui::SameLine(0, 4);   // (one a line: the boxes line up)
             ImGui::SetNextItemWidth(-FLT_MIN);
             const float was = Value(tr, g.time);
             float shown = was * k;
@@ -2115,7 +2116,9 @@ static void AnimPage() {   // (the left side of the panels window)
             int cols = std::max(1, std::min(n, (int)(ImGui::GetContentRegionAvail().x / need)));
             if (n % cols) cols = 1;   // (no ragged rows: 3 values on 2 columns go one a line)
             if (!ImGui::BeginTable(id, cols, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_PadOuterX)) return;
-            for (const F& f : fs) { ImGui::TableNextColumn(); field(f.p, f.label, f.k, f.fmt, f.speed, f.link); }
+            float lw = 0;
+            if (cols == 1 && n > 1) for (const F& f : fs) lw = std::max(lw, ImGui::CalcTextSize(f.label).x);
+            for (const F& f : fs) { ImGui::TableNextColumn(); field(f.p, f.label, f.k, f.fmt, f.speed, f.link, lw); }
             ImGui::EndTable();
         };
         // Position
@@ -2137,6 +2140,7 @@ static void AnimPage() {   // (the left side of the panels window)
         fields("##rotop", { { P_ROT, "Rotation:", 1, "%.1f\xC2\xB0", 0.5f, -1 }, { P_ALPHA, "Opacity:", 100, "%.0f%%", 0.5f, -1 } });
         // Colour: Tint (multiplies) and Brighten (adds), a swatch that keys all three
         ImGui::Spacing();
+        if (g.scrollTo == 2) { ImGui::SetScrollHereY(0.0f); g.scrollTo = 0; }
         heading("Colour");
         auto colourRow = [&](const char* id, const char* name, int p0, const char* tip) {
             ImGui::PushID(id);

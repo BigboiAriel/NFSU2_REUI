@@ -1475,7 +1475,7 @@ static void TestStep(const std::string& step) {
         TestLog("pathkey %g -> %s", num(1), TracksText(*pc).c_str());
     }
     else if (cmd == "status") TestLog("status: time %g, %s mode, focused %s, clip %s, live %d, G/S/R %d, auto key %d", g.time, g.screen ? "Screen" : "Element", fname.c_str(), PreviewName().c_str(), (int)g.live, g_cd.active ? g_cd.modal : 0, (int)g.autoKey);
-    else if (cmd == "scroll") { g.pageTab = 0; g.scrollToTracks = true; TestLog("page scrolled to %s", arg(1).c_str()); }
+    else if (cmd == "scroll") { g.pageTab = 0; g.scrollTo = arg(1) == "colour" ? 2 : 1; TestLog("page scrolled to %s", arg(1).c_str()); }
     else if (cmd == "scalelink") { g.scaleLink = num(1) != 0; TestLog("scale link %d", (int)g.scaleLink); }
     else if (cmd == "press") { g.simPressAt = ImGui::GetTime(); TestLog("press (live)"); }
     else if (cmd == "row") { g.simRow = (int)num(1); TestLog("focus row %d (live)", g.simRow); }
