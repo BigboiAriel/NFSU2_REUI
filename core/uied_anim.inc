@@ -253,7 +253,8 @@ struct State {
     std::string layoutName = "Standard";
     std::string focusTrigger;     // (the state graph: a trigger's field to go to on the page)
     std::string pathKey;          // an element's motion path pinned on screen (held 800 ms): its keys' easing edited there
-    bool scaleLink = false;       // the Tracks page: Scale x and y linked (one changes the other, keeping their ratio)
+    bool scaleLink = false;
+    bool scrollToTracks = false;  // (the test script: the page scrolled to the Tracks section)       // the Tracks page: Scale x and y linked (one changes the other, keeping their ratio)
 };
 static State g;
 
@@ -2052,7 +2053,8 @@ static void AnimPage() {   // (the left side of the panels window)
         ImGui::TextDisabled("Preview a clip: pick it above (the timeline plays it on every element).");
     }
     // ---- tracks
-    ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+    if (g.scrollToTracks) { ImGui::SetScrollHereY(0.0f); g.scrollToTracks = false; ImGui::SetNextItemOpen(true); }
+    else ImGui::SetNextItemOpen(true, ImGuiCond_Once);
     if (cur && ImGui::CollapsingHeader("Tracks", ImGuiTreeNodeFlags_None)) {
         ImGui::TextDisabled("%s clip, at %s. A value set here is keyed at the playhead.", cur->name.c_str(), TimeText(g.time).c_str());
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("The diamond before each box: a key here (filled), keys elsewhere (half), none (empty) - click to add / remove.\nClick a name: show that track in the graph. Right-click a box: its keys. I: key them all here.");
