@@ -2056,7 +2056,9 @@ static void AnimPage() {   // (the left side of the panels window)
     if (g.scrollToTracks) { ImGui::SetScrollHereY(0.0f); g.scrollToTracks = false; ImGui::SetNextItemOpen(true); }
     else ImGui::SetNextItemOpen(true, ImGuiCond_Once);
     if (cur && ImGui::CollapsingHeader("Tracks", ImGuiTreeNodeFlags_None)) {
+        ImGui::PushTextWrapPos(0.0f);
         ImGui::TextDisabled("%s clip, at %s. A value set here is keyed at the playhead.", cur->name.c_str(), TimeText(g.time).c_str());
+        ImGui::PopTextWrapPos();
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("The diamond before each box: a key here (filled), keys elsewhere (half), none (empty) - click to add / remove.\nClick a name: show that track in the graph. Right-click a box: its keys. I: key them all here.");
         // a value: its diamond, its name (click: graph it), its box (shown x `k`; right-click: its keys)
         auto field = [&](int p, const char* label, float k, const char* fmt, float speed, int link = -1) {
@@ -2100,10 +2102,25 @@ static void AnimPage() {   // (the left side of the panels window)
             ImGui::AlignTextToFramePadding();
             ImGui::TextUnformatted(t);
         };
-        auto row = [](const char* id, int cols) { return ImGui::BeginTable(id, cols, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_PadOuterX); };
+        // a row of values: side by side when the panel is wide enough, else fewer a line (a narrow panel: one a line)
+        struct F { int p; const char* label; float k; const char* fmt; float speed; int link; };
+        auto fieldW = [](const char* label) {
+            const ImGuiStyle& st = ImGui::GetStyle();
+            return ImGui::GetFrameHeight() + 3 + ImGui::CalcTextSize(label).x + 4 + ImGui::CalcTextSize("0000.000").x + st.FramePadding.x * 2 + st.CellPadding.x * 2;
+        };
+        auto fields = [&](const char* id, std::initializer_list<F> fs) {
+            const int n = (int)fs.size();
+            float need = 0;
+            for (const F& f : fs) need = std::max(need, fieldW(f.label));
+            int cols = std::max(1, std::min(n, (int)(ImGui::GetContentRegionAvail().x / need)));
+            if (n % cols) cols = 1;   // (no ragged rows: 3 values on 2 columns go one a line)
+            if (!ImGui::BeginTable(id, cols, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_PadOuterX)) return;
+            for (const F& f : fs) { ImGui::TableNextColumn(); field(f.p, f.label, f.k, f.fmt, f.speed, f.link); }
+            ImGui::EndTable();
+        };
         // Position
         heading("Position");
-        if (row("##pos", 2)) { ImGui::TableNextColumn(); field(P_X, "x:", 1, "%.1f", 0.5f); ImGui::TableNextColumn(); field(P_Y, "y:", 1, "%.1f", 0.5f); ImGui::EndTable(); }
+        fields("##pos", { { P_X, "x:", 1, "%.1f", 0.5f, -1 }, { P_Y, "y:", 1, "%.1f", 0.5f, -1 } });
         // Scale (link: both alike)
         {
             const char* lk = g.scaleLink ? "linked" : "link";
@@ -2114,48 +2131,61 @@ static void AnimPage() {   // (the left side of the panels window)
             if (g.scaleLink) ImGui::PopStyleColor();
             if (ImGui::IsItemHovered()) ImGui::SetTooltip(g.scaleLink ? "Linked: changing x or y changes the other too, keeping their ratio. Click to unlink." : "Link x and y: changing one changes the other, keeping their ratio.");
         }
-        if (row("##scale", 2)) { ImGui::TableNextColumn(); field(P_SX, "x:", 1, "%.3f", 0.005f, P_SY); ImGui::TableNextColumn(); field(P_SY, "y:", 1, "%.3f", 0.005f, P_SX); ImGui::EndTable(); }
+        fields("##scale", { { P_SX, "x:", 1, "%.3f", 0.005f, P_SY }, { P_SY, "y:", 1, "%.3f", 0.005f, P_SX } });
         // Rotation, Opacity
         ImGui::Spacing();
-        if (row("##rotop", 2)) { ImGui::TableNextColumn(); field(P_ROT, "Rotation:", 1, "%.1f\xC2\xB0", 0.5f); ImGui::TableNextColumn(); field(P_ALPHA, "Opacity:", 100, "%.0f%%", 0.5f); ImGui::EndTable(); }
+        fields("##rotop", { { P_ROT, "Rotation:", 1, "%.1f\xC2\xB0", 0.5f, -1 }, { P_ALPHA, "Opacity:", 100, "%.0f%%", 0.5f, -1 } });
         // Colour: Tint (multiplies) and Brighten (adds), a swatch that keys all three
         ImGui::Spacing();
         heading("Colour");
         auto colourRow = [&](const char* id, const char* name, int p0, const char* tip) {
-            if (!ImGui::BeginTable(id, 5, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_PadOuterX)) return;
-            ImGui::TableSetupColumn("##n", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("Brighten").x);
-            ImGui::TableSetupColumn("##s", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight());
-            ImGui::TableSetupColumn("##r"); ImGui::TableSetupColumn("##g"); ImGui::TableSetupColumn("##b");
-            ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::TextUnformatted(name);
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tip);
-            ImGui::TableNextColumn();
-            float c[3] = { Value(cur->tracks[p0], g.time), Value(cur->tracks[p0 + 1], g.time), Value(cur->tracks[p0 + 2], g.time) };
             ImGui::PushID(id);
-            if (ImGui::ColorEdit3("##sw", c, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_Float)) {
-                const float t = Snap(g.time);
-                for (int i = 0; i < 3; ++i) SetKey(cur->tracks[p0 + i], t, c[i]);
-                cur->on = true; g.focus = State::F_TRACK; g.track = p0;
-                if (t > cur->length) cur->length = t;
-            }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Pick a colour: keys %s's R, G and B here.", name);
-            ImGui::PopID();
+            const float nameW = ImGui::CalcTextSize("Brighten").x, swW = ImGui::GetFrameHeight();
+            const ImGuiStyle& st = ImGui::GetStyle();
+            const bool oneLine = ImGui::GetContentRegionAvail().x >= nameW + swW + st.CellPadding.x * 4 + 3 * fieldW("R:");
+            auto nameSwatch = [&] {
+                const float x0 = ImGui::GetCursorPosX();
+                ImGui::AlignTextToFramePadding(); ImGui::TextUnformatted(name);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tip);
+                if (oneLine) ImGui::TableNextColumn();
+                else ImGui::SameLine(x0 + nameW + st.ItemSpacing.x);   // (the swatches line up)
+                float c[3] = { Value(cur->tracks[p0], g.time), Value(cur->tracks[p0 + 1], g.time), Value(cur->tracks[p0 + 2], g.time) };
+                if (ImGui::ColorEdit3("##sw", c, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_Float)) {
+                    const float t = Snap(g.time);
+                    for (int i = 0; i < 3; ++i) SetKey(cur->tracks[p0 + i], t, c[i]);
+                    cur->on = true; g.focus = State::F_TRACK; g.track = p0;
+                    if (t > cur->length) cur->length = t;
+                }
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("Pick a colour: keys %s's R, G and B here.", name);
+            };
             const char* lb[3] = { "R:", "G:", "B:" };
-            for (int i = 0; i < 3; ++i) { ImGui::TableNextColumn(); field(p0 + i, lb[i], 1, "%.2f", 0.005f); }
-            ImGui::EndTable();
+            if (oneLine) {
+                if (ImGui::BeginTable("##row", 5, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_PadOuterX)) {
+                    ImGui::TableSetupColumn("##n", ImGuiTableColumnFlags_WidthFixed, nameW);
+                    ImGui::TableSetupColumn("##s", ImGuiTableColumnFlags_WidthFixed, swW);
+                    ImGui::TableSetupColumn("##r"); ImGui::TableSetupColumn("##g"); ImGui::TableSetupColumn("##b");
+                    ImGui::TableNextColumn(); nameSwatch();
+                    for (int i = 0; i < 3; ++i) { ImGui::TableNextColumn(); field(p0 + i, lb[i], 1, "%.2f", 0.005f); }
+                    ImGui::EndTable();
+                }
+            } else {   // (narrow: its name and swatch, then R G B under it)
+                nameSwatch();
+                ImGui::Indent(ImGui::GetFrameHeight() * 0.5f);
+                fields("##rgb", { { p0, lb[0], 1, "%.2f", 0.005f, -1 }, { p0 + 1, lb[1], 1, "%.2f", 0.005f, -1 }, { p0 + 2, lb[2], 1, "%.2f", 0.005f, -1 } });
+                ImGui::Unindent(ImGui::GetFrameHeight() * 0.5f);
+            }
+            ImGui::PopID();
         };
         colourRow("##tint", "Tint", P_MR, "Multiplies its colour (1 = as it is, 0 = none of that channel).");
         colourRow("##bright", "Brighten", P_AR, "Adds to its colour (0 = as it is): a flash or a glow of colour. Pictures only.");
         // Effects: the strength of its glow / shadow, blur, wipe (Effects section's settings)
         ImGui::Spacing();
         heading("Effects");
-        if (row("##fx", 3)) {
-            ImGui::TableNextColumn(); field(P_FX, "Strength:", 1, "%.2f", 0.01f);
-            ImGui::TableNextColumn(); field(P_BLUR, "Blur:", 1, "%.1f", 0.05f);
-            ImGui::TableNextColumn(); field(P_REVEAL, "Wipe:", 100, "%.0f%%", 0.5f);
-            ImGui::EndTable();
-        }
+        fields("##fx", { { P_FX, "Strength:", 1, "%.2f", 0.01f, -1 }, { P_BLUR, "Blur:", 1, "%.1f", 0.05f, -1 }, { P_REVEAL, "Wipe:", 100, "%.0f%%", 0.5f, -1 } });
         ImGui::Spacing();
+        ImGui::PushTextWrapPos(0.0f);
         ImGui::TextDisabled("Rotation: images and shapes. Brighten: pictures. Scale: about the pivot. Effects: set up in the Effects section.");
+        ImGui::PopTextWrapPos();
         if (ImGui::SmallButton("Example: the game's focus pop")) { ExampleFocusPop(*cur); g.graph.fit = g.big.fit = true; }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Replaces this clip's keys with the game's button focus (scale 1 -> 1.1 -> 1.02 and a brightness flash).");
     }
