@@ -253,6 +253,7 @@ struct State {
     std::string layoutName = "Standard";
     std::string focusTrigger;     // (the state graph: a trigger's field to go to on the page)
     std::string pathKey;          // an element's motion path pinned on screen (held 800 ms): its keys' easing edited there
+    bool scaleLink = false;       // the Tracks page: Scale x and y linked (one changes the other, keeping their ratio)
 };
 static State g;
 
@@ -2053,30 +2054,106 @@ static void AnimPage() {   // (the left side of the panels window)
     // ---- tracks
     ImGui::SetNextItemOpen(true, ImGuiCond_Once);
     if (cur && ImGui::CollapsingHeader("Tracks", ImGuiTreeNodeFlags_None)) {
-        ImGui::TextDisabled("%s clip, at %s. Set a value: a key at the playhead. The diamond: a key here (click: add / remove). I: key them all.", cur->name.c_str(), TimeText(g.time).c_str());
-        if (ImGui::BeginTable("##tracks", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit)) {
-            ImGui::TableSetupColumn("Track", ImGuiTableColumnFlags_WidthStretch); ImGui::TableSetupColumn("##key"); ImGui::TableSetupColumn("Value"); ImGui::TableSetupColumn("Keys");
-            for (int p = 0; p < P_NPROP; ++p) {
-                Track& tr = cur->tracks[p];
-                ImGui::PushID(p);
-                ImGui::TableNextRow(); ImGui::TableNextColumn();
-                ImDrawList* dl = ImGui::GetWindowDrawList(); ImVec2 cp = ImGui::GetCursorScreenPos();
-                const float hh = ImGui::GetTextLineHeight();
-                dl->AddRectFilled(ImVec2(cp.x, cp.y + hh * 0.3f), ImVec2(cp.x + 6, cp.y + hh * 0.8f), kProp[p].col);
-                ImGui::Dummy(ImVec2(9, hh)); ImGui::SameLine();
-                if (ImGui::Selectable(kProp[p].name, g.focus == State::F_TRACK && g.track == p)) { g.focus = State::F_TRACK; g.track = p; g.graph.fit = g.big.fit = true; }
-                ImGui::TableNextColumn(); KeyDiamond(*cur, p);
-                ImGui::TableNextColumn(); ImGui::SetNextItemWidth(90);
-                float val = Value(tr, g.time);
-                if (ImGui::DragFloat("##v", &val, p == P_ROT || p <= P_Y ? 0.5f : 0.005f, 0, 0, "%.3f")) { SetKey(tr, Snap(g.time), val); cur->on = true; g.focus = State::F_TRACK; g.track = p; }
-                ImGui::TableNextColumn();
-                ImGui::Text("%d", (int)tr.keys.size());
-                if (!tr.keys.empty()) { ImGui::SameLine(); if (ImGui::SmallButton("clear")) tr.keys.clear(); }
-                ImGui::PopID();
+        ImGui::TextDisabled("%s clip, at %s. A value set here is keyed at the playhead.", cur->name.c_str(), TimeText(g.time).c_str());
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The diamond before each box: a key here (filled), keys elsewhere (half), none (empty) - click to add / remove.\nClick a name: show that track in the graph. Right-click a box: its keys. I: key them all here.");
+        // a value: its diamond, its name (click: graph it), its box (shown x `k`; right-click: its keys)
+        auto field = [&](int p, const char* label, float k, const char* fmt, float speed, int link = -1) {
+            Track& tr = cur->tracks[p];
+            ImGui::PushID(p);
+            KeyDiamond(*cur, p, ImGui::GetFrameHeight());
+            ImGui::SameLine(0, 3);
+            const bool on = g.focus == State::F_TRACK && g.track == p;
+            ImGui::AlignTextToFramePadding();
+            if (on) ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 190, 110, 255));
+            ImGui::TextUnformatted(label);
+            if (on) ImGui::PopStyleColor();
+            if (ImGui::IsItemClicked()) { g.focus = State::F_TRACK; g.track = p; g.graph.fit = g.big.fit = true; }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s (%s): click to show it in the graph. %d key%s.", kProp[p].name, kProp[p].unit, (int)tr.keys.size(), tr.keys.size() == 1 ? "" : "s");
+            ImGui::SameLine(0, 4);
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            const float was = Value(tr, g.time);
+            float shown = was * k;
+            if (ImGui::DragFloat("##v", &shown, speed, 0, 0, fmt)) {
+                const float t = Snap(g.time), nv = shown / k;
+                SetKey(tr, t, nv);
+                if (link >= 0 && g.scaleLink) {   // (Scale linked: the other axis keeps the ratio)
+                    Track& o = cur->tracks[link];
+                    const float ov = Value(o, g.time);
+                    SetKey(o, t, fabsf(was) > 1e-4f ? ov * nv / was : nv);
+                }
+                cur->on = true; g.focus = State::F_TRACK; g.track = p;
+                if (t > cur->length) cur->length = t;
             }
+            if (ImGui::BeginPopupContextItem("##keys")) {
+                ImGui::TextDisabled("%s: %d key%s", kProp[p].name, (int)tr.keys.size(), tr.keys.size() == 1 ? "" : "s");
+                if (ImGui::MenuItem("Show in the graph")) { g.focus = State::F_TRACK; g.track = p; g.graph.fit = g.big.fit = true; }
+                if (ImGui::MenuItem("Clear its keys", nullptr, false, !tr.keys.empty())) { tr.keys.clear(); g_dirty = true; }
+                ImGui::EndPopup();
+            }
+            ImGui::PopID();
+        };
+        auto heading = [](const char* t, float extra = 0) {   // (centred, as a section's name)
+            const float w = ImGui::GetContentRegionAvail().x, tw = ImGui::CalcTextSize(t).x + extra;
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(0.f, (w - tw) * 0.5f));
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextUnformatted(t);
+        };
+        auto row = [](const char* id, int cols) { return ImGui::BeginTable(id, cols, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_PadOuterX); };
+        // Position
+        heading("Position");
+        if (row("##pos", 2)) { ImGui::TableNextColumn(); field(P_X, "x:", 1, "%.1f", 0.5f); ImGui::TableNextColumn(); field(P_Y, "y:", 1, "%.1f", 0.5f); ImGui::EndTable(); }
+        // Scale (link: both alike)
+        {
+            const char* lk = g.scaleLink ? "linked" : "link";
+            heading("Scale", ImGui::CalcTextSize(lk).x + ImGui::GetStyle().FramePadding.x * 2 + 8);
+            ImGui::SameLine(0, 8);
+            if (g.scaleLink) ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive));
+            if (ImGui::SmallButton(lk)) g.scaleLink = !g.scaleLink;
+            if (g.scaleLink) ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip(g.scaleLink ? "Linked: changing x or y changes the other too, keeping their ratio. Click to unlink." : "Link x and y: changing one changes the other, keeping their ratio.");
+        }
+        if (row("##scale", 2)) { ImGui::TableNextColumn(); field(P_SX, "x:", 1, "%.3f", 0.005f, P_SY); ImGui::TableNextColumn(); field(P_SY, "y:", 1, "%.3f", 0.005f, P_SX); ImGui::EndTable(); }
+        // Rotation, Opacity
+        ImGui::Spacing();
+        if (row("##rotop", 2)) { ImGui::TableNextColumn(); field(P_ROT, "Rotation:", 1, "%.1f\xC2\xB0", 0.5f); ImGui::TableNextColumn(); field(P_ALPHA, "Opacity:", 100, "%.0f%%", 0.5f); ImGui::EndTable(); }
+        // Colour: Tint (multiplies) and Brighten (adds), a swatch that keys all three
+        ImGui::Spacing();
+        heading("Colour");
+        auto colourRow = [&](const char* id, const char* name, int p0, const char* tip) {
+            if (!ImGui::BeginTable(id, 5, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_PadOuterX)) return;
+            ImGui::TableSetupColumn("##n", ImGuiTableColumnFlags_WidthFixed, ImGui::CalcTextSize("Brighten").x);
+            ImGui::TableSetupColumn("##s", ImGuiTableColumnFlags_WidthFixed, ImGui::GetFrameHeight());
+            ImGui::TableSetupColumn("##r"); ImGui::TableSetupColumn("##g"); ImGui::TableSetupColumn("##b");
+            ImGui::TableNextColumn(); ImGui::AlignTextToFramePadding(); ImGui::TextUnformatted(name);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", tip);
+            ImGui::TableNextColumn();
+            float c[3] = { Value(cur->tracks[p0], g.time), Value(cur->tracks[p0 + 1], g.time), Value(cur->tracks[p0 + 2], g.time) };
+            ImGui::PushID(id);
+            if (ImGui::ColorEdit3("##sw", c, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | ImGuiColorEditFlags_Float)) {
+                const float t = Snap(g.time);
+                for (int i = 0; i < 3; ++i) SetKey(cur->tracks[p0 + i], t, c[i]);
+                cur->on = true; g.focus = State::F_TRACK; g.track = p0;
+                if (t > cur->length) cur->length = t;
+            }
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Pick a colour: keys %s's R, G and B here.", name);
+            ImGui::PopID();
+            const char* lb[3] = { "R:", "G:", "B:" };
+            for (int i = 0; i < 3; ++i) { ImGui::TableNextColumn(); field(p0 + i, lb[i], 1, "%.2f", 0.005f); }
+            ImGui::EndTable();
+        };
+        colourRow("##tint", "Tint", P_MR, "Multiplies its colour (1 = as it is, 0 = none of that channel).");
+        colourRow("##bright", "Brighten", P_AR, "Adds to its colour (0 = as it is): a flash or a glow of colour. Pictures only.");
+        // Effects: the strength of its glow / shadow, blur, wipe (Effects section's settings)
+        ImGui::Spacing();
+        heading("Effects");
+        if (row("##fx", 3)) {
+            ImGui::TableNextColumn(); field(P_FX, "Strength:", 1, "%.2f", 0.01f);
+            ImGui::TableNextColumn(); field(P_BLUR, "Blur:", 1, "%.1f", 0.05f);
+            ImGui::TableNextColumn(); field(P_REVEAL, "Wipe:", 100, "%.0f%%", 0.5f);
             ImGui::EndTable();
         }
-        ImGui::TextDisabled("Rotation: images and shapes. Colour +: images. Scale: about the pivot.");
+        ImGui::Spacing();
+        ImGui::TextDisabled("Rotation: images and shapes. Brighten: pictures. Scale: about the pivot. Effects: set up in the Effects section.");
         if (ImGui::SmallButton("Example: the game's focus pop")) { ExampleFocusPop(*cur); g.graph.fit = g.big.fit = true; }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Replaces this clip's keys with the game's button focus (scale 1 -> 1.1 -> 1.02 and a brightness flash).");
     }

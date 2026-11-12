@@ -449,14 +449,14 @@ static void DrawDiamond(ImDrawList* dl, ImVec2 p, float r, int state, bool hot) 
     else { dl->AddPolyline(q, 4, state == 1 ? on : off, ImDrawFlags_Closed, 1.5f); if (state == 1) dl->AddCircleFilled(p, r * 0.32f, on); }
 }
 // a track's diamond on the animation page: its state at the playhead; a click adds or removes the key there
-static void KeyDiamond(Clip& c, int p) {
+static void KeyDiamond(Clip& c, int p, float size = 0) {
     Track& tr = c.tracks[p];
     const float t = Snap(g.time);
     const int st = KeyStateAt(tr, t);
-    const float h = ImGui::GetTextLineHeight();
+    const float h = size > 0 ? size : ImGui::GetTextLineHeight();
     const ImVec2 at = ImGui::GetCursorScreenPos();
     const bool click = ImGui::InvisibleButton("##kd", ImVec2(h, h));
-    DrawDiamond(ImGui::GetWindowDrawList(), ImVec2(at.x + h / 2, at.y + h / 2), h * 0.36f, st, ImGui::IsItemHovered());
+    DrawDiamond(ImGui::GetWindowDrawList(), ImVec2(at.x + h / 2, at.y + h / 2), ImGui::GetTextLineHeight() * 0.36f, st, ImGui::IsItemHovered());
     if (ImGui::IsItemHovered()) ImGui::SetTooltip(st == 2 ? "A key here (filled): click to remove it." : st == 1 ? "Keys on this track, none here: click to key its value here." : "No keys on this track: click to key it here.");
     if (click) {
         if (st == 2) tr.keys.erase(std::remove_if(tr.keys.begin(), tr.keys.end(), [&](const Key& k) { return fabsf(k.t - t) < 0.5f; }), tr.keys.end());
