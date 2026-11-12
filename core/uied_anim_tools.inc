@@ -1195,8 +1195,10 @@ static void DeletePicked() {
     }
     g_dirty = true;
 }
+
 static void Shortcuts() {
     ImGuiIO& io = ImGui::GetIO();
+    if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_S, false)) { Save(); Note("Saved the layout."); }   // (also while typing)
     if (io.WantTextInput || g_cd.active) return;
     if (g.live) { if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) { g.live = false; SimRestart(); } return; }   // (Live's own keys: Frame)
     const bool ctrl = io.KeyCtrl, shift = io.KeyShift, alt = io.KeyAlt;
@@ -1265,7 +1267,7 @@ static void ShortcutPopups() {
             { "Space", "play / pause" }, { "Left / Right", "previous / next frame (Shift: clip start / end)" }, { "Up / Down", "previous / next key" },
             { "I / Alt + I", "key the keyed tracks here / remove the keys here" }, { "Delete", "delete the picked keys (and picked events)" },
             { "Ctrl + C / X / V", "copy / cut / paste keys at the playhead" }, { "Ctrl + A", "pick every key shown" }, { "Ctrl + D", "duplicate the picked keys at the playhead" },
-            { "Ctrl + Z / Ctrl + Y", "undo / redo" }, { "T", "easing of the picked keys" }, { "V", "handle type of the picked keys" },
+            { "Ctrl + Z / Ctrl + Y", "undo / redo" }, { "Ctrl + S", "save the layout (its animation too)" }, { "T", "easing of the picked keys" }, { "V", "handle type of the picked keys" },
             { "F / Shift + F", "the graph: fit all / the picked keys" }, { "Tab", "the timeline: the element's tracks / the whole screen" },
             { "G / S / R", "grab / scale / rotate the focused element (click or Enter keeps it, Esc puts it back)" },
             { "M", "a marker at the playhead" }, { "H", "hide / show the panels" }, { "L", "Live on (Esc: off)" }, { "Esc", "cancel a drag or G / S / R" },
