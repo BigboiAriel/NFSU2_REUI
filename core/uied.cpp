@@ -2709,7 +2709,11 @@ static void UndoReset() { g_undo.clear(); g_redo.clear(); g_baseOk = false; }
 static void UndoCommit(bool evenIfBusy) {   // the edits since the last snapshot become one step
     if (!g_baseOk) { g_base = TakeSnap(); g_baseGen = g_dirty.gen; g_baseOk = true; return; }
     if (g_dirty.gen == g_baseGen) return;
-    bool busy = ImGui::IsMouseDown(0) || ImGui::IsAnyItemActive() || g_dragging >= 0;
+    // (busy: a drag, a box being edited, a run of wheel edits - Ctrl / Shift / Alt still held, or the wheel turned in
+    // the last 0.6 s - or a key dragged with the right button on an element's path)
+    const ImGuiIO& io = ImGui::GetIO();
+    const bool wheeling = ImGui::GetTime() - anim::g_wheelEditAt < 0.6 || (ImGui::GetTime() - anim::g_wheelEditAt < 5 && (io.KeyCtrl || io.KeyShift || io.KeyAlt));
+    bool busy = ImGui::IsMouseDown(0) || ImGui::IsMouseDown(1) || ImGui::IsAnyItemActive() || g_dragging >= 0 || wheeling;
     if (busy && !evenIfBusy) return;
     g_undo.push_back(g_base); if (g_undo.size() > kUndoSteps) g_undo.pop_front();
     g_redo.clear();

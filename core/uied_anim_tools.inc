@@ -301,6 +301,38 @@ static float MotionPath(ImDrawList* dl, int ei, bool interactive, ImVec2 m) {
 }
 // a hold: the mouse down on an element and kept still 800 ms pins its path
 static struct Hold { bool down = false; ImVec2 at; double t0 = 0; int elem = -1; } g_hold;
+// a key on the pinned path dragged with the right button (the user's idea, 2026-11-12): the playhead jumps to it, and
+// dragging moves it - its Move X / Y values there (Shift: one axis; Esc puts it back)
+static struct PathDrag { bool on = false, moved = false; int elem = -1; float t = 0; ImVec2 m0; float x0 = 0, y0 = 0; Clip keep; } g_pd;
+static void MovePathKey(Clip& pc, float t, float x0, float y0, float dx, float dy) {   // (in layout units from x0, y0)
+    SetKey(pc.tracks[P_X], t, roundf((x0 + dx) * 10) / 10);
+    SetKey(pc.tracks[P_Y], t, roundf((y0 + dy) * 10) / 10);
+    pc.on = true;
+    ApplyHandles(pc.tracks[P_X]); ApplyHandles(pc.tracks[P_Y]);
+    g_dirty = true;
+}
+static bool PathKeyDrag(ImVec2 m) {   // true: a drag going on (it has the mouse)
+    if (!g_pd.on) return false;
+    Clip* pc = g_pd.elem >= 0 && g_pd.elem < (int)Elems().size() ? ClipOfName(Elems()[g_pd.elem], PreviewName()) : nullptr;
+    if (!pc) { g_pd.on = false; return false; }
+    if (ImGui::IsKeyPressed(ImGuiKey_Escape, false)) { if (g_pd.moved) { *pc = g_pd.keep; g_dirty = true; Note("Path key put back."); } g_pd.on = false; return true; }
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+        if (g_pd.moved) Note("Moved the key at " + TimeText(g_pd.t) + ": x " + std::to_string((int)roundf(Value(pc->tracks[P_X], g_pd.t))) + ", y " + std::to_string((int)roundf(Value(pc->tracks[P_Y], g_pd.t))) + ".");
+        g_pd.on = false; return true;
+    }
+    if (!ImGui::IsMousePosValid(&m)) return true;
+    const ImVec2 d(m.x - g_pd.m0.x, m.y - g_pd.m0.y);
+    if (!g_pd.moved && fabsf(d.x) < 3 && fabsf(d.y) < 3) return true;
+    g_pd.moved = true;
+    const float k = Unit();
+    float dx = d.x / k, dy = d.y / k;
+    if (ImGui::GetIO().KeyShift) { if (fabsf(dx) > fabsf(dy)) dy = 0; else dx = 0; }
+    MovePathKey(*pc, g_pd.t, g_pd.x0, g_pd.y0, dx, dy);
+    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+    ImGui::SetTooltip("Key at %s: x %.1f, y %.1f\nRelease: keep it. Esc: put it back. Shift: one axis.", TimeText(g_pd.t).c_str(),
+                      Value(pc->tracks[P_X], g_pd.t), Value(pc->tracks[P_Y], g_pd.t));
+    return true;
+}
 static void PinPath(int ei) {
     if (ei < 0 || ei >= (int)Elems().size()) return;
     FocusElem(ei);
@@ -317,7 +349,8 @@ static void Canvas(ImDrawList* dl) {
     const int fi = FocusedIndex();
     const int pe = PathElem();
     if (g.path && !g.playing && fi != pe) MotionPath(dl, fi, false, m);
-    const float pathHot = pe >= 0 ? MotionPath(dl, pe, !overUi && !g_cd.active, m) : -1.f;
+    const float pathHot = pe >= 0 ? MotionPath(dl, pe, !overUi && !g_cd.active && !g_pd.on, m) : -1.f;
+    if (PathKeyDrag(m)) return;
     // a hold (800 ms, the mouse still): that element's path, pinned
     if (g_hold.down) {
         if (!ImGui::IsMouseDown(ImGuiMouseButton_Left) || fabsf(m.x - g_hold.at.x) > 4 || fabsf(m.y - g_hold.at.y) > 4) g_hold.down = false;
@@ -331,11 +364,12 @@ static void Canvas(ImDrawList* dl) {
         }
     }
     // a drag / G S R going on
+    bool modalEnded = false;   // (the click that keeps / cancels G S R picks nothing: it ends there)
     if (g_cd.active) {
         if (g_cd.modal) {
             CanvasDragTo(m, io.KeyShift, io.KeyCtrl);
-            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false)) CanvasEnd(false);
-            else if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) || ImGui::IsKeyPressed(ImGuiKey_Escape, false)) CanvasEnd(true);
+            if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsKeyPressed(ImGuiKey_Enter, false) || ImGui::IsKeyPressed(ImGuiKey_KeypadEnter, false)) { CanvasEnd(false); modalEnded = true; }
+            else if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) || ImGui::IsKeyPressed(ImGuiKey_Escape, false)) { CanvasEnd(true); modalEnded = true; }
         } else if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
             CanvasDragTo(m, io.KeyShift, io.KeyCtrl);
             if (ImGui::IsKeyPressed(ImGuiKey_Escape, false) || ImGui::IsMouseClicked(ImGuiMouseButton_Right)) CanvasEnd(true);
@@ -368,7 +402,7 @@ static void Canvas(ImDrawList* dl) {
         dl->AddText(ImVec2(top.x + 1, top.y - ImGui::GetTextLineHeight() - 3), IM_COL32(0, 0, 0, 200), nm);
         dl->AddText(ImVec2(top.x, top.y - ImGui::GetTextLineHeight() - 4), IM_COL32(255, 190, 110, 255), nm);
     }
-    if (overUi || g_cd.active) return;
+    if (overUi || g_cd.active || modalEnded) return;
     // hover: what a click would pick
     const std::vector<int> hits = ElemsAt(m);
     const bool onHandle = part != H_NONE && part != H_MOVE;
@@ -387,9 +421,15 @@ static void Canvas(ImDrawList* dl) {
         ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
         Clip* pc = ClipOfName(Elems()[pe], PreviewName());
         const int ez = pc ? PathKeyEase(*pc, pathHot) : -1;
-        ImGui::SetTooltip("Key at %s: %s to the next key.\nClick: its easing. Right-click: the playhead here.", TimeText(pathHot).c_str(), ez >= 0 ? kEase[ez] : "mixed easings");
+        ImGui::SetTooltip("Key at %s: %s to the next key.\nClick: its easing. Right-click: the playhead here (drag: move this key).", TimeText(pathHot).c_str(), ez >= 0 ? kEase[ez] : "mixed easings");
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) { g_pathMenuElem = pe; g_pathMenuT = pathHot; g_openPathMenu = true; }
-        if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) { g.time = pathHot + (PreviewName() == "In" ? InDelay(Elems()[pe]) : 0.f); g.playing = false; }
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+            g.time = pathHot + (PreviewName() == "In" ? InDelay(Elems()[pe]) : 0.f); g.playing = false;
+            if (pc) {
+                g_pd.on = true; g_pd.moved = false; g_pd.elem = pe; g_pd.t = pathHot; g_pd.m0 = m; g_pd.keep = *pc;
+                g_pd.x0 = Value(pc->tracks[P_X], pathHot); g_pd.y0 = Value(pc->tracks[P_Y], pathHot);
+            }
+        }
         return;
     }
     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
@@ -905,6 +945,7 @@ static void ScreenSheet(ImDrawList* dl, ImVec2 o, ImVec2 ra, ImVec2 rb, float ru
 
 // ================================================================ events and markers on the ruler (Element mode)
 static int g_evEdit = -1;   // (the event being edited in its popup)
+static std::string EventLabel(const Event& ev) { return !ev.name.empty() ? ev.name : ev.marker ? std::string("marker") : ev.cmd; }
 static bool RulerEvents(ImDrawList* dl, ImVec2 ra, ImVec2 rb, float rulerH, bool hov) {   // true: it took the click
     Clip* c = CurClip();
     if (!c) return false;
@@ -921,8 +962,14 @@ static bool RulerEvents(ImDrawList* dl, ImVec2 ra, ImVec2 rb, float rulerH, bool
         const ImVec2 q[3] = { ImVec2(x, ra.y + 1), ImVec2(x + 8, ra.y + 5), ImVec2(x, ra.y + 9) };
         dl->AddConvexPolyFilled(q, 3, col);
         dl->AddLine(ImVec2(x, ra.y), ImVec2(x, ra.y + rulerH), col, 1.5f);
-        const std::string lb = !ev.name.empty() ? ev.name : ev.marker ? std::string("marker") : ev.cmd;
-        dl->AddText(ImVec2(x + 10, ra.y + 1), col, lb.substr(0, 24).c_str());
+        // its name, in the room up to the next one (cut with "..", or left out when there's no room: hover shows it)
+        std::string lb = EventLabel(ev);
+        const float room = (i + 1 < (int)c->events.size() ? X(c->events[i + 1].t) : rb.x) - (x + 10) - 4;
+        if (ImGui::CalcTextSize(lb.c_str()).x > room) {
+            while (!lb.empty() && ImGui::CalcTextSize((lb + "..").c_str()).x > room) lb.pop_back();
+            lb = lb.empty() ? std::string() : lb + "..";
+        }
+        if (!lb.empty() && room >= ImGui::CalcTextSize("w..").x) dl->AddText(ImVec2(x + 10, ra.y + 1), col, lb.c_str());
         if (hov && m.y < ra.y + rulerH && fabsf(m.x - x) <= 5) hitEv = i;
     }
     dl->PopClipRect();
@@ -985,7 +1032,12 @@ edit:
         ImGui::SameLine(); if (ImGui::Button("Done")) { std::stable_sort(c->events.begin(), c->events.end(), [](const Event& a, const Event& b) { return a.t < b.t; }); ImGui::CloseCurrentPopup(); }
         ImGui::EndPopup();
     }
-    if (hov && hitEv >= 0) ImGui::SetTooltip("Drag: move it. Double-click / right-click: edit it. Delete: remove the picked ones.");
+    if (hov && hitEv >= 0) {
+        const Event& ev = c->events[hitEv];
+        ImGui::SetTooltip("%s \"%s\" at %s%s%s\nDrag: move it. Double-click / right-click: edit it. Delete: remove the picked ones.",
+                          ev.marker ? "Marker" : "Event", EventLabel(ev).c_str(), TimeText(ev.t).c_str(),
+                          !ev.marker && !ev.cmd.empty() && ev.cmd != ev.name ? "\nRuns: " : "", !ev.marker && ev.cmd != ev.name ? ev.cmd.c_str() : "");
+    }
     return took;
 }
 static void AddMarkerHere() {
@@ -1474,6 +1526,17 @@ static void TestStep(const std::string& step) {
         g_pathMenuElem = pe; g_pathMenuT = num(1); if (arg(4) == "menu") g_openPathMenu = true;
         TestLog("pathkey %g -> %s", num(1), TracksText(*pc).c_str());
     }
+    else if (cmd == "pathdrag") {   // pathdrag:<name>:<key #, 0 first>:<dx>:<dy> - as a right-drag of that key on its path
+        const int i = ElemNamed(arg(1));
+        Clip* pc = i >= 0 ? ClipOfName(Elems()[i], PreviewName()) : nullptr;
+        const std::vector<float> ks = pc ? PathKeyTimes(*pc) : std::vector<float>();
+        const int n = (int)num(2);
+        if (!pc || n < 0 || n >= (int)ks.size()) { TestLog("pathdrag %s: no key %d", arg(1).c_str(), n); return; }
+        g.time = ks[n] + (PreviewName() == "In" ? InDelay(Elems()[i]) : 0.f);
+        MovePathKey(*pc, ks[n], Value(pc->tracks[P_X], ks[n]), Value(pc->tracks[P_Y], ks[n]), num(3), num(4));
+        TestLog("pathdrag %s key %d (%s) by %g,%g -> playhead %g, %s", arg(1).c_str(), n, TimeText(ks[n]).c_str(), num(3), num(4), g.time, TracksText(*pc).c_str());
+    }
+    else if (cmd == "note") Note(step.size() > 5 ? step.substr(5) : std::string("a note"));
     else if (cmd == "status") TestLog("status: time %g, %s mode, focused %s, clip %s, live %d, G/S/R %d, auto key %d", g.time, g.screen ? "Screen" : "Element", fname.c_str(), PreviewName().c_str(), (int)g.live, g_cd.active ? g_cd.modal : 0, (int)g.autoKey);
     else if (cmd == "scroll") { g.pageTab = 0; g.scrollTo = arg(1) == "colour" ? 2 : 1; TestLog("page scrolled to %s", arg(1).c_str()); }
     else if (cmd == "scalelink") { g.scaleLink = num(1) != 0; TestLog("scale link %d", (int)g.scaleLink); }

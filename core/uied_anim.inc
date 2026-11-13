@@ -855,6 +855,22 @@ struct KeyClip { struct K { int prop; float dt; Key k; }; std::vector<K> keys; s
 static KeyClip g_kclip;
 static std::string g_note; static double g_noteAt = -1e9;   // (a line under the graph's header for a few seconds)
 static void Note(const std::string& m) { g_note = m; g_noteAt = ImGui::GetTime(); }
+// the last note on screen too (top centre, 3 s, fading out): easy to see wherever the panels are, or with them hidden
+static void NoteToast() {
+    const double age = ImGui::GetTime() - g_noteAt;
+    if (age >= 3.0 || age < 0 || g_note.empty()) return;
+    const float a = age > 2.4 ? (float)((3.0 - age) / 0.6) : 1.f;
+    const ImGuiIO& io = ImGui::GetIO();
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    const float wrap = std::min(io.DisplaySize.x * 0.6f, 760.f * ImGui::GetFontSize() / 13.f);
+    const ImVec2 ts = ImGui::CalcTextSize(g_note.c_str(), nullptr, false, wrap);
+    const ImVec2 p(floorf((io.DisplaySize.x - ts.x) * 0.5f), floorf(io.DisplaySize.y * 0.07f));
+    const ImVec2 a0(p.x - 12, p.y - 7), a1(p.x + ts.x + 12, p.y + ts.y + 7);
+    dl->AddRectFilled(ImVec2(a0.x + 3, a0.y + 3), ImVec2(a1.x + 3, a1.y + 3), IM_COL32(0, 0, 0, (int)(90 * a)), 6.f);
+    dl->AddRectFilled(a0, a1, IM_COL32(18, 26, 38, (int)(232 * a)), 6.f);
+    dl->AddRect(a0, a1, IM_COL32(110, 200, 255, (int)(210 * a)), 6.f, 0, 1.5f);
+    dl->AddText(ImGui::GetFont(), ImGui::GetFontSize(), p, IM_COL32(205, 235, 255, (int)(255 * a)), g_note.c_str(), nullptr, wrap);
+}
 static int PickedKeys(const Clip& c) { int n = 0; for (auto& tr : c.tracks) for (auto& k : tr.keys) n += k.sel; return n; }
 static void CopyKeys(bool cut) {
     Clip* c = CurClip();
@@ -1169,7 +1185,17 @@ static void Graph(const char* id, ImVec2 size, View& v) {
         ImGui::OpenPopup("##keymenu");
     }
     if (hov && ImGui::IsMouseClicked(ImGuiMouseButton_Right) && hitKey < 0) ImGui::OpenPopup("##graphmenu");
-    if (ImGui::BeginPopup("##graphmenu")) { KeyClipItems(); ImGui::EndPopup(); }
+    if (ImGui::BeginPopup("##graphmenu")) {   // (off a key: the picked keys' easing and handles too; none picked: every key shown)
+        bool any = false; for (auto& tr : c->tracks) for (auto& kk : tr.keys) any |= kk.sel;
+        ImGui::TextDisabled(any ? "Way to the next key (the picked keys)" : "Way to the next key (every key shown)");
+        for (int e = 0; e < EZ_NEASE; ++e)
+            if (ImGui::MenuItem(kEase[e])) { ApplyEase(*c, e); g_dirty = true; }
+        ImGui::Separator();
+        HandleTypeItems(c);
+        ImGui::Separator();
+        KeyClipItems();
+        ImGui::EndPopup();
+    }
     if (ImGui::BeginPopup("##keymenu")) {
         ImGui::TextDisabled("Way to the next key");
         for (int e = 0; e < EZ_NEASE; ++e)
@@ -2671,6 +2697,7 @@ static void Timeline(ImVec2 pos, ImVec2 size) {
 
 // auto key: the focused element changed on screen, keyed at the playhead - drag: Move X / Y; Ctrl / Shift / Alt + wheel
 // over it: Scale / Rotation / Alpha
+static double g_wheelEditAt = -1e9;   // the last Ctrl / Shift / Alt + wheel edit (undo keeps a run of them as one step)
 static void AutoKey() {   // (dragging: the canvas's handle box, uied_anim_tools.inc)
     ImGuiIO& io = ImGui::GetIO();
     Clip* c = CurClip(); const int fi = FocusedIndex();
@@ -2688,6 +2715,7 @@ static void AutoKey() {   // (dragging: the canvas's handle box, uied_anim_tools
     (void)k;
     if (io.MouseWheel != 0 && !io.WantCaptureMouse && (io.KeyCtrl || io.KeyShift || io.KeyAlt) && over()) {
         const float w = io.MouseWheel;
+        g_wheelEditAt = ImGui::GetTime();
         if (io.KeyCtrl) { const float f = powf(1.05f, w); key(P_SX, Value(c->tracks[P_SX], t) * f); key(P_SY, Value(c->tracks[P_SY], t) * f); }
         else if (io.KeyShift) key(P_ROT, Value(c->tracks[P_ROT], t) + 2.f * w);
         else key(P_ALPHA, std::max(0.f, std::min(1.f, Value(c->tracks[P_ALPHA], t) + 0.05f * w)));
@@ -2696,6 +2724,7 @@ static void AutoKey() {   // (dragging: the canvas's handle box, uied_anim_tools
 static void Frame() {
     ImGuiIO& io = ImGui::GetIO();
     UndoCommit(false);   // (a finished change: an undo step - the editor's own snapshots, also with its panel closed)
+    NoteToast();
     if (!io.WantTextInput && io.KeyCtrl && !g.live && !g.dragOn) {
         if (ImGui::IsKeyPressed(ImGuiKey_Z, false)) { if (io.KeyShift) Redo(); else Undo(); }
         if (ImGui::IsKeyPressed(ImGuiKey_Y, false)) Redo();

@@ -128,11 +128,13 @@ class Overlay final : public rex::ui::UIDrawer, public rex::ui::WindowInputListe
         s_.presenter->RequestUIPaintFromUIThread();   // (keeps animating while nothing else repaints)
     }
 
-    // the mouse cursor's shape while REUI has the mouse (ImGui's: resize arrows over window edges, the text beam...);
+    // the mouse cursor's shape while REUI has the mouse (ImGui's: resize arrows over window edges, the text beam...),
+    // or one REUI set over the game picture (animation mode's handle box: corners, edges, the turning ring, path keys);
     // the window's own otherwise
     void UpdateCursor() {
         ImGuiIO& io = ImGui::GetIO();
-        const int want = Wants() && io.WantCaptureMouse ? (int)ImGui::GetMouseCursor() : -2;
+        const bool set = ImGui::GetMouseCursor() != ImGuiMouseCursor_Arrow;
+        const int want = Wants() && (io.WantCaptureMouse || set) ? (int)ImGui::GetMouseCursor() : -2;
         if (want == cursor_) return;
         cursor_ = want;
         if (want < 0 || want >= ImGuiMouseCursor_COUNT) { SDL_SetCursor(SDL_GetDefaultCursor()); return; }
