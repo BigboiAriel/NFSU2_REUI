@@ -1561,7 +1561,7 @@ static void TestStep(const std::string& step) {
     }
     else if (cmd == "mouse") {   // mouse:<turn|corner|centre>: REUI's mouse at the focused element's handle (screenshots)
         Box b; if (fi < 0 || !BoxOf(fi, b)) { TestLog("mouse: no focused element on screen"); return; }
-        const ImVec2 p = BoxPoint(b, 1, 1), q = arg(1) == "turn" ? ImVec2(p.x + 10, p.y + 10) : arg(1) == "corner" ? p : b.c;
+        const ImVec2 p = BoxPoint(b, 1, -1), q = arg(1) == "turn" ? ImVec2(p.x + 10, p.y - 10) : arg(1) == "corner" ? p : b.c;   // (top right)
         ImGui::GetIO().AddMousePosEvent(q.x, q.y);
         TestLog("mouse at %s %.0f,%.0f", arg(1).c_str(), q.x, q.y);
     }
