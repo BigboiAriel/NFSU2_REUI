@@ -341,6 +341,26 @@ static void PinPath(int ei) {
     Note(c && !PathKeyTimes(*c).empty() ? "Its path (Move X and Y): click a key on it to change its easing. Esc or a click off it: hide it."
                                        : "Its path: it doesn't move in the " + PreviewName() + " clip (no Move X / Y keys).");
 }
+// the cursor for a handle (ux, uy: where on the box), and a turning arrow by the mouse for the turning ring - the
+// system has no turn cursor (the hand alone was easy to miss, 2026-11-13)
+static void HandleCursor(int part, float ux, float uy) {
+    if (part == H_CORNER) ImGui::SetMouseCursor(ux * uy < 0 ? ImGuiMouseCursor_ResizeNESW : ImGuiMouseCursor_ResizeNWSE);
+    else if (part == H_EDGE) ImGui::SetMouseCursor(ux == 0 ? ImGuiMouseCursor_ResizeNS : ImGuiMouseCursor_ResizeEW);
+    else if (part == H_MOVE) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeAll);
+    else if (part == H_ROTATE || part == H_PIVOT) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+}
+static void TurnMark(ImDrawList* dl, ImVec2 m) {
+    const ImVec2 c(m.x + 17, m.y + 17);
+    const float r = 8, a0 = -2.9f, a1 = 1.7f;   // (radians: about 260 degrees, clockwise to an arrowhead)
+    const ImVec2 e(c.x + cosf(a1) * r, c.y + sinf(a1) * r), tg(-sinf(a1), cosf(a1)), nr(cosf(a1), sinf(a1));
+    for (int pass = 0; pass < 2; ++pass) {
+        const ImU32 col = pass ? IM_COL32(255, 255, 255, 255) : IM_COL32(0, 0, 0, 210);
+        const float th = pass ? 2.f : 4.5f, s = pass ? 4.5f : 6.5f;
+        dl->PathArcTo(c, r, a0, a1, 24); dl->PathStroke(col, 0, th);
+        const ImVec2 tri[3] = { ImVec2(e.x + tg.x * s, e.y + tg.y * s), ImVec2(e.x + nr.x * s * 0.85f, e.y + nr.y * s * 0.85f), ImVec2(e.x - nr.x * s * 0.85f, e.y - nr.y * s * 0.85f) };
+        dl->AddConvexPolyFilled(tri, 3, col);
+    }
+}
 static void Canvas(ImDrawList* dl) {
     if (!g.on || g.live) { if (g_cd.active) CanvasEnd(true); return; }
     ImGuiIO& io = ImGui::GetIO();
@@ -402,6 +422,11 @@ static void Canvas(ImDrawList* dl) {
         dl->AddText(ImVec2(top.x + 1, top.y - ImGui::GetTextLineHeight() - 3), IM_COL32(0, 0, 0, 200), nm);
         dl->AddText(ImVec2(top.x, top.y - ImGui::GetTextLineHeight() - 4), IM_COL32(255, 190, 110, 255), nm);
     }
+    if (g_cd.active) {   // (dragging / G S R: the handle's cursor stays on the whole way)
+        if (g_cd.part == H_CORNER && g_cd.modal) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
+        else HandleCursor(g_cd.part, g_cd.ux, g_cd.uy);
+        if (g_cd.part == H_ROTATE) TurnMark(dl, m);
+    }
     if (overUi || g_cd.active || modalEnded) return;
     // hover: what a click would pick
     const std::vector<int> hits = ElemsAt(m);
@@ -413,10 +438,8 @@ static void Canvas(ImDrawList* dl) {
             dl->AddText(ImVec2(top.x, top.y - ImGui::GetTextLineHeight() - 4), IM_COL32(150, 200, 255, 255), Elems()[hits[0]].name.c_str());
         }
     }
-    static const ImGuiMouseCursor curs[] = { ImGuiMouseCursor_Arrow, ImGuiMouseCursor_ResizeAll, ImGuiMouseCursor_ResizeNWSE, ImGuiMouseCursor_ResizeEW, ImGuiMouseCursor_Hand, ImGuiMouseCursor_Hand };
-    if (part == H_CORNER && ux * uy < 0) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNESW);
-    else if (part == H_EDGE && ux == 0) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-    else if (part != H_NONE && !(part == H_MOVE && !hits.empty() && hits[0] != fi)) ImGui::SetMouseCursor(curs[part]);
+    if (part != H_NONE && !(part == H_MOVE && !hits.empty() && hits[0] != fi)) HandleCursor(part, ux, uy);
+    if (part == H_ROTATE) TurnMark(dl, m);
     if (pathHot >= 0) {   // a key on the pinned path: its easing
         ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
         Clip* pc = ClipOfName(Elems()[pe], PreviewName());
@@ -1535,6 +1558,12 @@ static void TestStep(const std::string& step) {
         g.time = ks[n] + (PreviewName() == "In" ? InDelay(Elems()[i]) : 0.f);
         MovePathKey(*pc, ks[n], Value(pc->tracks[P_X], ks[n]), Value(pc->tracks[P_Y], ks[n]), num(3), num(4));
         TestLog("pathdrag %s key %d (%s) by %g,%g -> playhead %g, %s", arg(1).c_str(), n, TimeText(ks[n]).c_str(), num(3), num(4), g.time, TracksText(*pc).c_str());
+    }
+    else if (cmd == "mouse") {   // mouse:<turn|corner|centre>: REUI's mouse at the focused element's handle (screenshots)
+        Box b; if (fi < 0 || !BoxOf(fi, b)) { TestLog("mouse: no focused element on screen"); return; }
+        const ImVec2 p = BoxPoint(b, 1, 1), q = arg(1) == "turn" ? ImVec2(p.x + 10, p.y + 10) : arg(1) == "corner" ? p : b.c;
+        ImGui::GetIO().AddMousePosEvent(q.x, q.y);
+        TestLog("mouse at %s %.0f,%.0f", arg(1).c_str(), q.x, q.y);
     }
     else if (cmd == "note") Note(step.size() > 5 ? step.substr(5) : std::string("a note"));
     else if (cmd == "status") TestLog("status: time %g, %s mode, focused %s, clip %s, live %d, G/S/R %d, auto key %d", g.time, g.screen ? "Screen" : "Element", fname.c_str(), PreviewName().c_str(), (int)g.live, g_cd.active ? g_cd.modal : 0, (int)g.autoKey);
