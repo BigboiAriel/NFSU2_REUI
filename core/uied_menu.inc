@@ -92,6 +92,7 @@ struct Page {
     std::string group;
     bool start = false;                  // opened by the menu key
     bool useSel = true; float selCol[4] = { 202 / 255.f, 244 / 255.f, 138 / 255.f, 1.f };   // selected row's label / value
+    std::string selTok; float selTokA = 1;   // (the selected colour from a colour token: its colour, times selTokA)
     bool dedicated = true;               // a custom menu (all are now; saved for older builds)
     bool pauseMenu = false;              // opened instead of the game's pause menu (by the menu driver, UniPad)
     bool pauseOptions = false;           // opened instead of the pause menu's Options screen (Audio / Display / Gameplay / Player)
@@ -924,7 +925,10 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                     if (e.role == "value" && kind < 0 && e.text.find('{') == std::string::npos) e.text = it.value;   // (a live list item's <key>.N.value)
                     put("{item}", it.label); put("{value}", val); put("{i}", std::to_string(idx + 1)); put("{count}", std::to_string(n));
                     if (bs) { put("{binding}", bs->label); put("{input}", waiting ? std::string("???") : bs->current ? bs->current() : std::string()); }
-                    if (cur && p && p->useSel && (e.role == "label" || e.role == "value")) memcpy(e.col, p->selCol, sizeof e.col);
+                    if (cur && p && p->useSel && (e.role == "label" || e.role == "value")) {
+                        memcpy(e.col, p->selCol, sizeof e.col);
+                        if (!p->selTok.empty()) if (ColorToken* t = TokenOf(p->selTok)) { memcpy(e.col, t->col, sizeof e.col); e.col[3] = Clamp01f(t->col[3] * p->selTokA); }
+                    }
                     if (it.on == 0 && e.role == "label") e.col[3] *= kOffAlpha;   // (an "off" live list item: see-through, as the game's)
                 }
                 // its picture: the tile's icon; a binding tile without one (and binding icon pieces): what it's bound to
@@ -1501,14 +1505,14 @@ static void GridResize(Widget& w, float ngw, float ngh, int ncols, int nrows, fl
 }
 // a tile's "changes": buttons - an action (nothing / go back / close / open a page) or an action setting; sliders - a
 // number setting or their own value; pickers - a choice setting or their own value
-static void TileChanges(Widget& t) {
+static void TileChanges(Widget& t, float width = 200, const char* label = "changes") {
     Setting* cur = SettingOf(t.bind);
     const bool host = !t.action.empty() && t.action.compare(0, 5, "page:") != 0 && t.action != "back" && t.action != "close";
     std::string name = cur ? (cur->kind == 3 ? "bind: " + cur->label : cur->label) : t.type != W_BUTTON ? "(its own value)" : t.action.empty() ? "(nothing)" : t.action == "back" ? "go back"
                      : t.action == "close" ? "close the menu" : host ? "a game command" : "open " + t.action.substr(5);
     int want = t.type == W_SLIDER ? 0 : t.type == W_PICKER ? 1 : 2;
-    ImGui::SetNextItemWidth(200);
-    if (ImGui::BeginCombo("changes", name.c_str())) {
+    ImGui::SetNextItemWidth(width);
+    if (ImGui::BeginCombo(label, name.c_str())) {
         if (t.type == W_BUTTON) {
             if (ImGui::Selectable("(nothing)", !cur && t.action.empty())) { t.bind.clear(); t.action.clear(); g_dirty = true; }
             if (ImGui::Selectable("go back", !cur && t.action == "back")) { t.bind.clear(); t.action = "back"; g_dirty = true; }
@@ -1535,113 +1539,126 @@ static void TileChanges(Widget& t) {
             "args: numbers, true / false, \"text\". {tile} is the tile's number (0 = the first).");
     }
 }
-static void CarouselTop(Widget& w) {
-    int vis = CarSlots(w), total = std::max(1, w.totalRows);
-    bool vt = w.vertical;
-    if (ImGui::Checkbox("vertical", &vt)) {   // (the slots turned: a column of them, the same tile size)
-        float cw = GCellW(w), ch = GCellH(w); int k = CarSlots(w);
-        w.vertical = vt;
-        if (vt) GridResize(w, cw, ch * k + (k - 1) * w.spX, 1, k, 0, w.spX);
-        else GridResize(w, cw * k + (k - 1) * w.spY, ch, k, 1, w.spY, 0);
-        g_dirty = true;
-    }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Its tiles in a column; up / down scroll it (the game's Body Parts list). Its scroller tab moves down its track.");
-    ImGui::SameLine(); ImGui::SetNextItemWidth(100);
-    if (ImGui::InputInt("visible", &vis)) {
-        vis = std::max(1, std::min(32, vis));
-        if (w.vertical) GridResize(w, w.gw, w.gh * vis / std::max(1, w.rows) + 0.f, 1, vis, w.spX, w.spY);
-        else GridResize(w, w.gw * vis / std::max(1, w.cols) + 0.f, w.gh, vis, 1, w.spX, w.spY);
-        GridFitTiles(w);
-    }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Tiles on screen at once (the carousel's width is these, with the spacing between).");
-    ImGui::SameLine(); ImGui::SetNextItemWidth(100);
-    if (ImGui::InputInt("tiles", &total)) { w.totalRows = std::max(1, std::min(1000, total)); GridFitTiles(w); g_dirty = true; }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Tiles it has in all; left / right scroll through them.");
-    ImGui::SameLine(); if (ImGui::Checkbox("selected stays in the middle", &w.centred)) g_dirty = true;
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("On: the row slides under the middle slot, the selected tile always there (the game's pause menu).\nOff: the cursor moves along the slots and the row scrolls at the ends.");
-    ImGui::SameLine(); if (ImGui::Checkbox("highlight stays put", &w.selStill)) g_dirty = true;
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("On: the selected tile's highlight (its \"selected tile only\" pieces) stays in its slot and the tiles\nslide into it (the game's pause menu). Off: the highlight rides along with the tile.");
-    ImGui::SameLine(); if (ImGui::Checkbox("wraps around", &w.wrap)) g_dirty = true;
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Past the last tile comes the first (and the other way).");
-    float gwv = w.gw, ghv = w.gh;
-    int vc = w.vertical ? 1 : w.cols, vr = w.vertical ? w.rows : 1;
-    ImGui::SetNextItemWidth(150); if (ImGui::SliderFloat("width", &gwv, 20.f, 1280.f, "%.0f")) GridResize(w, gwv, w.gh, vc, vr, w.spX, w.spY);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The visible slots' width (units; Ctrl + click to type), less the spacing, shared out; the arrows keep to its ends.");
-    ImGui::SameLine(); ImGui::SetNextItemWidth(150); if (ImGui::SliderFloat("height", &ghv, 20.f, 1280.f, "%.0f")) GridResize(w, w.gw, ghv, vc, vr, w.spX, w.spY);
-    float sp = w.vertical ? w.spY : w.spX;
-    ImGui::SetNextItemWidth(150);
-    if (ImGui::SliderFloat("spacing", &sp, 0.f, 200.f, "%.1f")) {
-        sp = std::max(0.f, sp);
-        if (w.vertical) { int r = std::max(1, w.rows); float ch = GCellH(w); GridResize(w, w.gw, ch * r + (r - 1) * sp, 1, r, w.spX, sp); }
-        else { int c = std::max(1, w.cols); float cw = GCellW(w); GridResize(w, cw * c + (c - 1) * sp, w.gh, w.cols, 1, sp, w.spY); }
-    }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Gap between tiles (units; Ctrl + click to type). The tiles keep their size and move apart.");
-    static const char* aligns[] = {"left", "centre", "right"};
-    GridOrigin(w);
-    ImGui::SameLine(); ImGui::SetNextItemWidth(90);
-    int al = std::max(0, std::min(2, w.startAt));
-    if (ImGui::Combo("align", &al, aligns, 3) && al != w.startAt) { w.startAt = al; GridPlace(w); }
+// two whole-number boxes (half the row each), then the row's name
+static int PInts(const char* id, int& a, int& b, const char* label, const char* tipA, const char* tipB) {
+    const float half = (PFull() - 11 - 4) / 2; int ch = 0;
+    ImGui::PushID(id); PIndent();
+    ImGui::SetNextItemWidth(half); if (ImGui::InputInt("##a", &a, 0, 0)) ch |= 1; if (tipA) PTip(tipA);
+    ImGui::SameLine(0, 4); ImGui::SetNextItemWidth(half); if (ImGui::InputInt("##b", &b, 0, 0)) ch |= 2; if (tipB) PTip(tipB);
+    PLabel(label); ImGui::PopID();
+    return ch;
 }
+// two number boxes with their letters (as Position / Size), then the row's name
+static int PFloats(const char* id, const char* la, float& a, const char* lb, float& b, const char* label, const char* tip) {
+    int ch = 0;
+    ImGui::PushID(id);
+    ImGui::AlignTextToFramePadding(); ImGui::TextUnformatted(la); ImGui::SameLine(0, 4);
+    ImGui::SetNextItemWidth(kPBox); if (ImGui::InputFloat("##a", &a, 0, 0, "%g")) ch |= 1; if (tip) PTip(tip);
+    ImGui::SameLine(0, kPGap); ImGui::AlignTextToFramePadding(); ImGui::TextUnformatted(lb); ImGui::SameLine(0, 4);
+    ImGui::SetNextItemWidth(kPBox); if (ImGui::InputFloat("##b", &b, 0, 0, "%g")) ch |= 2; if (tip) PTip(tip);
+    PLabel(label); ImGui::PopID();
+    return ch;
+}
+// a grid / carousel / list box: the Widget section (after its Type)
 static void GridPanel(Widget& w) {
     GridFitTiles(w);
-    bool tiles = GridHasTiles(w);
-    if (w.type == W_CAROUSEL) CarouselTop(w); else {
-    // columns | visible rows | total rows
-    int cols = w.cols, rows = w.rows, total = tiles ? (w.totalRows > 0 ? w.totalRows : w.rows) : w.totalRows;
-    if (w.type == W_LISTBOX) {   // (one column; up / down arrows: roles arrowU / arrowD, their lit copies arrowUon / arrowDon)
-        ImGui::TextDisabled("list box"); if (ImGui::IsItemHovered()) ImGui::SetTooltip("One column of rows; the cursor moves down them and the list scrolls once it reaches the last row on\nscreen. Its scroller: a track (role gtrack) and a tab (gtab). Up / down arrows: roles arrowU / arrowD (light\nup as they're pressed); arrowUon / arrowDon show only while lit - the cursor at that end, the next press\nscrolls the list. Live lists: <key>.N its text (label pieces), <key>.N.value its second column (value pieces).");
-    } else { ImGui::SetNextItemWidth(100); if (ImGui::InputInt("columns", &cols)) { GridResize(w, w.gw, w.gh, cols, rows, w.spX, w.spY); GridFitTiles(w); } }
-    ImGui::SameLine(); ImGui::SetNextItemWidth(100); if (ImGui::InputInt("visible rows", &rows)) { GridResize(w, w.gw, w.gh, w.cols, rows, w.spX, w.spY); GridFitTiles(w); }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rows on screen at once (the grid's height is these); the rest scroll up and down.");
-    ImGui::SameLine(); ImGui::SetNextItemWidth(100);
-    if (ImGui::InputInt("total rows", &total)) { w.totalRows = std::max(tiles ? 1 : 0, std::min(1000, total)); GridFitTiles(w); g_dirty = true; }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip(tiles ? "Rows of tiles the grid has. More than the visible rows: it scrolls up and down."
-                                                        : "Rows the live list can fill (0 = as many as it has). More than the visible rows: it scrolls.");
-    // width | height | align
-    float gwv = w.gw, ghv = w.gh;
-    ImGui::SetNextItemWidth(150); if (ImGui::SliderFloat("width", &gwv, 20.f, 1280.f, "%.0f")) GridResize(w, gwv, w.gh, w.cols, w.rows, w.spX, w.spY);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The grid on screen (units; Ctrl + click to type). Tiles share it out, less the spacing; their pieces stretch with them.");
-    ImGui::SameLine(); ImGui::SetNextItemWidth(150); if (ImGui::SliderFloat("height", &ghv, 20.f, 1280.f, "%.0f")) GridResize(w, w.gw, ghv, w.cols, w.rows, w.spX, w.spY);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Its visible rows' height (units; Ctrl + click to type).");
-    static const char* aligns[] = {"left", "centre", "right"};
-    GridOrigin(w);
-    ImGui::SameLine(); ImGui::SetNextItemWidth(90);
-    int al = std::max(0, std::min(2, w.startAt));
-    if (ImGui::Combo("align", &al, aligns, 3) && al != w.startAt) { w.startAt = al; GridPlace(w); }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The grid's origin is its centre as placed (move the grid to move it). Left: the grid's left edge on\nthe origin. Centre: its middle on it. Right: its right edge on it. Always centred on it up and down;\nresizing keeps it so, and rows with fewer items line up the same way.");
-    // spacing across | down (tiles keep their size: the grid grows by the gaps)
-    float sp[2] = {w.spX, w.spY};
-    ImGui::SetNextItemWidth(150); bool spc = ImGui::SliderFloat("spacing across", &sp[0], 0.f, 100.f, "%.1f");
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Gap between columns (units; Ctrl + click to type). The tiles keep their size and move apart:\nthe grid grows by the gaps (around its origin).");
-    ImGui::SameLine(); ImGui::SetNextItemWidth(150); spc |= ImGui::SliderFloat("spacing down", &sp[1], 0.f, 100.f, "%.1f");
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Gap between rows (units; Ctrl + click to type).");
-    if (spc) {
-        int c = std::max(1, w.cols), r = std::max(1, w.rows);
-        float cw = GCellW(w), ch = GCellH(w);
-        GridResize(w, cw * c + (c - 1) * std::max(0.f, sp[0]), ch * r + (r - 1) * std::max(0.f, sp[1]), w.cols, w.rows, sp[0], sp[1]);
+    const bool tiles = GridHasTiles(w);
+    const float full = PFull() - 11;
+    if (w.type == W_CAROUSEL) {
+        PIndent();
+        bool vt = w.vertical;
+        if (ImGui::Checkbox("vertical", &vt)) {   // (the slots turned: a column of them, the same tile size)
+            float cw = GCellW(w), ch = GCellH(w); int k = CarSlots(w);
+            w.vertical = vt;
+            if (vt) GridResize(w, cw, ch * k + (k - 1) * w.spX, 1, k, 0, w.spX);
+            else GridResize(w, cw * k + (k - 1) * w.spY, ch, k, 1, w.spY, 0);
+            g_dirty = true;
+        }
+        PTip("Its tiles in a column; up / down scroll it (the game's Body Parts list). Its scroller tab moves down its track.");
+        ImGui::SameLine(); if (ImGui::Checkbox("middle", &w.centred)) g_dirty = true;
+        PTip("On: the row slides under the middle slot, the selected tile always there (the game's pause menu).\nOff: the cursor moves along the slots and the row scrolls at the ends.");
+        ImGui::SameLine(); if (ImGui::Checkbox("highlight still", &w.selStill)) g_dirty = true;
+        PTip("On: the selected tile's highlight (its \"selected tile only\" pieces) stays in its slot and the tiles\nslide into it (the game's pause menu). Off: the highlight rides along with the tile.");
+        ImGui::SameLine(); if (ImGui::Checkbox("wraps", &w.wrap)) g_dirty = true;
+        PTip("Past the last tile comes the first (and the other way).");
+        int vis = CarSlots(w), total = std::max(1, w.totalRows);
+        const int ch = PInts("tiles", vis, total, "Tiles (shown / in all)", "Tiles on screen at once (its length is these, with the spacing between).", "Tiles it has in all; left / right scroll through them.");
+        if (ch & 1) {
+            vis = std::max(1, std::min(32, vis));
+            if (w.vertical) GridResize(w, w.gw, w.gh * vis / std::max(1, w.rows) + 0.f, 1, vis, w.spX, w.spY);
+            else GridResize(w, w.gw * vis / std::max(1, w.cols) + 0.f, w.gh, vis, 1, w.spX, w.spY);
+            GridFitTiles(w);
+        }
+        if (ch & 2) { w.totalRows = std::max(1, std::min(1000, total)); GridFitTiles(w); g_dirty = true; }
+        const int vc = w.vertical ? 1 : w.cols, vr = w.vertical ? w.rows : 1;
+        float gwv = w.gw, ghv = w.gh;
+        const int sz = PFloats("size", "W", gwv, "H", ghv, "Size", "The visible slots' size (units), less the spacing, shared out; the arrows keep to its ends.");
+        if (sz & 1) GridResize(w, std::max(4.f, gwv), w.gh, vc, vr, w.spX, w.spY);
+        if (sz & 2) GridResize(w, w.gw, std::max(4.f, ghv), vc, vr, w.spX, w.spY);
+        float sp = w.vertical ? w.spY : w.spX;
+        PIndent(); ImGui::SetNextItemWidth(full);
+        if (ImGui::DragFloat("##sp", &sp, 0.1f, 0.f, 400.f, "%.1f")) {
+            sp = std::max(0.f, sp);
+            if (w.vertical) { int r = std::max(1, w.rows); float chh = GCellH(w); GridResize(w, w.gw, chh * r + (r - 1) * sp, 1, r, w.spX, sp); }
+            else { int c = std::max(1, w.cols); float cw = GCellW(w); GridResize(w, cw * c + (c - 1) * sp, w.gh, w.cols, 1, sp, w.spY); }
+        }
+        PTip("Gap between tiles (units; drag, or double-click to type). The tiles keep their size and move apart.");
+        PLabel("Spacing");
+    } else {
+        int cols = w.cols, rows = w.rows, total = tiles ? (w.totalRows > 0 ? w.totalRows : w.rows) : w.totalRows;
+        if (w.type == W_GRID) {
+            PIndent(); ImGui::SetNextItemWidth(full);
+            if (ImGui::InputInt("##cols", &cols, 0, 0)) { cols = std::max(1, std::min(32, cols)); GridResize(w, w.gw, w.gh, cols, rows, w.spX, w.spY); GridFitTiles(w); }
+            PTip("Tiles across.");
+            PLabel("Columns");
+        }
+        const int ch = PInts("rows", rows, total, "Rows (shown / in all)", "Rows on screen at once (its height is these); the rest scroll up and down.",
+                             tiles ? "Rows of tiles it has. More than shown: it scrolls up and down." : "Rows the live list can fill (0 = as many as it has). More than shown: it scrolls.");
+        if (ch & 1) { rows = std::max(1, std::min(64, rows)); GridResize(w, w.gw, w.gh, w.cols, rows, w.spX, w.spY); GridFitTiles(w); }
+        if (ch & 2) { w.totalRows = std::max(tiles ? 1 : 0, std::min(1000, total)); GridFitTiles(w); g_dirty = true; }
+        float gwv = w.gw, ghv = w.gh;
+        const int sz = PFloats("size", "W", gwv, "H", ghv, "Size", "On screen (units): the tiles share it out, less the spacing; their pieces stretch with them.");
+        if (sz & 1) GridResize(w, std::max(4.f, gwv), w.gh, w.cols, w.rows, w.spX, w.spY);
+        if (sz & 2) GridResize(w, w.gw, std::max(4.f, ghv), w.cols, w.rows, w.spX, w.spY);
+        float sp[2] = {w.spX, w.spY};
+        if (PFloats("spacing", "X", sp[0], "Y", sp[1], "Spacing", "Gaps between columns (X) and rows (Y), in units. The tiles keep their size and move apart:\nit grows by the gaps (around its origin).")) {
+            const int c = std::max(1, w.cols), r = std::max(1, w.rows);
+            const float cw = GCellW(w), chh = GCellH(w);
+            sp[0] = std::max(0.f, sp[0]); sp[1] = std::max(0.f, sp[1]);
+            GridResize(w, cw * c + (c - 1) * sp[0], chh * r + (r - 1) * sp[1], w.cols, w.rows, sp[0], sp[1]);
+        }
+        PIndent(); if (ImGui::Checkbox("wraps", &w.wrap)) g_dirty = true;
+        PTip("Up from the top row goes to the bottom one (and down from the bottom to the top; left / right round\nits row). Holding the button stops at the end, as the game's lists do.");
     }
-    }   // (grid)
-    // the tiles' box backgrounds (the grid's "Cell" / "Cell selected" pieces): on / off
-    {
+    {   // align
+        static const char* aligns[] = {"left", "centre", "right"};
+        GridOrigin(w);
+        int al = std::max(0, std::min(2, w.startAt));
+        PIndent(); ImGui::SetNextItemWidth(full);
+        if (ImGui::Combo("##align", &al, aligns, 3) && al != w.startAt) { w.startAt = al; GridPlace(w); }
+        PTip("Its origin is its centre as placed (move it to move the origin). Left: its left edge on the origin. Centre:\nits middle. Right: its right edge. Always centred on it up and down; resizing keeps it so.");
+        PLabel("Align");
+    }
+    {   // the tiles' box backgrounds (the grid's "Cell" / "Cell selected" pieces): on / off
         bool any = false, on = false;
         for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.name.compare(0, 4, "Cell") == 0) { any = true; on |= e.visible; }
         if (any) {
+            PIndent();
             if (ImGui::Checkbox("box backgrounds", &on)) { for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.name.compare(0, 4, "Cell") == 0) e.visible = on; g_dirty = true; }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("The tiles' boxes (the grid's \"Cell\" and \"Cell selected\" pieces). Off: only your own pieces are drawn -\na highlight of your own with \"selected tile only\" on shows on the selected tile alone.");
+            PTip("The tiles' boxes (the grid's \"Cell\" and \"Cell selected\" pieces). Off: only your own pieces are drawn -\na highlight of your own with \"selected tile only\" on shows on the selected tile alone.");
         }
     }
-    ImGui::Separator();
-    if (!tiles && !SettingOf(w.bind)) ImGui::TextDisabled("Its tiles come from the live list (%s): clear it below to make your own.", w.bind.c_str() + 5);
+    // the tiles (or where its items come from)
+    if (!tiles && !SettingOf(w.bind)) { PIndent(); ImGui::TextDisabled("Its %s come from the live list %s.", w.type == W_CAROUSEL ? "tiles" : "rows", w.bind.c_str() + 5); }
     else if (!tiles) {   // (an older grid: its items are a choice setting's)
-        ImGui::TextDisabled("Its items are the choices of \"%s\".", SettingOf(w.bind)->label.c_str());
+        PIndent(); ImGui::TextDisabled("Its items are the choices of \"%s\".", SettingOf(w.bind)->label.c_str());
         ImGui::SameLine(); if (ImGui::SmallButton("use tiles instead")) { w.bind.clear(); GridFitTiles(w); g_dirty = true; }
     } else {
-        int n = GridTileCount(w);
+        const int n = GridTileCount(w);
         int& ts = g_tileSel[w.group]; ts = std::max(0, std::min(n - 1, ts));
         Widget& t = w.tiles[ts];
-        // tile (rename under it) | widget | changes
-        ImGui::BeginGroup();
-        ImGui::SetNextItemWidth(160);
+        const std::string key = w.group + "#" + std::to_string(ts);
+        PIndent(); ImGui::SetNextItemWidth(100);
         std::string shown = t.label.empty() ? "(no name) " + std::to_string(ts + 1) : t.label;
         if (ImGui::BeginCombo("##tile", shown.c_str())) {
             for (int i = 0; i < n; ++i) {
@@ -1651,11 +1668,10 @@ static void GridPanel(Widget& w) {
             }
             ImGui::EndCombo();
         }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The tile to set up, top-left to bottom-right (outlined on screen).");
+        PTip("The tile to set up, top-left to bottom-right (outlined on screen).");
         static char rb[128]; static std::string rbFor = "\x01";
-        std::string key = w.group + "#" + std::to_string(ts);
         if (rbFor != key) { snprintf(rb, sizeof rb, "%s", t.label.c_str()); rbFor = key; }
-        ImGui::SetNextItemWidth(160);
+        ImGui::SameLine(0, 4); ImGui::SetNextItemWidth(full - 104);
         if (ImGui::InputTextWithHint("##rename", "rename", rb, sizeof rb)) {
             t.label = rb; g_dirty = true;
             if (ts == 0) {   // (the pieces themselves are the first tile in the editor; pieces after a label's text move with it)
@@ -1667,33 +1683,40 @@ static void GridPanel(Widget& w) {
                 if (grow != 0) for (auto& e : MenuElems()) if (InGroup(e.group, w.group) && e.afterLabel) e.x += grow;
             }
         }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rename the tile.");
-        ImGui::EndGroup();
-        static const char* kinds[] = {"Button", "Slider", "Picker (Left / Right)"};
-        int k = t.type == W_SLIDER ? 1 : t.type == W_PICKER ? 2 : 0;
-        if (w.type == W_CAROUSEL) { t.type = W_BUTTON; k = -1; }   // (a carousel's tiles are buttons: left / right scroll it)
-        if (k >= 0) ImGui::SameLine();
-        if (k >= 0) ImGui::SetNextItemWidth(170);
-        if (k >= 0 && ImGui::Combo("widget##tile", &k, kinds, 3)) {
-            int nt = k == 1 ? W_SLIDER : k == 2 ? W_PICKER : W_BUTTON;
-            if (nt != t.type) { t.type = nt; t.bind.clear(); t.action.clear(); t.value = 0; g_dirty = true; if (!GridHasKind(w, TileBit(&t))) GridAddKind(w, TileBit(&t)); }
+        PTip("Rename the tile.");
+        PLabel("Tile");
+        if (w.type == W_CAROUSEL) t.type = W_BUTTON;   // (a carousel's tiles are buttons: left / right scroll it)
+        else {
+            static const char* kinds[] = {"Button", "Slider", "Picker (Left / Right)"};
+            int k = t.type == W_SLIDER ? 1 : t.type == W_PICKER ? 2 : 0;
+            PIndent(); ImGui::SetNextItemWidth(full);
+            if (ImGui::Combo("##kind", &k, kinds, 3)) {
+                int nt = k == 1 ? W_SLIDER : k == 2 ? W_PICKER : W_BUTTON;
+                if (nt != t.type) { t.type = nt; t.bind.clear(); t.action.clear(); t.value = 0; g_dirty = true; if (!GridHasKind(w, TileBit(&t))) GridAddKind(w, TileBit(&t)); }
+            }
+            PTip("What the tile is. Sliders and pickers: A takes hold of it, left / right change it, B lets go.\nIts pieces show by role: value text on sliders / pickers, fill bar + tab on sliders, arrows on pickers.");
+            PLabel("Kind");
+            if (TileBit(&t) != 1 && !GridHasKind(w, TileBit(&t))) {
+                ImGui::SameLine(); if (ImGui::SmallButton("add its pieces")) GridAddKind(w, TileBit(&t));
+                PTip("It has no pieces of its own for this kind of tile: copy them from the older menu row of that kind.");
+            }
         }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("What the tile is. Sliders and pickers: A takes hold of it, left / right change it, B lets go.\nIts pieces show by role: value text on sliders / pickers, fill bar + tab on sliders, arrows on pickers.");
-        { int was = TileBit(&t); ImGui::SameLine(); TileChanges(t); if (w.type == W_CAROUSEL) was = TileBit(&t); int now = TileBit(&t); if (now != was && !GridHasKind(w, now)) GridAddKind(w, now); }
-        if (w.type != W_CAROUSEL && TileBit(&t) != 1 && !GridHasKind(w, TileBit(&t))) {
-            ImGui::SameLine(); if (ImGui::SmallButton("add its pieces")) GridAddKind(w, TileBit(&t));
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("The grid has no pieces of its own for this kind of tile: copy them from the older menu row of that kind.");
+        {
+            const int was = TileBit(&t);
+            PIndent(); ImGui::BeginGroup(); TileChanges(t, full, "##changes"); ImGui::EndGroup();
+            PLabel("Changes");
+            const int now = TileBit(&t); if (w.type != W_CAROUSEL && now != was && !GridHasKind(w, now)) GridAddKind(w, now);
         }
-        // (sliders / pickers of their own: their range / choices)
         if (t.type == W_SLIDER && !SettingOf(t.bind)) {
-            ImGui::SetNextItemWidth(220); if (ImGui::DragFloat3("min / max / step", &t.min, 0.01f)) g_dirty = true;
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Its own value's range and step (the fill bar's full length is the range).");
+            PIndent(); ImGui::SetNextItemWidth(full); if (ImGui::DragFloat3("##range", &t.min, 0.01f)) g_dirty = true;
+            PTip("Its own value's range and step (the fill bar's full length is the range).");
+            PLabel("Min / max / step");
         }
         if (t.type == W_PICKER && !SettingOf(t.bind)) {
             static char cb[512]; static std::string cbFor = "\x01";
             if (cbFor != key) { std::string j; for (size_t i = 0; i < t.choices.size(); ++i) j += (i ? ", " : "") + t.choices[i]; snprintf(cb, sizeof cb, "%s", j.c_str()); cbFor = key; }
-            ImGui::SetNextItemWidth(320);
-            if (ImGui::InputTextWithHint("choices", "Off, On, Auto", cb, sizeof cb)) {
+            PIndent(); ImGui::SetNextItemWidth(full);
+            if (ImGui::InputTextWithHint("##choices", "Off, On, Auto", cb, sizeof cb)) {
                 t.choices.clear(); std::string s = cb, cur;
                 for (size_t i = 0; i <= s.size(); ++i) {
                     if (i == s.size() || s[i] == ',') { while (!cur.empty() && cur[0] == ' ') cur.erase(0, 1); while (!cur.empty() && cur.back() == ' ') cur.pop_back(); if (!cur.empty()) t.choices.push_back(cur); cur.clear(); }
@@ -1701,43 +1724,40 @@ static void GridPanel(Widget& w) {
                 }
                 g_dirty = true;
             }
+            PLabel("Choices");
         }
-        // icon
         static char ib[160]; static std::string ibFor = "\x01";
         if (ibFor != key) { snprintf(ib, sizeof ib, "%s", t.icon.c_str()); ibFor = key; }
-        ImGui::SetNextItemWidth(320);
-        if (ImGui::InputTextWithHint("icon", "texture name, icon:auto:South, vec:...", ib, sizeof ib)) { t.icon = ib; g_dirty = true; }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The picture shown by the tile's \"grid: item icon\" piece: a texture name, icon:auto:<button>\n(the controller's icon for it) or vec:<file>. Empty: no picture (a binding tile: what it's bound to).");
-        // description
+        PIndent(); ImGui::SetNextItemWidth(full);
+        if (ImGui::InputTextWithHint("##icon", "texture, icon:auto:South, vec:...", ib, sizeof ib)) { t.icon = ib; g_dirty = true; }
+        PTip("The picture shown by the tile's \"item icon\" piece: a texture name, icon:auto:<button>\n(the controller's icon for it) or vec:<file>. Empty: no picture (a binding tile: what it's bound to).");
+        PLabel("Icon");
         static char db[256]; static std::string dbFor = "\x01";
         if (dbFor != key) { snprintf(db, sizeof db, "%s", t.desc.c_str()); dbFor = key; }
-        ImGui::SetNextItemWidth(530);
-        if (ImGui::InputTextWithHint("description", "shown by the page's description text", db, sizeof db)) { t.desc = db; g_dirty = true; }
+        PIndent(); ImGui::SetNextItemWidth(full);
+        if (ImGui::InputTextWithHint("##desc", "shown by the page's description text", db, sizeof db)) { t.desc = db; g_dirty = true; }
+        PLabel("Description");
     }
-    ImGui::Separator();
-    // a live list instead of tiles
-    if (!SettingOf(w.bind)) {
+    if (!SettingOf(w.bind)) {   // a live list instead of tiles
         static char lb[64]; static std::string lbFor = "\x01";
         if (lbFor != w.group) { snprintf(lb, sizeof lb, "%s", w.bind.compare(0, 5, "list:") == 0 ? w.bind.c_str() + 5 : ""); lbFor = w.group; }
-        ImGui::SetNextItemWidth(160);
-        if (ImGui::InputTextWithHint("live list (values)", "key (empty: its own tiles)", lb, sizeof lb)) { w.bind = lb[0] ? std::string("list:") + lb : ""; GridFitTiles(w); g_dirty = true; }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Tiles from another mod's live list instead: <key>.count items, each <key>.N (its text) and <key>.N.icon (its picture).");
+        PIndent(); ImGui::SetNextItemWidth(full);
+        if (ImGui::InputTextWithHint("##live", "key (empty: its own tiles)", lb, sizeof lb)) { w.bind = lb[0] ? std::string("list:") + lb : ""; GridFitTiles(w); g_dirty = true; }
+        PTip("Tiles from another mod's live list instead: <key>.count items, each <key>.N (its text) and <key>.N.icon (its picture).");
+        PLabel("Live list");
     }
-    if (w.type == W_GRID) {
-        if (ImGui::Checkbox("wraps", &w.wrap)) g_dirty = true;
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Up from the top row goes to the bottom one (and down from the bottom to the top; left / right round\nits row). Holding the button stops at the end, as the game's lists do.");
-        ImGui::SameLine();
-    }
-    ImGui::SetNextItemWidth(120);
-    if (ImGui::DragFloat("stagger (ms)", &w.stagger, 1.f, 0.f, 1000.f, "%.0f")) { w.stagger = std::max(0.f, w.stagger); g_dirty = true; }
+    PIndent(); ImGui::SetNextItemWidth(full);
+    if (ImGui::DragFloat("##stagger", &w.stagger, 1.f, 0.f, 1000.f, "%.0f ms")) { w.stagger = std::max(0.f, w.stagger); g_dirty = true; }
+    PTip("Each tile's In clips start this much after the tile before (the rows coming in one after another).\nPieces with Focus / Unfocus / Selected / Press clips play them as their own tile is picked / accepted.");
+    PLabel("Stagger");
     if (menuMove) {
         static char mv[512]; static std::string mvFor = "\x01";
         if (mvFor != w.group || !ImGui::IsAnyItemActive()) { snprintf(mv, sizeof mv, "%s", w.moveCmd.c_str()); mvFor = w.group; }
-        ImGui::SetNextItemWidth(-90);
-        if (ImGui::InputTextWithHint("on move", "a game command (fe:...)", mv, sizeof mv)) { w.moveCmd = mv; g_dirty = true; }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Run as the cursor moves ({tile}: the tile it moves to): the game's own list following it\n(fe:@mcRowControlArea.mcRowControl.setIndex({tile}) - its own sound plays, so REUI plays none).");
+        PIndent(); ImGui::SetNextItemWidth(full);
+        if (ImGui::InputTextWithHint("##onmove", "a game command (fe:...)", mv, sizeof mv)) { w.moveCmd = mv; g_dirty = true; }
+        PTip("Run as the cursor moves ({tile}: the tile it moves to): the game's own list following it\n(fe:@mcRowControlArea.mcRowControl.setIndex({tile}) - its own sound plays, so REUI plays none).");
+        PLabel("On move");
     }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Each tile's In clips start this much after the tile before (the rows coming in one after another).\nPieces with Focus / Unfocus / Selected / Press clips play them as their own tile is picked / accepted.");
 }
 static const char* kWMake[] = { "(not a widget)", "Grid (rows x columns)", "Carousel (scrolls left / right)", "List box (rows scroll up / down)" };
 static const int kWMakeType[] = { W_NONE, W_GRID, W_CAROUSEL, W_LISTBOX };
@@ -1749,12 +1769,15 @@ static void MakeGridLike(Widget& w, int t) {
     GridFromPieces(w); GridFitTiles(w); g_dirty = true;
 }
 static void WidgetPanel(Widget& w, Page* page) {
+    static const char* kTypeShort[] = { "(not a widget)", "Grid", "Carousel", "List box" };
     int t = w.type == W_CAROUSEL ? 2 : w.type == W_LISTBOX ? 3 : 1;
-    ImGui::SetNextItemWidth(220);
-    if (ImGui::Combo("widget", &t, kWMake, 4) && kWMakeType[t] != w.type) {
+    PIndent(); ImGui::SetNextItemWidth(PFull() - 11);
+    if (ImGui::Combo("##wtype", &t, kTypeShort, 4) && kWMakeType[t] != w.type) {
         if (t == 0) { std::string g = w.group; MenuForget(g); g_dirty = true; return; }
         MakeGridLike(w, kWMakeType[t]);
     }
+    PTip("Grid: rows x columns. Carousel: a row (or column) that scrolls, as the game's pause menu. List box: one column\nwhose rows scroll up / down, as the game's performance parts list. (not a widget): a plain group again.");
+    PLabel("Type");
     GridPanel(w); (void)page;
 }
 // a new grid on the page: one cell's pieces (backing, text, selected frame, icon) + a scroller beside it
@@ -1867,21 +1890,53 @@ static void ReplacesCombo(Page& p) {
         ImGui::EndCombo();
     }
 }
+static void AddListBox(Page& p) {   // a grid made a list box: one column whose rows scroll
+    AddGrid(p);
+    if (Widget* w = WidgetOf(g_selGroup)) MakeGridLike(*w, W_LISTBOX);
+}
 static void PagePanel(Page& p) {
+    PIndent();
     if (ImGui::Checkbox("menu key opens this", &p.start)) { if (p.start) for (auto& o : g_pages) if (&o != &p) o.start = false; g_dirty = true; }
-    // (what it replaces - the game's pause menu / its Options screen - is in the menu button's right-click menu)
-    ImGui::SameLine(); if (ImGui::Checkbox("selected row colour", &p.useSel)) g_dirty = true;
-    ImGui::SameLine(); if (ImGui::ColorEdit4("##selcol", p.selCol, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs)) g_dirty = true;
+    PTip("The menu key (UniPad's, or F7) opens this menu. One menu at a time.");
+    {   // the selected tile's label / value colour: on / off, its colour (a token, or its own)
+        ImGui::PushID("selcol");
+        PIndent();
+        if (ImGui::Checkbox("##usesel", &p.useSel)) g_dirty = true;
+        PTip("The selected tile's label and value take this colour (off: they keep their own).");
+        ImGui::SameLine(0, 4);
+        ColorToken* t = p.selTok.empty() ? nullptr : TokenOf(p.selTok);
+        ImGui::BeginDisabled(!p.useSel);
+        if (ImGui::ColorEdit4("##c", t ? t->col : p.selCol, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel)) { g_dirty = true; ResolveTokens(); }
+        const float fh = ImGui::GetFrameHeight(), opW = 52.f, cw = ImGui::GetItemRectSize().x;
+        ImGui::SameLine(0, 4); ImGui::SetNextItemWidth(PFull() - 11 - cw - 4 - fh - 4 - opW - 4);
+        if (ImGui::BeginCombo("##tok", p.selTok.empty() ? "own colour" : p.selTok.c_str())) {
+            if (ImGui::Selectable("own colour", p.selTok.empty()) && !p.selTok.empty()) { if (t) memcpy(p.selCol, t->col, sizeof p.selCol); p.selTok.clear(); g_dirty = true; }
+            for (auto& o : g_tokens) {
+                TokenSwatch(o, ImGui::GetTextLineHeight()); ImGui::SameLine();
+                if (ImGui::Selectable(o.name.c_str(), p.selTok == o.name)) { p.selTok = o.name; p.selTokA = 1; g_dirty = true; }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine(0, 4); ImGui::SetNextItemWidth(opW);
+        if (t) { float pc = p.selTokA * 100; if (ImGui::DragFloat("##op", &pc, 0.5f, 0.f, 400.f, "%.0f%%")) { p.selTokA = std::max(0.f, pc / 100); g_dirty = true; } }
+        else { float pc = p.selCol[3] * 100; if (ImGui::DragFloat("##op", &pc, 0.5f, 0.f, 100.f, "%.0f%%")) { p.selCol[3] = Clamp01f(pc / 100); g_dirty = true; } }
+        ImGui::EndDisabled();
+        PLabel("Selected tile colour");
+        ImGui::PopID();
+    }
     auto rows = PageRows(p);
-    int grids = 0, cars = 0; for (auto& r : rows) { grids += r.w->type == W_GRID; cars += r.w->type == W_CAROUSEL; }
-    ImGui::TextDisabled("%d grid(s), %d carousel(s)", grids, cars);
+    int grids = 0, cars = 0, lists = 0; for (auto& r : rows) { grids += r.w->type == W_GRID; cars += r.w->type == W_CAROUSEL; lists += r.w->type == W_LISTBOX; }
+    PIndent(); ImGui::TextDisabled("%d grid%s, %d carousel%s, %d list box%s", grids, grids == 1 ? "" : "s", cars, cars == 1 ? "" : "s", lists, lists == 1 ? "" : "es");
+    PIndent();
     if (ImGui::Button("Add grid")) AddGrid(p);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A grid of tiles, 1 column x 8 rows (a backing, the tile's text, a selected-tile frame, its own scroller),\nnamed Button 1, 2, 3... Its pieces are the first tile: change them and every tile follows.");
-    ImGui::SameLine(); if (ImGui::Button("Add carousel")) AddCarousel(p);
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A row of icon tiles scrolling left / right, laid out as the game's pause menu: 3 on screen, the\nselected one in the middle with its frame, arrows at the ends, a scroller above. Its pieces are the first slot.");
-    ImGui::SameLine();
+    PTip("A grid of tiles, 1 column x 8 rows (a backing, the tile's text, a selected-tile frame, its own scroller),\nnamed Button 1, 2, 3... Its pieces are the first tile: change them and every tile follows.");
+    ImGui::SameLine(0, 4); if (ImGui::Button("Add carousel")) AddCarousel(p);
+    PTip("A row of icon tiles scrolling left / right, laid out as the game's pause menu: 3 on screen, the\nselected one in the middle with its frame, arrows at the ends, a scroller above. Its pieces are the first slot.");
+    ImGui::SameLine(0, 4); if (ImGui::Button("Add list box")) AddListBox(p);
+    PTip("One column of rows scrolling up / down (the game's performance parts list): a grid's pieces, its rows\nshown 8 at a time. Give it a live list for the game's own rows.");
+    ImGui::SameLine(0, 4);
     if (ImGui::Button(g_menu.open ? "Close the menu" : "Try it")) { if (g_menu.open) MenuClose(); else MenuOpen(p.group); }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Opens this page as the real menu: pad / arrow keys, Enter, Esc.");
+    PTip("Opens this page as the real menu: pad / arrow keys, Enter, Esc.");
 }
 // A menu's shared pieces (its right-click menu): tick the groups shown over it and its sub menus. The "Shared" menu's
 // groups first (where shared pieces live), any other group under "Other groups".
@@ -2202,22 +2257,29 @@ static void MenuBar() {
 }
 static void GroupMenuProps(const std::string& g) {
     if (!MenuWs()) return;
-    ImGui::SeparatorText("Menu");
     if (Page* sp = PageOf(g)) {
-        if (GroupParent(g).empty()) ImGui::TextDisabled("A custom menu (the menu bar under Add image / Undo).");
-        else ImGui::TextDisabled("A sub menu of %s (the menu bar).", ParentMenu(g).c_str());
-        PagePanel(*sp); return;
+        if (PSection("Menu page")) {
+            PIndent();
+            if (GroupParent(g).empty()) ImGui::TextDisabled("A custom menu (the menu bar under Add image / Undo).");
+            else ImGui::TextDisabled("A sub menu of %s (the menu bar).", ParentMenu(g).c_str());
+            PagePanel(*sp);
+        }
+        return;
     }
     Page* page = PageOf(GroupParent(g));
     Widget* w = WidgetOf(g);
+    if (!w && !page) return;   // (grids / carousels / list boxes are groups directly in a menu)
+    if (!PSection("Widget")) return;
     if (!w) {
-        if (!page) { ImGui::TextDisabled("Menus are made with the menu bar (Add Menu +); grids / carousels are groups directly in one."); return; }
+        static const char* kTypeShort[] = { "(not a widget)", "Grid", "Carousel", "List box" };
         int t = 0;
-        ImGui::SetNextItemWidth(220);
-        if (ImGui::Combo("widget", &t, kWMake, 3) && t != 0) {
+        PIndent(); ImGui::SetNextItemWidth(PFull() - 11);
+        if (ImGui::Combo("##wtype", &t, kTypeShort, 4) && t != 0) {
             Widget nw; nw.group = g; if (kWMakeType[t] == W_CAROUSEL) { nw.cols = 3; nw.totalRows = 3; }
             g_widgets.push_back(nw); MakeGridLike(g_widgets.back(), kWMakeType[t]);
         }
+        PTip("Make this group a grid, carousel or list box: its pieces become the first tile.");
+        PLabel("Type");
         return;
     }
     WidgetPanel(*w, page);
@@ -2257,6 +2319,7 @@ static void SaveMenus(FILE* f) {
         if (!done.insert(p.group).second) continue;   // (a page listed twice: once)
         fprintf(f, "\n[page]\ngroup=%s\nstart=%d\nselcolor=%d %g %g %g %g\ndedicated=1\n", Esc(p.group).c_str(), p.start ? 1 : 0,
                 p.useSel ? 1 : 0, p.selCol[0], p.selCol[1], p.selCol[2], p.selCol[3]);
+        if (!p.selTok.empty()) fprintf(f, "seltoken=%s %g\n", p.selTok.c_str(), p.selTokA);
         if (p.pauseMenu) fprintf(f, "pausemenu=1\n");
         if (p.pauseOptions) fprintf(f, "pauseopts=1\n");
         if (p.confirm) fprintf(f, "confirmdlg=1\n");
@@ -2346,6 +2409,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "shared" || k == "glyphbar") p.shared.push_back(Unesc(v));   // (glyphbar: the first builds)
         else if (k == "feswap") { char a[96] = {}, b[96] = {}; if (sscanf(v.c_str(), "%95s %95s", a, b) == 2) p.feSwaps.push_back({a, b}); }
         else if (k == "selcolor") { int u = 1; sscanf(v.c_str(), "%d %f %f %f %f", &u, &p.selCol[0], &p.selCol[1], &p.selCol[2], &p.selCol[3]); p.useSel = u != 0; }
+        else if (k == "seltoken") { char n[64] = {}; float a = 1; if (sscanf(v.c_str(), "%63s %f", n, &a) >= 1) { p.selTok = n; p.selTokA = a; } }
         return true;
     }
     if (sect == 3 && !g_widgets.empty()) { if (k == "group") g_widgets.back().group = Unesc(v); else LoadWidgetKey(g_widgets.back(), k, v); return true; }
@@ -2369,6 +2433,7 @@ static int g_pfSect = 0;
 static void PrefabMenusSave(FILE* f, const std::string& group) {
     for (auto& p : g_pages) if (p.group == group || InGroup(p.group, group)) {
         fprintf(f, "\n[page]\ngroup=%s\nstart=0\nselcolor=%d %g %g %g %g\n", Esc(p.group).c_str(), p.useSel ? 1 : 0, p.selCol[0], p.selCol[1], p.selCol[2], p.selCol[3]);
+        if (!p.selTok.empty()) fprintf(f, "seltoken=%s %g\n", p.selTok.c_str(), p.selTokA);
         if (!p.title.empty()) fprintf(f, "title=%s\n", Esc(p.title).c_str());
         if (!p.standIn.empty()) fprintf(f, "standin=%s\n", Esc(p.standIn).c_str());
         if (!p.startTile.empty()) fprintf(f, "starttile=%s\n", Esc(p.startTile).c_str());

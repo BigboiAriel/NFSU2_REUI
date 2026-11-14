@@ -3,108 +3,6 @@
 // differ show "--" (typing one sets them all); the type's sections show when they're all one type - the first one's
 // values, any change goes to all of them. (Included in uied.cpp after CopyToSimilar.)
 
-static std::map<std::string, bool> g_secFolded = { {"Copy to similar names", true} };   // (a section's fold, by its name: kept while the game runs)
-static const float kPBox = 84.f, kPGap = 10.f;
-static float PFull() { return 2 * kPBox + kPGap + 8 + ImGui::CalcTextSize("W").x; }   // (the X / Y row's width, from its first box)
-static void PIndent() { ImGui::Dummy(ImVec2(11, 1)); ImGui::SameLine(0, 0); }
-static void PLabel(const char* t) { ImGui::SameLine(0, kPGap); ImGui::AlignTextToFramePadding(); ImGui::TextUnformatted(t); }
-static void PTip(const char* t) { if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", t); }
-
-// a section's title line; its button (three lines) folds it. true: open
-static bool PSection(const char* name, const char* shown = nullptr) {
-    bool& folded = g_secFolded[name];
-    ImGui::PushID(name);
-    const ImVec2 p = ImGui::GetCursorScreenPos(); const float s = 14.f, lh = ImGui::GetTextLineHeight();
-    if (ImGui::InvisibleButton("##fold", ImVec2(s, lh))) folded = !folded;
-    const bool hov = ImGui::IsItemHovered();
-    if (hov) ImGui::SetTooltip(folded ? "Unfold" : "Fold");
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    const float y = p.y + lh * 0.5f;
-    dl->AddRectFilled(ImVec2(p.x, y - 5), ImVec2(p.x + s, y + 5), ImGui::GetColorU32(hov ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg), 1.f);
-    const ImU32 c = ImGui::GetColorU32(folded ? ImGuiCol_TextDisabled : ImGuiCol_Text);
-    for (int i = -1; i <= 1; ++i) dl->AddLine(ImVec2(p.x + 3, y + i * 3.f), ImVec2(p.x + s - 3, y + i * 3.f), c);
-    ImGui::SameLine(0, 4);
-    if (folded) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-    ImGui::SeparatorText(shown ? shown : name);
-    if (folded) ImGui::PopStyleColor();
-    ImGui::PopID();
-    return !folded;
-}
-
-// a number of one element or several ("--" while they differ: typing one sets them all; Enter)
-static bool PNum(const char* id, const std::vector<float*>& v, float w, bool drag = false, float speed = 0.5f, const char* fmt = "%g",
-                 float lo = 0.f, float hi = 0.f) {
-    if (v.empty()) return false;
-    bool same = true; for (float* f : v) same &= *f == *v[0];
-    ImGui::SetNextItemWidth(w);
-    bool ch = false;
-    if (same) {
-        float x = *v[0];
-        ch = drag ? ImGui::DragFloat(id, &x, speed, lo, hi, fmt) : ImGui::InputFloat(id, &x, 0, 0, fmt);
-        if (ch) for (float* f : v) *f = x;
-    } else {
-        char b[32] = "";
-        if (ImGui::InputTextWithHint(id, "--", b, sizeof b, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsScientific) && b[0]) {
-            const float x = (float)atof(b); for (float* f : v) *f = x; ch = true;
-        }
-    }
-    if (ch) g_dirty = true;
-    return ch;
-}
-template <class F> static std::vector<float*> PFields(const std::vector<Elem*>& P, F f) { std::vector<float*> v; for (Elem* e : P) v.push_back(&f(*e)); return v; }
-static void PPair(const char* a, const std::vector<float*>& av, const char* b, const std::vector<float*>& bv, const char* label, const char* tip = nullptr) {
-    ImGui::PushID(label);
-    ImGui::AlignTextToFramePadding(); ImGui::TextUnformatted(a); ImGui::SameLine(0, 4); PNum("##a", av, kPBox); if (tip) PTip(tip);
-    ImGui::SameLine(0, kPGap); ImGui::AlignTextToFramePadding(); ImGui::TextUnformatted(b); ImGui::SameLine(0, 4); PNum("##b", bv, kPBox); if (tip) PTip(tip);
-    PLabel(label);
-    ImGui::PopID();
-}
-
-// a colour: its swatch, colour token, opacity, then its name
-static bool PColour(const char* label, float* col, std::string& tok, float& tokA) {
-    bool changed = false;
-    ImGui::PushID(label);
-    PIndent();
-    ColorToken* t = tok.empty() ? nullptr : TokenOf(tok);
-    if (ImGui::ColorEdit4("##c", t ? t->col : col, ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel)) changed = true;
-    if (t && ImGui::IsItemHovered()) ImGui::SetTooltip("The token's colour: changes every element that uses %s.", t->name.c_str());
-    const float h = ImGui::GetFrameHeight(), opW = 52.f;
-    ImGui::SameLine(0, 4); ImGui::SetNextItemWidth(PFull() - 11 - h - 4 - opW - 4);
-    if (ImGui::BeginCombo("##tok", tok.empty() ? "own colour" : tok.c_str())) {
-        if (ImGui::Selectable("own colour", tok.empty()) && !tok.empty()) { tok.clear(); changed = true; }
-        for (auto& o : g_tokens) {
-            TokenSwatch(o, ImGui::GetTextLineHeight()); ImGui::SameLine();
-            if (ImGui::Selectable(o.name.c_str(), tok == o.name)) { tok = o.name; tokA = o.col[3] > 0.001f ? std::min(4.f, col[3] / o.col[3]) : 1.f; changed = true; }
-            if (ImGui::IsItemHovered() && !o.label.empty()) ImGui::SetTooltip("%s", o.label.c_str());
-        }
-        ImGui::EndCombo();
-    }
-    PTip("A colour token: the colour by its role, shared with every element using it (Colour tokens below).");
-    ImGui::SameLine(0, 4); ImGui::SetNextItemWidth(opW);
-    if (t) { float pc = tokA * 100; if (ImGui::DragFloat("##op", &pc, 0.5f, 0.f, 400.f, "%.0f%%")) { tokA = std::max(0.f, pc / 100); changed = true; } PTip("Its opacity, times the token's."); }
-    else { float pc = col[3] * 100; if (ImGui::DragFloat("##op", &pc, 0.5f, 0.f, 100.f, "%.0f%%")) { col[3] = Clamp01f(pc / 100); changed = true; } PTip("Its opacity."); }
-    PLabel(label);
-    if (!tok.empty() && !t) { ImGui::SameLine(); ImGui::TextDisabled("(token %s isn't defined)", tok.c_str()); }
-    ImGui::PopID();
-    if (changed) { g_dirty = true; ResolveTokens(); }
-    return changed;
-}
-static void PHex(const char* id, unsigned& v, float w, const char* label, const char* tip) {   // a game object's name hash
-    char fb[16]; snprintf(fb, sizeof fb, v ? "%08X" : "", v);
-    PIndent(); ImGui::SetNextItemWidth(w);
-    if (ImGui::InputTextWithHint(id, "name hash", fb, sizeof fb, ImGuiInputTextFlags_CharsHexadecimal)) { v = (unsigned)strtoul(fb, nullptr, 16); g_dirty = true; }
-    PTip(tip);
-    PLabel(label);
-    if (v) { GameObject g; ImGui::SameLine(); ImGui::TextDisabled(gameObject && gameObject(v, g) ? "(on screen)" : "(not shown now)"); }
-}
-static void PText(const char* id, std::string& s, const char* hint, float w, const char* label, const char* tip) {
-    char b[256]; snprintf(b, sizeof b, "%s", s.c_str());
-    PIndent(); ImGui::SetNextItemWidth(w);
-    if (ImGui::InputTextWithHint(id, hint, b, sizeof b)) { s = b; g_dirty = true; }
-    if (tip) PTip(tip);
-    if (label) PLabel(label);
-}
-
 // ---- the type's own sections
 static void PVectors(Elem& e) {
     const float full = PFull() - 11, fh = ImGui::GetFrameHeight();
@@ -581,4 +479,204 @@ static void MultiPanel() {
     std::vector<Elem*> P; for (int i : PickedElems()) P.push_back(&els[i]);
     if (P.empty()) return;
     ElemPanel(P);
+}
+
+// ---------------------------------------------------------------- the group panel (a group picked in the list)
+// Main: its name (Enter renames), the group it's in (Enter / move to... / Select parent), visible, layer, duplicate /
+// ungroup / delete / link icons, flags. Transform: anchor, position (its middle), rotation. Then its Widget / Menu
+// page section (uied_menu.inc's GroupMenuProps).
+static void GroupPanel() {
+    const std::string g = g_selGroup;
+    std::vector<int> mem; for (int i = 0; i < (int)Elems().size(); ++i) if (InGroup(Elems()[i].group, g)) mem.push_back(i);
+    if (mem.empty()) { g_selGroup.clear(); return; }
+    if (MenuEdOff("") && g == g_menuEd) { g_selGroup.clear(); return; }   // (a custom menu is the page, not a group)
+    const std::string parent = GroupParent(g), leaf = GroupLeaf(g);
+    const bool menuTop = MenuEdOff("") && parent == g_menuEd;   // (at the top of the custom menu being edited)
+    const float full = PFull() - 11;
+    std::vector<Elem*> P; for (int i : mem) P.push_back(&Elems()[i]);
+    enum { A_NONE, A_DUP, A_UNGROUP, A_DEL } act = A_NONE;
+    ImGui::PushID("grppanel");
+    if (PSection("Main")) {
+        {   // its name: Enter renames it
+            static char nb[64]; static std::string nbFor;
+            if (nbFor != g) { snprintf(nb, sizeof nb, "%s", leaf.c_str()); nbFor = g; }
+            PIndent(); ImGui::SetNextItemWidth(170);
+            if (ImGui::InputTextWithHint("##gname", "Group Name", nb, sizeof nb, ImGuiInputTextFlags_EnterReturnsTrue) && CleanGroup(nb)[0]) {
+                RebaseGroup(g, (parent.empty() ? "" : parent + "/") + CleanGroup(nb)); nbFor = g_selGroup; ImGui::PopID(); return;
+            }
+            PTip("The group's name: Enter renames it.\nDrag any of its elements on screen to move the group (Alt + drag: a grouped element's outermost group).");
+            int subs = 0; for (auto& n : GroupNames()) if (n != g && GroupParent(n) == g) ++subs;
+            ImGui::SameLine(); ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("%d element%s%s", (int)mem.size(), mem.size() == 1 ? "" : "s", subs ? (", " + std::to_string(subs) + (subs == 1 ? " group inside" : " groups inside")).c_str() : "");
+        }
+        bool newParent = false;
+        {   // the group it's in: typed (Enter), or move to...
+            const std::string shownParent = menuTop ? "" : RelGroup(parent);
+            static char pb[96]; static std::string pbFor, pbWas;
+            if (pbFor != g || pbWas != shownParent) { snprintf(pb, sizeof pb, "%s", shownParent.c_str()); pbFor = g; pbWas = shownParent; }
+            PIndent(); ImGui::SetNextItemWidth(170);
+            if (ImGui::InputTextWithHint("##gparent", "Inside (top level)", pb, sizeof pb, ImGuiInputTextFlags_EnterReturnsTrue)) {
+                const std::string into = CleanGroup(pb);
+                const std::string to = into.empty() ? IntoMenu(leaf) : IntoMenu(into) + "/" + leaf;
+                if (!InGroup(to, g) && to != g) { RebaseGroup(g, to); ImGui::PopID(); return; }
+            }
+            PTip("The group it's inside: type another and press Enter to move it there (empty: the top level).");
+            ImGui::SameLine(); ImGui::SetNextItemWidth(150);
+            if (ImGui::BeginCombo("##gmoveto", "move to...")) {
+                if (!parent.empty() && !menuTop && ImGui::Selectable("(top level)")) { RebaseGroup(g, IntoMenu(leaf)); ImGui::EndCombo(); ImGui::PopID(); return; }
+                if (ImGui::Selectable("(new larger group...)")) newParent = true;
+                for (auto& n : GroupNames()) {
+                    if (InGroup(n, g) || n == parent || MenuEdOff(n) || RelGroup(n).empty()) continue;
+                    if (ImGui::Selectable((RelGroup(n) + "##mv" + n).c_str())) { RebaseGroup(g, n + "/" + leaf); ImGui::EndCombo(); ImGui::PopID(); return; }
+                }
+                ImGui::EndCombo();
+            }
+            PTip("Move it into another group, or into a new larger group made around it.");
+            ImGui::SameLine();
+            ImGui::BeginDisabled(shownParent.empty());
+            if (ImGui::Button("Select parent")) { g_selGroup = parent; ImGui::EndDisabled(); ImGui::PopID(); return; }
+            ImGui::EndDisabled();
+        }
+        if (newParent) ImGui::OpenPopup("##newparent");
+        if (ImGui::BeginPopup("##newparent")) {
+            static char nb2[64] = "";
+            if (ImGui::IsWindowAppearing()) { nb2[0] = 0; ImGui::SetKeyboardFocusHere(); }
+            ImGui::SetNextItemWidth(200);
+            if (ImGui::InputTextWithHint("##np", "the larger group's name (Enter)", nb2, sizeof nb2, ImGuiInputTextFlags_EnterReturnsTrue) && CleanGroup(nb2)[0]) {
+                RebaseGroup(g, (parent.empty() ? "" : parent + "/") + CleanGroup(nb2) + "/" + leaf);
+                ImGui::CloseCurrentPopup(); ImGui::EndPopup(); ImGui::PopID(); return;
+            }
+            ImGui::EndPopup();
+        }
+        // visible, layer, duplicate / ungroup / delete / link
+        PIndent();
+        { bool all = true; for (Elem* o : P) all &= o->visible; if (ImGui::Checkbox("Visible", &all)) { for (Elem* o : P) o->visible = all; g_dirty = true; } }
+        {
+            int lo = P[0]->layer, hi = lo; for (Elem* o : P) { lo = std::min(lo, o->layer); hi = std::max(hi, o->layer); }
+            ImGui::SameLine(0, 14);
+            if (ImGui::Button("-##glayer")) { for (Elem* o : P) --o->layer; g_dirty = true; }
+            ImGui::SameLine(0, 3); ImGui::SetNextItemWidth(40);
+            if (lo == hi) { int L = lo; if (ImGui::InputInt("##glayer", &L, 0, 0) && L != lo) { for (Elem* o : P) o->layer += L - lo; g_dirty = true; } }
+            else {
+                char lb[16] = ""; char hint[24]; snprintf(hint, sizeof hint, "%d..%d", lo, hi);
+                if (ImGui::InputTextWithHint("##glayer", hint, lb, sizeof lb, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsDecimal) && lb[0]) {
+                    const int L = atoi(lb); for (Elem* o : P) o->layer += L - lo; g_dirty = true;
+                }
+            }
+            PTip("Its members' layers (lowest..highest): - / + and typing move them all, keeping their order among themselves.\nHigher layers are drawn on top.");
+            ImGui::SameLine(0, 3); if (ImGui::Button("+##glayer")) { for (Elem* o : P) ++o->layer; g_dirty = true; }
+            ImGui::SameLine(0, 4); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("layer");
+        }
+        {
+            const float h = ImGui::GetFrameHeight();
+            ImDrawList* dl = ImGui::GetWindowDrawList(); const ImU32 c = ImGui::GetColorU32(ImGuiCol_Text);
+            ImGui::SameLine(0, 12);
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            if (ImGui::Button("##gdup", ImVec2(h, h))) act = A_DUP;
+            PTip("duplicate");
+            dl->AddRect(ImVec2(p.x + h * 0.25f, p.y + h * 0.2f), ImVec2(p.x + h * 0.65f, p.y + h * 0.6f), c);
+            dl->AddRectFilled(ImVec2(p.x + h * 0.4f, p.y + h * 0.36f), ImVec2(p.x + h * 0.8f, p.y + h * 0.76f), c);
+            ImGui::SameLine(0, 3); p = ImGui::GetCursorScreenPos();
+            if (ImGui::Button("##gung", ImVec2(h, h))) act = A_UNGROUP;
+            PTip("ungroup - its elements and the groups inside it move up one level");
+            for (int i = 0; i < 4; ++i) {   // (a dashed box with two pieces in it)
+                const float t0 = 0.18f + i * 0.17f;
+                dl->AddLine(ImVec2(p.x + h * t0, p.y + h * 0.18f), ImVec2(p.x + h * (t0 + 0.09f), p.y + h * 0.18f), c);
+                dl->AddLine(ImVec2(p.x + h * t0, p.y + h * 0.82f), ImVec2(p.x + h * (t0 + 0.09f), p.y + h * 0.82f), c);
+                dl->AddLine(ImVec2(p.x + h * 0.18f, p.y + h * t0), ImVec2(p.x + h * 0.18f, p.y + h * (t0 + 0.09f)), c);
+                dl->AddLine(ImVec2(p.x + h * 0.82f, p.y + h * t0), ImVec2(p.x + h * 0.82f, p.y + h * (t0 + 0.09f)), c);
+            }
+            dl->AddRectFilled(ImVec2(p.x + h * 0.32f, p.y + h * 0.32f), ImVec2(p.x + h * 0.48f, p.y + h * 0.48f), c);
+            dl->AddRectFilled(ImVec2(p.x + h * 0.52f, p.y + h * 0.52f), ImVec2(p.x + h * 0.68f, p.y + h * 0.68f), c);
+            ImGui::SameLine(0, 3);
+            if (ImGui::Button("X##gdel", ImVec2(h, h))) act = A_DEL;
+            PTip("delete - the group and its elements");
+            // link: blue while linked; its hint says with what, a click opens the link menu
+            int k = -1; LinkSet* ls = LinkOf(g, g_editMode, &k);
+            ImGui::SameLine(0, 3); p = ImGui::GetCursorScreenPos();
+            if (ls) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.18f, 0.42f, 0.62f, 1.f));
+            if (ImGui::Button("##glink", ImVec2(h, h))) ImGui::OpenPopup("##grplink");
+            if (ls) ImGui::PopStyleColor();
+            if (ImGui::IsItemHovered()) {
+                ImGui::BeginTooltip();
+                if (ls) {
+                    ImGui::TextUnformatted(ls->name.empty() ? "Linked group (not saved under a name)" : ("Linked group: " + ls->name + " (saved)").c_str());
+                    ImGui::TextDisabled("Linked with %d group%s - an edit to one goes to the others:", (int)ls->m.size() - 1, ls->m.size() == 2 ? "" : "s");
+                    for (auto& m : ls->m) if (m.group != g) ImGui::BulletText("%s", m.group.c_str());
+                    ImGui::TextDisabled("Each keeps its own place: moving a whole group moves only that one.");
+                    ImGui::TextDisabled("Click: link another / unlink / save as linked group / go to one");
+                } else {
+                    ImGui::TextUnformatted("link");
+                    ImGui::TextDisabled("Linked groups keep the same pieces (on several menus): an edit to one goes to the others.\nClick: link with... / save as linked group");
+                }
+                ImGui::EndTooltip();
+            }
+            dl->AddRect(ImVec2(p.x + h * 0.14f, p.y + h * 0.33f), ImVec2(p.x + h * 0.58f, p.y + h * 0.67f), c, h * 0.16f, 0, 1.5f);
+            dl->AddRect(ImVec2(p.x + h * 0.42f, p.y + h * 0.38f), ImVec2(p.x + h * 0.86f, p.y + h * 0.72f), c, h * 0.16f, 0, 1.5f);
+            if (ImGui::BeginPopup("##grplink")) {
+                LinkMenuItems(g);
+                ImGui::Separator();
+                const bool named = ls && !ls->name.empty();
+                if (ImGui::BeginMenu(named ? ("Linked group: " + ls->name + "##lgsave").c_str() : "Save as linked group...")) { if (LinkSaveUI(g)) ImGui::CloseCurrentPopup(); ImGui::EndMenu(); }
+                ImGui::EndPopup();
+            }
+            if (g_selGroup != g) { ImGui::PopID(); return; }   // (went to another, or the group changed)
+        }
+        PIndent(); FlagBoxes(P, "##grp", false);
+        ImGui::Spacing();
+    }
+    if (PSection("Transform")) {
+        {   // anchor for all of them (each keeps its place on screen)
+            const int an = P[0]->anchor; bool mixed = false; for (Elem* o : P) mixed |= o->anchor != an;
+            PIndent(); ImGui::Dummy(ImVec2(11, 1)); ImGui::SameLine(0, 0); ImGui::SetNextItemWidth(full - 11);
+            if (ImGui::BeginCombo("##ganchor", (std::string("Anchor Set: ") + (mixed ? "--" : kAnchors[an])).c_str())) {
+                for (int a = 0; a < 9; ++a) if (ImGui::Selectable(kAnchors[a], !mixed && a == an)) { for (Elem* o : P) SetAnchorKeep(*o, a); g_dirty = true; }
+                ImGui::EndCombo();
+            }
+            ImGui::SameLine(); ImGui::TextDisabled("(?)");
+            PTip("Sets every element in the group (and the groups inside it) to this anchor, without moving them.");
+        }
+        {   // position: the middle of its box (from the screen's centre, units); a change moves every member
+            const float k = Unit(); const ImVec2 ds = ImGui::GetIO().DisplaySize, mid = GroupMiddle(mem);
+            float px = roundf((mid.x - ds.x / 2) / k * 10) / 10, py = roundf((mid.y - ds.y / 2) / k * 10) / 10;
+            const float ox = px, oy = py;
+            if (PFloats("gpos", "X", px, "Y", py, "Position", "The middle of the group's box (units from the screen's centre): a change moves every element in it.")) {
+                const float dx = px - ox, dy = py - oy;
+                for (Elem* o : P) { o->x += dx; o->y += dy; }
+                g_dirty = true;
+            }
+        }
+        {   // rotation: the members turned together about the group's middle (its first member's rotation stands for the group's)
+            static ImVec2 about; static std::string aboutFor;
+            const float cur = P[0]->rot;
+            float v = cur;
+            ImGui::Dummy(ImVec2(11, 1)); ImGui::SameLine(0, 0); ImGui::SetNextItemWidth(full - 11 + 11);
+            const bool changed = ImGui::DragFloat("##grot", &v, 0.25f, -180.f, 180.f, "%.1f");
+            if (ImGui::IsItemActivated() || aboutFor != g) { about = GroupMiddle(mem); aboutFor = g; }   // (fixed while dragging)
+            PTip("Turns the whole group about its middle: each element's place swings round and its own rotation\nturns the same. Shown: its first element's rotation. Drag, or double-click to type.");
+            if (changed && v != cur) RotateGroup(mem, v - cur, about);
+            PLabel("Rotation");
+        }
+        ImGui::Spacing();
+    }
+    GroupMenuProps(g);
+    ImGui::PopID();
+    // (last: these change the list)
+    if (act == A_DUP) {
+        std::string ng = g + " copy"; int n = 2; auto names = GroupNames();
+        while (std::find(names.begin(), names.end(), ng) != names.end()) ng = g + " copy " + std::to_string(n++);
+        for (int i : mem) { Elem c = Elems()[i]; c.group = ng + c.group.substr(g.size()); c.x += 10; c.y += 10; Elems().push_back(c); }
+        MenuCopy(g, ng);
+        g_selGroup = ng; g_dirty = true;
+    } else if (act == A_UNGROUP) {   // drops this level only: what's directly in it goes to the group around it
+        for (int i : mem) Elems()[i].group = CleanGroup(parent + Elems()[i].group.substr(g.size()));
+        g_widgets.erase(std::remove_if(g_widgets.begin(), g_widgets.end(), [&](const Widget& w) { return w.group == g; }), g_widgets.end());
+        g_pages.erase(std::remove_if(g_pages.begin(), g_pages.end(), [&](const Page& pg) { return pg.group == g; }), g_pages.end());
+        MenuRebase(g, parent);
+        g_selGroup = parent; g_dirty = true;
+    } else if (act == A_DEL) {
+        for (int k = (int)mem.size() - 1; k >= 0; --k) Elems().erase(Elems().begin() + mem[k]);
+        MenuForget(g);
+        g_selGroup.clear(); g_sel = -1; g_dirty = true;
+    }
 }
