@@ -972,6 +972,24 @@ flags=replace:minimap
 colortoken=hud.orange 0.784
 
 [element]
+mode=freeroam
+type=shape
+name=shape 46
+anchor=4
+x=0
+y=0
+w=240
+h=120
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Tachometer
+shape=12 12 12 12 2
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+colortoken=hud.line 1
+
+[element]
 mode=race
 type=image
 name=Position backing
@@ -10011,11 +10029,11 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque meter
 layer=1
 shape=1.5 1.5 1.5 1.5 0
 fill=0.8118 0.502 0.1882 1
+showif=gm.upgrade.shown
 bind=car.torque
 bindkind=1
 bindrange=0 100
 colortoken=hud.line 1
-showif=gm.upgrade.shown
 
 [element]
 mode=menus
@@ -10033,11 +10051,11 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque meter
 layer=2
 shape=1.5 1.5 1.5 1.5 0
 fill=0.588 0 0 1
+showif=gm.upgrade.shown
 bind=car.torque.installed
 bindkind=1
 bindrange=0 100
 colortoken=hud.line 1
-showif=gm.upgrade.shown
 
 [element]
 mode=menus
@@ -10056,11 +10074,11 @@ layer=3
 shape=1.5 1.5 1.5 1.5 0
 fill=0.3882 0.698 0.1333 1
 filltoken=hud.bright_green 1
+showif=gm.upgrade.shown
 bind=car.torque.base
 bindkind=1
 bindrange=0 100
 colortoken=hud.line 1
-showif=gm.upgrade.shown
 
 [element]
 mode=menus
@@ -10099,11 +10117,11 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power meter
 layer=1
 shape=1.5 1.5 1.5 1.5 0
 fill=0.8118 0.502 0.1882 1
+showif=gm.upgrade.shown
 bind=car.power
 bindkind=1
 bindrange=0 100
 colortoken=hud.line 1
-showif=gm.upgrade.shown
 
 [element]
 mode=menus
@@ -10121,11 +10139,11 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power meter
 layer=2
 shape=1.5 1.5 1.5 1.5 0
 fill=0.588 0 0 1
+showif=gm.upgrade.shown
 bind=car.power.installed
 bindkind=1
 bindrange=0 100
 colortoken=hud.line 1
-showif=gm.upgrade.shown
 
 [element]
 mode=menus
@@ -10144,11 +10162,11 @@ layer=3
 shape=1.5 1.5 1.5 1.5 0
 fill=0.3882 0.698 0.1333 1
 filltoken=hud.bright_green 1
+showif=gm.upgrade.shown
 bind=car.power.base
 bindkind=1
 bindrange=0 100
 colortoken=hud.line 1
-showif=gm.upgrade.shown
 
 [element]
 mode=menus
