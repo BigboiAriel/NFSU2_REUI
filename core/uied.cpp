@@ -473,7 +473,7 @@ static bool g_show = true, g_edit = false, g_onlyWorld = false;
 static DirtyFlag g_dirty;
 // the live flags over a set of elements (one element, a group's members, a multi-pick): one compact button that
 // names the flags set and opens a checklist
-static void FlagBoxes(std::vector<Elem*> els, const char* idSuffix) {
+static void FlagBoxes(std::vector<Elem*> els, const char* idSuffix, bool sameLine = true) {
     if (els.empty()) return;
     std::string sum;
     int live = 0;
@@ -488,10 +488,13 @@ static void FlagBoxes(std::vector<Elem*> els, const char* idSuffix) {
         bool all = true, any = false; for (Elem* e : els) { bool h = HasFlag(*e, k); all &= h; any |= h; }
         if (any) { if (!sum.empty()) sum += ", "; sum += "replaces " + r.label + (all ? "" : " (some)"); }
     }
-    if (!live && g_replace.empty()) return;
-    ImGui::SameLine();
+    if (!live && g_replace.empty()) {   // (none known: the element panel still shows the button, greyed)
+        if (!sameLine) { ImGui::BeginDisabled(); ImGui::Button((std::string("Flags: N/A###flb") + idSuffix).c_str()); ImGui::EndDisabled(); }
+        return;
+    }
+    if (sameLine) ImGui::SameLine();
     std::string pop = std::string("flags") + idSuffix;
-    if (ImGui::Button(("Flags: " + (sum.empty() ? std::string("none") : sum) + "###flb" + idSuffix).c_str())) ImGui::OpenPopup(pop.c_str());
+    if (ImGui::Button(("Flags: " + (sum.empty() ? std::string("N/A") : sum) + "###flb" + idSuffix).c_str())) ImGui::OpenPopup(pop.c_str());
     if (ImGui::IsItemHovered()) ImGui::SetTooltip("When it's hidden: in a wreck, until the green light, online / offline (from the multiplayer mod)...");
     if (ImGui::BeginPopup(pop.c_str())) {
         for (auto& f : g_flagDefs) {
@@ -1362,6 +1365,12 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     }
     anim::Fx fx; const bool fxOn = anim::FxOf(e, posed ? &pose : nullptr, fx);
     const float fxReveal = posed ? pose.reveal : 1.f, fxAlpha = ImGui::ColorConvertU32ToFloat4(col).w;
+    if (e.type == E_SHAPE && e.rot != 0 && (e.pivX != 0 || e.pivY != 0)) {   // turned about its origin point, not its middle
+        const float k = Unit(), r = e.rot * 3.14159265f / 180, cs = cosf(r), sn = sinf(r);
+        const float dx = -e.pivX * k, dy = -e.pivY * k;   // (its middle from the point)
+        const ImVec2 sh(e.pivX * k + dx * cs - dy * sn - 0.f, e.pivY * k + dx * sn + dy * cs);   // (where its middle goes, from where it was)
+        a.x += sh.x; a.y += sh.y; b.x += sh.x; b.y += sh.y;
+    }
     if (e.type == E_SHAPE) {
         // its effects: shadow / glow as the shape in their colour (offset, soft), its own blur as soft copies, a wipe as a clip
         bool wipeClip = false;
@@ -2149,76 +2158,6 @@ static bool GradientEdit(const char* id, UGrad& g, const float baseCol[4], const
     if (ch) g_dirty = true;
     return ch;
 }
-static void ShapeProps(Elem& e) {
-    ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("size", &e.w, 0.5f, 1.f, 4000.f, "%.0f")) g_dirty = true;
-    ImGui::SetNextItemWidth(220); if (ImGui::DragFloat("rotation", &e.rot, 0.5f, -360.f, 360.f, "%.1f deg")) g_dirty = true;
-    float maxR = std::min(e.w, e.h) / 2;
-    if (ImGui::Checkbox("same corners", &e.radLink)) { if (e.radLink) e.rad[1] = e.rad[2] = e.rad[3] = e.rad[0]; g_dirty = true; }
-    ImGui::SameLine();
-    if (e.radLink) { ImGui::SetNextItemWidth(150); if (ImGui::DragFloat("corner radius", &e.rad[0], 0.25f, 0.f, maxR, "%.1f")) { e.rad[1] = e.rad[2] = e.rad[3] = e.rad[0]; g_dirty = true; } }
-    else { ImGui::SetNextItemWidth(260); if (ImGui::DragFloat4("corners (TL TR BR BL)", e.rad, 0.25f, 0.f, maxR, "%.1f")) g_dirty = true; }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Rounding of each corner (units; half the short side makes a pill / circle).");
-    ImGui::SameLine(); if (ImGui::SmallButton("pill")) { for (float& r : e.rad) r = maxR; e.radLink = true; g_dirty = true; }
-    {
-        ImGui::SetNextItemWidth(220);
-        if (ImGui::SliderFloat("border thickness", &e.stroke, 0.f, std::max(4.f, std::min(60.f, std::min(e.w, e.h) / 2)), "%.1f")) { e.stroke = std::max(0.f, e.stroke); g_dirty = true; }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The outline's thickness (units; 0 = no border; Ctrl + click to type any value).\nIts colour is the stroke colour below (or its gradient).");
-        ImGui::SameLine(); if (ImGui::SmallButton("-")) { e.stroke = std::max(0.f, roundf(e.stroke * 2 - 1) / 2); g_dirty = true; }
-        ImGui::SameLine(); if (ImGui::SmallButton("+")) { e.stroke = roundf(e.stroke * 2 + 1) / 2; g_dirty = true; }
-        static const char* aligns[] = {"inside", "centred", "outside"};
-        ImGui::SameLine(); ImGui::SetNextItemWidth(100); if (ImGui::Combo("on the edge", &e.strokeAlign, aligns, 3)) g_dirty = true;
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Where the stroke sits: inside the edge (the shape keeps its size), centred on it, or outside it.");
-        if (e.stroke > 0) {
-            static const char* sm[] = {"no gradient", "gradient across", "gradient along"};
-            ImGui::SetNextItemWidth(150); if (ImGui::Combo("stroke gradient", &e.strokeGrad.mode, sm, 3)) g_dirty = true;
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Across: from the stroke's outer side to its inner side, following the curve of the corners.\nAlong: around the outline, clockwise from the top-left (start offset turns where it begins).");
-            if (e.strokeGrad.mode == 2) { ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("start", &e.strokeGrad.angle, 0.5f, -360.f, 360.f, "%.0f deg")) g_dirty = true; }
-            if (e.strokeGrad.mode) GradientEdit("sgrad", e.strokeGrad, e.col, e.colTok.empty() ? nullptr : e.colTok.c_str());
-        }
-        TokenColourEdit("fill colour", e.fillCol, e.fillTok, e.fillTokA);
-        {
-            static const char* fm[] = {"no gradient", "linear", "radial", "from the edge"};
-            ImGui::SetNextItemWidth(150); if (ImGui::Combo("fill gradient", &e.fillGrad.mode, fm, 4)) { if (e.fillGrad.mode == 3 && e.fillGrad.depth <= 0) e.fillGrad.depth = 20; g_dirty = true; }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Linear: across the shape at an angle. Radial: centre to edge.\nFrom the edge: inward from the edge over a depth, following the curve (an inner glow / bevel).\nThe fill colour's opacity still applies.");
-            if (e.fillGrad.mode == 1) { ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("angle", &e.fillGrad.angle, 0.5f, -360.f, 360.f, "%.0f deg")) g_dirty = true; }
-            if (e.fillGrad.mode == 3) { ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("depth", &e.fillGrad.depth, 0.1f, 0.5f, 500.f, "%.1f")) g_dirty = true; }
-            if (e.fillGrad.mode) { float fc[4] = {e.fillCol[0], e.fillCol[1], e.fillCol[2], 1}; GradientEdit("fgrad", e.fillGrad, fc, e.fillTok.empty() ? nullptr : e.fillTok.c_str()); }
-        }
-        int cutters = 0, mergers = 0;
-        if (!e.cut && !e.merge) for (auto& o : Elems()) if (o.type == E_SHAPE && &o != &e && (o.cut || o.merge) && CutHits(o, e)) ++(o.cut ? cutters : mergers);
-        if (cutters) { ImGui::SameLine(); ImGui::TextDisabled("(%d cutter%s on it)", cutters, cutters == 1 ? "" : "s"); }
-        if (mergers) { ImGui::SameLine(); ImGui::TextDisabled("(%d shape%s merged in)", mergers, mergers == 1 ? "" : "s"); }
-    }
-    if (ImGui::Checkbox("cut", &e.cut)) { if (e.cut) e.merge = false; g_dirty = true; }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A boolean: this shape is cut out of another shape (a notch, a window, a panel or button sitting\nin a frame) and drawn itself over the hole, with its own fill and border - its border outlines the cut.\nFor an empty cut, set its fill and stroke opacity to 0. Cutters keep a pink outline while editing.");
-    ImGui::SameLine();
-    if (ImGui::Checkbox("merge", &e.merge)) { if (e.merge) e.cut = false; g_dirty = true; }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("A boolean: this shape is merged into another shape (a union) - it draws nothing itself; the shape it\nmerges into takes in its outline, so they're one: one fill, one border around the both of them, the gradients\nacross the whole. Several can merge into the same shape. Merged shapes keep a dashed cyan outline while editing.");
-    if (e.cut || e.merge) {
-        ImGui::SameLine(); ImGui::SetNextItemWidth(220);
-        bool grpT = e.cutTarget.compare(0, 6, "group:") == 0;
-        std::string shown = e.cutTarget.empty() ? "every shape in its group" : grpT ? "group: " + RelGroup(e.cutTarget.substr(6)) : e.cutTarget;
-        if (ImGui::BeginCombo(e.merge ? "merges into" : "cuts into", shown.c_str())) {
-            if (ImGui::Selectable("every shape in its group", e.cutTarget.empty())) { e.cutTarget.clear(); g_dirty = true; }
-            ImGui::SeparatorText("a whole group");
-            for (auto& n : GroupNames()) {   // (not its own - that's the first choice; not hidden by the menu being edited)
-                if (n == e.group || MenuEdOff(n) || RelGroup(n).empty()) continue;
-                std::string lb = "group: " + RelGroup(n) + "##cg" + n;
-                if (ImGui::Selectable(lb.c_str(), e.cutTarget == "group:" + n)) { e.cutTarget = "group:" + n; g_dirty = true; }
-            }
-            ImGui::SeparatorText("one shape");
-            for (auto& o : Elems()) if (o.type == E_SHAPE && !o.cut && !o.merge && &o != &e && !MenuEdOff(o.group) && ImGui::Selectable(o.name.c_str(), e.cutTarget == o.name)) { e.cutTarget = o.name; g_dirty = true; }
-            ImGui::EndCombo();
-        }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip(e.merge ? "What it merges into: every shape in its own group, every shape in another group (and the groups inside it),\nor one shape by name (usually: one shape - with several, each draws it as a part of itself)."
-                                                              : "What it cuts: every shape in its own group, every shape in another group (and the groups inside it),\nor one shape by name.\nOnly shapes on its layer or lower: a shape on a higher layer sits over the cutter and isn't cut.");
-        ImGui::SameLine(); ImGui::SetNextItemWidth(110);
-        if (ImGui::DragFloat("gap", &e.cutGap, 0.05f, -200.f, 200.f, "%.1f")) { e.cutGap = std::max(-200.f, std::min(200.f, e.cutGap)); g_dirty = true; }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip(e.merge ? "Merged in this much bigger than the shape itself (units; negative: smaller).\nCtrl + click to type a value."
-                                                              : "Cuts this much wider than the cutter itself (units): room around what sits in the cut-out.\n0 is 0.1 inside the cutter (no seam).\nNegative: the cut is that much smaller than the cutter (the cutter overlaps the shape).\nCtrl + click to type a value.");
-
-    }
-}
 static void Pf(std::string& o, const char* fmt, ...) {   // printf onto a string
     char buf[1024]; va_list ap; va_start(ap, fmt); int n = vsnprintf(buf, sizeof buf, fmt, ap); va_end(ap);
     if (n < 0) return;
@@ -2849,81 +2788,6 @@ static void PutPickedIn(const std::string& to) {
     for (int i : g_multi) if (i >= 0 && i < (int)els.size()) els[i].group = to;
     g_dirty = true;
 }
-static void MultiPanel() {
-    auto& els = Elems();
-    g_multi.erase(std::remove_if(g_multi.begin(), g_multi.end(), [&](int i) { return i < 0 || i >= (int)els.size(); }), g_multi.end());
-    { auto names = GroupNames(); g_multiG.erase(std::remove_if(g_multiG.begin(), g_multiG.end(), [&](const std::string& g) { return std::find(names.begin(), names.end(), g) == names.end(); }), g_multiG.end()); }
-    std::vector<int> P = PickedElems();
-    if (P.empty()) return;
-    ImGui::Text("%d picked:", (int)PickCount());
-    ImGui::SameLine();
-    if (!g_multiG.empty()) { ImGui::TextDisabled("%d group(s)%s", (int)g_multiG.size(), g_multi.empty() ? "" : ","); ImGui::SameLine(); }
-    if (!g_multi.empty()) { ImGui::TextDisabled("%d element(s)", (int)g_multi.size()); ImGui::SameLine(); }
-    ImGui::TextDisabled("(%d elements in all)", (int)P.size());
-    ImGui::SameLine(); if (ImGui::SmallButton("clear")) { ClearMulti(); return; }
-    ImGui::TextDisabled("Ctrl + click: add / remove one (element or group), Shift + click: everything between.\nDrag any of them on screen to move them all.");
-    float d[2] = { 0, 0 };
-    ImGui::SetNextItemWidth(220);
-    if (ImGui::DragFloat2("move by", d, 0.5f, -2000.f, 2000.f, "%.0f")) { for (int i : P) { els[i].x += d[0]; els[i].y += d[1]; } g_dirty = true; }
-    ImGui::SameLine();
-    if (ImGui::ArrowButton("##ml", ImGuiDir_Left)) { for (int i : P) els[i].x -= 1; g_dirty = true; } ImGui::SameLine();
-    if (ImGui::ArrowButton("##mr", ImGuiDir_Right)) { for (int i : P) els[i].x += 1; g_dirty = true; } ImGui::SameLine();
-    if (ImGui::ArrowButton("##mu", ImGuiDir_Up)) { for (int i : P) els[i].y -= 1; g_dirty = true; } ImGui::SameLine();
-    if (ImGui::ArrowButton("##md", ImGuiDir_Down)) { for (int i : P) els[i].y += 1; g_dirty = true; }
-    {   // layers: shifted together, keeping their order among themselves
-        int glo = els[P[0]].layer, ghi = glo;
-        for (int i : P) { glo = std::min(glo, els[i].layer); ghi = std::max(ghi, els[i].layer); }
-        int lo, hi; LayerRange(lo, hi); int L = glo;
-        ImGui::SetNextItemWidth(100);
-        if (ImGui::InputInt("layer (lowest)##multi", &L) && L != glo) { for (int i : P) els[i].layer += L - glo; g_dirty = true; }
-        ImGui::SameLine(); if (ImGui::SmallButton("to front##multi")) { for (int i : P) els[i].layer += hi + 1 - glo; g_dirty = true; }
-        ImGui::SameLine(); if (ImGui::SmallButton("to back##multi")) { for (int i : P) els[i].layer += lo - 1 - ghi; g_dirty = true; }
-    }
-    bool allVis = true; for (int i : P) allVis &= els[i].visible;
-    if (ImGui::Checkbox("visible##multi", &allVis)) { for (int i : P) els[i].visible = allVis; g_dirty = true; }
-    { std::vector<Elem*> v; for (int i : P) v.push_back(&els[i]); FlagBoxes(v, "##multi"); }
-    {
-        int an = els[P[0]].anchor; bool mixed = false; for (int i : P) mixed |= els[i].anchor != an;
-        ImGui::SameLine(); ImGui::SetNextItemWidth(140);
-        if (ImGui::BeginCombo("anchored to##multi", mixed ? "(mixed)" : kAnchors[an])) {
-            for (int a = 0; a < 9; ++a) if (ImGui::Selectable(kAnchors[a], !mixed && a == an)) { for (int i : P) SetAnchorKeep(els[i], a); g_dirty = true; }
-            ImGui::EndCombo();
-        }
-    }
-    {   // into a group (picked groups go inside it, as groups)
-        ImGui::SetNextItemWidth(180);
-        if (ImGui::BeginCombo("##multigrp", "put them in a group...")) {
-            if (ImGui::Selectable(MenuEdOff("") ? "(out of its groups)" : "(no group / top level)")) PutPickedIn(IntoMenu(""));
-            for (auto& n : GroupNames()) {
-                if (MenuEdOff(n) || RelGroup(n).empty()) continue;   // (a custom menu picked: its own groups)
-                bool own = false; for (auto& g : g_multiG) own |= InGroup(n, g);   // not into one of themselves
-                if (!own && ImGui::Selectable((RelGroup(n) + "##pg" + n).c_str())) PutPickedIn(n);
-            }
-            ImGui::EndCombo();
-        }
-        ImGui::SameLine();
-        static char ng[64] = "";
-        ImGui::SetNextItemWidth(160);
-        if (ImGui::InputTextWithHint("##multinew", "or a new group (Enter)", ng, sizeof ng, ImGuiInputTextFlags_EnterReturnsTrue) && CleanGroup(ng)[0]) {
-            PutPickedIn(IntoMenu(CleanGroup(ng))); ng[0] = 0;   // (inside the custom menu being edited)
-        }
-    }
-    if (ImGui::Button("Duplicate them")) {
-        // picked groups as groups ("<name> copy", widgets too), loose elements one by one
-        std::vector<int> copies; std::vector<std::string> newGroups;
-        auto names = GroupNames();
-        for (auto& g : g_multiG) {
-            std::string ng = g + " copy"; for (int k = 2; std::find(names.begin(), names.end(), ng) != names.end(); ++k) ng = g + " copy " + std::to_string(k);
-            names.push_back(ng);
-            std::vector<Elem> add; for (auto& e : els) if (InGroup(e.group, g)) { Elem c = e; c.group = ng + e.group.substr(g.size()); c.x += 10; c.y += 10; add.push_back(c); }
-            for (auto& c : add) els.push_back(c);
-            MenuCopy(g, ng); newGroups.push_back(ng);
-        }
-        for (int i : std::vector<int>(g_multi)) { Elem c = els[i]; c.x += 10; c.y += 10; c.name += " copy"; els.push_back(c); copies.push_back((int)els.size() - 1); }
-        g_multi = copies; g_multiG = newGroups; g_sel = copies.empty() ? -1 : copies.back(); g_dirty = true;
-    }
-    ImGui::SameLine(); if (ImGui::Button("Delete them")) DeleteSelected();
-}
 
 void DrawOverlay(int mode) {
     const bool am = anim::g.on;           // animation mode: the layout being edited is shown (no on-screen editing)
@@ -3369,7 +3233,6 @@ static void CopyToSimilar(Elem& e) {
         Elem& o = Elems()[i];
         if (&o != &e && o.type == e.type && NameScheme(o.name) == sch) to.push_back(i);
     }
-    if (!ImGui::CollapsingHeader(("Copy to similar names (" + std::to_string(to.size()) + ")###cpsim").c_str())) return;
     ImGui::TextDisabled("Name scheme: \"%s\" (numbers count as #), same kind (%s)", sch.c_str(), TypeKey(e.type));
     if (to.empty()) { ImGui::TextDisabled("No other element follows this name scheme."); return; }
     ImGui::Checkbox("size / scale", &cSize); ImGui::SameLine();
@@ -3406,199 +3269,7 @@ static void CopyToSimilar(Elem& e) {
         ImGui::SetTooltip("%s", l.c_str());
     }
 }
-static void Selected(Elem& e) {
-    ImGui::PushID(&e);
-    char nb[64]; snprintf(nb, sizeof nb, "%s", e.name.c_str());
-    if (ImGui::InputText("name", nb, sizeof nb)) { e.name = nb; g_dirty = true; }
-    GroupField(e);
-    if (ImGui::Checkbox("visible", &e.visible)) g_dirty = true;
-    FlagBoxes({&e}, "");
-    ImGui::SameLine();
-    { int an = e.anchor; ImGui::SetNextItemWidth(140); if (ImGui::Combo("anchored to", &an, kAnchors, 9)) { SetAnchorKeep(e, an); g_dirty = true; } }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The screen corner / edge it keeps its distance to when the screen's shape changes. Changing it doesn't move it.");
-    {
-        int lo, hi; LayerRange(lo, hi);
-        ImGui::SetNextItemWidth(100); if (ImGui::InputInt("layer", &e.layer)) g_dirty = true;
-        ImGui::SameLine(); if (ImGui::SmallButton("to front")) { e.layer = hi + 1; g_dirty = true; }
-        ImGui::SameLine(); if (ImGui::SmallButton("to back")) { e.layer = lo - 1; g_dirty = true; }
-        ImGui::SameLine(); ImGui::TextDisabled("(higher = on top)");
-    }
-    ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("position", &e.x, 0.5f, -2000.f, 2000.f, "%.0f")) g_dirty = true;
-    if (e.type == E_MOTION) {
-        ImGui::TextDisabled("Group motion: not drawn. Its clips (animation mode, F8) move, scale, turn, fade and tint");
-        ImGui::TextDisabled("every element of its group \"%s\" (and the groups inside it) about this point.", e.group.c_str());
-        static char sb[96]; snprintf(sb, sizeof sb, "%s", e.showIf.c_str());
-        ImGui::SetNextItemWidth(220);
-        if (ImGui::InputTextWithHint("show only while", "value key (its In plays when it comes on)", sb, sizeof sb)) { e.showIf = sb; g_dirty = true; }
-        ImGui::PopID();
-        return;
-    }
-    if (e.type == E_IMAGE) {
-        ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("size", &e.w, 0.5f, 1.f, 2000.f, "%.0f")) g_dirty = true;
-        if (e.texIdx >= 0) { ImGui::SameLine(); if (ImGui::SmallButton("texture's own size")) { e.w = g_tex[e.texIdx].w; e.h = g_tex[e.texIdx].h; g_dirty = true; } }
-        ImGui::SetNextItemWidth(220); if (ImGui::DragFloat4("UV (u0 v0 u1 v1)", &e.u0, 0.002f, -1.f, 2.f, "%.3f")) g_dirty = true;
-        ImGui::SameLine(); if (ImGui::SmallButton("flip H")) { std::swap(e.u0, e.u1); g_dirty = true; }
-        ImGui::SameLine(); if (ImGui::SmallButton("flip V")) { std::swap(e.v0, e.v1); g_dirty = true; }
-        ImGui::SameLine(); if (ImGui::SmallButton("reset UV")) { e.u0 = e.v0 = 0; e.u1 = e.v1 = 1; g_dirty = true; }
-        ImGui::SetNextItemWidth(220); if (ImGui::DragFloat("rotation", &e.rot, 0.5f, -360.f, 360.f, "%.1f deg")) g_dirty = true;
-        ImGui::SameLine(); if (ImGui::SmallButton("+90")) { e.rot = fmodf(e.rot + 90, 360); g_dirty = true; }
-        ImGui::SetNextItemWidth(220); if (ImGui::DragFloat2("pivot (from centre)", &e.pivX, 0.25f, -2000.f, 2000.f, "%.1f")) g_dirty = true;
-        {   char buf[128]; snprintf(buf, sizeof buf, "%s", e.clipTo.c_str());
-            ImGui::SetNextItemWidth(160);
-            if (ImGui::InputText("clip to (element)", buf, sizeof buf)) { e.clipTo = buf; g_dirty = true; }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Drawn only inside that element (by name): its box, or the part of it below, turned with it.\nAs the game's masks: a sheen sweeping inside a bar.");
-            if (!e.clipTo.empty()) { ImGui::SetNextItemWidth(220); if (ImGui::DragFloat4("clip box (x0 y0 x1 y1 of it)", e.clipBox, 0.002f, -1.f, 2.f, "%.3f")) g_dirty = true; } }
-        if (ImGui::Checkbox("minimap", &e.minimap)) g_dirty = true;
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Drawn as the game's minimap: the track map around your car (round, in this box), turned\nheading-up when the game's radar option is on, with the game's icons (racers, shops, events,\nyour car) and other mods' markers (the multiplayer mod's players). Its texture and UV aren't used.\nAdd the frame and north arrow as images ({map_north} turns the arrow; {map_heading} turns your own\narrow if you hide the game's). Flag it \"replace: minimap\" to hide the stock one.");
-        if (e.minimap) {
-            ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("zoom", &e.mapZoom, 0.01f, 0.1f, 10.f, "x%.2f")) g_dirty = true;
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Times the game's own zoom (x1: the stock minimap's view across this box).");
-            ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("icons", &e.mapBlip, 0.01f, 0.1f, 10.f, "x%.2f")) g_dirty = true;
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Icon size (x1: as big against the map as the stock minimap's).");
-            ImGui::SameLine(); if (ImGui::Checkbox("your car's icon", &e.mapPlayer)) g_dirty = true;
-        }
-        if (ImGui::Checkbox("world map", &e.worldMap)) { if (e.worldMap) e.minimap = false; g_dirty = true; }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Drawn as the world map: the whole city map in this box (your Minimap page art), the game's icons (shops,\nevents, racers, your car) and other mods' markers (the multiplayer mod's players). With UniPad standing a page\nin for the game's World Map: its view (Full Map / a region: LT / RT), the selected icon's ring and the types\nhidden there. Its texture and UV aren't used.");
-        if (e.worldMap) {
-            ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::DragFloat("icons##wm", &e.mapBlip, 0.01f, 0.1f, 10.f, "x%.2f")) g_dirty = true;
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Icon size (x1: as big against this box as the stock world map's).");
-            ImGui::SameLine(); if (ImGui::Checkbox("your car's icon##wm", &e.mapPlayer)) g_dirty = true;
-        }
-        if (ImGui::Checkbox("clip to a circle", &e.circle)) g_dirty = true;
-        ImGui::SameLine(); if (ImGui::Checkbox("glow (additive)", &e.additive)) g_dirty = true;
-        ImGui::SameLine();
-        {
-            static char fb[16]; snprintf(fb, sizeof fb, e.follow ? "%08X" : "", e.follow);
-            ImGui::SetNextItemWidth(90);
-            if (ImGui::InputTextWithHint("follows game object", "name hash", fb, sizeof fb, ImGuiInputTextFlags_CharsHexadecimal)) { e.follow = (unsigned)strtoul(fb, nullptr, 16); g_dirty = true; }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("A stock HUD object's FEng name hash: this image copies where the game puts it, its size, turn,\nuv and whether it's shown, every frame (position / rotation here are added; texture: its own unless set).");
-            if (e.follow) { GameObject g; ImGui::SameLine(); ImGui::TextDisabled(gameObject && gameObject(e.follow, g) ? "(on screen)" : "(not shown now)"); }
-        }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The point it turns about, from its centre: a needle's hub.");
-        int ifam, iid;
-        if (IconRef(e.tex, ifam, iid)) {
-            ImGui::Text("button icon: %s", IconName(ifam, iid).c_str());
-            ImGui::SameLine(); if (ImGui::SmallButton("icon size (32)")) { e.w = e.h = 32; g_dirty = true; }
-            ImGui::SameLine();
-            bool follow = ifam < 0;
-            if (ImGui::Checkbox("follows the controller", &follow)) {
-                std::string fam = follow ? "auto" : iconFamilies.empty() ? "xbox" : iconFamilies[0];
-                e.tex = "icon:" + fam + ":" + iconKeys[iid]; g_dirty = true;
-            }
-        } else if (vecart::IsRef(e.tex)) {
-            std::string vn = vecart::RefName(e.tex);
-            const vecart::Art* art = vecart::Find(vn);
-            ImGui::Text("vector art: %s%s", vn.c_str(), art ? "" : " (file missing)");
-            if (art && art->w > 0 && art->h > 0) {
-                ImGui::SameLine(); if (ImGui::SmallButton("its own size")) { e.w = art->w; e.h = art->h; g_dirty = true; }
-                ImGui::SameLine(); if (ImGui::SmallButton("fix its proportions")) { e.h = e.w * art->h / art->w; g_dirty = true; }
-            }
-        } else
-        ImGui::Text("texture: %s (%s)", e.tex.empty() ? "(none - pick one below)" : e.tex.c_str(), e.pack.c_str());
-        if (g_texSel >= 0) { ImGui::SameLine(); if (ImGui::SmallButton("use the selected texture")) { e.tex = g_tex[g_texSel].name; e.pack = g_tex[g_texSel].pack; e.texIdx = g_texSel; g_dirty = true; } }
-    } else if (e.type == E_SHAPE) {
-        ShapeProps(e);
-        {   // (a bar the game draws: this shape takes its box and colour - the performance parts' Torque / Power meters)
-            static char fb[16]; snprintf(fb, sizeof fb, e.follow ? "%08X" : "", e.follow);
-            ImGui::SetNextItemWidth(90);
-            if (ImGui::InputTextWithHint("follows game object##shape", "name hash", fb, sizeof fb, ImGuiInputTextFlags_CharsHexadecimal)) { e.follow = (unsigned)strtoul(fb, nullptr, 16); g_dirty = true; }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("A game FEng object's name hash (from the dump): this shape takes where the game puts it and its size every\nframe (its x / y: an offset from there), its fill tinted by the game's colour; hidden while the game hides it.");
-            if (e.follow) { GameObject g; ImGui::SameLine(); ImGui::TextDisabled(gameObject && gameObject(e.follow, g) ? "(on screen)" : "(not shown now)"); }
-        }
-    } else {
-        static char tb[512];
-        snprintf(tb, sizeof tb, "%s", e.text.c_str());
-        if (ImGui::InputTextMultiline("text", tb, sizeof tb, ImVec2(320, 54))) { e.text = tb; g_dirty = true; }
-        ImGui::SameLine(); ImGui::TextDisabled("(live values)");
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", kTokenHelp);
-        ImGui::SetNextItemWidth(160); if (ImGui::DragFloat("scale", &e.scale, 0.01f, 0.1f, 8.f, "%.2f")) g_dirty = true;
-        ImGui::SameLine(); const char* al[] = { "left", "centre", "right" };
-        ImGui::SetNextItemWidth(100); if (ImGui::Combo("align", &e.align, al, 3)) g_dirty = true;
-        ImGui::SameLine(); ImGui::SetNextItemWidth(110); if (ImGui::DragFloat("rotation", &e.rot, 0.25f, -360.f, 360.f, "%.1f deg")) g_dirty = true;
-        ImGui::SetNextItemWidth(160); if (ImGui::DragFloat("box width (for centre/right)", &e.w, 0.5f, 0.f, 2000.f, "%.0f")) g_dirty = true;
-        ImGui::SameLine(); if (ImGui::Checkbox("wrap", &e.wrap)) g_dirty = true;
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Break the text into lines to fit the box width (a long message from the game).");
-        ImGui::SameLine(); if (ImGui::Checkbox("animate changes", &e.swapAnim)) g_dirty = true;
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("When its text changes, the old text shrinks and fades out while the new one grows and fades in\n(0.32 s) - the game's help bar swapping the profile name and the cash ({bar.ticker}).");
-        std::vector<const char*> fn; int cur = -1;
-        for (size_t i = 0; i < g_fonts.size(); ++i) { fn.push_back(g_fonts[i].name.c_str()); if (g_fonts[i].name == e.font) cur = (int)i; }
-        ImGui::SetNextItemWidth(220);
-        if (ImGui::Combo("font", &cur, fn.data(), (int)fn.size())) { e.font = g_fonts[cur].name; e.fontIdx = cur; g_dirty = true; }
-    }
-    TokenColourEdit(e.type == E_SHAPE ? "stroke colour" : "colour / tint", e.col, e.colTok, e.colTokA);
-    ImGui::SetNextItemWidth(110);
-    if (ImGui::InputInt("leaderboard row", &e.row)) { e.row = std::max(0, std::min(22, e.row)); g_dirty = true; }
-    if (ImGui::IsItemHovered()) ImGui::SetTooltip("0 = not a leaderboard row.\nN = shown only while there's an Nth racer on the board; in its text {name} {pos} {gap} ... are that racer's.");
-    if (e.row > 0) {
-        ImGui::SameLine(); if (ImGui::Checkbox("other colour on my row", &e.hiMine)) g_dirty = true;
-        if (e.hiMine) TokenColourEdit("my-row colour", e.hiCol, e.hiTok, e.hiTokA);
-    }
-    {   // live-value rules
-        static char sb[64], bb[64];
-        snprintf(sb, sizeof sb, "%s", e.showIf.c_str());
-        ImGui::SetNextItemWidth(160);
-        if (ImGui::InputTextWithHint("show only while", "value key, e.g. nos_on", sb, sizeof sb)) { e.showIf = sb; g_dirty = true; }
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("A live value's key (no braces). Shown only while it isn't blank or 0.\n!key: only while it is. Empty: always.");
-        {
-            static char tb2[64]; snprintf(tb2, sizeof tb2, "%s", e.tint.c_str());
-            ImGui::SameLine(); ImGui::SetNextItemWidth(140);
-            if (ImGui::InputTextWithHint("tint from", "e.g. tach_paint_1", tb2, sizeof tb2)) { e.tint = tb2; g_dirty = true; }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("A live value giving \"R G B\" (0-255) that multiplies the colour - the car's custom HUD paints.");
-        }
-        { const char* an[] = { "still", "pulse", "blink", "keyframes", "bounce" }; ImGui::SameLine(); ImGui::SetNextItemWidth(90); if (ImGui::Combo("animation", &e.anim, an, 5)) g_dirty = true; }
-        if (e.anim == 4) {   // bounce: grows and back once (from when it shows, or each time its play-on value comes on)
-            ImGui::SetNextItemWidth(70); if (ImGui::DragFloat("##bsize", &e.bounceScale, 0.005f, 0.2f, 4.f, "x%.2f")) g_dirty = true;
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("How big it gets at the top of the bounce (x1.20: a fifth bigger; under 1: it dips).");
-            ImGui::SameLine(); ImGui::SetNextItemWidth(70); if (ImGui::DragFloat("##bms", &e.bounceMs, 5.f, 20.f, 5000.f, "%.0f ms")) g_dirty = true;
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("How long the bounce takes, up and back down.");
-            ImGui::SameLine(); ImGui::SetNextItemWidth(70); if (ImGui::DragFloat("##bglow", &e.bounceGlow, 0.005f, 0.f, 1.f, "glow %.2f")) g_dirty = true;
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("How much brighter it is at the top than at the start / end of the bounce (0: no change).\nPlays once from when it shows (or each time its play-on value comes on), then it's as it was.\nThe stock menus' arrows: x1.20, 300 ms, glow 0.18, opacity x1.");
-            ImGui::SameLine(); ImGui::SetNextItemWidth(80); if (ImGui::DragFloat("bounce##balpha", &e.bounceAlpha, 0.01f, 0.f, 4.f, "opacity x%.2f")) g_dirty = true;
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Its opacity at the top of the bounce, times this (x1: no change; it can't go past fully solid,\nso above x1 it only shows on something that's partly see-through). The map's LT / RT: x1.30, 400 ms, glow 0, opacity x1.70.");
-        }
-        if (e.anim == 3) {
-            static char kb[256]; snprintf(kb, sizeof kb, "%s", e.keys.c_str());
-            ImGui::SetNextItemWidth(320);
-            if (ImGui::InputTextWithHint("keys", "800;0 1 1 1;400 1.6 1.7 1;800 1 1 1", kb, sizeof kb)) { e.keys = kb; g_dirty = true; }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Loop length in ms (! in front: play once and hold), then keys \"time width-scale height-scale alpha [move-x move-y [red green blue]]\" separated by ;\n(scales and colours multiply, moves are units; straight lines between keys; the game's HUD animations as\nthey're stored in its .fng). Text scales from its alignment point.");
-        }
-        if (e.anim) {
-            static char pb[96]; snprintf(pb, sizeof pb, "%s", e.playOn.c_str());
-            ImGui::SetNextItemWidth(200);
-            if (ImGui::InputTextWithHint("play on", "e.g. bindheld.FENG_LTRIGGER", pb, sizeof pb)) { e.playOn = pb; g_dirty = true; }
-            if (ImGui::IsItemHovered()) ImGui::SetTooltip("A live value: the animation starts over each time it comes on (blank: from when the element shows).\nbindheld.<event>: while that UniPad binding is held - a button's press animation (keys with ! in front: plays once).");
-        }
-        {   // (images: all of them; shapes: fills and moving; text: moving)
-            const char* kinds[] = { "nothing", "fill left to right", "fill bottom to top", "rotation", "reveal (turning half)", "move across", "move up" };
-            ImGui::SetNextItemWidth(160);
-            if (ImGui::Combo("value drives", &e.bindKind, kinds, 7)) g_dirty = true;
-            if (e.bindKind == 5 && ImGui::IsItemHovered()) ImGui::SetTooltip("The element moves across with the value (from / to move, in units) - a meter's handle riding its fill.");
-            if (e.bindKind == 6 && ImGui::IsItemHovered()) ImGui::SetTooltip("The element moves up with the value (from / to move, in units; up is positive) - the handle of a bar filling bottom to top.");
-            if ((e.type == E_SHAPE && (e.bindKind == 3 || e.bindKind == 4)) || (e.type == E_TEXT && e.bindKind >= 1 && e.bindKind <= 4))
-                { ImGui::SameLine(); ImGui::TextDisabled("(images only)"); }
-            if (e.bindKind == 4 && ImGui::IsItemHovered()) ImGui::SetTooltip("Only the half on the far side of a line through the pivot is drawn; the line turns with the value\n(from / to angle; 0 = the top half shows). The game's nitrous arc works like this.");
-            if (e.bindKind) {
-                snprintf(bb, sizeof bb, "%s", e.bind.c_str());
-                ImGui::SetNextItemWidth(160);
-                if (ImGui::InputTextWithHint("value", "key, e.g. rpm_pct", bb, sizeof bb)) { e.bind = bb; g_dirty = true; }
-                ImGui::SetNextItemWidth(160);
-                if (ImGui::DragFloat2("from / to value", &e.bindMin, 1.f, -100000.f, 100000.f, "%.0f")) g_dirty = true;
-                if (e.bindKind == 3 || e.bindKind == 4) { ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("from / to angle", &e.rotMin, 0.5f, -720.f, 720.f, "%.0f deg")) g_dirty = true; }
-                if (e.bindKind == 5 || e.bindKind == 6) { ImGui::SetNextItemWidth(160); if (ImGui::DragFloat2("from / to move", &e.rotMin, 0.5f, -2000.f, 2000.f, "%.1f")) g_dirty = true; }
-                if (e.bindKind == 1 || e.bindKind == 2) {
-                    ImGui::SetNextItemWidth(160);
-                    if (ImGui::DragFloat2("empty / full at", &e.cutLo, 0.002f, 0.f, 1.f, "%.3f")) g_dirty = true;
-                    if (ImGui::IsItemHovered()) ImGui::SetTooltip("Where in the picture an empty and a full value land (0..1 along the fill).\nFor art whose bar doesn't reach its edges.");
-                }
-                float f = BindFrac(e);
-                if (f >= 0) ImGui::TextDisabled("now: %.0f%%", f * 100); else ImGui::TextDisabled("now: no value");
-            }
-        }
-    }
-    ElemMenuProps(e);
-    CopyToSimilar(e);
-    ImGui::PopID();
-}
+#include "uied_props.inc"
 // The game's race HUD (Global\FEng_Screens\Stripped\HUD_SingleRace.fng in GLOBAL\InGameRace.bun), as elements:
 // FEng positions are from the screen centre in 640x480 units (y down); images are placed by their centre, text by
 // its justification (Sj: 1 centre, 2 right, 4 middle, 8 bottom). Converted here to "anchored top right".
@@ -4233,12 +3904,7 @@ static void PanelBody() {
     if (PickCount() > 1) MultiPanel();
     else if (!g_selGroup.empty()) GroupPanel();
     else if (g_sel >= 0 && g_sel < (int)Elems().size()) {
-        if (ImGui::SmallButton("up") && g_sel > 0) { std::swap(Elems()[g_sel], Elems()[g_sel - 1]); --g_sel; g_dirty = true; }
-        ImGui::SameLine(); if (ImGui::SmallButton("down") && g_sel + 1 < (int)Elems().size()) { std::swap(Elems()[g_sel], Elems()[g_sel + 1]); ++g_sel; g_dirty = true; }
-        ImGui::SameLine(); ImGui::TextDisabled("(lower in the list = drawn on top)"); ImGui::SameLine();
-        if (ImGui::SmallButton("duplicate")) { Elem c = Elems()[g_sel]; c.name += " copy"; c.x += 10; c.y += 10; Elems().insert(Elems().begin() + g_sel + 1, c); ++g_sel; g_dirty = true; }
-        ImGui::SameLine(); if (ImGui::SmallButton("delete")) DeleteSelected();
-        if (g_sel >= 0) Selected(Elems()[g_sel]);
+        Selected(Elems()[g_sel]);   // (its panel: duplicate / delete in its Main section)
     } else ImGui::TextDisabled("Add an image or text, or pick one on the left. Positions are in 1/480ths of the screen height.\nPut elements in a group (their \"group\" box) to move them together.");
     ImGui::EndChild();
     {   // the bar: drag it up / down to size both boxes
