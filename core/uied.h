@@ -181,6 +181,8 @@ namespace uied {
     std::string MenuSpecialtiesPage();                 // ... its Specialties menu (UI_ICEMAIN) ("" none)
     std::string MenuPerfUpgradePage();                 // ... a performance category's upgrade menu ("" none)
     std::string MenuRimBrandsPage();                   // ... Body Parts' rim brand menu (UI_ChooseRimBrand) ("" none)
+    std::string MenuNeonPage();                        // ... Specialties' Neon menu (UI_CustomNeonMain) ("" none)
+    std::string MenuIcePartsPage();                    // ... a specialty's parts (UI_IcePartsOverlay / UI_NeonPartsOverlay) ("" none)
     std::string MenuBodyPartsPage();                   // ... Body Parts' browser at its categories (UI_GenericParts_Browser) ("" none)
     extern float menuFade;                             // menus fade in / out / cross-fade over this (seconds; 0 = off)
     extern bool customMenus;                           // false: no page stands in for the game's menus
