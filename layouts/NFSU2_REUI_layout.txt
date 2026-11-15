@@ -8529,6 +8529,7 @@ texture=U2_OL_LOCKICON
 pack=
 uv=0 0 1 1
 role=lock
+selonly=1
 
 [element]
 mode=menus
@@ -8799,6 +8800,7 @@ texture=U2_OL_LOCKICON
 pack=
 uv=0 0 1 1
 role=lock
+selonly=1
 
 [element]
 mode=menus
@@ -9050,6 +9052,26 @@ texture=
 pack=
 uv=0 0 1 1
 role=icon
+
+[element]
+mode=menus
+type=image
+name=Lock
+anchor=4
+x=-117.7
+y=-139.3
+w=30
+h=30
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Body Parts/Carousel
+layer=3
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+role=lock
+selonly=1
 
 [element]
 mode=menus
@@ -9324,6 +9346,27 @@ showif=gm.parts.count
 anim=3
 keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
 colortoken=hud.line 1
+
+[element]
+mode=menus
+type=image
+name=Lock
+anchor=4
+x=-247
+y=-60
+w=16
+h=16
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Shared/Body Parts Panel/Parts
+layer=3
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+role=lock
+selonly=1
+showif=gm.parts.count
 
 [element]
 mode=menus
@@ -10490,6 +10533,7 @@ texture=U2_OL_LOCKICON
 pack=
 uv=0 0 1 1
 role=lock
+selonly=1
 
 [element]
 mode=menus
@@ -10509,6 +10553,26 @@ texture=
 pack=
 uv=0 0 1 1
 role=icon
+
+[element]
+mode=menus
+type=image
+name=Lock
+anchor=4
+x=-117.7
+y=-139.3
+w=30
+h=30
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
+layer=3
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+role=lock
+selonly=1
 
 [element]
 mode=menus
