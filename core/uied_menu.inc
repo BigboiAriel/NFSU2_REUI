@@ -58,6 +58,8 @@ struct Widget {
     bool centred = true, wrap = false;
     bool selStill = true;                // carousel: the selected tile's highlight (its "selected tile only" pieces) stays in
                                          // its slot while the tiles slide into it (as the game's pause menu); off: it rides the tile
+    float unselScale = 0.85f;            // carousel: the size of the tiles not selected (their pieces, about the tile's middle;
+                                         // in between while sliding), 1 = the same as the selected one
     bool vertical = false;               // carousel: its tiles in one column (rows of them on screen), up / down scroll it
                                          // (the game's Body Parts list)
     float stagger = 0;                   // grids: each tile's In waits this much longer than the one before (ms; 0: together)
@@ -355,9 +357,9 @@ static void FadeOutNow() {
 
 // ---------------------------------------------------------------- grids
 // (a live list's item: <key>.N.color "r g b" tints its icon piece, <key>.N.on "1" / "0" shows its "item on" / "item
-// off" pieces - neither when it has none)
+// off" pieces - neither when it has none; <key>.N.locked "1" shows its "locked" pieces - a padlock - and only then)
 static const float kOffAlpha = 60 / 255.f;   // an "off" live list item's icon and label (the game's World Map legend: 0x496920)
-struct GItem { std::string label, icon, action, value; int tile = -1; float tint[3] = {1, 1, 1}; bool hasTint = false; int on = -1; };
+struct GItem { std::string label, icon, action, value; int tile = -1; float tint[3] = {1, 1, 1}; bool hasTint = false; int on = -1; bool locked = false; };
 // a piece only for slider / picker tiles: laid out across the grid's whole row (those tiles take a row of their own), so
 // changing the columns doesn't squeeze it
 static bool RowPiece(const Elem& e) { return e.tileKinds && !(e.tileKinds & ~6); }
@@ -399,6 +401,7 @@ static std::vector<GItem> GridItemsAll(const Widget& w) {
                 std::string c, o; int r, g, b;
                 if (tokens(k + ".color", c) && sscanf(c.c_str(), "%d %d %d", &r, &g, &b) == 3) { it.tint[0] = r / 255.f; it.tint[1] = g / 255.f; it.tint[2] = b / 255.f; it.hasTint = true; }
                 if (tokens(k + ".on", o) && !o.empty()) it.on = o != "0";
+                if (tokens(k + ".locked", o) && !o.empty()) it.locked = o != "0";
                 tokens(k + ".action", it.action);
             }
             if (it.action.empty()) it.action = w.action;   // (the grid's own: a host command, {tile} the item picked)
@@ -480,12 +483,17 @@ static bool GridFocusOff(const Widget& w) {
     std::string sv;
     return w.bind.compare(0, 5, "list:") == 0 && tokens && tokens(w.bind.substr(5) + ".focus", sv) && sv == "0";
 }
+// each grid's last pick (its group): a menu opened again (backing out of the one it opened - the game's screens come and
+// go, each opening the menu afresh) starts on the tile picked, as the game's own menus do
+static std::map<std::string, int> g_tileMemory;
 static MenuState::GridSt& GridState(const Widget& w, int count) {
     auto& st = g_menu.grids[w.group];
     bool first = st.sel < 0;
     if (first) {   // first look: on the setting's value, scrolled to it
         Setting* s = SettingOf(w.bind);
         st.sel = s && s->get ? (int)lroundf(s->get()) : w.bind.empty() ? (int)lroundf(w.value) : 0;
+        auto mem = g_tileMemory.find(w.group);
+        if (mem != g_tileMemory.end() && !(s && s->get) && (w.bind.empty() || w.bind.compare(0, 5, "list:") == 0)) st.sel = mem->second;
     }
     std::string sv;   // a live list whose selection another mod keeps: <key>.sel
     if (w.bind.compare(0, 5, "list:") == 0 && tokens && tokens(w.bind.substr(5) + ".sel", sv) && !sv.empty()) {
@@ -582,6 +590,8 @@ static void GridAccept(Widget& w) {
     auto& st = GridState(w, n);
     const GItem& it = items[st.sel];
     st.pressTile = st.sel; st.pressAt = ImGui::GetTime();   // (its pieces' Press clips)
+    if (it.locked) { Snd(SND_ERROR); return; }   // (a locked item: nothing happens, as the game's - its "can't" sound)
+    g_tileMemory[w.group] = st.sel;   // (back here later: on this tile)
     if (!it.action.empty() && menuAction && it.action.compare(0, 5, "page:") != 0 && it.action != "back" && it.action != "close"
         && menuAction(it.action)) return;   // the host's own (Joy Ride: the game's row command - it plays its own sound)
     if (Widget* t = GridTile(w, it.tile)) {
@@ -805,7 +815,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
     std::vector<Elem> outerCut;
     if (g_drawList) for (auto& o : *g_drawList) if (o.type == E_SHAPE && o.cut && o.visible && !InGroup(o.group, w.group)) outerCut.push_back(o);
     // where each tile is drawn (cells across / down from the first): a grid's visible rows; a carousel's slots
-    struct At { int idx; float ox, oy; };
+    struct At { int idx; float ox, oy, pos = 0; };
     std::vector<At> at;
     bool car = w.type == W_CAROUSEL;
     bool vert = car && w.vertical;
@@ -824,11 +834,11 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 float pos = idx + k * n - scroll + lead;
                 if (pos <= -1.f || pos >= (float)slots) continue;
                 if (preview && idx == 0) continue;   // (the pieces themselves are the first slot)
-                at.push_back({idx, vert ? 0.f : pos * px, vert ? pos * py : 0.f});
+                at.push_back({idx, vert ? 0.f : pos * px, vert ? pos * py : 0.f, pos});
             }
         if (selStill) {   // (the selected tile off the row mid-slide: still its highlight, the tile itself out of sight)
             bool any = false; for (auto& a : at) any |= a.idx == st.sel;
-            if (!any && st.sel >= 0 && st.sel < n) at.push_back({st.sel, vert ? 0.f : -100000.f, vert ? -100000.f : 0.f});
+            if (!any && st.sel >= 0 && st.sel < n) at.push_back({st.sel, vert ? 0.f : -100000.f, vert ? -100000.f : 0.f, 0.f});
         }
         if (vert) {   // (tiles sliding in / out are cut half a gap past the end slots)
             float pad = w.spY * 0.5f + 1.f, k = (gb.y - ga.y) / std::max(1.f, w.gh);
@@ -863,6 +873,14 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
             Setting* bs = t && kind == W_BUTTON ? SettingOf(t->bind) : nullptr; if (bs && bs->kind != 3) bs = nullptr;   // a binding tile
             bool waiting = bs && !preview && g_menu.capturing == TileKey(w, it.tile);
             float ox = a.ox, oy = a.oy;
+            // a carousel's tiles not selected: smaller (unselected size), by how far each is from where the selected one is now
+            float uk = 1.f;
+            if (car && !preview && fabsf(w.unselScale - 1.f) > 0.001f) {
+                float selPos = (w.centred ? (float)st.top : (float)st.sel) - scroll + lead;
+                float d = std::min(1.f, fabsf(a.pos - selPos));
+                uk = 1.f + (w.unselScale - 1.f) * d;
+            }
+            const float ucx = w.gx + GCellW(w) * 0.5f + ox, ucy = w.gy + GCellH(w) * 0.5f + oy + scrollDy;   // (the tile's middle)
             // pieces after the label's text: moved by how much longer / shorter this tile's label is than the piece's own
             float afterDx = 0;
             for (int i : order) {
@@ -885,6 +903,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 if (src.selOnly && !selHere) continue;
                 if ((src.tileParity == 1 && idx % 2 == 1) || (src.tileParity == 2 && idx % 2 == 0)) continue;   // (striped rows)
                 if ((src.role == "on" && it.on != 1) || (src.role == "off" && it.on != 0)) continue;   // (a live list item's state)
+                if (src.role == "lock" && !it.locked && !preview) continue;   // (a locked item's padlock)
                 if (kind >= 0 && !TileShows(src, TileBit(t))) continue;
                 if (cur && src.selOnly && src.anim) {   // the selection's animation (a pulsing glow): from the start on each move -
                     static std::map<const Elem*, int> lastSel;   // unless the highlight stays put (it loops on, unbroken)
@@ -907,6 +926,7 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 e.y = w.gy + (e.y - w.gy) * sy + (selStill && src.selOnly ? restOy : oy) + scrollDy;
                 if (e.type != E_TEXT) { if (e.afterLabel) { e.w *= std::min(sx, sy); e.h *= std::min(sx, sy); } else if (!rowP) { e.w *= wideP ? sxp : sx; e.h *= sy; } }   // (icons after the text keep their shape)
                 else { if (e.w > 0 && !rowP) e.w *= sxp; }   // (text keeps its size)
+                if (uk != 1.f && !src.selOnly && e.type != E_TEXT) { e.x = ucx + (e.x - ucx) * uk; e.y = ucy + (e.y - ucy) * uk; e.w *= uk; e.h *= uk; }
                 if (kind == W_SLIDER && t && fillPc && (e.role == "fill" || e.role == "tab")) {
                     float kf = RowPiece(*fillPc) ? 1.f : sxp;
                     float fillW = fillPc->w * kf, fillL = w.gx + (fillPc->x - w.gx) * kf - (fillPc->anchor % 3) * 0.5f * fillW;
@@ -1413,10 +1433,10 @@ static bool DrawMenu(ImDrawList* dl) {
 }
 
 // ---------------------------------------------------------------- authoring
-static const char* kRoleKey[] = { "", "label", "value", "fill", "tab", "arrowL", "arrowR", "desc", "bindicon", "icon", "gtab", "gtrack", "on", "off", "title" };
+static const char* kRoleKey[] = { "", "label", "value", "fill", "tab", "arrowL", "arrowR", "desc", "bindicon", "icon", "gtab", "gtrack", "on", "off", "title", "lock" };
 static const char* kRoleName[] = { "(none)", "label", "value text", "slider fill bar", "slider tab", "left arrow", "right arrow",
                                    "page: description text", "binding icon (??? while waiting)", "item icon", "scroller tab", "scroller track",
-                                   "live list: item on (a tick)", "live list: item off (a cross)", "page: header text" };
+                                   "live list: item on (a tick)", "live list: item off (a cross)", "page: header text", "live list: item locked (a padlock)" };
 
 // ---------------------------------------------------------------- authoring panels
 static void ElemMenuProps(Elem& e) {
@@ -1604,6 +1624,11 @@ static void GridPanel(Widget& w) {
         }
         PTip("Gap between tiles (units; drag, or double-click to type). The tiles keep their size and move apart.");
         PLabel("Spacing");
+        float us = w.unselScale * 100.f;
+        PIndent(); ImGui::SetNextItemWidth(full);
+        if (ImGui::DragFloat("##unsel", &us, 0.25f, 10.f, 200.f, "%.0f%%")) { w.unselScale = std::max(0.1f, std::min(2.f, us / 100.f)); g_dirty = true; }
+        PTip("The tiles not selected: their pieces at this size (100% = as the selected one), about each tile's\nmiddle - growing / shrinking smoothly as they slide in and out of the selected slot.");
+        PLabel("Unselected size");
     } else {
         int cols = w.cols, rows = w.rows, total = tiles ? (w.totalRows > 0 ? w.totalRows : w.rows) : w.totalRows;
         if (w.type == W_GRID) {
@@ -2293,7 +2318,7 @@ static void SaveWidgetProps(FILE* f, const Widget& w) {
     if (!w.choices.empty()) { std::string j; for (size_t i = 0; i < w.choices.size(); ++i) j += (i ? "|" : "") + w.choices[i]; fprintf(f, "choices=%s\n", Esc(j).c_str()); }
     if (GridLike(w)) {
         Widget c = w; GridOrigin(c);
-        if (w.type == W_CAROUSEL) fprintf(f, "carousel=%d %d %d %d\n", w.centred ? 1 : 0, w.wrap ? 1 : 0, w.selStill ? 1 : 0, w.vertical ? 1 : 0);
+        if (w.type == W_CAROUSEL) fprintf(f, "carousel=%d %d %d %d %g\n", w.centred ? 1 : 0, w.wrap ? 1 : 0, w.selStill ? 1 : 0, w.vertical ? 1 : 0, w.unselScale);
         fprintf(f, "grid=%d %d %g %g %g %g %g %g %d %d %g %g %g %g %d %d\n", w.cols, w.rows, w.gw, w.gh, w.gx, w.gy, w.refW, w.refH, w.scalePieces ? 1 : 0, w.startAt, c.ox, c.oy, w.spX, w.spY, w.totalRows, w.rowSpace ? 1 : 0);
         if (w.stagger > 0) fprintf(f, "stagger=%g\n", w.stagger);
         if (w.wrap && w.type != W_CAROUSEL) fprintf(f, "gwrap=1\n");
@@ -2358,7 +2383,7 @@ static bool LoadWidgetKey(Widget& w, const std::string& k, const std::string& v)
     else if (k == "stagger") w.stagger = std::max(0.f, (float)atof(v.c_str()));
     else if (k == "gwrap") w.wrap = atoi(v.c_str()) != 0;
     else if (k == "gmove") w.moveCmd = Unesc(v);
-    else if (k == "carousel") { int c = 1, r = 0, h = 1, vt = 0; sscanf(v.c_str(), "%d %d %d %d", &c, &r, &h, &vt); w.centred = c != 0; w.wrap = r != 0; w.selStill = h != 0; w.vertical = vt != 0; }
+    else if (k == "carousel") { int c = 1, r = 0, h = 1, vt = 0; float us = 0.85f; sscanf(v.c_str(), "%d %d %d %d %f", &c, &r, &h, &vt, &us); w.unselScale = std::max(0.1f, std::min(2.f, us)); w.centred = c != 0; w.wrap = r != 0; w.selStill = h != 0; w.vertical = vt != 0; }
     else if (k == "tile") { Widget t; t.type = W_BUTTON; t.label = Unesc(v); w.tiles.push_back(t); }
     else if (k.size() > 1 && k[0] == 't' && !w.tiles.empty()) {   // the last tile's
         Widget& t = w.tiles.back(); std::string tk = k.substr(1);
