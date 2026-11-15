@@ -1543,19 +1543,19 @@ static void TileChanges(Widget& t, float width = 200, const char* label = "chang
 static int PInts(const char* id, int& a, int& b, const char* label, const char* tipA, const char* tipB) {
     const float half = (PFull() - 11 - 4) / 2; int ch = 0;
     ImGui::PushID(id); PIndent();
-    ImGui::SetNextItemWidth(half); if (ImGui::InputInt("##a", &a, 0, 0)) ch |= 1; if (tipA) PTip(tipA);
-    ImGui::SameLine(0, 4); ImGui::SetNextItemWidth(half); if (ImGui::InputInt("##b", &b, 0, 0)) ch |= 2; if (tipB) PTip(tipB);
+    ImGui::SetNextItemWidth(half); if (ImGui::DragInt("##a", &a, 0.05f, 0, 1000)) ch |= 1; if (tipA) PTip(tipA);
+    ImGui::SameLine(0, 4); ImGui::SetNextItemWidth(half); if (ImGui::DragInt("##b", &b, 0.05f, 0, 1000)) ch |= 2; if (tipB) PTip(tipB);
     PLabel(label); ImGui::PopID();
     return ch;
 }
 // two number boxes with their letters (as Position / Size), then the row's name
-static int PFloats(const char* id, const char* la, float& a, const char* lb, float& b, const char* label, const char* tip) {
+static int PFloats(const char* id, const char* la, float& a, const char* lb, float& b, const char* label, const char* tip, float speed = 0.5f) {
     int ch = 0;
     ImGui::PushID(id);
     ImGui::AlignTextToFramePadding(); ImGui::TextUnformatted(la); ImGui::SameLine(0, 4);
-    ImGui::SetNextItemWidth(kPBox); if (ImGui::InputFloat("##a", &a, 0, 0, "%g")) ch |= 1; if (tip) PTip(tip);
+    ImGui::SetNextItemWidth(kPBox); if (ImGui::DragFloat("##a", &a, speed, 0.f, 0.f, "%g")) ch |= 1; if (tip) PTip(tip);
     ImGui::SameLine(0, kPGap); ImGui::AlignTextToFramePadding(); ImGui::TextUnformatted(lb); ImGui::SameLine(0, 4);
-    ImGui::SetNextItemWidth(kPBox); if (ImGui::InputFloat("##b", &b, 0, 0, "%g")) ch |= 2; if (tip) PTip(tip);
+    ImGui::SetNextItemWidth(kPBox); if (ImGui::DragFloat("##b", &b, speed, 0.f, 0.f, "%g")) ch |= 2; if (tip) PTip(tip);
     PLabel(label); ImGui::PopID();
     return ch;
 }
@@ -1608,7 +1608,7 @@ static void GridPanel(Widget& w) {
         int cols = w.cols, rows = w.rows, total = tiles ? (w.totalRows > 0 ? w.totalRows : w.rows) : w.totalRows;
         if (w.type == W_GRID) {
             PIndent(); ImGui::SetNextItemWidth(full);
-            if (ImGui::InputInt("##cols", &cols, 0, 0)) { cols = std::max(1, std::min(32, cols)); GridResize(w, w.gw, w.gh, cols, rows, w.spX, w.spY); GridFitTiles(w); }
+            if (ImGui::DragInt("##cols", &cols, 0.05f, 1, 32)) { cols = std::max(1, std::min(32, cols)); GridResize(w, w.gw, w.gh, cols, rows, w.spX, w.spY); GridFitTiles(w); }
             PTip("Tiles across.");
             PLabel("Columns");
         }
@@ -1621,7 +1621,7 @@ static void GridPanel(Widget& w) {
         if (sz & 1) GridResize(w, std::max(4.f, gwv), w.gh, w.cols, w.rows, w.spX, w.spY);
         if (sz & 2) GridResize(w, w.gw, std::max(4.f, ghv), w.cols, w.rows, w.spX, w.spY);
         float sp[2] = {w.spX, w.spY};
-        if (PFloats("spacing", "X", sp[0], "Y", sp[1], "Spacing", "Gaps between columns (X) and rows (Y), in units. The tiles keep their size and move apart:\nit grows by the gaps (around its origin).")) {
+        if (PFloats("spacing", "X", sp[0], "Y", sp[1], "Spacing", "Gaps between columns (X) and rows (Y), in units. The tiles keep their size and move apart:\nit grows by the gaps (around its origin).", 0.1f)) {
             const int c = std::max(1, w.cols), r = std::max(1, w.rows);
             const float cw = GCellW(w), chh = GCellH(w);
             sp[0] = std::max(0.f, sp[0]); sp[1] = std::max(0.f, sp[1]);

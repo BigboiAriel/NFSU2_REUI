@@ -29,22 +29,44 @@ static bool PSection(const char* name, const char* shown = nullptr) {
     return !folded;
 }
 
-// a number of one element or several ("--" while they differ: typing one sets them all; Enter)
-static bool PNum(const char* id, const std::vector<float*>& v, float w, bool drag = false, float speed = 0.5f, const char* fmt = "%g",
+// a number box you can drag (left / right) or double-click to type; of one element or several. Several that differ show
+// "--": dragging moves them all by the same amount, typing a number sets them all to it.
+static bool PNum(const char* id, const std::vector<float*>& v, float w, bool drag = true, float speed = 0.5f, const char* fmt = "%g",
                  float lo = 0.f, float hi = 0.f) {
+    (void)drag;
     if (v.empty()) return false;
     bool same = true; for (float* f : v) same &= *f == *v[0];
     ImGui::SetNextItemWidth(w);
     bool ch = false;
     if (same) {
         float x = *v[0];
-        ch = drag ? ImGui::DragFloat(id, &x, speed, lo, hi, fmt) : ImGui::InputFloat(id, &x, 0, 0, fmt);
+        ch = ImGui::DragFloat(id, &x, speed, lo, hi, fmt);
         if (ch) for (float* f : v) *f = x;
     } else {
-        char b[32] = "";
-        if (ImGui::InputTextWithHint(id, "--", b, sizeof b, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsScientific) && b[0]) {
-            const float x = (float)atof(b); for (float* f : v) *f = x; ch = true;
+        const bool typing = ImGui::TempInputIsActive(ImGui::GetID(id));   // (double-clicked: a number typed sets them all)
+        float d = 0;
+        if (ImGui::DragFloat(id, &d, speed, 0.f, 0.f, typing ? "%g" : "--")) {
+            for (float* f : v) { *f = typing ? d : *f + d; if (lo < hi) *f = std::max(lo, std::min(hi, *f)); }
+            ch = true;
         }
+    }
+    if (ch) g_dirty = true;
+    return ch;
+}
+// a whole number the same way (a layer: several that differ show lo..hi, dragging shifts them all)
+static bool PInt(const char* id, const std::vector<int*>& v, float w, float speed = 0.05f, int lo = 0, int hi = 0) {
+    if (v.empty()) return false;
+    int mn = *v[0], mx = mn; for (int* i : v) { mn = std::min(mn, *i); mx = std::max(mx, *i); }
+    ImGui::SetNextItemWidth(w);
+    bool ch = false;
+    if (mn == mx) {
+        int x = mn;
+        if (ImGui::DragInt(id, &x, speed, lo, hi) && x != mn) { for (int* i : v) *i = x; ch = true; }
+    } else {   // (dragging / typing moves the lowest to it, the rest keep their distance)
+        const bool typing = ImGui::TempInputIsActive(ImGui::GetID(id));
+        char fmt[32]; snprintf(fmt, sizeof fmt, typing ? "%%d" : "%d..%d", mn, mx);
+        int x = mn;
+        if (ImGui::DragInt(id, &x, speed, 0, 0, fmt) && x != mn) { for (int* i : v) *i += x - mn; ch = true; }
     }
     if (ch) g_dirty = true;
     return ch;

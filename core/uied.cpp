@@ -10,6 +10,7 @@
 #include <windows.h>
 #include <shellapi.h>
 #include "imgui.h"
+#include "imgui_internal.h"   // (TempInputIsActive: the panels' drag boxes being typed in)
 #if IMGUI_VERSION_NUM >= 19110   // (renamed in ImGui 1.91.1: NFSU2 builds with 1.90.4, Joy Ride's port with 1.92)
 #define REUI_CHILD_BORDERS ImGuiChildFlags_Borders
 #else

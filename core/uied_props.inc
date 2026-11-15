@@ -226,7 +226,7 @@ static void PVisibility(Elem& e) {
     PText("##showif", e.showIf, "value", full, "Show only while", "A live value's key (no braces). Shown only while it isn't blank or 0.\n!key: only while it is. Empty: always.");
     PText("##tint", e.tint, "value giving R G B", full, "Tint from", "A live value giving \"R G B\" (0-255) that multiplies the colour - the car's custom HUD paints.");
     PIndent(); ImGui::SetNextItemWidth(full);
-    if (ImGui::InputInt("##row", &e.row, 0, 0)) { e.row = std::max(0, std::min(22, e.row)); g_dirty = true; }
+    if (ImGui::DragInt("##row", &e.row, 0.05f, 0, 22)) { e.row = std::max(0, std::min(22, e.row)); g_dirty = true; }
     PTip("0 = not a leaderboard row.\nN = shown only while there's an Nth racer on the board; in its text {name} {pos} {gap} ... are that racer's.");
     PLabel("Leaderboard row");
     if (e.row > 0) {
@@ -362,13 +362,12 @@ static void ElemPanel(const std::vector<Elem*>& P) {
         PIndent();
         { bool all = true; for (Elem* o : P) all &= o->visible; if (ImGui::Checkbox("Visible", &all)) { for (Elem* o : P) o->visible = all; g_dirty = true; } }
         {
-            int lo = P[0]->layer; for (Elem* o : P) lo = std::min(lo, o->layer);
             ImGui::SameLine(0, 14);
             if (ImGui::Button("-##layer")) { for (Elem* o : P) --o->layer; g_dirty = true; }
-            ImGui::SameLine(0, 3); ImGui::SetNextItemWidth(40);
-            int L = lo; if (ImGui::InputInt("##layer", &L, 0, 0) && L != lo) { for (Elem* o : P) o->layer += L - lo; g_dirty = true; }
-            PTip(multi ? "The lowest of their layers: changing it moves them all, keeping their order. Higher layers are drawn on top."
-                       : "Its layer: higher layers are drawn on top (the same layer: lower in the list on top).");
+            ImGui::SameLine(0, 3);
+            { std::vector<int*> lv; for (Elem* o : P) lv.push_back(&o->layer); PInt("##layer", lv, 52); }
+            PTip(multi ? "Their layers (lowest..highest): drag, - / + or type to move them all, keeping their order. Higher layers are drawn on top."
+                       : "Its layer (drag, or double-click to type): higher layers are drawn on top (the same layer: lower in the list on top).");
             ImGui::SameLine(0, 3); if (ImGui::Button("+##layer")) { for (Elem* o : P) ++o->layer; g_dirty = true; }
             ImGui::SameLine(0, 4); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("layer");
         }
@@ -552,18 +551,11 @@ static void GroupPanel() {
         PIndent();
         { bool all = true; for (Elem* o : P) all &= o->visible; if (ImGui::Checkbox("Visible", &all)) { for (Elem* o : P) o->visible = all; g_dirty = true; } }
         {
-            int lo = P[0]->layer, hi = lo; for (Elem* o : P) { lo = std::min(lo, o->layer); hi = std::max(hi, o->layer); }
             ImGui::SameLine(0, 14);
             if (ImGui::Button("-##glayer")) { for (Elem* o : P) --o->layer; g_dirty = true; }
-            ImGui::SameLine(0, 3); ImGui::SetNextItemWidth(40);
-            if (lo == hi) { int L = lo; if (ImGui::InputInt("##glayer", &L, 0, 0) && L != lo) { for (Elem* o : P) o->layer += L - lo; g_dirty = true; } }
-            else {
-                char lb[16] = ""; char hint[24]; snprintf(hint, sizeof hint, "%d..%d", lo, hi);
-                if (ImGui::InputTextWithHint("##glayer", hint, lb, sizeof lb, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsDecimal) && lb[0]) {
-                    const int L = atoi(lb); for (Elem* o : P) o->layer += L - lo; g_dirty = true;
-                }
-            }
-            PTip("Its members' layers (lowest..highest): - / + and typing move them all, keeping their order among themselves.\nHigher layers are drawn on top.");
+            ImGui::SameLine(0, 3);
+            { std::vector<int*> lv; for (Elem* o : P) lv.push_back(&o->layer); PInt("##glayer", lv, 52); }
+            PTip("Its members' layers (lowest..highest): drag, - / + or type to move them all, keeping their order among themselves.\nHigher layers are drawn on top.");
             ImGui::SameLine(0, 3); if (ImGui::Button("+##glayer")) { for (Elem* o : P) ++o->layer; g_dirty = true; }
             ImGui::SameLine(0, 4); ImGui::AlignTextToFramePadding(); ImGui::TextDisabled("layer");
         }
