@@ -12052,3 +12052,589 @@ tile=Button 14
 tile=Button 15
 tile=Button 16
 num=0 1 0.05 0
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=4
+x=-289
+y=-206
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Garage World Map/Header
+layer=2
+font=conduitmditc_tt21i
+text=Header
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Stage Bar
+anchor=4
+x=0
+y=-161
+w=581
+h=40
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Garage World Map/Header
+shape=7 7 7 7 2
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Stage
+anchor=4
+x=0
+y=-161
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Garage World Map/Header
+layer=2
+font=conduitmditc_tt21i
+text=Stage {cm.stage}
+align=1
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Stage left
+anchor=4
+x=-266.7
+y=-161
+w=22
+h=22
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Garage World Map/Header
+layer=3
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+showif=cm.left
+
+[element]
+mode=menus
+type=image
+name=Stage right
+anchor=4
+x=268.7
+y=-161
+w=22
+h=22
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Garage World Map/Header
+layer=3
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+showif=cm.right
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=25
+w=593
+h=323
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Garage/Garage World Map/Panel
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=image
+name=Map
+anchor=4
+x=-90.3
+y=22.3
+w=310
+h=309
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Garage World Map/Panel
+layer=1
+texture={cm.map}
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=shape
+name=Info Box
+anchor=4
+x=175
+y=22.3
+w=217
+h=310
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Garage/Garage World Map/Info
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Label 1
+anchor=4
+x=75.3
+y=-117.3
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Garage/Garage World Map/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.4D2F5C61}
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Value Box 1
+anchor=4
+x=175.3
+y=-85.3
+w=205
+h=37
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Garage/Garage World Map/Info
+layer=1
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Value 1
+anchor=4
+x=88.7
+y=-85.3
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Garage World Map/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.23EAE8B9}
+align=0
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Label 2
+anchor=4
+x=75.3
+y=-38.1
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Garage/Garage World Map/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.4D2F5C62}
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Value Box 2
+anchor=4
+x=175.3
+y=-6.1
+w=205
+h=37
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Garage/Garage World Map/Info
+layer=1
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Value 2
+anchor=4
+x=88.7
+y=-6.1
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Garage World Map/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.23EAE8BA}
+align=0
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Label 3
+anchor=4
+x=75.3
+y=41.1
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Garage/Garage World Map/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.4D2F5C63}
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Value Box 3
+anchor=4
+x=175.3
+y=73.1
+w=205
+h=37
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Garage/Garage World Map/Info
+layer=1
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Value 3
+anchor=4
+x=88.7
+y=73.1
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Garage World Map/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.23EAE8BB}
+align=0
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Label 4
+anchor=4
+x=75.3
+y=120.3
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Garage/Garage World Map/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.4D2F5C64}
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Value Box 4
+anchor=4
+x=175.3
+y=152.3
+w=205
+h=37
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Garage/Garage World Map/Info
+layer=1
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Value 4
+anchor=4
+x=88.7
+y=152.3
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Garage World Map/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.23EAE8BC}
+align=0
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Events Column
+anchor=4
+x=-264.7
+y=23.3
+w=28
+h=307
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Garage/Garage World Map/Events
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=-285.7
+y=23.3
+w=8
+h=307
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Garage/Garage World Map/Events
+shape=7 7 7 7 2
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+cut=0;Panel 2
+role=gtrack
+showif=cm.events.count
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-264.7
+y=-84.7
+w=25
+h=25
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Garage World Map/Events
+shape=3.8 3.8 3.8 3.8 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+showif=cm.events.count
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-264.7
+y=-84.7
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Garage World Map/Events
+shape=3.8 3.8 3.8 3.8 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+showif=cm.events.count
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-264.7
+y=-84.7
+w=25
+h=25
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Garage World Map/Events
+layer=1
+shape=3.8 3.8 3.8 3.8 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+showif=cm.events.count
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=Seleced part
+anchor=4
+x=-264.7
+y=-84.7
+w=10
+h=10
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Garage/Garage World Map/Events
+shape=60 60 60 60 2
+fill=1 1 1 1
+filltoken=hud.text 1
+fillgrad=2 0 0;0.65 1 1 1 1@hud.text;1 1 1 1 0@hud.text
+showif=cm.events.count
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-285.7
+y=-48.7
+w=12
+h=12
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Garage World Map/Events
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+showif=cm.events.count
+
+[widget]
+group=Garage/Garage World Map/Events
+type=carousel
+bind=list:cm.events
+carousel=1 0 1 1
+grid=1 7 28 252 -278.7 -102.7 28 36 1 1 -264.7 23.3 0 0 0 1
+tile=Button 1
+num=0 1 0.05 0
+
+[element]
+mode=menus
+type=image
+name=U2_MENU_ARROW up
+anchor=4
+x=-264.7
+y=-117.3
+w=21
+h=21
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Garage World Map/Events
+layer=11
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+rot=-90
+role=arrowU
+showif=cm.up
+
+[element]
+mode=menus
+type=image
+name=U2_MENU_ARROW down
+anchor=4
+x=-264.7
+y=162
+w=21
+h=21
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Garage World Map/Events
+layer=11
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+rot=90
+role=arrowD
+showif=cm.down
+
+[page]
+group=Garage/Garage World Map
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+careermap=1
+title=World Map
+prompt=South;Select Event
+prompt=East;Back
+shared=Shared/Glyphs Bar
+feswap=hud.shade Menu.grey.1
