@@ -5,7 +5,7 @@ boardfollow=1
 listheight=536
 highlightsel=0
 menufade=0.15
-custommenus=1
+custommenus=0
 flagdef=hide_until_green 0
 flagdef=hide_wreck 0
 flagdef=hide_online 0
@@ -7302,10 +7302,10 @@ scale=1
 color=0 0 0 0
 visible=1
 group=Shared/Performance
-showif=car.has
 shape=7 7 7 7 2
 fill=0 0 0 0.52549
 filltoken=Menu.black.1 1
+showif=car.has
 colortoken=Menu.black.1 0
 
 [element]
@@ -7321,10 +7321,10 @@ scale=0.55
 color=1 1 1 1
 visible=1
 group=Shared/Performance
-showif=car.has
 font=conduitmditc_tt21i
 text=ACCELERATION
 align=0
+showif=car.has
 colortoken=hud.text 1
 
 [element]
@@ -7340,10 +7340,10 @@ scale=0.55
 color=1 1 1 1
 visible=1
 group=Shared/Performance
-showif=car.has
 font=conduitmditc_tt21i
 text=TOP SPEED
 align=0
+showif=car.has
 colortoken=hud.text 1
 
 [element]
@@ -7359,10 +7359,10 @@ scale=0.55
 color=1 1 1 1
 visible=1
 group=Shared/Performance
-showif=car.has
 font=conduitmditc_tt21i
 text=HANDLING
 align=0
+showif=car.has
 colortoken=hud.text 1
 
 [element]
@@ -7378,12 +7378,12 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Performance/ACCELERATION
-showif=car.has
 shape=12 12 12 12 2.4
 fill=0.172549 0.172549 0.172549 0.4
 filltoken=scroll.3 0.4
 strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.7@scroll.3;0.17 0.172549 0.172549 0.172549 0.7@scroll.3;1 0.172549 0.172549 0.172549 0.5@scroll.3
 strokegradtoken=scroller_dark
+showif=car.has
 colortoken=hud.line 1
 
 [element]
@@ -7399,10 +7399,10 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Performance/ACCELERATION
-showif=car.has
 layer=1
 shape=1.5 1.5 1.5 1.5 0
 fill=0.8118 0.502 0.1882 1
+showif=car.has
 bind=car.accel
 bindkind=1
 bindrange=0 100
@@ -7421,10 +7421,10 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Performance/ACCELERATION
-showif=car.has
 layer=2
 shape=1.5 1.5 1.5 1.5 0
 fill=0.588 0 0 1
+showif=car.has
 bind=car.accel.installed
 bindkind=1
 bindrange=0 100
@@ -7443,11 +7443,11 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Performance/ACCELERATION
-showif=car.has
 layer=3
 shape=1.5 1.5 1.5 1.5 0
 fill=0.3882 0.698 0.1333 1
 filltoken=hud.bright_green 1
+showif=car.has
 bind=car.accel.base
 bindkind=1
 bindrange=0 100
@@ -7466,7 +7466,6 @@ scale=1
 color=0.171271 0.171271 0.171271 1
 visible=1
 group=Shared/Performance/ACCELERATION
-showif=car.has
 layer=4
 shape=30 30 30 30 2.6
 fill=0.678431 0.678431 0.678431 1
@@ -7476,6 +7475,7 @@ strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.1725
 strokegradtoken=handle.1
 fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
 fillgradtoken=handle.2
+showif=car.has
 bind=car.accel.installed
 bindkind=5
 bindrange=0 100
@@ -7494,12 +7494,12 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Performance/TOP SPEED
-showif=car.has
 shape=12 12 12 12 2.4
 fill=0.172549 0.172549 0.172549 0.4
 filltoken=scroll.3 0.4
 strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.7@scroll.3;0.17 0.172549 0.172549 0.172549 0.7@scroll.3;1 0.172549 0.172549 0.172549 0.5@scroll.3
 strokegradtoken=scroller_dark
+showif=car.has
 colortoken=hud.line 1
 
 [element]
@@ -7515,10 +7515,10 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Performance/TOP SPEED
-showif=car.has
 layer=1
 shape=1.5 1.5 1.5 1.5 0
 fill=0.8118 0.502 0.1882 1
+showif=car.has
 bind=car.topspeed
 bindkind=1
 bindrange=0 100
@@ -7537,10 +7537,10 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Performance/TOP SPEED
-showif=car.has
 layer=2
 shape=1.5 1.5 1.5 1.5 0
 fill=0.588 0 0 1
+showif=car.has
 bind=car.topspeed.installed
 bindkind=1
 bindrange=0 100
@@ -7559,11 +7559,11 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Performance/TOP SPEED
-showif=car.has
 layer=3
 shape=1.5 1.5 1.5 1.5 0
 fill=0.3882 0.698 0.1333 1
 filltoken=hud.bright_green 1
+showif=car.has
 bind=car.topspeed.base
 bindkind=1
 bindrange=0 100
@@ -7582,7 +7582,6 @@ scale=1
 color=0.171271 0.171271 0.171271 1
 visible=1
 group=Shared/Performance/TOP SPEED
-showif=car.has
 layer=4
 shape=30 30 30 30 2.6
 fill=0.678431 0.678431 0.678431 1
@@ -7592,6 +7591,7 @@ strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.1725
 strokegradtoken=handle.1
 fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
 fillgradtoken=handle.2
+showif=car.has
 bind=car.topspeed.installed
 bindkind=5
 bindrange=0 100
@@ -7610,12 +7610,12 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Performance/HANDLING
-showif=car.has
 shape=12 12 12 12 2.4
 fill=0.172549 0.172549 0.172549 0.4
 filltoken=scroll.3 0.4
 strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.7@scroll.3;0.17 0.172549 0.172549 0.172549 0.7@scroll.3;1 0.172549 0.172549 0.172549 0.5@scroll.3
 strokegradtoken=scroller_dark
+showif=car.has
 colortoken=hud.line 1
 
 [element]
@@ -7631,10 +7631,10 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Performance/HANDLING
-showif=car.has
 layer=1
 shape=1.5 1.5 1.5 1.5 0
 fill=0.8118 0.502 0.1882 1
+showif=car.has
 bind=car.handling
 bindkind=1
 bindrange=0 100
@@ -7653,10 +7653,10 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Performance/HANDLING
-showif=car.has
 layer=2
 shape=1.5 1.5 1.5 1.5 0
 fill=0.588 0 0 1
+showif=car.has
 bind=car.handling.installed
 bindkind=1
 bindrange=0 100
@@ -7675,11 +7675,11 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Performance/HANDLING
-showif=car.has
 layer=3
 shape=1.5 1.5 1.5 1.5 0
 fill=0.3882 0.698 0.1333 1
 filltoken=hud.bright_green 1
+showif=car.has
 bind=car.handling.base
 bindkind=1
 bindrange=0 100
@@ -7698,7 +7698,6 @@ scale=1
 color=0.171271 0.171271 0.171271 1
 visible=1
 group=Shared/Performance/HANDLING
-showif=car.has
 layer=4
 shape=30 30 30 30 2.6
 fill=0.678431 0.678431 0.678431 1
@@ -7708,6 +7707,7 @@ strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.1725
 strokegradtoken=handle.1
 fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
 fillgradtoken=handle.2
+showif=car.has
 bind=car.handling.installed
 bindkind=5
 bindrange=0 100
@@ -7949,10 +7949,10 @@ scale=1
 color=0 0 0 0
 visible=1
 group=Shared/Visual Rating
-showif=car.has
 shape=0 7 0 7 0
 fill=0 0 0 0.52549
 filltoken=Menu.black.1 1
+showif=car.has
 colortoken=Menu.black.1 0
 
 [element]
@@ -7968,10 +7968,10 @@ scale=1
 color=0 0 0 0
 visible=1
 group=Shared/Visual Rating
-showif=car.has
 shape=0 0 7 7 0
 fill=0 0 0 0.52549
 filltoken=Menu.black.1 1
+showif=car.has
 colortoken=Menu.black.1 0
 
 [element]
@@ -7987,10 +7987,10 @@ scale=0.6
 color=0.7922 0.9569 0.5412 1
 visible=1
 group=Shared/Visual Rating
-showif=car.has
 font=conduitmditc_tt21i
 text=Visual Rating
 align=1
+showif=car.has
 colortoken=hud.accent 1
 
 [element]
@@ -8006,10 +8006,10 @@ scale=0.8
 color=0.7922 0.9569 0.5412 1
 visible=1
 group=Shared/Visual Rating
-showif=car.has
 font=conduitmditc_tt21i
 text={car.visual}
 align=2
+showif=car.has
 tint=car.visual.tint
 colortoken=hud.accent 1
 
@@ -8026,10 +8026,10 @@ scale=1
 color=0.7922 0.9569 0.5412 1
 visible=1
 group=Shared/Visual Rating
-showif=car.has
 texture=U2_REPUTATION_STAR_HIGH
 pack=?
 uv=0 0 1 1
+showif=car.has
 tint=car.visual.tint
 colortoken=hud.accent 1
 
@@ -8046,12 +8046,12 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Visual Rating/Visual Rating Bar
-showif=car.has
 shape=12 12 12 12 2.4
 fill=0.172549 0.172549 0.172549 0.4
 filltoken=scroll.3 0.4
 strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.7@scroll.3;0.17 0.172549 0.172549 0.172549 0.7@scroll.3;1 0.172549 0.172549 0.172549 0.5@scroll.3
 strokegradtoken=scroller_dark
+showif=car.has
 colortoken=hud.line 1
 
 [element]
@@ -8067,10 +8067,10 @@ scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
 group=Shared/Visual Rating/Visual Rating Bar
-showif=car.has
 shape=1.5 1.5 1.5 1.5 0
 fill=0.7922 0.9569 0.5412 1
 filltoken=hud.accent 1
+showif=car.has
 bind=car.visualbar
 bindkind=2
 bindrange=0 1
@@ -8090,7 +8090,6 @@ scale=1
 color=0.171271 0.171271 0.171271 1
 visible=1
 group=Shared/Visual Rating/Visual Rating Bar
-showif=car.has
 shape=30 30 30 30 2.6
 fill=0.678431 0.678431 0.678431 1
 filltoken=Scroll.1 1
@@ -8099,6 +8098,7 @@ strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.1725
 strokegradtoken=handle.1
 fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
 fillgradtoken=handle.2
+showif=car.has
 bind=car.visualbar
 bindkind=6
 bindrange=0 1
@@ -10809,642 +10809,6 @@ fill=0 0 0 0.85
 selonly=1
 showif=gm.upgrade.shown
 
-[page]
-group=Pause 1/Pause Options/Unipad Options
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-title=UniPad Options
-
-[page]
-group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-title=UniPad Options
-
-[page]
-group=Pause 1/Pause Options/Unipad Options/Rumble Options
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-title=Rumble Options
-
-[page]
-group=Pause 1
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-pausemenu=1
-title=Pause
-
-[page]
-group=Pause 1/Pause Options
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-pauseopts=1
-title=Options
-
-[page]
-group=Garage
-start=0
-selcolor=0 0.792157 0.956863 0.541176 1
-dedicated=1
-garagemenu=1
-title=The Garage
-prompt=South;Select
-prompt=North;Help
-shared=Shared/Glyphs Bar
-feswap=hud.shade Menu.grey.1
-
-[page]
-group=Confirm Page
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-confirmdlg=1
-feswap=hud.shade Menu.grey.1
-
-[page]
-group=World Map
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-worldmap=1
-feswap=hud.shade Menu.grey.1
-
-[page]
-group=Race Start Regular
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-racedlg=1
-title=Incoming Mobile Message
-
-[page]
-group=Race Start Multiplayer
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-racedlgmp=1
-title=Incoming Mobile Message
-
-[page]
-group=Race Start Multiplayer/Race Settings
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-
-[page]
-group=Garage/Garage Car Select
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-carselect=1
-title=Garage Car Select
-prompt=South;Select
-prompt=East;Back
-shared=Shared/Performance
-shared=Shared/Visual Rating
-
-[page]
-group=Shared
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-
-[page]
-group=Garage/Change Parts
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-partsmenu=1
-title=Parts Storage
-
-[page]
-group=Garage/Change Parts/Performance Parts
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-perfpartsmenu=1
-title=Performance Part Storage
-
-[page]
-group=Garage/Change Parts/Specialties
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-specialtiesmenu=1
-title=Car Specialties Storage
-
-[page]
-group=Garage/Change Parts/Body Parts
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-bodypartsmenu=1
-title=Body Parts Storage
-shared=Shared/Visual Rating
-shared=Shared/Body Parts Panel
-
-[page]
-group=Garage/Change Parts/Performance Parts/Performance Upgrade
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-perfupgrademenu=1
-title={gm.upgrade.title}
-prompt=South;Install
-shared=Shared/Performance
-
-[page]
-group=Garage/Change Parts/Rim Brands
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-rimbrandmenu=1
-title=Rim Brands
-
-[widget]
-group=Garage/Change Parts/Rim Brands/Carousel
-type=carousel
-bind=list:gm.items
-carousel=1 0 1 0
-grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
-tile=Button 1
-tile=Button 2
-tile=Button 3
-tile=Button 4
-tile=Button 5
-tile=Button 6
-tile=Button 7
-tile=Button 8
-tile=Button 9
-tile=Button 10
-tile=Button 11
-tile=Button 12
-tile=Button 13
-tile=Button 14
-tile=Button 15
-tile=Button 16
-num=0 1 0.05 0
-
-[widget]
-group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
-type=carousel
-bind=list:gm.items
-carousel=1 0 1 0
-grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
-tile=Button 1
-tile=Button 2
-tile=Button 3
-tile=Button 4
-tile=Button 5
-tile=Button 6
-tile=Button 7
-tile=Button 8
-tile=Button 9
-tile=Button 10
-tile=Button 11
-tile=Button 12
-tile=Button 13
-tile=Button 14
-tile=Button 15
-tile=Button 16
-num=0 1 0.05 0
-
-[widget]
-group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
-type=listbox
-bind=list:gm.upgrade
-grid=1 4 549 102 -286 -75 549 24 1 1 -11.5 -24 0 2 0 1
-tile=Button 1
-tile=Button 2
-tile=Button 3
-tile=Button 4
-num=0 1 0.05 0
-
-[widget]
-group=Shared/Body Parts Panel/Parts
-type=carousel
-bind=list:gm.parts
-carousel=1 0 1 1
-grid=1 7 28 252 -283 -78 28 36 1 1 -269 48 0 0 0 1
-tile=Button 1
-num=0 1 0.05 0
-
-[widget]
-group=Garage/Change Parts/Body Parts/Carousel
-type=carousel
-bind=list:gm.items
-carousel=1 0 1 0
-grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
-tile=Button 1
-tile=Button 2
-tile=Button 3
-tile=Button 4
-tile=Button 5
-tile=Button 6
-tile=Button 7
-tile=Button 8
-tile=Button 9
-tile=Button 10
-tile=Button 11
-tile=Button 12
-tile=Button 13
-tile=Button 14
-tile=Button 15
-tile=Button 16
-num=0 1 0.05 0
-
-[widget]
-group=Garage/Change Parts/Performance Parts/Carousel
-type=carousel
-bind=list:gm.items
-carousel=1 0 1 0
-grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
-tile=Button 1
-tile=Button 2
-tile=Button 3
-tile=Button 4
-tile=Button 5
-tile=Button 6
-tile=Button 7
-tile=Button 8
-tile=Button 9
-tile=Button 10
-tile=Button 11
-tile=Button 12
-tile=Button 13
-tile=Button 14
-tile=Button 15
-tile=Button 16
-num=0 1 0.05 0
-
-[widget]
-group=Garage/Change Parts/Specialties/Carousel
-type=carousel
-bind=list:gm.items
-carousel=1 0 1 0
-grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
-tile=Button 1
-tile=Button 2
-tile=Button 3
-tile=Button 4
-tile=Button 5
-tile=Button 6
-tile=Button 7
-tile=Button 8
-tile=Button 9
-tile=Button 10
-tile=Button 11
-tile=Button 12
-tile=Button 13
-tile=Button 14
-tile=Button 15
-tile=Button 16
-num=0 1 0.05 0
-
-[widget]
-group=Garage/Change Parts/Carousel
-type=carousel
-carousel=1 0 1 0
-grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 3 1
-tile=Body Parts
-tbind=parts.body
-ticon=#B802F10E
-tdesc=Change Body Parts
-tile=Performance Parts
-tbind=parts.performance
-ticon=#C56D3032
-tdesc=Change Performance Parts
-tile=Specialties
-tbind=parts.specialties
-ticon=#3F40E75F
-tdesc=Change Interiors / Car Specialties
-num=0 1 0.05 0
-
-[widget]
-group=Pause 1/Carousel
-type=carousel
-carousel=1 0 1 0
-grid=3 1 444 62 -221.7 -45.3 126 62 1 1 0.3 -14.3 33 0 5 1
-tile=Return to Explore
-tbind=pause.resume
-ticon=INGAME_ICON_EXPLORE
-tdesc=Return to Explore Mode
-tile=Jump to Garage
-tbind=pause.garage
-ticon=SHOP_ICON_CRIB
-tdesc=Jump to Garage
-tile=Options
-tbind=pause.options
-ticon=INGAME_ICON_OPTIONS
-tdesc=Options
-tile=Free Cam
-tbind=pause.freecam
-ticon=INGAME_ICON_REPLAY
-tdesc=Free Cam
-tile=Quit
-tbind=pause.quit
-ticon=INGAME_ICON_QUIT_TO_FE
-tdesc=Quit to Main Menu
-num=0 1 0.05 0
-
-[widget]
-group=Pause 1/Pause Options/Carousel
-type=carousel
-carousel=1 0 1 0
-grid=3 1 444 62 -221.7 -45.3 126 62 1 1 0.3 -14.3 33 0 5 1
-tile=Audio
-tbind=pauseopt.audio
-ticon=OPTIONS_ICON_AUDIO
-tdesc=Audio
-tile=Display
-tbind=pauseopt.display
-ticon=OPTIONS_ICON_DISPLAY
-tdesc=Display
-tile=Gameplay
-tbind=pauseopt.gameplay
-ticon=OPTIONS_ICON_GAMEPLAY_SETTINGS
-tdesc=Gameplay
-tile=Player
-tbind=pauseopt.player
-ticon=OPTIONS_ICON_PLAYER_SETTINGS
-tdesc=Player
-tile=UniPad Options
-taction=page:Pause 1/Pause Options/Unipad Options
-ticon=INGAME_ICON_OPTIONS
-tdesc=UniPad Options
-num=0 1 0.05 0
-
-[widget]
-group=Pause 1/Pause Options/Unipad Options/Grid
-type=grid
-grid=1 8 550 293.9 -291 -146.95 550 30 1 1 -16 0 0 7.7 8 1
-tile=Active Gamepad
-ttype=picker
-tbind=pad.active
-tnum=0 1 0.05 0
-tile=Rumble Mode
-ttype=picker
-tbind=rumble.mode
-tnum=0 1 0.05 0
-tile=Camera Control Style
-ttype=picker
-tbind=cam.style
-tnum=0 1 0.05 0
-tile=Steering Deadzone
-ttype=slider
-tbind=steer.deadzone
-tnum=0 1 0.05 0
-tile=Steering Gate
-ttype=slider
-tbind=steer.gate
-tnum=0 1 0.05 0
-tile=Steering Curve
-ttype=slider
-tbind=steer.curve
-tnum=0 1 0.05 0
-tile=Rumble Options
-taction=page:Pause 1/Pause Options/Unipad Options/Rumble Options
-tile=Change Gamepad Bindings
-taction=page:Pause 1/Pause Options/Unipad Options/Gamepad Bindings
-num=0 1 0.05 6
-
-[widget]
-group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
-type=grid
-grid=1 8 550 293.9 -291 -146.95 550 30 1 1 -16 0 0 7.7 12 1
-tile=Rumble Mode
-ttype=picker
-tbind=rumble.mode
-tdesc=How the controller rumbles: Off, Console (Xbox feel), Enhanced, Modern vibration or Haptics.
-tnum=0 1 0.05 0
-tile=Strength
-ttype=slider
-tbind=rumble.strength
-tdesc=Overall rumble strength.
-tnum=0 1 0.05 0
-tile=Collisions
-ttype=slider
-tbind=rumble.collisions
-tdesc=Crashes into walls, cars and traffic.
-tnum=0 1 0.05 0
-tile=Landings
-ttype=slider
-tbind=rumble.landings
-tdesc=Touching down after a jump.
-tnum=0 1 0.05 0
-tile=Bumps
-ttype=slider
-tbind=rumble.bumps
-tdesc=Body contact and bumps in the road.
-tnum=0 1 0.05 0
-tile=Road
-ttype=slider
-tbind=rumble.road
-tdesc=Road texture while driving.
-tnum=0 1 0.05 0
-tile=Engine
-ttype=slider
-tbind=rumble.engine
-tdesc=Engine revs.
-tnum=0 1 0.05 0
-tile=Nitrous
-ttype=slider
-tbind=rumble.nitrous
-tdesc=Nitrous kicking in and flowing.
-tnum=0 1 0.05 0
-tile=Wheelspin
-ttype=slider
-tbind=rumble.wheelspin
-tdesc=Tires spinning.
-tnum=0 1 0.05 0
-tile=Surface
-ttype=slider
-tbind=rumble.surface
-tdesc=The surface under the car.
-tnum=0 1 0.05 0
-tile=Cornering
-ttype=slider
-tbind=rumble.cornering
-tdesc=Grip while cornering.
-tnum=0 1 0.05 0
-tile=Trigger Rumble
-ttype=picker
-tbind=rumble.triggers
-tdesc=Trigger motors (Enhanced mode, Xbox One / Series controllers).
-tnum=0 1 0.05 0
-num=0 1 0.05 0
-
-[widget]
-group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/Grid
-type=grid
-grid=2 8 484 282 -236.5 -142 237 30 1 1 5.5 -1 10 6 8 1
-tile=Steering
-tbind=bind.steer
-tile=Throttle
-tbind=bind.throttle
-tile=Brake/Reverse
-tbind=bind.brake
-tile=E-Brake
-tbind=bind.ebrake
-tile=Nitrous
-tbind=bind.nitrous
-tile=Look Back
-tbind=bind.lookback
-tile=Shift Up
-tbind=bind.shiftup
-tile=Shift Down
-tbind=bind.shiftdown
-tile=Reset Car
-tbind=bind.reset
-tile=Pause
-tbind=bind.pause
-tile=World Map
-tbind=bind.map
-tile=Messages
-tbind=bind.messages
-tile=Career Stats
-tbind=bind.legend
-tile=Enter Race/Shop
-tbind=bind.engage
-tile=Button 15
-tile=Button 16
-num=0 1 0.05 0
-
-[widget]
-group=Confirm Page/Grid
-type=grid
-grid=2 1 590.2 46 -294.998 51 288 46 1 1 0.101761 74 14.2 7.7 1 1
-tile=Yes
-tbind=dialog.yes
-tile=No
-tbind=dialog.no
-num=0 1 0.05 0
-
-[widget]
-group=World Map/Legend
-type=grid
-bind=list:map.legend
-grid=1 13 231 293 -293.5 -123.5 231 22.5385 1 0 -293.5 23 0 0 0 1
-tile=Button 1
-tile=Button 2
-tile=Button 3
-tile=Button 4
-tile=Button 5
-tile=Button 6
-tile=Button 7
-tile=Button 8
-tile=Button 9
-tile=Button 10
-tile=Button 11
-tile=Button 12
-tile=Button 13
-num=0 1 0.05 0
-
-[widget]
-group=Race Start Regular/Grid
-type=grid
-grid=2 1 576 46 -287.898 156 288 46 1 1 0.101761 179 0 0 1 1
-tile=Accept
-tbind=race.accept
-tile=Decline
-tbind=race.decline
-num=0 1 0.05 0
-
-[widget]
-group=Race Start Multiplayer/Grid copy
-type=grid
-grid=1 3 322 70 -31 125.47 322 23.3333 1 2 291 160.47 0 0 3 1
-tile=Coop
-tbind=race.coop
-tile=Solo
-tbind=race.accept
-tile=Race Settings
-taction=page:Race Start Multiplayer/Race Settings
-num=0 1 0.05 0
-
-[widget]
-group=Race Start Multiplayer/Race Settings/Grid
-type=grid
-grid=1 8 550 293.9 -291 -146.95 550 30 1 1 -16 0 0 7.7 8 1
-tile=AI Racers
-ttype=picker
-tbind=race.ai
-tdesc=Race against AI opponents.
-tnum=0 1 0.05 0
-tile=AI Racers in the Race
-ttype=slider
-tbind=race.aicount
-tdesc=How many AI opponents (0-15).
-tnum=0 1 0.05 0
-tile=AI Difficulty
-ttype=picker
-tbind=race.difficulty
-tdesc=How fast and smart the AI opponents drive.
-tnum=0 1 0.05 0
-tile=Rubberbanding
-ttype=picker
-tbind=race.rubberband
-tdesc=AI opponents slow down when ahead and speed up when behind.
-tnum=0 1 0.05 0
-tile=Traffic
-ttype=picker
-tbind=race.traffic
-tdesc=Traffic cars on the streets during the race.
-tnum=0 1 0.05 0
-tile=Collision
-ttype=picker
-tbind=race.collision
-tdesc=Bumping into the other players' cars.
-tnum=0 1 0.05 0
-tile=Button 7
-tile=Button 8
-num=0 1 0.05 0
-
-[widget]
-group=Garage/Carousel
-type=carousel
-carousel=1 0 1 0
-grid=3 1 444 62 -221.7 -165.3 126 62 1 1 0.3 -134.3 33 0 8 1
-tile=Return to Explore
-tbind=garage.explore
-ticon=#A230CD88
-tdesc=Return to Explore Mode
-tile=World Map
-tbind=garage.worldmap
-ticon=#22F2CEAB
-tdesc=World Map
-tile=Car Select
-tbind=garage.carselect
-ticon=#A964095B
-tdesc=Car Select
-tile=Change Parts
-tbind=garage.parts
-ticon=#511F9D75
-tdesc=Change Parts
-tile=Performance Tuning
-tbind=garage.tuning
-ticon=#7A9B397A
-tdesc=Performance Tuning / Dyno
-tile=View Rewards
-tbind=garage.rewards
-ticon=#49D2E3DE
-tdesc=View Rewards
-tile=Save
-tbind=garage.save
-ticon=#8ADA6FD4
-tdesc=Save
-tile=Main Menu
-tbind=garage.mainmenu
-ticon=#FC39853F
-tdesc=Back to Main Menu
-num=0 1 0.05 0
-
-
 [element]
 mode=menus
 type=shape
@@ -11716,38 +11080,6 @@ align=1
 role=desc
 colortoken=hud.accent 1
 
-[page]
-group=Garage/Change Parts/Neon
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-neonmenu=1
-title=Neon
-
-[widget]
-group=Garage/Change Parts/Neon/Carousel
-type=carousel
-bind=list:gm.items
-carousel=1 0 1 0
-grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
-tile=Button 1
-tile=Button 2
-tile=Button 3
-tile=Button 4
-tile=Button 5
-tile=Button 6
-tile=Button 7
-tile=Button 8
-tile=Button 9
-tile=Button 10
-tile=Button 11
-tile=Button 12
-tile=Button 13
-tile=Button 14
-tile=Button 15
-tile=Button 16
-num=0 1 0.05 0
-
 [element]
 mode=menus
 type=shape
@@ -12018,40 +11350,6 @@ text=Change Body Parts
 align=1
 role=desc
 colortoken=hud.accent 1
-
-[page]
-group=Garage/Change Parts/Specialty Parts
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-icepartsmenu=1
-title=Car Specialties Storage
-shared=Shared/Visual Rating
-shared=Shared/Body Parts Panel
-
-[widget]
-group=Garage/Change Parts/Specialty Parts/Carousel
-type=carousel
-bind=list:gm.items
-carousel=1 0 1 0
-grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
-tile=Button 1
-tile=Button 2
-tile=Button 3
-tile=Button 4
-tile=Button 5
-tile=Button 6
-tile=Button 7
-tile=Button 8
-tile=Button 9
-tile=Button 10
-tile=Button 11
-tile=Button 12
-tile=Button 13
-tile=Button 14
-tile=Button 15
-tile=Button 16
-num=0 1 0.05 0
 
 [element]
 mode=menus
@@ -12154,9 +11452,9 @@ type=shape
 name=Panel
 anchor=4
 x=0
-y=25
+y=-18
 w=593
-h=323
+h=410
 scale=1
 color=0.8824 0.8824 0.8824 0
 visible=1
@@ -12168,21 +11466,38 @@ colortoken=hud.line 0
 
 [element]
 mode=menus
-type=image
-name=Map
+type=shape
+name=Panel copy
+anchor=4
+x=-2
+y=22
+w=584
+h=318
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Garage/Garage World Map/Panel
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=shape
+name=Map Hole
 anchor=4
 x=-90.3
 y=22.3
 w=310
 h=309
 scale=1
-color=1 1 1 1
+color=0.8824 0.8824 0.8824 0
 visible=1
 group=Garage/Garage World Map/Panel
-layer=1
-texture={cm.map}
-pack=
-uv=0 0 1 1
+shape=0 0 0 0 0
+fill=0 0 0 0
+cut=0;Panel
 
 [element]
 mode=menus
@@ -12442,7 +11757,7 @@ h=307
 scale=1
 color=0.8824 0.8824 0.8824 0
 visible=1
-group=Garage/Garage World Map/Events
+group=Garage/Garage World Map/Events Frame
 shape=7 7 7 7 0
 fill=0.396078 0.396078 0.396078 0.882353
 filltoken=Menu.grey.1 1
@@ -12576,15 +11891,6 @@ uv=0 0 1 1
 role=gtab
 showif=cm.events.count
 
-[widget]
-group=Garage/Garage World Map/Events
-type=carousel
-bind=list:cm.events
-carousel=1 0 1 1
-grid=1 7 28 252 -278.7 -102.7 28 36 1 1 -264.7 23.3 0 0 0 1
-tile=Button 1
-num=0 1 0.05 0
-
 [element]
 mode=menus
 type=image
@@ -12597,13 +11903,13 @@ h=21
 scale=1
 color=1 1 1 1
 visible=1
-group=Garage/Garage World Map/Events
+group=Garage/Garage World Map/Events Frame
 layer=11
 texture=vec:U2_MENU_ARROW
 pack=
 uv=0 0 1 1
 rot=-90
-role=arrowU
+arrowU
 showif=cm.up
 
 [element]
@@ -12618,14 +11924,189 @@ h=21
 scale=1
 color=1 1 1 1
 visible=1
-group=Garage/Garage World Map/Events
+group=Garage/Garage World Map/Events Frame
 layer=11
 texture=vec:U2_MENU_ARROW
 pack=
 uv=0 0 1 1
 rot=90
-role=arrowD
+arrowD
 showif=cm.down
+
+[page]
+group=Pause 1/Pause Options/Unipad Options
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+title=UniPad Options
+
+[page]
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+title=UniPad Options
+
+[page]
+group=Pause 1/Pause Options/Unipad Options/Rumble Options
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+title=Rumble Options
+
+[page]
+group=Pause 1
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+pausemenu=1
+title=Pause
+
+[page]
+group=Pause 1/Pause Options
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+pauseopts=1
+title=Options
+
+[page]
+group=Garage
+start=0
+selcolor=0 0.792157 0.956863 0.541176 1
+dedicated=1
+garagemenu=1
+title=The Garage
+prompt=South;Select
+prompt=North;Help
+shared=Shared/Glyphs Bar
+feswap=hud.shade Menu.grey.1
+
+[page]
+group=Confirm Page
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+confirmdlg=1
+feswap=hud.shade Menu.grey.1
+
+[page]
+group=World Map
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+worldmap=1
+feswap=hud.shade Menu.grey.1
+
+[page]
+group=Race Start Regular
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+racedlg=1
+title=Incoming Mobile Message
+
+[page]
+group=Race Start Multiplayer
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+racedlgmp=1
+title=Incoming Mobile Message
+
+[page]
+group=Race Start Multiplayer/Race Settings
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+
+[page]
+group=Garage/Garage Car Select
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+carselect=1
+title=Garage Car Select
+prompt=South;Select
+prompt=East;Back
+shared=Shared/Performance
+shared=Shared/Visual Rating
+
+[page]
+group=Shared
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+
+[page]
+group=Garage/Change Parts
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+partsmenu=1
+title=Parts Storage
+
+[page]
+group=Garage/Change Parts/Performance Parts
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+perfpartsmenu=1
+title=Performance Part Storage
+
+[page]
+group=Garage/Change Parts/Specialties
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+specialtiesmenu=1
+title=Car Specialties Storage
+
+[page]
+group=Garage/Change Parts/Body Parts
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+bodypartsmenu=1
+title=Body Parts Storage
+shared=Shared/Visual Rating
+shared=Shared/Body Parts Panel
+
+[page]
+group=Garage/Change Parts/Performance Parts/Performance Upgrade
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+perfupgrademenu=1
+title={gm.upgrade.title}
+prompt=South;Install
+shared=Shared/Performance
+
+[page]
+group=Garage/Change Parts/Rim Brands
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+rimbrandmenu=1
+title=Rim Brands
+
+[page]
+group=Garage/Change Parts/Neon
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+neonmenu=1
+title=Neon
+
+[page]
+group=Garage/Change Parts/Specialty Parts
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+icepartsmenu=1
+title=Car Specialties Storage
+shared=Shared/Visual Rating
+shared=Shared/Body Parts Panel
 
 [page]
 group=Garage/Garage World Map
@@ -12638,3 +12119,538 @@ prompt=South;Select Event
 prompt=East;Back
 shared=Shared/Glyphs Bar
 feswap=hud.shade Menu.grey.1
+
+[widget]
+group=Garage/Change Parts/Rim Brands/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+tile=Button 14
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+tile=Button 14
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Parts
+type=listbox
+bind=list:gm.upgrade
+grid=1 4 549 102 -286 -75 549 24 1 1 -11.5 -24 0 2 0 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+num=0 1 0.05 0
+
+[widget]
+group=Shared/Body Parts Panel/Parts
+type=carousel
+bind=list:gm.parts
+carousel=1 0 1 1 0.85
+grid=1 7 28 252 -283 -78 28 36 1 1 -269 48 0 0 0 1
+tile=Button 1
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Body Parts/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+tile=Button 14
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Performance Parts/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+tile=Button 14
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Specialties/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+tile=Button 14
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Carousel
+type=carousel
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 3 1
+tile=Body Parts
+tbind=parts.body
+ticon=#B802F10E
+tdesc=Change Body Parts
+tile=Performance Parts
+tbind=parts.performance
+ticon=#C56D3032
+tdesc=Change Performance Parts
+tile=Specialties
+tbind=parts.specialties
+ticon=#3F40E75F
+tdesc=Change Interiors / Car Specialties
+num=0 1 0.05 0
+
+[widget]
+group=Pause 1/Carousel
+type=carousel
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -45.3 126 62 1 1 0.3 -14.3 33 0 5 1
+tile=Return to Explore
+tbind=pause.resume
+ticon=INGAME_ICON_EXPLORE
+tdesc=Return to Explore Mode
+tile=Jump to Garage
+tbind=pause.garage
+ticon=SHOP_ICON_CRIB
+tdesc=Jump to Garage
+tile=Options
+tbind=pause.options
+ticon=INGAME_ICON_OPTIONS
+tdesc=Options
+tile=Free Cam
+tbind=pause.freecam
+ticon=INGAME_ICON_REPLAY
+tdesc=Free Cam
+tile=Quit
+tbind=pause.quit
+ticon=INGAME_ICON_QUIT_TO_FE
+tdesc=Quit to Main Menu
+num=0 1 0.05 0
+
+[widget]
+group=Pause 1/Pause Options/Carousel
+type=carousel
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -45.3 126 62 1 1 0.3 -14.3 33 0 5 1
+tile=Audio
+tbind=pauseopt.audio
+ticon=OPTIONS_ICON_AUDIO
+tdesc=Audio
+tile=Display
+tbind=pauseopt.display
+ticon=OPTIONS_ICON_DISPLAY
+tdesc=Display
+tile=Gameplay
+tbind=pauseopt.gameplay
+ticon=OPTIONS_ICON_GAMEPLAY_SETTINGS
+tdesc=Gameplay
+tile=Player
+tbind=pauseopt.player
+ticon=OPTIONS_ICON_PLAYER_SETTINGS
+tdesc=Player
+tile=UniPad Options
+taction=page:Pause 1/Pause Options/Unipad Options
+ticon=INGAME_ICON_OPTIONS
+tdesc=UniPad Options
+num=0 1 0.05 0
+
+[widget]
+group=Pause 1/Pause Options/Unipad Options/Grid
+type=grid
+grid=1 8 550 293.9 -291 -146.95 550 30 1 1 -16 0 0 7.7 8 1
+tile=Active Gamepad
+ttype=picker
+tbind=pad.active
+tnum=0 1 0.05 0
+tile=Rumble Mode
+ttype=picker
+tbind=rumble.mode
+tnum=0 1 0.05 0
+tile=Camera Control Style
+ttype=picker
+tbind=cam.style
+tnum=0 1 0.05 0
+tile=Steering Deadzone
+ttype=slider
+tbind=steer.deadzone
+tnum=0 1 0.05 0
+tile=Steering Gate
+ttype=slider
+tbind=steer.gate
+tnum=0 1 0.05 0
+tile=Steering Curve
+ttype=slider
+tbind=steer.curve
+tnum=0 1 0.05 0
+tile=Rumble Options
+taction=page:Pause 1/Pause Options/Unipad Options/Rumble Options
+tile=Change Gamepad Bindings
+taction=page:Pause 1/Pause Options/Unipad Options/Gamepad Bindings
+num=0 1 0.05 6
+
+[widget]
+group=Pause 1/Pause Options/Unipad Options/Rumble Options/Grid
+type=grid
+grid=1 8 550 293.9 -291 -146.95 550 30 1 1 -16 0 0 7.7 12 1
+tile=Rumble Mode
+ttype=picker
+tbind=rumble.mode
+tdesc=How the controller rumbles: Off, Console (Xbox feel), Enhanced, Modern vibration or Haptics.
+tnum=0 1 0.05 0
+tile=Strength
+ttype=slider
+tbind=rumble.strength
+tdesc=Overall rumble strength.
+tnum=0 1 0.05 0
+tile=Collisions
+ttype=slider
+tbind=rumble.collisions
+tdesc=Crashes into walls, cars and traffic.
+tnum=0 1 0.05 0
+tile=Landings
+ttype=slider
+tbind=rumble.landings
+tdesc=Touching down after a jump.
+tnum=0 1 0.05 0
+tile=Bumps
+ttype=slider
+tbind=rumble.bumps
+tdesc=Body contact and bumps in the road.
+tnum=0 1 0.05 0
+tile=Road
+ttype=slider
+tbind=rumble.road
+tdesc=Road texture while driving.
+tnum=0 1 0.05 0
+tile=Engine
+ttype=slider
+tbind=rumble.engine
+tdesc=Engine revs.
+tnum=0 1 0.05 0
+tile=Nitrous
+ttype=slider
+tbind=rumble.nitrous
+tdesc=Nitrous kicking in and flowing.
+tnum=0 1 0.05 0
+tile=Wheelspin
+ttype=slider
+tbind=rumble.wheelspin
+tdesc=Tires spinning.
+tnum=0 1 0.05 0
+tile=Surface
+ttype=slider
+tbind=rumble.surface
+tdesc=The surface under the car.
+tnum=0 1 0.05 0
+tile=Cornering
+ttype=slider
+tbind=rumble.cornering
+tdesc=Grip while cornering.
+tnum=0 1 0.05 0
+tile=Trigger Rumble
+ttype=picker
+tbind=rumble.triggers
+tdesc=Trigger motors (Enhanced mode, Xbox One / Series controllers).
+tnum=0 1 0.05 0
+num=0 1 0.05 0
+
+[widget]
+group=Pause 1/Pause Options/Unipad Options/Gamepad Bindings/Grid
+type=grid
+grid=2 8 484 282 -236.5 -142 237 30 1 1 5.5 -1 10 6 8 1
+tile=Steering
+tbind=bind.steer
+tile=Throttle
+tbind=bind.throttle
+tile=Brake/Reverse
+tbind=bind.brake
+tile=E-Brake
+tbind=bind.ebrake
+tile=Nitrous
+tbind=bind.nitrous
+tile=Look Back
+tbind=bind.lookback
+tile=Shift Up
+tbind=bind.shiftup
+tile=Shift Down
+tbind=bind.shiftdown
+tile=Reset Car
+tbind=bind.reset
+tile=Pause
+tbind=bind.pause
+tile=World Map
+tbind=bind.map
+tile=Messages
+tbind=bind.messages
+tile=Career Stats
+tbind=bind.legend
+tile=Enter Race/Shop
+tbind=bind.engage
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Confirm Page/Grid
+type=grid
+grid=2 1 590.2 46 -294.998 51 288 46 1 1 0.101761 74 14.2 7.7 1 1
+tile=Yes
+tbind=dialog.yes
+tile=No
+tbind=dialog.no
+num=0 1 0.05 0
+
+[widget]
+group=World Map/Legend
+type=grid
+bind=list:map.legend
+grid=1 13 231 293 -293.5 -123.5 231 22.5385 1 0 -293.5 23 0 0 0 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+num=0 1 0.05 0
+
+[widget]
+group=Race Start Regular/Grid
+type=grid
+grid=2 1 576 46 -287.898 156 288 46 1 1 0.101761 179 0 0 1 1
+tile=Accept
+tbind=race.accept
+tile=Decline
+tbind=race.decline
+num=0 1 0.05 0
+
+[widget]
+group=Race Start Multiplayer/Grid copy
+type=grid
+grid=1 3 322 70 -31 125.47 322 23.3333 1 2 291 160.47 0 0 3 1
+tile=Coop
+tbind=race.coop
+tile=Solo
+tbind=race.accept
+tile=Race Settings
+taction=page:Race Start Multiplayer/Race Settings
+num=0 1 0.05 0
+
+[widget]
+group=Race Start Multiplayer/Race Settings/Grid
+type=grid
+grid=1 8 550 293.9 -291 -146.95 550 30 1 1 -16 0 0 7.7 8 1
+tile=AI Racers
+ttype=picker
+tbind=race.ai
+tdesc=Race against AI opponents.
+tnum=0 1 0.05 0
+tile=AI Racers in the Race
+ttype=slider
+tbind=race.aicount
+tdesc=How many AI opponents (0-15).
+tnum=0 1 0.05 0
+tile=AI Difficulty
+ttype=picker
+tbind=race.difficulty
+tdesc=How fast and smart the AI opponents drive.
+tnum=0 1 0.05 0
+tile=Rubberbanding
+ttype=picker
+tbind=race.rubberband
+tdesc=AI opponents slow down when ahead and speed up when behind.
+tnum=0 1 0.05 0
+tile=Traffic
+ttype=picker
+tbind=race.traffic
+tdesc=Traffic cars on the streets during the race.
+tnum=0 1 0.05 0
+tile=Collision
+ttype=picker
+tbind=race.collision
+tdesc=Bumping into the other players' cars.
+tnum=0 1 0.05 0
+tile=Button 7
+tile=Button 8
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Carousel
+type=carousel
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -165.3 126 62 1 1 0.3 -134.3 33 0 8 1
+tile=Return to Explore
+tbind=garage.explore
+ticon=#A230CD88
+tdesc=Return to Explore Mode
+tile=World Map
+tbind=garage.worldmap
+ticon=#22F2CEAB
+tdesc=World Map
+tile=Car Select
+tbind=garage.carselect
+ticon=#A964095B
+tdesc=Car Select
+tile=Change Parts
+tbind=garage.parts
+ticon=#511F9D75
+tdesc=Change Parts
+tile=Performance Tuning
+tbind=garage.tuning
+ticon=#7A9B397A
+tdesc=Performance Tuning / Dyno
+tile=View Rewards
+tbind=garage.rewards
+ticon=#49D2E3DE
+tdesc=View Rewards
+tile=Save
+tbind=garage.save
+ticon=#8ADA6FD4
+tdesc=Save
+tile=Main Menu
+tbind=garage.mainmenu
+ticon=#FC39853F
+tdesc=Back to Main Menu
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Neon/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+tile=Button 14
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Change Parts/Specialty Parts/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 16 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+tile=Button 9
+tile=Button 10
+tile=Button 11
+tile=Button 12
+tile=Button 13
+tile=Button 14
+tile=Button 15
+tile=Button 16
+num=0 1 0.05 0
+
+[widget]
+group=Garage/Garage World Map/Events
+type=carousel
+bind=list:cm.events
+carousel=1 0 1 1 0.85
+grid=1 7 28 252 -278.7 -102.7 28 36 1 1 -264.7 23.3 0 0 0 1
+tile=Button 1
+num=0 1 0.05 0
