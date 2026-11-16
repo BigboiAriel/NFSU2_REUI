@@ -11496,9 +11496,10 @@ color=0.734807 0.734807 0.734807 0.933702
 visible=1
 group=Garage/Garage World Map/Panel
 layer=1
-texture=#69822AB5
+texture=TRACKMAP4500
 pack=
 uv=0 0 1 1
+showif=!fe.ready.90FE80F3
 
 [element]
 mode=menus
