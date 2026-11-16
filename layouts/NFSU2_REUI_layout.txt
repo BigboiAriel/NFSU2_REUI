@@ -13142,21 +13142,18 @@ num=0 1 0.05 0
 
 [widget]
 group=Garage/Change Parts/Carousel
+bind=list:gm.items
 type=carousel
 carousel=1 0 1 0 0.85
-grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 3 1
-tile=Body Parts
-tbind=parts.body
-ticon=#B802F10E
-tdesc=Change Body Parts
-tile=Performance Parts
-tbind=parts.performance
-ticon=#C56D3032
-tdesc=Change Performance Parts
-tile=Specialties
-tbind=parts.specialties
-ticon=#3F40E75F
-tdesc=Change Interiors / Car Specialties
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 0 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
 num=0 1 0.05 0
 
 [widget]
