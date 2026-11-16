@@ -2182,7 +2182,29 @@ static void MenuBar() {
         std::string subs = SubMenus(g).empty() ? "" : " >";
         bool hit = ImGui::Button((GroupLeaf(g) + subs + "##menu" + std::to_string(row) + g).c_str());
         if (on) ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n%s\nRight-click: rename, what it replaces (the pause menu / its Options), move into another menu / to the top level, delete.", g.c_str(),
+        // drag it onto another menu of the same row: it goes there (the order the buttons - and the menus' list - keep)
+        if (ImGui::BeginDragDropSource()) {
+            ImGui::SetDragDropPayload("UIED_MENU", g.c_str(), g.size() + 1);
+            ImGui::Text("%s", GroupLeaf(g).c_str());
+            ImGui::EndDragDropSource();
+        }
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* pl = ImGui::AcceptDragDropPayload("UIED_MENU")) {
+                std::string from = (const char*)pl->Data;
+                auto at = [&](const std::string& name) { for (size_t k = 0; k < g_pages.size(); ++k) if (g_pages[k].group == name) return (int)k; return -1; };
+                int ia = at(from), ib = at(g);
+                if (from != g && ia >= 0 && ib >= 0 && ParentMenu(from) == ParentMenu(g)) {
+                    Page moving = g_pages[ia];
+                    g_pages.erase(g_pages.begin() + ia);
+                    ib = at(g);
+                    g_pages.insert(g_pages.begin() + (ia <= ib ? ib + 1 : ib), moving);   // (dragged right: after it; left: before it)
+                    g_dirty = true; moved = true;
+                    Log("ui editor: menu %s moved next to %s", from.c_str(), g.c_str());
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n%s\nDrag it onto another menu in its row to reorder.\nRight-click: rename, what it replaces (the pause menu / its Options), move into another menu / to the top level, delete.", g.c_str(),
             on ? "Editing this menu alone. Click again to stop." : "Edit this menu (alone on screen and in the list).");
         if (ImGui::BeginPopupContextItem(("##menuctx" + std::to_string(row) + g).c_str())) {
             // name (Enter or leaving the box renames it)
