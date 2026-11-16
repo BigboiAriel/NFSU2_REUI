@@ -1093,13 +1093,20 @@ static bool GridScroller(Widget& w, Elem& e) {
         if (g_menu.t - (up ? g_menu.flashU : g_menu.flashD) < 0.15) e.col[3] = 1.f;   // (lights up as it's pressed)
         return true;
     }
+    // a live list that's a window on a longer one the game holds (its <key>.total items, from <key>.top): the scroller by those
+    int extTotal = -1; float extTop = 0;
+    if (w.bind.compare(0, 5, "list:") == 0 && tokens) {
+        std::string tv, pv, k = w.bind.substr(5);
+        if (tokens(k + ".total", tv) && !tv.empty()) { extTotal = atoi(tv.c_str()); if (tokens(k + ".top", pv)) extTop = (float)atof(pv.c_str()); }
+    }
+    if (extTotal >= 0) total = extTotal;
     if (e.role == "gtrack") return total > rows;
     if (total <= rows) return false;
     float trTop = 0, trBot = 0; bool track = false;
     for (auto& o : MenuElems()) if (InGroup(o.group, w.group) && o.role == "gtrack") { trTop = o.y - o.h / 2; trBot = o.y + o.h / 2; track = true; }
     if (!track) return true;
     auto& st = GridState(w, n);
-    float half = e.h / 2, f = st.scroll / (float)(total - rows);
+    float half = e.h / 2, f = (extTotal >= 0 ? extTop : st.scroll) / (float)(total - rows);
     e.y = trTop + half + (trBot - trTop - 2 * half) * std::max(0.f, std::min(1.f, f));
     return true;
 }
