@@ -629,7 +629,7 @@ static void GridAccept(Widget& w) {
 }
 // a piece copied per tile (not: a scroller's tab / track; a carousel's arrows, which stay at the row's ends)
 static bool GridPiece(const Elem& e) {
-    if (e.role == "gtab" || e.role == "gtrack") return false;
+    if (e.role == "gtab" || e.role == "gtrack" || e.role == "moreU" || e.role == "moreD") return false;
     if (e.role == "arrowL" || e.role == "arrowR") { Widget* w = WidgetFor(e.group); if (w && w->type == W_CAROUSEL) return false; }
     if (e.role == "arrowU" || e.role == "arrowD" || e.role == "arrowUon" || e.role == "arrowDon") { Widget* w = WidgetFor(e.group); if (w && w->type == W_LISTBOX) return false; }
     return true;
@@ -1089,6 +1089,10 @@ static bool GridScroller(Widget& w, Elem& e) {
         return true;
     }
     int rows = std::max(1, w.rows), total = GridRowsOf(GridLayout(w, n));
+    if (e.role == "moreU" || e.role == "moreD") {   // (a grid's / list box's "more that way" arrows: shown while rows are off screen there)
+        auto& st = GridState(w, n);
+        return e.role == "moreU" ? st.top > 0 : st.top + rows < total;
+    }
     if (w.type == W_LISTBOX && (e.role == "arrowU" || e.role == "arrowD" || e.role == "arrowUon" || e.role == "arrowDon")) {
         bool up = e.role[5] == 'U';
         auto& st = GridState(w, n);
@@ -1461,10 +1465,11 @@ static bool DrawMenu(ImDrawList* dl) {
 }
 
 // ---------------------------------------------------------------- authoring
-static const char* kRoleKey[] = { "", "label", "value", "fill", "tab", "arrowL", "arrowR", "desc", "bindicon", "icon", "gtab", "gtrack", "on", "off", "title", "lock" };
+static const char* kRoleKey[] = { "", "label", "value", "fill", "tab", "arrowL", "arrowR", "desc", "bindicon", "icon", "gtab", "gtrack", "on", "off", "title", "lock", "moreU", "moreD" };
 static const char* kRoleName[] = { "(none)", "label", "value text", "slider fill bar", "slider tab", "left arrow", "right arrow",
                                    "page: description text", "binding icon (??? while waiting)", "item icon", "scroller tab", "scroller track",
-                                   "live list: item on (a tick)", "live list: item off (a cross)", "page: header text", "live list: item locked (a padlock)" };
+                                   "live list: item on (a tick)", "live list: item off (a cross)", "page: header text", "live list: item locked (a padlock)",
+                                   "grid: more rows above (shown while scrolled down)", "grid: more rows below (shown while there are)" };
 
 // ---------------------------------------------------------------- authoring panels
 static void ElemMenuProps(Elem& e) {
