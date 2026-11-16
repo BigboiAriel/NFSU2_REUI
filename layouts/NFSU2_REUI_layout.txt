@@ -5,7 +5,7 @@ boardfollow=1
 listheight=536
 highlightsel=0
 menufade=0.15
-custommenus=0
+custommenus=1
 flagdef=hide_until_green 0
 flagdef=hide_wreck 0
 flagdef=hide_online 0
@@ -11484,20 +11484,41 @@ colortoken=hud.line 0
 
 [element]
 mode=menus
-type=shape
-name=Map Hole
+type=image
+name=Map
 anchor=4
-x=-90.3
-y=22.3
+x=0
+y=0
 w=310
 h=309
 scale=1
-color=0.8824 0.8824 0.8824 0
+color=1 1 1 1
 visible=1
 group=Garage/Garage World Map/Panel
-shape=0 0 0 0 0
-fill=0 0 0 0
-cut=0;Panel
+layer=1
+texture=
+pack=
+uv=0 0 1 1
+follow=90FE80F3
+
+[element]
+mode=menus
+type=image
+name=Map overlay
+anchor=4
+x=0
+y=0
+w=310
+h=309
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Garage World Map/Panel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+follow=38E39AD7
 
 [element]
 mode=menus
@@ -11909,7 +11930,6 @@ texture=vec:U2_MENU_ARROW
 pack=
 uv=0 0 1 1
 rot=-90
-arrowU
 showif=cm.up
 
 [element]
@@ -11930,7 +11950,6 @@ texture=vec:U2_MENU_ARROW
 pack=
 uv=0 0 1 1
 rot=90
-arrowD
 showif=cm.down
 
 [page]
