@@ -11485,6 +11485,24 @@ colortoken=hud.line 0
 [element]
 mode=menus
 type=image
+name=Map placeholder
+anchor=4
+x=-91
+y=22
+w=309
+h=309
+scale=1
+color=0.734807 0.734807 0.734807 0.933702
+visible=1
+group=Garage/Garage World Map/Panel
+layer=1
+texture=#69822AB5
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
 name=Map
 anchor=4
 x=0
