@@ -76,7 +76,9 @@ namespace uied {
     // A game HUD object as it is on screen this frame, by its FEng name hash (the host walks the loaded packages):
     // centre x, y from the screen centre in 640x480 units (y down), size, turn (degrees clockwise), uv, colour, its
     // texture (su / sv: the picture's share of a padded texture). Not found / hidden: false.
-    struct GameObject { float x = 0, y = 0, w = 0, h = 0, rot = 0, u0 = 0, v0 = 0, u1 = 1, v1 = 1, col[4] = {1, 1, 1, 1}, su = 1, sv = 1; gfx::Tex tex = nullptr; };
+    struct GameObject { float x = 0, y = 0, w = 0, h = 0, rot = 0, u0 = 0, v0 = 0, u1 = 1, v1 = 1, col[4] = {1, 1, 1, 1}, su = 1, sv = 1; gfx::Tex tex = nullptr;
+                       unsigned texHash = 0;   // its texture's
+                       bool loading = false; };   // hidden by the game while its picture loads (a track map streaming in)
     extern std::function<bool(unsigned nameHash, GameObject& out)> gameObject;
     // The minimap (an image with "minimap" on): the track map around the car, its icons and other mods' markers,
     // supplied by the host every frame. World = the game's x / y in metres (y north); the map texture covers

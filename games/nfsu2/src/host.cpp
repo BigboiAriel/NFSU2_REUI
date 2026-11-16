@@ -294,7 +294,13 @@ static void ObjWalk(uint8_t* obj, const Xf& parent, int depth) {
         if (!Readable(obj, 0x78)) return;
         uint32_t type = *(uint32_t*)(obj + 0x18), flags = *(uint32_t*)(obj + 0x1C);
         uint8_t* d = *(uint8_t**)(obj + 0x2C);
-        if ((flags & 1) || !Readable(d, 0x54)) continue;
+        if (!Readable(d, 0x54)) continue;
+        bool loading = false;
+        if (flags & 1) {   // hidden: skipped - unless it's an image the game hides while its picture loads (not loaded yet)
+            bool img = type == fe::kImage || type == fe::kMultiImage || type == fe::kColoredImage;
+            if (!img || TexOfInfo(TexInfo(*(uint32_t*)(obj + 0x24)))) continue;
+            loading = true;
+        }
         const float* f = (const float*)d;
         bool rotated = false;
         Xf me = Local(f, parent, (const int*)d, rotated);
@@ -305,7 +311,7 @@ static void ObjWalk(uint8_t* obj, const Xf& parent, int depth) {
         }
         if (type != fe::kImage && type != fe::kMultiImage && type != fe::kColoredImage) continue;
         uint32_t nameHash = *(uint32_t*)(obj + 0x10);
-        if (g_objs.count(nameHash)) continue;
+        { auto had = g_objs.find(nameHash); if (had != g_objs.end() && !(had->second.loading && !loading)) continue; }   // (a shown one over a loading one)
         float ax = me.m[0][0], ay = me.m[1][0], bx = me.m[0][1], by = me.m[1][1];
         uied::GameObject g;
         g.w = sqrtf(ax * ax + ay * ay); g.h = sqrtf(bx * bx + by * by);
@@ -318,7 +324,8 @@ static void ObjWalk(uint8_t* obj, const Xf& parent, int depth) {
         if (flipX) std::swap(g.u0, g.u1);
         if (flipY) std::swap(g.v0, g.v1);
         for (int i = 0; i < 4; ++i) g.col[i] = me.col[i] > 1 ? 1 : me.col[i];
-        if (uint8_t* ti = TexInfo(*(uint32_t*)(obj + 0x24))) {
+        g.texHash = *(uint32_t*)(obj + 0x24); g.loading = loading;
+        if (!loading) if (uint8_t* ti = TexInfo(*(uint32_t*)(obj + 0x24))) {
             IDirect3DTexture9* tx = TexOfInfo(ti);
             if (tx) {
                 g.tex = gfx::d3d9::Wrap(tx);

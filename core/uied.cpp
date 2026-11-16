@@ -561,6 +561,7 @@ static ImVec2 ElemSize(Elem& e) {
 // left / centre / right columns keep their distance from that edge (the widescreen fix does the same).
 static bool FollowBox(const Elem& e, GameObject& g, ImVec2& a, ImVec2& b) {
     if (!e.follow || !gameObject || !gameObject(e.follow, g)) return false;
+    if (g.loading && e.type != E_IMAGE) return false;   // (still loading its picture: only an image stands in, with the last one)
     ImVec2 ds = ImGui::GetIO().DisplaySize; float k = ds.y / 480.f;
     int col = e.anchor % 3;
     float cx = col == 0 ? (g.x + 320) * k : col == 1 ? ds.x / 2 + g.x * k : ds.x - (320 - g.x) * k;
@@ -1455,7 +1456,18 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         float rotSave = e.rot, bf = BindFrac(e);
         if (following) {   // the game's texture and uv (unless this element has its own art), and its turn
             if (e.tex.empty()) {
-                tx = go.tex; uv0 = ImVec2(go.u0 * go.su, go.v0 * go.sv); uv1 = ImVec2(go.u1 * go.su, go.v1 * go.sv);
+                float gsu = go.su, gsv = go.sv;
+                tx = go.tex;
+                // the game hides its picture while the next one loads (a track map streams in): the last picture this
+                // element showed stands in meanwhile (by its hash, looked up again - drawn only while it's still loaded)
+                static std::unordered_map<std::string, unsigned> lastHash;
+                const std::string lk = e.group + '\x1f' + e.name;
+                if (tx && !go.loading && go.texHash) lastHash[lk] = go.texHash;
+                else if (go.loading && liveTexture) {
+                    auto it = lastHash.find(lk);
+                    if (it != lastHash.end()) { char n[12]; snprintf(n, sizeof n, "#%08X", it->second); tx = liveTexture(n, &gsu, &gsv); }
+                }
+                uv0 = ImVec2(go.u0 * gsu, go.v0 * gsv); uv1 = ImVec2(go.u1 * gsu, go.v1 * gsv);
                 noAlpha = tx && textureAlphaOk && !textureAlphaOk(tx);   // (the game's picture with nothing in its alpha - a track map: its colour alone)
             }
             e.rot = rotSave + go.rot;
