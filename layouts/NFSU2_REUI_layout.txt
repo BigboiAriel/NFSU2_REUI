@@ -11492,7 +11492,7 @@ y=0
 w=310
 h=309
 scale=1
-color=1 1 1 1
+color=0.734807 0.734807 0.734807 0.933702
 visible=1
 group=Garage/Garage World Map/Panel
 layer=1
@@ -11503,22 +11503,21 @@ follow=90FE80F3
 
 [element]
 mode=menus
-type=image
-name=Map overlay
+type=shape
+name=Map cutout
 anchor=4
-x=0
-y=0
-w=310
-h=309
+x=-91.25
+y=22
+w=308.5
+h=308.5
 scale=1
-color=1 1 1 1
+color=0.8824 0.8824 0.8824 0
 visible=1
 group=Garage/Garage World Map/Panel
-layer=2
-texture=
-pack=
-uv=0 0 1 1
-follow=38E39AD7
+layer=4
+shape=0 0 0 0 2
+fill=0 0 0 0
+cut=0;
 
 [element]
 mode=menus
