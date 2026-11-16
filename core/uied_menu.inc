@@ -111,6 +111,7 @@ struct Page {
     bool rimBrands = false;              // ... Body Parts' Rims: its rim brand menu (UI_ChooseRimBrand)
     bool bodyParts = false;              // ... Body Parts' browser at its categories (UI_GenericParts_Browser: the game keeps the controls)
     bool neon = false;                   // ... Specialties' Neon: its menu (UI_CustomNeonMain)
+    bool careerMap = false;              // ... the garage's World Map (UI_CareerWorldMap: replaying won events; the game keeps the controls)
     bool iceParts = false;               // ... a specialty's parts (UI_IcePartsOverlay / UI_NeonPartsOverlay: the game keeps the controls)
     std::vector<std::pair<std::string, std::string>> feSwaps;   // out of the world (the garage, the front end): colour
                                          // tokens swapped on this menu and its sub menus (from -> to: hud.shade -> Menu.grey.1)
@@ -1130,6 +1131,7 @@ std::string MenuPerfPartsPage() { if (customMenus) for (auto& p : g_pages) if (p
 std::string MenuPerfUpgradePage() { if (customMenus) for (auto& p : g_pages) if (p.perfUpgrade) return p.group; return std::string(); }
 std::string MenuRimBrandsPage() { if (customMenus) for (auto& p : g_pages) if (p.rimBrands) return p.group; return std::string(); }
 std::string MenuNeonPage() { if (customMenus) for (auto& p : g_pages) if (p.neon) return p.group; return std::string(); }
+std::string MenuCareerMapPage() { if (customMenus) for (auto& p : g_pages) if (p.careerMap) return p.group; return std::string(); }
 std::string MenuIcePartsPage() { if (customMenus) for (auto& p : g_pages) if (p.iceParts) return p.group; return std::string(); }
 std::string MenuBodyPartsPage() { if (customMenus) for (auto& p : g_pages) if (p.bodyParts) return p.group; return std::string(); }
 std::string MenuSpecialtiesPage() { if (customMenus) for (auto& p : g_pages) if (p.specialties) return p.group; return std::string(); }
@@ -1888,17 +1890,17 @@ static void ReplacesCombo(Page& p) {
                                   "the race start dialog (multiplayer)", "the garage menu", "the garage's car select",
                                   "the garage's Change Parts menu", "Change Parts: Performance Parts", "Change Parts: Specialties",
                                   "Change Parts: Body Parts", "Body Parts: Rim Brands", "Performance Parts: upgrade menu",
-                                  "Specialties: Neon", "Specialties: a specialty's parts" };
-    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : p.confirm ? 3 : p.worldMap ? 4 : p.raceDialog ? 5 : p.raceDialogMp ? 6 : p.garage ? 7 : p.carSelect ? 8 : p.parts ? 9 : p.perfParts ? 10 : p.specialties ? 11 : p.bodyParts ? 12 : p.rimBrands ? 13 : p.perfUpgrade ? 14 : p.neon ? 15 : p.iceParts ? 16 : 0;
+                                  "Specialties: Neon", "Specialties: a specialty's parts", "the garage's World Map (race again)" };
+    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : p.confirm ? 3 : p.worldMap ? 4 : p.raceDialog ? 5 : p.raceDialogMp ? 6 : p.garage ? 7 : p.carSelect ? 8 : p.parts ? 9 : p.perfParts ? 10 : p.specialties ? 11 : p.bodyParts ? 12 : p.rimBrands ? 13 : p.perfUpgrade ? 14 : p.neon ? 15 : p.iceParts ? 16 : p.careerMap ? 17 : 0;
     ImGui::SetNextItemWidth(180);
     if (ImGui::BeginCombo("replaces", kRep[cur])) {
-        for (int i = 0; i < 17; ++i) {
+        for (int i = 0; i < 18; ++i) {
             std::string taken;   // (another page has it: picking it here moves it)
-            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions) || (i == 3 && o.confirm) || (i == 4 && o.worldMap) || (i == 5 && o.raceDialog) || (i == 6 && o.raceDialogMp) || (i == 7 && o.garage) || (i == 8 && o.carSelect) || (i == 9 && o.parts) || (i == 10 && o.perfParts) || (i == 11 && o.specialties) || (i == 12 && o.bodyParts) || (i == 13 && o.rimBrands) || (i == 14 && o.perfUpgrade) || (i == 15 && o.neon) || (i == 16 && o.iceParts))) taken = o.group;
+            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions) || (i == 3 && o.confirm) || (i == 4 && o.worldMap) || (i == 5 && o.raceDialog) || (i == 6 && o.raceDialogMp) || (i == 7 && o.garage) || (i == 8 && o.carSelect) || (i == 9 && o.parts) || (i == 10 && o.perfParts) || (i == 11 && o.specialties) || (i == 12 && o.bodyParts) || (i == 13 && o.rimBrands) || (i == 14 && o.perfUpgrade) || (i == 15 && o.neon) || (i == 16 && o.iceParts) || (i == 17 && o.careerMap))) taken = o.group;
             std::string lb = std::string(kRep[i]) + (taken.empty() ? "" : "  (now " + taken + ")");
             if (ImGui::Selectable(lb.c_str(), i == cur) && i != cur) {
-                p.pauseMenu = i == 1; p.pauseOptions = i == 2; p.confirm = i == 3; p.worldMap = i == 4; p.raceDialog = i == 5; p.raceDialogMp = i == 6; p.garage = i == 7; p.carSelect = i == 8; p.parts = i == 9; p.perfParts = i == 10; p.specialties = i == 11; p.bodyParts = i == 12; p.rimBrands = i == 13; p.perfUpgrade = i == 14; p.neon = i == 15; p.iceParts = i == 16;
-                for (auto& o : g_pages) if (&o != &p) { if (i == 12) o.bodyParts = false; if (i == 13) o.rimBrands = false; if (i == 14) o.perfUpgrade = false; if (i == 15) o.neon = false; if (i == 16) o.iceParts = false; if (i == 9) o.parts = false; if (i == 10) o.perfParts = false; if (i == 11) o.specialties = false; if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; if (i == 3) o.confirm = false; if (i == 4) o.worldMap = false; if (i == 5) o.raceDialog = false; if (i == 6) o.raceDialogMp = false; if (i == 7) o.garage = false; if (i == 8) o.carSelect = false; }
+                p.pauseMenu = i == 1; p.pauseOptions = i == 2; p.confirm = i == 3; p.worldMap = i == 4; p.raceDialog = i == 5; p.raceDialogMp = i == 6; p.garage = i == 7; p.carSelect = i == 8; p.parts = i == 9; p.perfParts = i == 10; p.specialties = i == 11; p.bodyParts = i == 12; p.rimBrands = i == 13; p.perfUpgrade = i == 14; p.neon = i == 15; p.iceParts = i == 16; p.careerMap = i == 17;
+                for (auto& o : g_pages) if (&o != &p) { if (i == 12) o.bodyParts = false; if (i == 13) o.rimBrands = false; if (i == 14) o.perfUpgrade = false; if (i == 15) o.neon = false; if (i == 16) o.iceParts = false; if (i == 17) o.careerMap = false; if (i == 9) o.parts = false; if (i == 10) o.perfParts = false; if (i == 11) o.specialties = false; if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; if (i == 3) o.confirm = false; if (i == 4) o.worldMap = false; if (i == 5) o.raceDialog = false; if (i == 6) o.raceDialogMp = false; if (i == 7) o.garage = false; if (i == 8) o.carSelect = false; }
                 g_dirty = true;
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip(i == 1 ? "Opens instead of the game's pause menu (Start / Esc in the world; needs UniPad). Back closes it and\nresumes; give tiles the \"Pause: ...\" actions (Resume, Restart race, Jump to Garage, Options, Quit,\nFree Cam...) under changes."
@@ -1908,6 +1910,7 @@ static void ReplacesCombo(Page& p) {
                                                    : i == 5 ? "Opens instead of the race start dialog (driving into a race's start: Accept / Decline; needs UniPad).\nGive tiles the \"Race: Accept\" / \"Race: Decline\" actions (Back declines). The game's own texts:\n{race.from} {race.subject} {race.type} {race.distance} {race.purse} {race.message}; an image with the\ntexture {race.map} shows the race's route map."
                                                    : i == 6 ? "The race start dialog's page while you're in a multiplayer session (needs UniPad and NFSU2 Multiplayer;\nout of a session the race start dialog's own page shows). Tiles: \"Race: COOP (everyone)\" starts it for every player with\nyour race settings (you run the AI racers), \"Race: Accept\" is SOLO (just you), \"Race: Decline\". Race settings rows:\nrace.ai / race.traffic / race.aicount / race.difficulty / race.rubberband / race.collision."
                                                    : i == 7 ? "Opens instead of the garage menu (\"The Garage\" in your safehouse; needs UniPad). Give tiles the\n\"Garage: ...\" actions (Return to Explore Mode, World Map, Car Select, Change Parts, Performance Tuning,\nView Rewards, Save, Back to Main Menu); Back asks to return to explore mode, as the game's own Back does.\nThe game's icons: textures #A230CD88 (explore) #22F2CEAB (map) #A964095B (car select) #511F9D75 (parts)\n#7A9B397A (tuning) #49D2E3DE (rewards) #8ADA6FD4 (save) #FC39853F (main menu); {cash} your bank."
+                                                   : i == 17 ? "Shown over the garage's World Map (the career's won events, by stage, to race again; needs UniPad). The game keeps\nthe controls (left / right the stage, up / down the events, select races one). {cm.stage} the stage; list:cm.events its\nlist (the stage's overview, then the events; .overview); cm.left / cm.right / cm.up / cm.down where it can go; cm.event\n1 on an event; {cm.map} the map's texture; {fe.4D2F5C61}.. / {fe.23EAE8B9}.. the info labels / values (five)."
                                                    : i == 15 ? "Opens instead of Specialties' Neon menu (Underglow, Engine, Trunk neon...; needs UniPad): its items as the\ngame lists them (gm.items: a carousel / grid; .locked a padlock). A pick opens that neon's parts; Back goes\nback to Specialties."
                                                    : i == 16 ? "Shown over a specialty's parts (Window Tint, Hydraulics, Split Hoods, Doors..., and a neon's; needs UniPad).\nThe game keeps the controls. gm.parts: its parts (count / sel / N, .locked); gm.items: the menu under it\n(Specialties' or Neon's: gm.items.focus 0, no cursor on it)."
                                                    : i == 14 ? "Shown over a performance category's upgrade menu (Engine, Turbo...: Choose Individual Parts / Return To Stock and\nits parts list; needs UniPad). The game keeps the controls. gm.items: its two choices (a carousel follows the\ngame's); gm.upgrade: its parts (a list box: <N> the name, .value Installed / Owned / the price, .on installed),\ngm.upgrade.shown 1 while the list is up (not on Return To Stock), {gm.upgrade.title} the category."
@@ -2371,6 +2374,7 @@ static void SaveMenus(FILE* f) {
         if (p.perfUpgrade) fprintf(f, "perfupgrademenu=1\n");
         if (p.neon) fprintf(f, "neonmenu=1\n");
         if (p.iceParts) fprintf(f, "icepartsmenu=1\n");
+        if (p.careerMap) fprintf(f, "careermap=1\n");
         if (!p.title.empty()) fprintf(f, "title=%s\n", Esc(p.title).c_str());
         if (!p.standIn.empty()) fprintf(f, "standin=%s\n", Esc(p.standIn).c_str());
         if (!p.startTile.empty()) fprintf(f, "starttile=%s\n", Esc(p.startTile).c_str());
@@ -2438,6 +2442,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "perfupgrademenu") p.perfUpgrade = atoi(v.c_str()) != 0;
         else if (k == "neonmenu") p.neon = atoi(v.c_str()) != 0;
         else if (k == "icepartsmenu") p.iceParts = atoi(v.c_str()) != 0;
+        else if (k == "careermap") p.careerMap = atoi(v.c_str()) != 0;
         else if (k == "title") p.title = Unesc(v);
         else if (k == "standin") p.standIn = Unesc(v);
         else if (k == "starttile") p.startTile = Unesc(v);
