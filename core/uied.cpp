@@ -1436,6 +1436,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         if (!tx && !icon && texVal) {   // a texture a value names: the game's pictures by name, or "movie:<url>" (its first picture)
             std::string tn = Expand(e.tex);
             if (!tn.empty() && tn.find('{') == std::string::npos) tx = NamedTex(tn, onScreen, su, sv);
+            if (tx && !tn.empty() && tn[0] == '#' && textureAlphaOk && !textureAlphaOk(tx)) noAlpha = true;   // (a game texture by hash: a track map's alpha is empty)
         }
         if (!tx && !icon && e.texIdx < 0 && liveTexture && !e.tex.empty()) {
             std::string tn = texVal ? Expand(e.tex) : e.tex;
@@ -1453,7 +1454,10 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         ImVec2 uv0(e.u0 * su, e.v0 * sv), uv1(e.u1 * su, e.v1 * sv);
         float rotSave = e.rot, bf = BindFrac(e);
         if (following) {   // the game's texture and uv (unless this element has its own art), and its turn
-            if (e.tex.empty()) { tx = go.tex; uv0 = ImVec2(go.u0 * go.su, go.v0 * go.sv); uv1 = ImVec2(go.u1 * go.su, go.v1 * go.sv); }
+            if (e.tex.empty()) {
+                tx = go.tex; uv0 = ImVec2(go.u0 * go.su, go.v0 * go.sv); uv1 = ImVec2(go.u1 * go.su, go.v1 * go.sv);
+                noAlpha = tx && textureAlphaOk && !textureAlphaOk(tx);   // (the game's picture with nothing in its alpha - a track map: its colour alone)
+            }
             e.rot = rotSave + go.rot;
         }
         if (bf >= 0.f && (e.bindKind == 1 || e.bindKind == 2)) bf = e.cutLo + (e.cutHi - e.cutLo) * bf;
