@@ -1358,22 +1358,10 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     GameObject go; bool following = false;
     if ((e.type == E_IMAGE || e.type == E_SHAPE) && e.follow) {   // (a shape: the game object's box, its fill tinted by the game's colour)
         following = FollowBox(e, go, a, b);
-        float fadeK = 1.f;
-        {   // a picture the game hid while it loaded (a track map streaming in): faded in when it's there
-            static std::unordered_map<std::string, double> appeared;
-            static std::unordered_map<std::string, bool> wasLoading;
-            const std::string lk = e.group + '\x1f' + e.name;
-            const double now = ImGui::GetTime();
-            if (go.loading) wasLoading[lk] = true;
-            else if (following) { auto w = wasLoading.find(lk); if (w != wasLoading.end() && w->second) { w->second = false; appeared[lk] = now; } }
-            auto ap = appeared.find(lk);
-            if (ap != appeared.end()) { fadeK = (float)((now - ap->second) / 0.25); if (fadeK >= 1.f) { fadeK = 1.f; appeared.erase(ap); } }
-        }
         if (!following && !editing) return;   // the game isn't showing it
         if (following) {
             const float* c0 = mine && e.hiMine ? e.hiCol : e.col;
             float c[4]; for (int i = 0; i < 4; ++i) c[i] = c0[i] * go.col[i];
-            c[3] *= fadeK;
             col = Col(c);
         }
     }
@@ -1470,6 +1458,20 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             if (e.tex.empty()) {
                 tx = go.tex; uv0 = ImVec2(go.u0 * go.su, go.v0 * go.sv); uv1 = ImVec2(go.u1 * go.su, go.v1 * go.sv);
                 noAlpha = tx && textureAlphaOk && !textureAlphaOk(tx);   // (the game's picture with nothing in its alpha - a track map: its colour alone)
+                {   // a track map (a picture with no alpha) fades in when it comes up or changes - it streams in late
+                    struct FadeSt { unsigned hash = 0; double seen = -100, at = -100; };
+                    static std::unordered_map<std::string, FadeSt> fades;
+                    FadeSt& st = fades[e.group + '\x1f' + e.name];
+                    const double now = ImGui::GetTime();
+                    if (tx) {
+                        if (st.hash != go.texHash || now - st.seen > 0.2) { st.hash = go.texHash; st.at = now; }
+                        st.seen = now;
+                    } else st.hash = 0;
+                    if (tx && noAlpha) {
+                        const float k = (float)std::min(1.0, (now - st.at) / 0.25);
+                        if (k < 1.f) { ImVec4 cv = ImGui::ColorConvertU32ToFloat4(col); cv.w *= k; col = ImGui::ColorConvertFloat4ToU32(cv); }
+                    }
+                }
             }
             e.rot = rotSave + go.rot;
         }
