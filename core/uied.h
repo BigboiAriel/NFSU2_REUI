@@ -185,6 +185,7 @@ namespace uied {
     std::string MenuRimBrandsPage();                   // ... Body Parts' rim brand menu (UI_ChooseRimBrand) ("" none)
     std::string MenuNeonPage();                        // ... Specialties' Neon menu (UI_CustomNeonMain) ("" none)
     std::string MenuIcePartsPage();
+    std::string MenuLoadListPage();                    // ... the Load / Save game list (MC_List) ("" none)
     std::string MenuCareerMenuPage();                  // ... the main menu's Career menu (UI_StartCareer) ("" none)
     std::string MenuMainMenuPage();                    // ... the front end's main menu (UI_Main) ("" none)
     std::string MenuCareerMapPage();                   // ... the garage's World Map (UI_CareerWorldMap: race again) ("" none)                    // ... a specialty's parts (UI_IcePartsOverlay / UI_NeonPartsOverlay) ("" none)
