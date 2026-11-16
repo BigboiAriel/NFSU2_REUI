@@ -342,7 +342,7 @@ static struct MenuState {
     std::map<std::string, int> lastDir;   // each list box: the cursor's last move (-1 up, 1 down)
     std::string capturing;   // the binding row (its group) waiting for an input; looked up each time, as the widget
                              // list can be replaced (undo, reload, duplicate...) while it waits
-    struct GridSt { int sel = -1, top = 0; float scroll = 0; bool locked = false; int wantCol = -1; int pressTile = -1; double pressAt = -100; };   // each grid's cursor (item), top row,
+    struct GridSt { int sel = -1, top = 0; float scroll = 0; bool locked = false; int wantCol = -1; int pressTile = -1; double pressAt = -100; std::string startStamp; };   // each grid's cursor (item), top row,
                              // shown scroll; locked: left / right change its slider / picker tile (B lets go)
     std::map<std::string, GridSt> grids;
     bool moved = false;      // the cursor was moved since the page opened (a page's start tile stops following then)
@@ -509,6 +509,13 @@ static MenuState::GridSt& GridState(const Widget& w, int count) {
             if (!first && w.type == W_LISTBOX) { int d = s2 < st.sel ? -1 : 1; g_menu.lastDir[w.group] = d; (d < 0 ? g_menu.flashU : g_menu.flashD) = g_menu.t; }
             st.sel = s2; GridKeepVisible(w, st, count); if (first) st.scroll = (float)st.top;
         }
+    }
+    // a live list that starts each new set of items on a tile of its own (<key>.start "N@stamp": a new stamp - the game's
+    // next prompt, say - puts the cursor on item N again; the page keeps the controls otherwise)
+    if (w.bind.compare(0, 5, "list:") == 0 && tokens && tokens(w.bind.substr(5) + ".start", sv) && !sv.empty()) {
+        size_t at = sv.find('@');
+        std::string stamp = at == std::string::npos ? std::string() : sv.substr(at + 1);
+        if (stamp != st.startStamp) { st.startStamp = stamp; st.sel = atoi(sv.c_str()); GridKeepVisible(w, st, count); if (first) st.scroll = (float)st.top; }
     }
     st.sel = std::max(0, std::min(std::max(0, count - 1), st.sel));
     if (first) { GridKeepVisible(w, st, count); st.scroll = (float)st.top; }
