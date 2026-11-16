@@ -13606,3 +13606,120 @@ grid=1 2 544 75.5 -272 34.3 544 35.5 1 1 0 72.05 0 4.5 0 1
 tile=Button 1
 tile=Button 2
 num=0 1 0.05 0
+
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=0
+w=598
+h=262
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Career Menu/Create Profile/Panel
+shape=7 7 7 7 2
+fill=0 0 0 0.828729
+filltoken=Menu.black.1 1.57706
+strokegrad=1 0 0;0 0.7922 0.9569 0.5412 1@hud.accent;1 0.7922 0.9569 0.5412 0@hud.accent
+strokegradtoken=hud.glow
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Window
+anchor=4
+x=0
+y=13
+w=580
+h=205
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Main Menu/Career Menu/Create Profile/Panel
+shape=7 7 7 7 2
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
+cut=0;
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=0
+x=138.5
+y=119.5
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Career Menu/Create Profile
+font=conduitmditc_tt21i
+text={mcm.title}
+align=0
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Enter Name
+anchor=4
+x=-160
+y=13
+w=0
+h=64
+scale=0.7
+color=0.88 0.88 0.88 1
+visible=1
+group=Main Menu/Career Menu/Create Profile
+font=conduitmditc_tt21i
+text=Enter Name:
+align=1
+
+[element]
+mode=menus
+type=shape
+name=Name box
+anchor=4
+x=110
+y=13
+w=330
+h=44
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Main Menu/Career Menu/Create Profile
+shape=10 10 10 10 2
+fill=0.143646 0.143646 0.143646 0.828729
+filltoken=hud.shade2 0.918808
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Name
+anchor=4
+x=110
+y=13
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Main Menu/Career Menu/Create Profile
+font=conduitmditc_tt21i
+text={mcm.name}
+align=1
+
+[page]
+group=Main Menu/Career Menu/Create Profile
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+createprofile=1
