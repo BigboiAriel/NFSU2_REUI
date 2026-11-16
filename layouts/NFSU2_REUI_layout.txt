@@ -13446,3 +13446,44 @@ tile=Button 6
 tile=Button 7
 tile=Button 8
 num=0 1 0.05 0
+
+[element]
+mode=menus
+type=shape
+name=Scroll track
+anchor=4
+x=273
+y=22.5
+w=8
+h=262
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Career Menu/Load Career/profile
+shape=7 7 7 7 0
+fill=0.75 0.75 0.75 0.6
+hud.accent 0.882353
+cut=0;
+role=gtrack
+showif=gm.upgrade.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=273
+y=-100
+w=12
+h=12
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Main Menu/Career Menu/Load Career/profile
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+showif=gm.upgrade.shown
