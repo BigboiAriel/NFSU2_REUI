@@ -12528,8 +12528,8 @@ group=Main Menu/Career Menu/Load Career/profile
 shape=10 10 10 10 2
 fill=0.21547 0.21547 0.21547 0.828729
 filltoken=hud.shade 1
-colortoken=hud.line 0
 selonly=1
+colortoken=hud.line 0
 
 [element]
 mode=menus
@@ -12583,8 +12583,85 @@ group=Main Menu/Career Menu/Load Career/profile
 font=conduitmditc_tt21i
 text=Profile name
 align=1
-hud.accent 1
 role=label
+
+[element]
+mode=menus
+type=image
+name=U2_MENU_ARROW up
+anchor=4
+x=273
+y=-124
+w=21
+h=21
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Career Menu/Load Career/Arrows
+layer=11
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+rot=-90
+showif=mc.up
+
+[element]
+mode=menus
+type=image
+name=U2_MENU_ARROW down
+anchor=4
+x=273
+y=167
+w=21
+h=21
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Career Menu/Load Career/Arrows
+layer=11
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+rot=90
+showif=mc.down
+
+[element]
+mode=menus
+type=shape
+name=Scroll track
+anchor=4
+x=273
+y=22.5
+w=8
+h=262
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Career Menu/Load Career/profile
+shape=7 7 7 7 0
+fill=0.75 0.75 0.75 0.6
+cut=0;
+role=gtrack
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=273
+y=-100
+w=12
+h=12
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Main Menu/Career Menu/Load Career/profile
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
 
 [page]
 group=Pause 1/Pause Options/Unipad Options
@@ -12606,6 +12683,18 @@ start=0
 selcolor=1 0.792157 0.956863 0.541176 1
 dedicated=1
 title=Rumble Options
+
+[page]
+group=Main Menu
+start=0
+selcolor=0 0.792157 0.956863 0.541176 1
+dedicated=1
+mainmenu=1
+title=Main Menu
+prompt=South;Select
+prompt=North;Help
+shared=Shared/Glyphs Bar
+feswap=hud.shade Menu.grey.1
 
 [page]
 group=Pause 1
@@ -12770,18 +12859,6 @@ careermap=1
 title=World Map
 prompt=South;Select Event
 prompt=East;Back
-shared=Shared/Glyphs Bar
-feswap=hud.shade Menu.grey.1
-
-[page]
-group=Main Menu
-start=0
-selcolor=0 0.792157 0.956863 0.541176 1
-dedicated=1
-mainmenu=1
-title=Main Menu
-prompt=South;Select
-prompt=North;Help
 shared=Shared/Glyphs Bar
 feswap=hud.shade Menu.grey.1
 
@@ -13387,51 +13464,6 @@ tile=Button 15
 tile=Button 16
 num=0 1 0.05 0
 
-
-[element]
-mode=menus
-type=image
-name=U2_MENU_ARROW up
-anchor=4
-x=273
-y=-124
-w=21
-h=21
-scale=1
-color=1 1 1 1
-visible=1
-group=Main Menu/Career Menu/Load Career/Arrows
-layer=11
-texture=vec:U2_MENU_ARROW
-pack=
-uv=0 0 1 1
-rot=-90
-arrowU
-showif=gm.upgrade.shown
-showif=mc.up
-
-[element]
-mode=menus
-type=image
-name=U2_MENU_ARROW down
-anchor=4
-x=273
-y=167
-w=21
-h=21
-scale=1
-color=1 1 1 1
-visible=1
-group=Main Menu/Career Menu/Load Career/Arrows
-layer=11
-texture=vec:U2_MENU_ARROW
-pack=
-uv=0 0 1 1
-rot=90
-arrowD
-showif=gm.upgrade.shown
-showif=mc.down
-
 [widget]
 group=Main Menu/Career Menu/Load Career/profile
 type=listbox
@@ -13446,44 +13478,3 @@ tile=Button 6
 tile=Button 7
 tile=Button 8
 num=0 1 0.05 0
-
-[element]
-mode=menus
-type=shape
-name=Scroll track
-anchor=4
-x=273
-y=22.5
-w=8
-h=262
-scale=1
-color=0.8824 0.8824 0.8824 1
-visible=1
-group=Main Menu/Career Menu/Load Career/profile
-shape=7 7 7 7 0
-fill=0.75 0.75 0.75 0.6
-hud.accent 0.882353
-cut=0;
-role=gtrack
-showif=gm.upgrade.shown
-colortoken=hud.line 1
-
-[element]
-mode=menus
-type=image
-name=Scroller tab
-anchor=4
-x=273
-y=-100
-w=12
-h=12
-scale=1
-color=1 1 1 0.5882
-visible=1
-group=Main Menu/Career Menu/Load Career/profile
-layer=2
-texture=U2_SCROLLER_TAB
-pack=
-uv=0 0 1 1
-role=gtab
-showif=gm.upgrade.shown
