@@ -1,4 +1,5 @@
 // The exported API (reui_api.h): other mods' settings, values, icons and menu driving, handed to the editor.
+#include "panel.h"
 #include "reui_api.h"
 
 #include "log.h"
@@ -21,6 +22,8 @@ using namespace reui;
 static std::vector<std::string> g_iconFamilies, g_iconKeys;   // (copies)
 
 EXPORT int REUI_Version() { return REUI_API_VERSION; }
+// the UI editor's panels have the mouse (over one, or dragging from one): a host keeps its clicks from the game
+EXPORT bool REUI_WantsMouse() { return PanelWantsMouse(); }
 
 EXPORT void REUI_AddTokenProvider(REUI_TokenFn fn) { if (fn) g_tokenProviders.push_back(fn); }
 

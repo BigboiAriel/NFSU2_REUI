@@ -54,6 +54,8 @@ void PanelShutdown() {
     g_ready = false;
 }
 bool PanelOpen() { return g_open; }
+// the editor's panels have the mouse (it's over one of them, or dragging from one): the game mustn't take its clicks
+bool PanelWantsMouse() { return g_ready && g_open && ImGui::GetCurrentContext() && ImGui::GetIO().WantCaptureMouse; }
 void PanelSetOpen(bool open) { if (g_open != open) { g_open = open; Log("panel %s", open ? "opened" : "closed"); } }
 
 // scripts\NFSU2_REUI.quit: closes the game (so a new build can be put in place)

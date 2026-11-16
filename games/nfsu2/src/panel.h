@@ -12,6 +12,7 @@ void PanelBeforeReset();
 void PanelAfterReset();
 void PanelShutdown();
 bool PanelOpen();
+bool PanelWantsMouse();   // the editor's panels have the mouse now
 void PanelSetOpen(bool open);
 
 } // namespace reui
