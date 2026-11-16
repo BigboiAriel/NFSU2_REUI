@@ -729,6 +729,25 @@ static bool FeText(uint32_t hash, std::string& out) {
 
 static bool Token(const std::string& k, std::string& out) {
     char b[64];
+    if (k.size() == 17 && k.compare(0, 9, "fe.ready.") == 0) {
+        // fe.ready.<8 hex>: "1" once that FEng image shows its picture (loaded, not hidden) and has for the 0.25 s a
+        // followed track map takes to fade in - for a stand-in under it to go when it's fully there
+        uint32_t h = (uint32_t)strtoul(k.c_str() + 9, nullptr, 16);
+        uint8_t* obj = FeObject(h);
+        uint32_t ty = obj ? *(uint32_t*)(obj + 0x18) : 0;
+        bool shown = obj && (ty == fe::kImage || ty == fe::kMultiImage || ty == fe::kColoredImage) && !(*(uint32_t*)(obj + 0x1C) & 1)
+                     && TexOfInfo(TexInfo(*(uint32_t*)(obj + 0x24)));
+        struct St { uint32_t tex = 0; DWORD since = 0, asked = 0; bool on = false; };
+        static std::unordered_map<uint32_t, St> st;
+        St& x = st[h];
+        uint32_t tex = obj ? *(uint32_t*)(obj + 0x24) : 0;
+        if (GetTickCount() - x.asked > 200) x.on = false;   // (not asked for a while: the page came back - its map fades in again)
+        x.asked = GetTickCount();
+        if (!shown) x.on = false;
+        else if (!x.on || x.tex != tex) { x.on = true; x.tex = tex; x.since = GetTickCount(); }
+        out = x.on && GetTickCount() - x.since >= 250 ? "1" : "";
+        return true;
+    }
     if (k.size() == 11 && k.compare(0, 3, "fe.") == 0) {   // {fe.<8 hex>}: the game's FEng string with that name hash
         if (!FeText((uint32_t)strtoul(k.c_str() + 3, nullptr, 16), out)) out.clear();
         return true;

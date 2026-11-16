@@ -1444,6 +1444,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             if (!tn.empty() && tn.find('{') == std::string::npos) tx = liveTexture(tn, &su, &sv);
             if (tx && tn[0] != '@' && textureAlphaOk && !textureAlphaOk(tx)) noAlpha = true;
         }
+        if (tx && !noAlpha && !icon && e.tex.compare(0, 8, "TRACKMAP") == 0 && textureAlphaOk && !textureAlphaOk(tx)) noAlpha = true;   // (a track map by name: no alpha either)
         {   // a minimap texture (or its vec:minimap/ art): what the Minimap page says to draw for it
             std::string key = MapKeyOf(e.tex);
             if (!key.empty()) {
