@@ -561,7 +561,7 @@ static ImVec2 ElemSize(Elem& e) {
 // left / centre / right columns keep their distance from that edge (the widescreen fix does the same).
 static bool FollowBox(const Elem& e, GameObject& g, ImVec2& a, ImVec2& b) {
     if (!e.follow || !gameObject || !gameObject(e.follow, g)) return false;
-    if (g.loading && e.type != E_IMAGE) return false;   // (still loading its picture: only an image stands in, with the last one)
+    if (g.loading) return false;   // (hidden by the game while its picture loads)
     ImVec2 ds = ImGui::GetIO().DisplaySize; float k = ds.y / 480.f;
     int col = e.anchor % 3;
     float cx = col == 0 ? (g.x + 320) * k : col == 1 ? ds.x / 2 + g.x * k : ds.x - (320 - g.x) * k;
@@ -1358,10 +1358,22 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     GameObject go; bool following = false;
     if ((e.type == E_IMAGE || e.type == E_SHAPE) && e.follow) {   // (a shape: the game object's box, its fill tinted by the game's colour)
         following = FollowBox(e, go, a, b);
+        float fadeK = 1.f;
+        {   // a picture the game hid while it loaded (a track map streaming in): faded in when it's there
+            static std::unordered_map<std::string, double> appeared;
+            static std::unordered_map<std::string, bool> wasLoading;
+            const std::string lk = e.group + '\x1f' + e.name;
+            const double now = ImGui::GetTime();
+            if (go.loading) wasLoading[lk] = true;
+            else if (following) { auto w = wasLoading.find(lk); if (w != wasLoading.end() && w->second) { w->second = false; appeared[lk] = now; } }
+            auto ap = appeared.find(lk);
+            if (ap != appeared.end()) { fadeK = (float)((now - ap->second) / 0.25); if (fadeK >= 1.f) { fadeK = 1.f; appeared.erase(ap); } }
+        }
         if (!following && !editing) return;   // the game isn't showing it
         if (following) {
             const float* c0 = mine && e.hiMine ? e.hiCol : e.col;
             float c[4]; for (int i = 0; i < 4; ++i) c[i] = c0[i] * go.col[i];
+            c[3] *= fadeK;
             col = Col(c);
         }
     }
@@ -1456,18 +1468,7 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
         float rotSave = e.rot, bf = BindFrac(e);
         if (following) {   // the game's texture and uv (unless this element has its own art), and its turn
             if (e.tex.empty()) {
-                float gsu = go.su, gsv = go.sv;
-                tx = go.tex;
-                // the game hides its picture while the next one loads (a track map streams in): the last picture this
-                // element showed stands in meanwhile (by its hash, looked up again - drawn only while it's still loaded)
-                static std::unordered_map<std::string, unsigned> lastHash;
-                const std::string lk = e.group + '\x1f' + e.name;
-                if (tx && !go.loading && go.texHash) lastHash[lk] = go.texHash;
-                else if (go.loading && liveTexture) {
-                    auto it = lastHash.find(lk);
-                    if (it != lastHash.end()) { char n[12]; snprintf(n, sizeof n, "#%08X", it->second); tx = liveTexture(n, &gsu, &gsv); }
-                }
-                uv0 = ImVec2(go.u0 * gsu, go.v0 * gsv); uv1 = ImVec2(go.u1 * gsu, go.v1 * gsv);
+                tx = go.tex; uv0 = ImVec2(go.u0 * go.su, go.v0 * go.sv); uv1 = ImVec2(go.u1 * go.su, go.v1 * go.sv);
                 noAlpha = tx && textureAlphaOk && !textureAlphaOk(tx);   // (the game's picture with nothing in its alpha - a track map: its colour alone)
             }
             e.rot = rotSave + go.rot;
