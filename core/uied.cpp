@@ -571,6 +571,9 @@ static bool FollowBox(const Elem& e, GameObject& g, ImVec2& a, ImVec2& b) {
     a = ImVec2(cx - hw, cy - hh); b = ImVec2(cx + hw, cy + hh);
     return true;
 }
+// a followed picture's fade-in when its page comes up (by group + name: the menus draw copies)
+struct FollowFade { double called = -100, at = -100; bool pending = false; };
+static FollowFade& FollowFadeOf(const Elem& e) { static std::unordered_map<std::string, FollowFade> m; return m[e.group + '\x1f' + e.name]; }
 static void ElemRect(Elem& e, ImVec2& a, ImVec2& b) {
     if (e.follow && (e.type == E_IMAGE || e.type == E_SHAPE)) { GameObject g; if (FollowBox(e, g, a, b)) return; }
     ImVec2 ds = ImGui::GetIO().DisplaySize; float k = Unit();
@@ -1358,6 +1361,12 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
     GameObject go; bool following = false;
     if ((e.type == E_IMAGE || e.type == E_SHAPE) && e.follow) {   // (a shape: the game object's box, its fill tinted by the game's colour)
         following = FollowBox(e, go, a, b);
+        {   // (its page just came up: a track map it shows fades in - not when it changes to another track's)
+            FollowFade& ff = FollowFadeOf(e);
+            const double now = ImGui::GetTime();
+            if (now - ff.called > 0.2) ff.pending = true;
+            ff.called = now;
+        }
         if (!following && !editing) return;   // the game isn't showing it
         if (following) {
             const float* c0 = mine && e.hiMine ? e.hiCol : e.col;
@@ -1459,15 +1468,10 @@ static void DrawElem(ImDrawList* dl, Elem& e, bool editing) {
             if (e.tex.empty()) {
                 tx = go.tex; uv0 = ImVec2(go.u0 * go.su, go.v0 * go.sv); uv1 = ImVec2(go.u1 * go.su, go.v1 * go.sv);
                 noAlpha = tx && textureAlphaOk && !textureAlphaOk(tx);   // (the game's picture with nothing in its alpha - a track map: its colour alone)
-                {   // a track map (a picture with no alpha) fades in when it comes up or changes - it streams in late
-                    struct FadeSt { unsigned hash = 0; double seen = -100, at = -100; };
-                    static std::unordered_map<std::string, FadeSt> fades;
-                    FadeSt& st = fades[e.group + '\x1f' + e.name];
+                {   // a track map (a picture with no alpha) fades in when it first comes up on its page (it streams in late)
+                    FollowFade& st = FollowFadeOf(e);
                     const double now = ImGui::GetTime();
-                    if (tx) {
-                        if (st.hash != go.texHash || now - st.seen > 0.2) { st.hash = go.texHash; st.at = now; }
-                        st.seen = now;
-                    } else st.hash = 0;
+                    if (tx && st.pending) { st.pending = false; st.at = now; }
                     if (tx && noAlpha) {
                         const float k = (float)std::min(1.0, (now - st.at) / 0.25);
                         if (k < 1.f) { ImVec4 cv = ImGui::ColorConvertU32ToFloat4(col); cv.w *= k; col = ImGui::ColorConvertFloat4ToU32(cv); }
