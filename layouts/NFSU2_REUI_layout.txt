@@ -13739,3 +13739,392 @@ text=Package Contents
 align=0
 showif=gm.upgrade.package
 colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-162
+w=592
+h=122
+scale=1
+color=0 0 0 0
+visible=1
+group=Main Menu/Customize Car Select/Car select
+shape=7 7 7 7 2
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=Menu.black.1 0
+
+[element]
+mode=menus
+type=shape
+name=Car select
+anchor=4
+x=0
+y=-144
+w=580
+h=72
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Customize Car Select/Car select
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.883977
+filltoken=Menu.grey.1 1.00184
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-188
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Customize Car Select/Car select
+shape=3 3 3 3 0
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=image
+name=Scroller Tab
+anchor=4
+x=-272
+y=-188
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=0
+group=Main Menu/Customize Car Select/Car select
+layer=5
+texture=U2_SLIDERBAR_TAB
+pack=?
+uv=0 0 1 1
+bind=car.slotbar
+bindkind=5
+bindrange=0 1
+bindrot=0 544
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=-272
+y=-188
+w=5
+h=5
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Main Menu/Customize Car Select/Car select
+layer=1
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
+bind=car.slotbar
+bindkind=5
+bindrange=0 1
+bindrot=0 544
+
+[element]
+mode=menus
+type=image
+name=Left Arrow
+anchor=4
+x=-266
+y=-144
+w=23
+h=23
+scale=1
+color=0.86 0.86 0.86 1
+visible=1
+group=Main Menu/Customize Car Select/Car select/Arrows
+layer=5
+texture=vec:U2_MENU_ARROW
+pack=
+uv=1 0 0 1
+showif=!car.left
+
+[element]
+mode=menus
+type=image
+name=Left Arrow (flash)
+anchor=4
+x=-266
+y=-144
+w=23
+h=23
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Customize Car Select/Car select/Arrows
+layer=5
+texture=vec:U2_MENU_ARROW
+pack=
+uv=1 0 0 1
+showif=car.left
+anim=4
+bounce=1.2 300 0.18 1
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Right Arrow
+anchor=4
+x=266
+y=-144
+w=23
+h=23
+scale=1
+color=0.86 0.86 0.86 1
+visible=1
+group=Main Menu/Customize Car Select/Car select/Arrows
+layer=5
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+showif=!car.right
+
+[element]
+mode=menus
+type=image
+name=Right Arrow (flash)
+anchor=4
+x=266
+y=-144
+w=23
+h=23
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Customize Car Select/Car select/Arrows
+layer=5
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+showif=car.right
+anim=4
+bounce=1.2 300 0.18 1
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=0
+x=137
+y=20
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Customize Car Select/Car select
+font=conduitmditc_tt21i
+text=Garage Car Select
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Maker logo
+anchor=4
+x=-160
+y=-145
+w=128
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Customize Car Select/Car select
+layer=5
+texture=fe:3E01AD1D
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=Name badge
+anchor=4
+x=90
+y=-145
+w=256
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Customize Car Select/Car select
+layer=5
+texture=fe:B05DD708
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=shape
+name=Filter Bar
+anchor=4
+x=-195
+y=-84
+w=204
+h=27
+scale=1
+color=0 0 0 0
+visible=1
+group=Main Menu/Customize Car Select/Slot bar
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=Menu.black.1 0
+
+[element]
+mode=menus
+type=text
+name=Filter Text
+anchor=4
+x=-197
+y=-84
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Customize Car Select/Slot bar
+font=conduitmditc_tt21i
+text={fe.3E81DE59}
+align=1
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158
+y=-145
+w=134
+h=67
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Customize Car Select/select
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158
+y=-145
+w=134
+h=67
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Customize Car Select/select
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158
+y=-145
+w=134
+h=67
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Customize Car Select/select
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[page]
+group=Main Menu/Customize Car Select
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+qrcarselect=1
+title=Car Select
+prompt=South;Select
+prompt=East;Back
+shared=Shared/Performance
+shared=Shared/Visual Rating
+
+[element]
+mode=menus
+type=image
+name=LT
+anchor=4
+x=-282
+y=-84
+w=22
+h=22
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Customize Car Select/Slot bar
+layer=3
+texture=icon:bind:FENG_LTRIGGER
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=RT
+anchor=4
+x=-108
+y=-84
+w=22
+h=22
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Customize Car Select/Slot bar
+layer=3
+texture=icon:bind:FENG_RTRIGGER
+pack=
+uv=0 0 1 1
