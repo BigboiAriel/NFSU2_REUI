@@ -9621,7 +9621,7 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/perf
 shape=7 7 7 7 0
 fill=0 0 0 0.52549
 filltoken=Menu.black.1 1
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 colortoken=hud.line 1
 
 [element]
@@ -9640,7 +9640,7 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque group
 shape=7 7 7 7 0
 fill=0.396078 0.396078 0.396078 0.882353
 filltoken=Menu.grey.1 1
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 colortoken=hud.line 1
 
 [element]
@@ -9659,7 +9659,7 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power group
 shape=7 7 7 7 0
 fill=0.396078 0.396078 0.396078 0.882353
 filltoken=Menu.grey.1 1
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 colortoken=hud.line 1
 
 [element]
@@ -9678,7 +9678,7 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/perf
 font=conduitmditc_tt21i
 text=Performance Stats
 align=0
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 colortoken=hud.accent 1
 
 [element]
@@ -10041,7 +10041,7 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque group
 font=conduitmditc_tt21i
 text=Torque
 align=0
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 colortoken=hud.text 1
 
 [element]
@@ -10060,7 +10060,7 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power group
 font=conduitmditc_tt21i
 text=Power
 align=0
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 colortoken=hud.text 1
 
 [element]
@@ -10079,7 +10079,7 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power group
 font=conduitmditc_tt21i
 text={fe.6BB32446}
 align=0
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 colortoken=hud.text 1
 
 [element]
@@ -10098,7 +10098,7 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque group
 font=conduitmditc_tt21i
 text={fe.18531358}
 align=0
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 colortoken=hud.text 1
 
 [element]
@@ -10119,7 +10119,7 @@ fill=0.172549 0.172549 0.172549 0.4
 filltoken=scroll.3 0.4
 strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.7@scroll.3;0.17 0.172549 0.172549 0.172549 0.7@scroll.3;1 0.172549 0.172549 0.172549 0.5@scroll.3
 strokegradtoken=scroller_dark
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 colortoken=hud.line 1
 
 [element]
@@ -10138,7 +10138,7 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque meter
 layer=1
 shape=1.5 1.5 1.5 1.5 0
 fill=0.8118 0.502 0.1882 1
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 bind=car.torque
 bindkind=1
 bindrange=0 100
@@ -10160,7 +10160,7 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Torque meter
 layer=2
 shape=1.5 1.5 1.5 1.5 0
 fill=0.588 0 0 1
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 bind=car.torque.installed
 bindkind=1
 bindrange=0 100
@@ -10183,7 +10183,7 @@ layer=3
 shape=1.5 1.5 1.5 1.5 0
 fill=0.3882 0.698 0.1333 1
 filltoken=hud.bright_green 1
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 bind=car.torque.base
 bindkind=1
 bindrange=0 100
@@ -10207,7 +10207,7 @@ fill=0.172549 0.172549 0.172549 0.4
 filltoken=scroll.3 0.4
 strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.7@scroll.3;0.17 0.172549 0.172549 0.172549 0.7@scroll.3;1 0.172549 0.172549 0.172549 0.5@scroll.3
 strokegradtoken=scroller_dark
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 colortoken=hud.line 1
 
 [element]
@@ -10226,7 +10226,7 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power meter
 layer=1
 shape=1.5 1.5 1.5 1.5 0
 fill=0.8118 0.502 0.1882 1
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 bind=car.power
 bindkind=1
 bindrange=0 100
@@ -10248,7 +10248,7 @@ group=Garage/Change Parts/Performance Parts/Performance Upgrade/Power meter
 layer=2
 shape=1.5 1.5 1.5 1.5 0
 fill=0.588 0 0 1
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 bind=car.power.installed
 bindkind=1
 bindrange=0 100
@@ -10271,7 +10271,7 @@ layer=3
 shape=1.5 1.5 1.5 1.5 0
 fill=0.3882 0.698 0.1333 1
 filltoken=hud.bright_green 1
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 bind=car.power.base
 bindkind=1
 bindrange=0 100
@@ -10808,7 +10808,7 @@ layer=1
 shape=0 7 7 0 0
 fill=0 0 0 0.85
 selonly=1
-showif=gm.upgrade.shown
+showif=gm.upgrade.parts
 
 [element]
 mode=menus
@@ -13720,3 +13720,22 @@ start=0
 selcolor=1 0.792157 0.956863 0.541176 1
 dedicated=1
 createprofile=1
+
+[element]
+mode=menus
+type=text
+name=Package Contents
+anchor=4
+x=-280
+y=-86
+w=0
+h=64
+scale=0.65
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/perf
+font=conduitmditc_tt21i
+text=Package Contents
+align=0
+showif=gm.upgrade.package
+colortoken=hud.accent 1
