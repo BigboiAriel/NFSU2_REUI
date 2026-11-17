@@ -188,6 +188,7 @@ namespace uied {
     std::string MenuMemCardPage();                     // ... the memory card screen (MC_Main) ("" none)
     std::string MenuCreateProfilePage();               // ... its Create Profile name entry ("" none)
     std::string MenuQrCarSelectPage();                 // ... the main menu's Customize car select ("" none)
+    std::string MenuQuickRacePage();                   // ... the main menu's Quick Race menu ("" none)
     std::string MenuLoadListPage();                    // ... the Load / Save game list (MC_List) ("" none)
     std::string MenuCareerMenuPage();                  // ... the main menu's Career menu (UI_StartCareer) ("" none)
     std::string MenuMainMenuPage();                    // ... the front end's main menu (UI_Main) ("" none)
