@@ -13723,25 +13723,6 @@ createprofile=1
 
 [element]
 mode=menus
-type=text
-name=Package Contents
-anchor=4
-x=-280
-y=-86
-w=0
-h=64
-scale=0.65
-color=0.7922 0.9569 0.5412 1
-visible=1
-group=Garage/Change Parts/Performance Parts/Performance Upgrade/perf
-font=conduitmditc_tt21i
-text=Package Contents
-align=0
-showif=gm.upgrade.package
-colortoken=hud.accent 1
-
-[element]
-mode=menus
 type=shape
 name=Panel
 anchor=4
@@ -14128,3 +14109,133 @@ layer=3
 texture=icon:bind:FENG_RTRIGGER
 pack=
 uv=0 0 1 1
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=1
+y=22
+w=592
+h=216
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+showif=gm.package.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Box
+anchor=4
+x=0
+y=7
+w=594
+h=103
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+cut=0;
+showif=gm.package.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=4
+x=-284
+y=-64
+w=0
+h=64
+scale=0.65
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents
+font=conduitmditc_tt21i
+text=Package Contents
+align=0
+showif=gm.package.shown
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Row
+anchor=4
+x=0
+y=-29
+w=584
+h=22.5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents/Rows
+shape=7 7 7 7 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+showif=gm.package.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Part name
+anchor=4
+x=-273
+y=-29
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents/Rows
+layer=2
+font=conduitmditc_tt21i
+text=Option 1
+align=0
+role=label
+showif=gm.package.shown
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Part status
+anchor=4
+x=240
+y=-29
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents/Rows
+layer=2
+font=conduitmditc_tt21i
+text=Owned
+align=1
+role=value
+showif=gm.package.shown
+colortoken=hud.text 1
+
+[widget]
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents/Rows
+type=listbox
+bind=list:gm.package
+grid=1 4 584 96 -292 -40.25 584 22.5 1 1 0 7.75 0 2 0 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+num=0 1 0.05 0
