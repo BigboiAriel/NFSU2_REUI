@@ -14239,3 +14239,278 @@ tile=Button 2
 tile=Button 3
 tile=Button 4
 num=0 1 0.05 0
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-156
+w=592
+h=135
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Carousel Box
+anchor=4
+x=0
+y=-148
+w=580
+h=62
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Change Parts
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.883977
+filltoken=Menu.grey.1 1.00184
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Description Box
+anchor=4
+x=0
+y=-103
+w=580
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-186
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Carousel
+shape=3 3 3 3 0
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
+role=gtrack
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Carousel
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Quick Race/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Quick Race/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-148.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Quick Race/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Main Menu/Quick Race/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Main Menu/Quick Race/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-274
+y=-186.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Main Menu/Quick Race/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=4
+x=-289
+y=-206
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Quick Race/Change Parts
+font=conduitmditc_tt21i
+text=Header
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=0
+y=-103
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Quick Race/Change Parts
+font=conduitmditc_tt21i
+text=Change Body Parts
+align=1
+role=desc
+colortoken=hud.accent 1
+
+[page]
+group=Main Menu/Quick Race
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+quickrace=1
+title=Quick Race
+
+[widget]
+group=Main Menu/Quick Race/Carousel
+bind=list:gm.items
+type=carousel
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 0 1
+tile=Button 1
+tile=Button 2
+tile=Button 3
+tile=Button 4
+tile=Button 5
+tile=Button 6
+tile=Button 7
+tile=Button 8
+num=0 1 0.05 0
