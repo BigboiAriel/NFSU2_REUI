@@ -111,6 +111,7 @@ struct Page {
     bool rimBrands = false;              // ... Body Parts' Rims: its rim brand menu (UI_ChooseRimBrand)
     bool bodyParts = false;              // ... Body Parts' browser at its categories (UI_GenericParts_Browser: the game keeps the controls)
     bool neon = false;                   // ... Specialties' Neon: its menu (UI_CustomNeonMain)
+    bool trackSelect = false;            // ... its track select (UI_QRTrackSelect; the game keeps the controls)
     bool quickRace = false;              // ... the main menu's Quick Race menu (UI_QRModeSelect: the race types)
     bool qrCarSelect = false;            // ... the main menu's Customize / Quick Race car select (the game keeps the controls)
     bool createProfile = false;          // ... its Create Profile name entry (the game keeps the keys: typing, Enter, Esc)
@@ -1157,6 +1158,7 @@ std::string MenuPerfUpgradePage() { if (customMenus) for (auto& p : g_pages) if 
 std::string MenuRimBrandsPage() { if (customMenus) for (auto& p : g_pages) if (p.rimBrands) return p.group; return std::string(); }
 std::string MenuNeonPage() { if (customMenus) for (auto& p : g_pages) if (p.neon) return p.group; return std::string(); }
 std::string MenuLoadListPage() { if (customMenus) for (auto& p : g_pages) if (p.loadList) return p.group; return std::string(); }
+std::string MenuTrackSelectPage() { if (customMenus) for (auto& p : g_pages) if (p.trackSelect) return p.group; return std::string(); }
 std::string MenuQuickRacePage() { if (customMenus) for (auto& p : g_pages) if (p.quickRace) return p.group; return std::string(); }
 std::string MenuQrCarSelectPage() { if (customMenus) for (auto& p : g_pages) if (p.qrCarSelect) return p.group; return std::string(); }
 std::string MenuCreateProfilePage() { if (customMenus) for (auto& p : g_pages) if (p.createProfile) return p.group; return std::string(); }
@@ -1923,17 +1925,17 @@ static void ReplacesCombo(Page& p) {
                                   "the race start dialog (multiplayer)", "the garage menu", "the garage's car select",
                                   "the garage's Change Parts menu", "Change Parts: Performance Parts", "Change Parts: Specialties",
                                   "Change Parts: Body Parts", "Body Parts: Rim Brands", "Performance Parts: upgrade menu",
-                                  "Specialties: Neon", "Specialties: a specialty's parts", "the garage's World Map (race again)", "the front end's main menu", "the main menu's Career menu", "the Load / Save game list", "the memory card screen (loading / saving)", "the memory card screen's Create Profile (name entry)", "the main menu's Customize car select", "the main menu's Quick Race menu" };
-    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : p.confirm ? 3 : p.worldMap ? 4 : p.raceDialog ? 5 : p.raceDialogMp ? 6 : p.garage ? 7 : p.carSelect ? 8 : p.parts ? 9 : p.perfParts ? 10 : p.specialties ? 11 : p.bodyParts ? 12 : p.rimBrands ? 13 : p.perfUpgrade ? 14 : p.neon ? 15 : p.iceParts ? 16 : p.careerMap ? 17 : p.mainMenu ? 18 : p.careerMenu ? 19 : p.loadList ? 20 : p.memCard ? 21 : p.createProfile ? 22 : p.qrCarSelect ? 23 : p.quickRace ? 24 : 0;
+                                  "Specialties: Neon", "Specialties: a specialty's parts", "the garage's World Map (race again)", "the front end's main menu", "the main menu's Career menu", "the Load / Save game list", "the memory card screen (loading / saving)", "the memory card screen's Create Profile (name entry)", "the main menu's Customize car select", "the main menu's Quick Race menu", "Quick Race: the track select" };
+    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : p.confirm ? 3 : p.worldMap ? 4 : p.raceDialog ? 5 : p.raceDialogMp ? 6 : p.garage ? 7 : p.carSelect ? 8 : p.parts ? 9 : p.perfParts ? 10 : p.specialties ? 11 : p.bodyParts ? 12 : p.rimBrands ? 13 : p.perfUpgrade ? 14 : p.neon ? 15 : p.iceParts ? 16 : p.careerMap ? 17 : p.mainMenu ? 18 : p.careerMenu ? 19 : p.loadList ? 20 : p.memCard ? 21 : p.createProfile ? 22 : p.qrCarSelect ? 23 : p.quickRace ? 24 : p.trackSelect ? 25 : 0;
     ImGui::SetNextItemWidth(180);
     if (ImGui::BeginCombo("replaces", kRep[cur])) {
-        for (int i = 0; i < 25; ++i) {
+        for (int i = 0; i < 26; ++i) {
             std::string taken;   // (another page has it: picking it here moves it)
-            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions) || (i == 3 && o.confirm) || (i == 4 && o.worldMap) || (i == 5 && o.raceDialog) || (i == 6 && o.raceDialogMp) || (i == 7 && o.garage) || (i == 8 && o.carSelect) || (i == 9 && o.parts) || (i == 10 && o.perfParts) || (i == 11 && o.specialties) || (i == 12 && o.bodyParts) || (i == 13 && o.rimBrands) || (i == 14 && o.perfUpgrade) || (i == 15 && o.neon) || (i == 16 && o.iceParts) || (i == 17 && o.careerMap) || (i == 18 && o.mainMenu) || (i == 19 && o.careerMenu) || (i == 20 && o.loadList) || (i == 21 && o.memCard) || (i == 22 && o.createProfile) || (i == 23 && o.qrCarSelect) || (i == 24 && o.quickRace))) taken = o.group;
+            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions) || (i == 3 && o.confirm) || (i == 4 && o.worldMap) || (i == 5 && o.raceDialog) || (i == 6 && o.raceDialogMp) || (i == 7 && o.garage) || (i == 8 && o.carSelect) || (i == 9 && o.parts) || (i == 10 && o.perfParts) || (i == 11 && o.specialties) || (i == 12 && o.bodyParts) || (i == 13 && o.rimBrands) || (i == 14 && o.perfUpgrade) || (i == 15 && o.neon) || (i == 16 && o.iceParts) || (i == 17 && o.careerMap) || (i == 18 && o.mainMenu) || (i == 19 && o.careerMenu) || (i == 20 && o.loadList) || (i == 21 && o.memCard) || (i == 22 && o.createProfile) || (i == 23 && o.qrCarSelect) || (i == 24 && o.quickRace) || (i == 25 && o.trackSelect))) taken = o.group;
             std::string lb = std::string(kRep[i]) + (taken.empty() ? "" : "  (now " + taken + ")");
             if (ImGui::Selectable(lb.c_str(), i == cur) && i != cur) {
-                p.pauseMenu = i == 1; p.pauseOptions = i == 2; p.confirm = i == 3; p.worldMap = i == 4; p.raceDialog = i == 5; p.raceDialogMp = i == 6; p.garage = i == 7; p.carSelect = i == 8; p.parts = i == 9; p.perfParts = i == 10; p.specialties = i == 11; p.bodyParts = i == 12; p.rimBrands = i == 13; p.perfUpgrade = i == 14; p.neon = i == 15; p.iceParts = i == 16; p.careerMap = i == 17; p.mainMenu = i == 18; p.careerMenu = i == 19; p.loadList = i == 20; p.memCard = i == 21; p.createProfile = i == 22; p.qrCarSelect = i == 23; p.quickRace = i == 24;
-                for (auto& o : g_pages) if (&o != &p) { if (i == 12) o.bodyParts = false; if (i == 13) o.rimBrands = false; if (i == 14) o.perfUpgrade = false; if (i == 15) o.neon = false; if (i == 16) o.iceParts = false; if (i == 17) o.careerMap = false; if (i == 18) o.mainMenu = false; if (i == 19) o.careerMenu = false; if (i == 20) o.loadList = false; if (i == 21) o.memCard = false; if (i == 22) o.createProfile = false; if (i == 23) o.qrCarSelect = false; if (i == 24) o.quickRace = false; if (i == 9) o.parts = false; if (i == 10) o.perfParts = false; if (i == 11) o.specialties = false; if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; if (i == 3) o.confirm = false; if (i == 4) o.worldMap = false; if (i == 5) o.raceDialog = false; if (i == 6) o.raceDialogMp = false; if (i == 7) o.garage = false; if (i == 8) o.carSelect = false; }
+                p.pauseMenu = i == 1; p.pauseOptions = i == 2; p.confirm = i == 3; p.worldMap = i == 4; p.raceDialog = i == 5; p.raceDialogMp = i == 6; p.garage = i == 7; p.carSelect = i == 8; p.parts = i == 9; p.perfParts = i == 10; p.specialties = i == 11; p.bodyParts = i == 12; p.rimBrands = i == 13; p.perfUpgrade = i == 14; p.neon = i == 15; p.iceParts = i == 16; p.careerMap = i == 17; p.mainMenu = i == 18; p.careerMenu = i == 19; p.loadList = i == 20; p.memCard = i == 21; p.createProfile = i == 22; p.qrCarSelect = i == 23; p.quickRace = i == 24; p.trackSelect = i == 25;
+                for (auto& o : g_pages) if (&o != &p) { if (i == 12) o.bodyParts = false; if (i == 13) o.rimBrands = false; if (i == 14) o.perfUpgrade = false; if (i == 15) o.neon = false; if (i == 16) o.iceParts = false; if (i == 17) o.careerMap = false; if (i == 18) o.mainMenu = false; if (i == 19) o.careerMenu = false; if (i == 20) o.loadList = false; if (i == 21) o.memCard = false; if (i == 22) o.createProfile = false; if (i == 23) o.qrCarSelect = false; if (i == 24) o.quickRace = false; if (i == 25) o.trackSelect = false; if (i == 9) o.parts = false; if (i == 10) o.perfParts = false; if (i == 11) o.specialties = false; if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; if (i == 3) o.confirm = false; if (i == 4) o.worldMap = false; if (i == 5) o.raceDialog = false; if (i == 6) o.raceDialogMp = false; if (i == 7) o.garage = false; if (i == 8) o.carSelect = false; }
                 g_dirty = true;
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip(i == 1 ? "Opens instead of the game's pause menu (Start / Esc in the world; needs UniPad). Back closes it and\nresumes; give tiles the \"Pause: ...\" actions (Resume, Restart race, Jump to Garage, Options, Quit,\nFree Cam...) under changes."
@@ -2440,6 +2442,7 @@ static void SaveMenus(FILE* f) {
         if (p.createProfile) fprintf(f, "createprofile=1\n");
         if (p.qrCarSelect) fprintf(f, "qrcarselect=1\n");
         if (p.quickRace) fprintf(f, "quickrace=1\n");
+        if (p.trackSelect) fprintf(f, "trackselect=1\n");
         if (!p.title.empty()) fprintf(f, "title=%s\n", Esc(p.title).c_str());
         if (!p.standIn.empty()) fprintf(f, "standin=%s\n", Esc(p.standIn).c_str());
         if (!p.startTile.empty()) fprintf(f, "starttile=%s\n", Esc(p.startTile).c_str());
@@ -2515,6 +2518,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "createprofile") p.createProfile = atoi(v.c_str()) != 0;
         else if (k == "qrcarselect") p.qrCarSelect = atoi(v.c_str()) != 0;
         else if (k == "quickrace") p.quickRace = atoi(v.c_str()) != 0;
+        else if (k == "trackselect") p.trackSelect = atoi(v.c_str()) != 0;
         else if (k == "title") p.title = Unesc(v);
         else if (k == "standin") p.standIn = Unesc(v);
         else if (k == "starttile") p.startTile = Unesc(v);
