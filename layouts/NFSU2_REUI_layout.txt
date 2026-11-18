@@ -34,7 +34,7 @@ grouplink=5 menu panel 1|0 0 0 Pause 1/menu panel 1|0 0 0 Pause 1/Pause Options/
 grouplink=5 Garage Screen|0 0 0 Garage/Pause Screen|0 0 0 Main Menu/Pause Screen|0 0 0 Main Menu/Career Menu/Pause Screen
 grouplink=5 Change Parts|0 0 0 Garage/Change Parts/Change Parts|0 0 0 Garage/Change Parts/Performance Parts/Change Parts|0 0 0 Garage/Change Parts/Specialties/Change Parts|0 0 0 Garage/Change Parts/Body Parts/Change Parts|0 0 0 Garage/Change Parts/Performance Parts/Performance Upgrade/Change Parts|0 0 0 Garage/Change Parts/Rim Brands/Change Parts|0 0 0 Garage/Change Parts/Neon/Change Parts|0 0 0 Garage/Change Parts/Specialty Parts/Change Parts|0 0 0 Main Menu/Quick Race/Track Select/Change Parts
 grouplink=5 menu_big|0 0 0 Pause 1/Pause Options/Unipad Options/menu_big
-grouplink=5 Parts Carousel|0 0 0 Garage/Change Parts/Carousel|0 0 0 Main Menu/Quick Race/Track Select/Carousel
+grouplink=5 Parts Carousel|0 0 0 Garage/Change Parts/Performance Parts/Carousel|0 14 0 Garage/Carousel|0 0 0 Garage/Change Parts/Carousel|0 0 0 Garage/Change Parts/Body Parts/Carousel|0 0 0 Garage/Change Parts/Neon/Carousel|0 0 0 Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel|0 0 0 Garage/Change Parts/Rim Brands/Carousel|0 0 0 Garage/Change Parts/Specialties/Carousel|0 0 0 Garage/Change Parts/Specialty Parts/Carousel|0 14 0 Main Menu/Carousel|0 14 0 Main Menu/Career Menu/Carousel|0 0 0 Main Menu/Quick Race/Carousel|0 0 0 Main Menu/Quick Race/Track Select/Carousel|0 134 0 Pause 1/Carousel|0 134 0 Pause 1/Pause Options/Carousel
 
 [element]
 mode=freeroam
