@@ -32,8 +32,9 @@ gradtoken=scroller_dark;;0 0.172549 0.172549 0.172549 0.7@scroll.3|0.17 0.172549
 mapart=MINIMAP_GPS_SELECTOR;-
 grouplink=5 menu panel 1|0 0 0 Pause 1/menu panel 1|0 0 0 Pause 1/Pause Options/menu panel 1
 grouplink=5 Garage Screen|0 0 0 Garage/Pause Screen|0 0 0 Main Menu/Pause Screen|0 0 0 Main Menu/Career Menu/Pause Screen
-grouplink=5 Change Parts|0 0 0 Garage/Change Parts/Change Parts|0 0 0 Garage/Change Parts/Performance Parts/Change Parts|0 0 0 Garage/Change Parts/Specialties/Change Parts|0 0 0 Garage/Change Parts/Body Parts/Change Parts|0 0 0 Garage/Change Parts/Performance Parts/Performance Upgrade/Change Parts|0 0 0 Garage/Change Parts/Rim Brands/Change Parts|0 0 0 Garage/Change Parts/Neon/Change Parts|0 0 0 Garage/Change Parts/Specialty Parts/Change Parts
+grouplink=5 Change Parts|0 0 0 Garage/Change Parts/Change Parts|0 0 0 Garage/Change Parts/Performance Parts/Change Parts|0 0 0 Garage/Change Parts/Specialties/Change Parts|0 0 0 Garage/Change Parts/Body Parts/Change Parts|0 0 0 Garage/Change Parts/Performance Parts/Performance Upgrade/Change Parts|0 0 0 Garage/Change Parts/Rim Brands/Change Parts|0 0 0 Garage/Change Parts/Neon/Change Parts|0 0 0 Garage/Change Parts/Specialty Parts/Change Parts|0 0 0 Main Menu/Quick Race/Track Select/Change Parts
 grouplink=5 menu_big|0 0 0 Pause 1/Pause Options/Unipad Options/menu_big
+grouplink=5 Parts Carousel|0 0 0 Garage/Change Parts/Carousel|0 0 0 Main Menu/Quick Race/Track Select/Carousel
 
 [element]
 mode=freeroam
@@ -12775,6 +12776,1088 @@ text=Profile name
 align=1
 role=label
 
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=0
+w=598
+h=262
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Career Menu/Create Profile/Panel
+shape=7 7 7 7 2
+fill=0 0 0 0.828729
+filltoken=Menu.black.1 1.57706
+strokegrad=1 0 0;0 0.7922 0.9569 0.5412 1@hud.accent;1 0.7922 0.9569 0.5412 0@hud.accent
+strokegradtoken=hud.glow
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Window
+anchor=4
+x=0
+y=13
+w=580
+h=205
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Main Menu/Career Menu/Create Profile/Panel
+shape=7 7 7 7 2
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
+cut=0;
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=0
+x=138.5
+y=119.5
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Career Menu/Create Profile
+font=conduitmditc_tt21i
+text={mcm.title}
+align=0
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Enter Name
+anchor=4
+x=-160
+y=13
+w=0
+h=64
+scale=0.7
+color=0.88 0.88 0.88 1
+visible=1
+group=Main Menu/Career Menu/Create Profile
+font=conduitmditc_tt21i
+text=Enter Name:
+align=1
+
+[element]
+mode=menus
+type=shape
+name=Name box
+anchor=4
+x=110
+y=13
+w=330
+h=44
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Main Menu/Career Menu/Create Profile
+shape=10 10 10 10 2
+fill=0.143646 0.143646 0.143646 0.828729
+filltoken=hud.shade2 0.918808
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Name
+anchor=4
+x=110
+y=13
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Main Menu/Career Menu/Create Profile
+font=conduitmditc_tt21i
+text={mcm.name}
+align=1
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-162
+w=592
+h=122
+scale=1
+color=0 0 0 0
+visible=1
+group=Main Menu/Customize Car Select/Car select
+shape=7 7 7 7 2
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=Menu.black.1 0
+
+[element]
+mode=menus
+type=shape
+name=Car select
+anchor=4
+x=0
+y=-144
+w=580
+h=72
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Customize Car Select/Car select
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.883977
+filltoken=Menu.grey.1 1.00184
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-188
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Customize Car Select/Car select
+shape=3 3 3 3 0
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+cut=0;
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=image
+name=Scroller Tab
+anchor=4
+x=-272
+y=-188
+w=12
+h=12
+scale=1
+color=1 1 1 1
+visible=0
+group=Main Menu/Customize Car Select/Car select
+layer=5
+texture=U2_SLIDERBAR_TAB
+pack=?
+uv=0 0 1 1
+bind=car.slotbar
+bindkind=5
+bindrange=0 1
+bindrot=0 544
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=-272
+y=-188
+w=5
+h=5
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Main Menu/Customize Car Select/Car select
+layer=1
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
+bind=car.slotbar
+bindkind=5
+bindrange=0 1
+bindrot=0 544
+
+[element]
+mode=menus
+type=image
+name=Left Arrow
+anchor=4
+x=-266
+y=-144
+w=23
+h=23
+scale=1
+color=0.86 0.86 0.86 1
+visible=1
+group=Main Menu/Customize Car Select/Car select/Arrows
+layer=5
+texture=vec:U2_MENU_ARROW
+pack=
+uv=1 0 0 1
+showif=!car.left
+
+[element]
+mode=menus
+type=image
+name=Left Arrow (flash)
+anchor=4
+x=-266
+y=-144
+w=23
+h=23
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Customize Car Select/Car select/Arrows
+layer=5
+texture=vec:U2_MENU_ARROW
+pack=
+uv=1 0 0 1
+showif=car.left
+anim=4
+bounce=1.2 300 0.18 1
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Right Arrow
+anchor=4
+x=266
+y=-144
+w=23
+h=23
+scale=1
+color=0.86 0.86 0.86 1
+visible=1
+group=Main Menu/Customize Car Select/Car select/Arrows
+layer=5
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+showif=!car.right
+
+[element]
+mode=menus
+type=image
+name=Right Arrow (flash)
+anchor=4
+x=266
+y=-144
+w=23
+h=23
+scale=1
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Customize Car Select/Car select/Arrows
+layer=5
+texture=vec:U2_MENU_ARROW
+pack=
+uv=0 0 1 1
+showif=car.right
+anim=4
+bounce=1.2 300 0.18 1
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=0
+x=137
+y=20
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Customize Car Select/Car select
+font=conduitmditc_tt21i
+text=Garage Car Select
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Maker logo
+anchor=4
+x=-160
+y=-145
+w=128
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Customize Car Select/Car select
+layer=5
+texture=fe:3E01AD1D
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=Name badge
+anchor=4
+x=90
+y=-145
+w=256
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Customize Car Select/Car select
+layer=5
+texture=fe:B05DD708
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=shape
+name=Filter Bar
+anchor=4
+x=-195
+y=-84
+w=204
+h=27
+scale=1
+color=0 0 0 0
+visible=1
+group=Main Menu/Customize Car Select/Slot bar
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=Menu.black.1 0
+
+[element]
+mode=menus
+type=text
+name=Filter Text
+anchor=4
+x=-197
+y=-84
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Customize Car Select/Slot bar
+font=conduitmditc_tt21i
+text={fe.3E81DE59}
+align=1
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158
+y=-145
+w=134
+h=67
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Customize Car Select/select
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158
+y=-145
+w=134
+h=67
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Customize Car Select/select
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158
+y=-145
+w=134
+h=67
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Customize Car Select/select
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=LT
+anchor=4
+x=-282
+y=-84
+w=22
+h=22
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Customize Car Select/Slot bar
+layer=3
+texture=icon:bind:FENG_LTRIGGER
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=image
+name=RT
+anchor=4
+x=-108
+y=-84
+w=22
+h=22
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Customize Car Select/Slot bar
+layer=3
+texture=icon:bind:FENG_RTRIGGER
+pack=
+uv=0 0 1 1
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=1
+y=22
+w=592
+h=216
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Box
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+showif=gm.package.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Box
+anchor=4
+x=0
+y=7
+w=594
+h=103
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Box
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+cut=0;
+showif=gm.package.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=4
+x=-284
+y=-64
+w=0
+h=64
+scale=0.65
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Box
+font=conduitmditc_tt21i
+text=Package Contents
+align=0
+showif=gm.package.shown
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Row
+anchor=4
+x=0
+y=-29
+w=584
+h=22.5
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents
+shape=7 7 7 7 0
+fill=0.21547 0.21547 0.21547 0.828729
+filltoken=hud.shade 1
+showif=gm.package.shown
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=text
+name=Part name
+anchor=4
+x=-273
+y=-29
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents
+layer=2
+font=conduitmditc_tt21i
+text=Option 1
+align=0
+role=label
+showif=gm.package.shown
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=text
+name=Part status
+anchor=4
+x=240
+y=-29
+w=0
+h=64
+scale=0.6
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents
+layer=2
+font=conduitmditc_tt21i
+text=Owned
+align=1
+role=value
+showif=gm.package.shown
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-156
+w=592
+h=135
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Carousel Box
+anchor=4
+x=0
+y=-148
+w=580
+h=62
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Change Parts
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.883977
+filltoken=Menu.grey.1 1.00184
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Description Box
+anchor=4
+x=0
+y=-103
+w=580
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-186
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Carousel
+shape=3 3 3 3 0
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
+role=gtrack
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Carousel
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Quick Race/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Quick Race/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-148.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Quick Race/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Main Menu/Quick Race/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Main Menu/Quick Race/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-274
+y=-186.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Main Menu/Quick Race/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=4
+x=-289
+y=-206
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Quick Race/Change Parts
+font=conduitmditc_tt21i
+text=Header
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=0
+y=-103
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Quick Race/Change Parts
+font=conduitmditc_tt21i
+text=Change Body Parts
+align=1
+role=desc
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=image
+name=Map
+anchor=4
+x=0
+y=0
+w=267
+h=267
+scale=1
+color=0.734807 0.734807 0.734807 0.933702
+visible=1
+group=Main Menu/Quick Race/Track Select/Panel
+layer=1
+texture=
+pack=
+uv=0 0 1 1
+follow=90FE80F3
+
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=51
+w=593
+h=271
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Main Menu/Quick Race/Track Select/Panel
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=hud.black 0.59446
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=shape
+name=Info Box
+anchor=4
+x=132
+y=51
+w=316
+h=260
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Main Menu/Quick Race/Track Select/Info
+shape=0 7 7 0 0
+fill=0.396078 0.396078 0.396078 0.882353
+filltoken=Menu.grey.1 1
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Label 1
+anchor=4
+x=-16.5
+y=-66
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.0AB77DFA}
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Value Box 1
+anchor=4
+x=132
+y=-24.5
+w=305
+h=50
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Main Menu/Quick Race/Track Select/Info
+layer=1
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Value 1
+anchor=4
+x=-6.5
+y=-26.5
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.15E1351B}
+align=0
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Label 2
+anchor=4
+x=-17
+y=23
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.5998D5C9}
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Value Box 2
+anchor=4
+x=132
+y=62.5
+w=305
+h=50
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Main Menu/Quick Race/Track Select/Info
+layer=1
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Value 2
+anchor=4
+x=-6.5
+y=62
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.080C9DAA}
+align=0
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Label 3
+anchor=4
+x=-16.5
+y=111
+w=0
+h=64
+scale=0.7
+color=1 1 1 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.36227EE9}
+align=0
+colortoken=hud.text 1
+
+[element]
+mode=menus
+type=shape
+name=Value Box 3
+anchor=4
+x=132
+y=151
+w=305
+h=50
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=Main Menu/Quick Race/Track Select/Info
+layer=1
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Value 3
+anchor=4
+x=-6.5
+y=150
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Info
+layer=2
+font=conduitmditc_tt21i
+text={fe.0555EECA}
+align=0
+colortoken=hud.accent 1
+
 [page]
 group=Pause 1/Pause Options/Unipad Options
 start=0
@@ -13000,6 +14083,45 @@ selcolor=1 0.792157 0.956863 0.541176 1
 dedicated=1
 memcard=1
 
+[page]
+group=Main Menu/Career Menu/Create Profile
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+createprofile=1
+
+[page]
+group=Main Menu/Customize Car Select
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+qrcarselect=1
+title=Car Select
+prompt=South;Select
+prompt=East;Back
+shared=Shared/Performance
+shared=Shared/Visual Rating
+
+[page]
+group=Main Menu/Quick Race
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+quickrace=1
+title=Quick Race
+
+[page]
+group=Main Menu/Quick Race/Track Select
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+trackselect=1
+title=Quick Race Track Select
+prompt=South;Select Event
+prompt=East;Back
+shared=Shared/Glyphs Bar
+feswap=hud.shade Menu.grey.1
+
 [widget]
 group=Garage/Change Parts/Rim Brands/Carousel
 type=carousel
@@ -13142,18 +14264,11 @@ num=0 1 0.05 0
 
 [widget]
 group=Garage/Change Parts/Carousel
-bind=list:gm.items
 type=carousel
+bind=list:gm.items
 carousel=1 0 1 0 0.85
 grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 0 1
 tile=Button 1
-tile=Button 2
-tile=Button 3
-tile=Button 4
-tile=Button 5
-tile=Button 6
-tile=Button 7
-tile=Button 8
 num=0 1 0.05 0
 
 [widget]
@@ -13604,631 +14719,6 @@ tile=Button 1
 tile=Button 2
 num=0 1 0.05 0
 
-
-[element]
-mode=menus
-type=shape
-name=Panel
-anchor=4
-x=0
-y=0
-w=598
-h=262
-scale=1
-color=0.7922 0.9569 0.5412 1
-visible=1
-group=Main Menu/Career Menu/Create Profile/Panel
-shape=7 7 7 7 2
-fill=0 0 0 0.828729
-filltoken=Menu.black.1 1.57706
-strokegrad=1 0 0;0 0.7922 0.9569 0.5412 1@hud.accent;1 0.7922 0.9569 0.5412 0@hud.accent
-strokegradtoken=hud.glow
-colortoken=hud.accent 1
-
-[element]
-mode=menus
-type=shape
-name=Window
-anchor=4
-x=0
-y=13
-w=580
-h=205
-scale=1
-color=0.8824 0.8824 0.8824 0
-visible=1
-group=Main Menu/Career Menu/Create Profile/Panel
-shape=7 7 7 7 2
-fill=0.396078 0.396078 0.396078 0.828729
-filltoken=Menu.grey.1 0.939226
-cut=0;
-colortoken=hud.line 0
-
-[element]
-mode=menus
-type=text
-name=Header
-anchor=0
-x=138.5
-y=119.5
-w=0
-h=64
-scale=0.7
-color=0.7922 0.9569 0.5412 1
-visible=1
-group=Main Menu/Career Menu/Create Profile
-font=conduitmditc_tt21i
-text={mcm.title}
-align=0
-colortoken=hud.accent 1
-
-[element]
-mode=menus
-type=text
-name=Enter Name
-anchor=4
-x=-160
-y=13
-w=0
-h=64
-scale=0.7
-color=0.88 0.88 0.88 1
-visible=1
-group=Main Menu/Career Menu/Create Profile
-font=conduitmditc_tt21i
-text=Enter Name:
-align=1
-
-[element]
-mode=menus
-type=shape
-name=Name box
-anchor=4
-x=110
-y=13
-w=330
-h=44
-scale=1
-color=0.8824 0.8824 0.8824 0
-visible=1
-group=Main Menu/Career Menu/Create Profile
-shape=10 10 10 10 2
-fill=0.143646 0.143646 0.143646 0.828729
-filltoken=hud.shade2 0.918808
-colortoken=hud.line 0
-
-[element]
-mode=menus
-type=text
-name=Name
-anchor=4
-x=110
-y=13
-w=0
-h=64
-scale=0.7
-color=1 1 1 1
-visible=1
-group=Main Menu/Career Menu/Create Profile
-font=conduitmditc_tt21i
-text={mcm.name}
-align=1
-
-[page]
-group=Main Menu/Career Menu/Create Profile
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-createprofile=1
-
-[element]
-mode=menus
-type=shape
-name=Panel
-anchor=4
-x=0
-y=-162
-w=592
-h=122
-scale=1
-color=0 0 0 0
-visible=1
-group=Main Menu/Customize Car Select/Car select
-shape=7 7 7 7 2
-fill=0 0 0 0.52549
-filltoken=Menu.black.1 1
-colortoken=Menu.black.1 0
-
-[element]
-mode=menus
-type=shape
-name=Car select
-anchor=4
-x=0
-y=-144
-w=580
-h=72
-scale=1
-color=0.8824 0.8824 0.8824 1
-visible=1
-group=Main Menu/Customize Car Select/Car select
-shape=7 7 7 7 0
-fill=0.396078 0.396078 0.396078 0.883977
-filltoken=Menu.grey.1 1.00184
-cut=0;
-colortoken=hud.line 1
-
-[element]
-mode=menus
-type=shape
-name=Scroller
-anchor=4
-x=0
-y=-188
-w=577
-h=8
-scale=1
-color=0.8824 0.8824 0.8824 1
-visible=1
-group=Main Menu/Customize Car Select/Car select
-shape=3 3 3 3 0
-fill=0.396078 0.396078 0.396078 0.882353
-filltoken=Menu.grey.1 1
-cut=0;
-colortoken=hud.line 1
-
-[element]
-mode=menus
-type=image
-name=Scroller Tab
-anchor=4
-x=-272
-y=-188
-w=12
-h=12
-scale=1
-color=1 1 1 1
-visible=0
-group=Main Menu/Customize Car Select/Car select
-layer=5
-texture=U2_SLIDERBAR_TAB
-pack=?
-uv=0 0 1 1
-bind=car.slotbar
-bindkind=5
-bindrange=0 1
-bindrot=0 544
-
-[element]
-mode=menus
-type=shape
-name=Handle
-anchor=4
-x=-272
-y=-188
-w=5
-h=5
-scale=1
-color=0.171271 0.171271 0.171271 1
-visible=1
-group=Main Menu/Customize Car Select/Car select
-layer=1
-shape=30 30 30 30 2.6
-fill=0.678431 0.678431 0.678431 1
-filltoken=Scroll.1 1
-strokealign=1
-strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
-strokegradtoken=handle.1
-fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
-fillgradtoken=handle.2
-bind=car.slotbar
-bindkind=5
-bindrange=0 1
-bindrot=0 544
-
-[element]
-mode=menus
-type=image
-name=Left Arrow
-anchor=4
-x=-266
-y=-144
-w=23
-h=23
-scale=1
-color=0.86 0.86 0.86 1
-visible=1
-group=Main Menu/Customize Car Select/Car select/Arrows
-layer=5
-texture=vec:U2_MENU_ARROW
-pack=
-uv=1 0 0 1
-showif=!car.left
-
-[element]
-mode=menus
-type=image
-name=Left Arrow (flash)
-anchor=4
-x=-266
-y=-144
-w=23
-h=23
-scale=1
-color=0.7922 0.9569 0.5412 1
-visible=1
-group=Main Menu/Customize Car Select/Car select/Arrows
-layer=5
-texture=vec:U2_MENU_ARROW
-pack=
-uv=1 0 0 1
-showif=car.left
-anim=4
-bounce=1.2 300 0.18 1
-colortoken=hud.accent 1
-
-[element]
-mode=menus
-type=image
-name=Right Arrow
-anchor=4
-x=266
-y=-144
-w=23
-h=23
-scale=1
-color=0.86 0.86 0.86 1
-visible=1
-group=Main Menu/Customize Car Select/Car select/Arrows
-layer=5
-texture=vec:U2_MENU_ARROW
-pack=
-uv=0 0 1 1
-showif=!car.right
-
-[element]
-mode=menus
-type=image
-name=Right Arrow (flash)
-anchor=4
-x=266
-y=-144
-w=23
-h=23
-scale=1
-color=0.7922 0.9569 0.5412 1
-visible=1
-group=Main Menu/Customize Car Select/Car select/Arrows
-layer=5
-texture=vec:U2_MENU_ARROW
-pack=
-uv=0 0 1 1
-showif=car.right
-anim=4
-bounce=1.2 300 0.18 1
-colortoken=hud.accent 1
-
-[element]
-mode=menus
-type=text
-name=Header
-anchor=0
-x=137
-y=20
-w=0
-h=64
-scale=0.8
-color=0.7922 0.9569 0.5412 1
-visible=1
-group=Main Menu/Customize Car Select/Car select
-font=conduitmditc_tt21i
-text=Garage Car Select
-align=0
-role=title
-colortoken=hud.accent 1
-
-[element]
-mode=menus
-type=image
-name=Maker logo
-anchor=4
-x=-160
-y=-145
-w=128
-h=64
-scale=1
-color=1 1 1 1
-visible=1
-group=Main Menu/Customize Car Select/Car select
-layer=5
-texture=fe:3E01AD1D
-pack=
-uv=0 0 1 1
-
-[element]
-mode=menus
-type=image
-name=Name badge
-anchor=4
-x=90
-y=-145
-w=256
-h=64
-scale=1
-color=1 1 1 1
-visible=1
-group=Main Menu/Customize Car Select/Car select
-layer=5
-texture=fe:B05DD708
-pack=
-uv=0 0 1 1
-
-[element]
-mode=menus
-type=shape
-name=Filter Bar
-anchor=4
-x=-195
-y=-84
-w=204
-h=27
-scale=1
-color=0 0 0 0
-visible=1
-group=Main Menu/Customize Car Select/Slot bar
-shape=7 7 7 7 0
-fill=0 0 0 0.52549
-filltoken=Menu.black.1 1
-colortoken=Menu.black.1 0
-
-[element]
-mode=menus
-type=text
-name=Filter Text
-anchor=4
-x=-197
-y=-84
-w=0
-h=64
-scale=0.7
-color=0.7922 0.9569 0.5412 1
-visible=1
-group=Main Menu/Customize Car Select/Slot bar
-font=conduitmditc_tt21i
-text={fe.3E81DE59}
-align=1
-colortoken=hud.accent 1
-
-[element]
-mode=menus
-type=shape
-name=select
-anchor=4
-x=-158
-y=-145
-w=134
-h=67
-scale=1
-color=0.8824 0.8824 0.8824 1
-visible=1
-group=Main Menu/Customize Car Select/select
-shape=7 7 7 7 3
-fill=0.172549 0.172549 0.172549 0.828729
-filltoken=scroll.3 0.828729
-strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
-selonly=1
-keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
-colortoken=hud.line 1
-
-[element]
-mode=menus
-type=shape
-name=select glow (halo)
-anchor=4
-x=-158
-y=-145
-w=134
-h=67
-scale=1
-color=1 1 1 1
-visible=1
-group=Main Menu/Customize Car Select/select
-shape=7 7 7 7 3
-fill=0 0 0 0
-strokealign=2
-strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
-selonly=1
-anim=3
-keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
-
-[element]
-mode=menus
-type=shape
-name=select glow (inner)
-anchor=4
-x=-158
-y=-145
-w=134
-h=67
-scale=1
-color=1 1 1 1
-visible=1
-group=Main Menu/Customize Car Select/select
-layer=1
-shape=7 7 7 7 0
-fill=1 1 1 1
-fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
-selonly=1
-anim=3
-keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
-
-[page]
-group=Main Menu/Customize Car Select
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-qrcarselect=1
-title=Car Select
-prompt=South;Select
-prompt=East;Back
-shared=Shared/Performance
-shared=Shared/Visual Rating
-
-[element]
-mode=menus
-type=image
-name=LT
-anchor=4
-x=-282
-y=-84
-w=22
-h=22
-scale=1
-color=1 1 1 1
-visible=1
-group=Main Menu/Customize Car Select/Slot bar
-layer=3
-texture=icon:bind:FENG_LTRIGGER
-pack=
-uv=0 0 1 1
-
-[element]
-mode=menus
-type=image
-name=RT
-anchor=4
-x=-108
-y=-84
-w=22
-h=22
-scale=1
-color=1 1 1 1
-visible=1
-group=Main Menu/Customize Car Select/Slot bar
-layer=3
-texture=icon:bind:FENG_RTRIGGER
-pack=
-uv=0 0 1 1
-
-[element]
-mode=menus
-type=shape
-name=Panel
-anchor=4
-x=1
-y=22
-w=592
-h=216
-scale=1
-color=0.8824 0.8824 0.8824 1
-visible=1
-group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Box
-shape=7 7 7 7 0
-fill=0 0 0 0.52549
-filltoken=Menu.black.1 1
-showif=gm.package.shown
-colortoken=hud.line 1
-
-[element]
-mode=menus
-type=shape
-name=Box
-anchor=4
-x=0
-y=7
-w=594
-h=103
-scale=1
-color=0.8824 0.8824 0.8824 1
-visible=1
-group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Box
-shape=7 7 7 7 0
-fill=0.396078 0.396078 0.396078 0.882353
-filltoken=Menu.grey.1 1
-cut=0;
-showif=gm.package.shown
-colortoken=hud.line 1
-
-[element]
-mode=menus
-type=text
-name=Header
-anchor=4
-x=-284
-y=-64
-w=0
-h=64
-scale=0.65
-color=0.7922 0.9569 0.5412 1
-visible=1
-group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Box
-font=conduitmditc_tt21i
-text=Package Contents
-align=0
-showif=gm.package.shown
-colortoken=hud.accent 1
-
-[element]
-mode=menus
-type=shape
-name=Row
-anchor=4
-x=0
-y=-29
-w=584
-h=22.5
-scale=1
-color=0.8824 0.8824 0.8824 1
-visible=1
-group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents
-shape=7 7 7 7 0
-fill=0.21547 0.21547 0.21547 0.828729
-filltoken=hud.shade 1
-showif=gm.package.shown
-colortoken=hud.line 1
-
-[element]
-mode=menus
-type=text
-name=Part name
-anchor=4
-x=-273
-y=-29
-w=0
-h=64
-scale=0.6
-color=1 1 1 1
-visible=1
-group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents
-layer=2
-font=conduitmditc_tt21i
-text=Option 1
-align=0
-role=label
-showif=gm.package.shown
-colortoken=hud.text 1
-
-[element]
-mode=menus
-type=text
-name=Part status
-anchor=4
-x=240
-y=-29
-w=0
-h=64
-scale=0.6
-color=1 1 1 1
-visible=1
-group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents
-layer=2
-font=conduitmditc_tt21i
-text=Owned
-align=1
-role=value
-showif=gm.package.shown
-colortoken=hud.text 1
-
 [widget]
 group=Garage/Change Parts/Performance Parts/Performance Upgrade/Package Contents
 type=listbox
@@ -14239,6 +14729,16 @@ tile=Button 2
 tile=Button 3
 tile=Button 4
 num=0 1 0.05 0
+
+[widget]
+group=Main Menu/Quick Race/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 0 1
+tile=Button 1
+num=0 1 0.05 0
+
 
 [element]
 mode=menus
@@ -14252,7 +14752,7 @@ h=135
 scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
-group=Main Menu/Quick Race/Change Parts
+group=Main Menu/Quick Race/Track Select/Change Parts
 shape=7 7 7 7 0
 fill=0 0 0 0.52549
 filltoken=Menu.black.1 1
@@ -14270,7 +14770,7 @@ h=62
 scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
-group=Main Menu/Quick Race/Change Parts
+group=Main Menu/Quick Race/Track Select/Change Parts
 shape=7 7 7 7 0
 fill=0.396078 0.396078 0.396078 0.883977
 filltoken=Menu.grey.1 1.00184
@@ -14288,7 +14788,7 @@ h=23
 scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
-group=Main Menu/Quick Race/Change Parts
+group=Main Menu/Quick Race/Track Select/Change Parts
 shape=7 7 7 7 0
 fill=0 0 0 0.52549
 filltoken=Menu.black.1 1
@@ -14306,7 +14806,7 @@ h=8
 scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
-group=Main Menu/Quick Race/Carousel
+group=Main Menu/Quick Race/Track Select/Carousel
 shape=3 3 3 3 0
 fill=0.396078 0.396078 0.396078 0.828729
 filltoken=Menu.grey.1 0.939226
@@ -14325,7 +14825,7 @@ h=60
 scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
-group=Main Menu/Quick Race/Carousel
+group=Main Menu/Quick Race/Track Select/Carousel
 shape=7 7 7 7 3
 fill=0.172549 0.172549 0.172549 0.828729
 filltoken=scroll.3 0.828729
@@ -14347,7 +14847,7 @@ h=60
 scale=1
 color=1 1 1 1
 visible=1
-group=Main Menu/Quick Race/Carousel
+group=Main Menu/Quick Race/Track Select/Carousel
 shape=7 7 7 7 3
 fill=0 0 0 0
 strokealign=2
@@ -14368,7 +14868,7 @@ h=60
 scale=1
 color=1 1 1 1
 visible=1
-group=Main Menu/Quick Race/Carousel
+group=Main Menu/Quick Race/Track Select/Carousel
 layer=1
 shape=7 7 7 7 0
 fill=1 1 1 1
@@ -14389,7 +14889,7 @@ h=59
 scale=1
 color=1 1 1 1
 visible=1
-group=Main Menu/Quick Race/Carousel
+group=Main Menu/Quick Race/Track Select/Carousel
 layer=2
 texture=
 pack=
@@ -14408,7 +14908,7 @@ h=26
 scale=1
 color=1 1 1 0.5882
 visible=1
-group=Main Menu/Quick Race/Carousel
+group=Main Menu/Quick Race/Track Select/Carousel
 layer=4
 texture=U2_MENU_ARROW_WHITE
 pack=
@@ -14427,7 +14927,7 @@ h=26
 scale=1
 color=1 1 1 0.5882
 visible=1
-group=Main Menu/Quick Race/Carousel
+group=Main Menu/Quick Race/Track Select/Carousel
 layer=4
 texture=U2_MENU_ARROW_WHITE
 pack=
@@ -14446,7 +14946,7 @@ h=16
 scale=1
 color=1 1 1 0.5882
 visible=1
-group=Main Menu/Quick Race/Carousel
+group=Main Menu/Quick Race/Track Select/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
 pack=
@@ -14465,7 +14965,7 @@ h=64
 scale=0.8
 color=0.7922 0.9569 0.5412 1
 visible=1
-group=Main Menu/Quick Race/Change Parts
+group=Main Menu/Quick Race/Track Select/Change Parts
 font=conduitmditc_tt21i
 text=Header
 align=0
@@ -14484,556 +14984,18 @@ h=64
 scale=0.7
 color=0.7922 0.9569 0.5412 1
 visible=1
-group=Main Menu/Quick Race/Change Parts
+group=Main Menu/Quick Race/Track Select/Change Parts
 font=conduitmditc_tt21i
 text=Change Body Parts
 align=1
 role=desc
 colortoken=hud.accent 1
 
-[page]
-group=Main Menu/Quick Race
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-quickrace=1
-title=Quick Race
-
 [widget]
-group=Main Menu/Quick Race/Carousel
-bind=list:gm.items
+group=Main Menu/Quick Race/Track Select/Carousel
 type=carousel
+bind=list:gm.items
 carousel=1 0 1 0 0.85
 grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 0 1
 tile=Button 1
-tile=Button 2
-tile=Button 3
-tile=Button 4
-tile=Button 5
-tile=Button 6
-tile=Button 7
-tile=Button 8
 num=0 1 0.05 0
-
-[element]
-mode=menus
-type=shape
-name=Carousel Box
-anchor=4
-x=0
-y=-148
-w=580
-h=62
-scale=1
-color=0.8824 0.8824 0.8824 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Header
-shape=7 7 7 7 0
-fill=0.396078 0.396078 0.396078 0.883977
-filltoken=Menu.grey.1 1.00184
-colortoken=hud.line 1
-
-[element]
-mode=menus
-type=shape
-name=Description Box
-anchor=4
-x=0
-y=-103
-w=580
-h=23
-scale=1
-color=0.8824 0.8824 0.8824 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Header
-shape=7 7 7 7 0
-fill=0 0 0 0.52549
-filltoken=Menu.black.1 1
-colortoken=hud.line 1
-
-[element]
-mode=menus
-type=shape
-name=Scroller
-anchor=4
-x=0
-y=-186
-w=577
-h=8
-scale=1
-color=0.8824 0.8824 0.8824 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
-shape=3 3 3 3 0
-fill=0.396078 0.396078 0.396078 0.828729
-filltoken=Menu.grey.1 0.939226
-role=gtrack
-colortoken=hud.line 1
-
-[element]
-mode=menus
-type=shape
-name=select
-anchor=4
-x=-158.7
-y=-148.3
-w=125
-h=60
-scale=1
-color=0.8824 0.8824 0.8824 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
-shape=7 7 7 7 3
-fill=0.172549 0.172549 0.172549 0.828729
-filltoken=scroll.3 0.828729
-strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
-selonly=1
-anim=3
-keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
-colortoken=hud.line 1
-
-[element]
-mode=menus
-type=shape
-name=select glow (halo)
-anchor=4
-x=-158.7
-y=-148.3
-w=125
-h=60
-scale=1
-color=1 1 1 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
-shape=7 7 7 7 3
-fill=0 0 0 0
-strokealign=2
-strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
-selonly=1
-anim=3
-keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
-
-[element]
-mode=menus
-type=shape
-name=select glow (inner)
-anchor=4
-x=-158.7
-y=-148.3
-w=125
-h=60
-scale=1
-color=1 1 1 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
-layer=1
-shape=7 7 7 7 0
-fill=1 1 1 1
-fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
-selonly=1
-anim=3
-keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
-
-[element]
-mode=menus
-type=image
-name=Icon
-anchor=4
-x=-158.7
-y=-148.3
-w=118
-h=59
-scale=1
-color=1 1 1 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
-layer=2
-texture=
-pack=
-uv=0 0 1 1
-role=icon
-
-[element]
-mode=menus
-type=image
-name=Arrow left
-anchor=4
-x=-250.3
-y=-146.8
-w=26
-h=26
-scale=1
-color=1 1 1 0.5882
-visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
-layer=4
-texture=U2_MENU_ARROW_WHITE
-pack=
-uv=1 1 0 0
-role=arrowL
-
-[element]
-mode=menus
-type=image
-name=Arrow right
-anchor=4
-x=259.1
-y=-146.8
-w=26
-h=26
-scale=1
-color=1 1 1 0.5882
-visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
-layer=4
-texture=U2_MENU_ARROW_WHITE
-pack=
-uv=0 0 1 1
-role=arrowR
-
-[element]
-mode=menus
-type=image
-name=Scroller tab
-anchor=4
-x=-274
-y=-186.3
-w=16
-h=16
-scale=1
-color=1 1 1 0.5882
-visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
-layer=2
-texture=U2_SCROLLER_TAB
-pack=
-uv=0 0 1 1
-role=gtab
-
-[element]
-mode=menus
-type=text
-name=Description
-anchor=4
-x=0
-y=-103
-w=0
-h=64
-scale=0.7
-color=0.7922 0.9569 0.5412 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Header
-font=conduitmditc_tt21i
-text={fe.F601F2D4}
-align=1
-colortoken=hud.accent 1
-
-[element]
-mode=menus
-type=text
-name=Header
-anchor=4
-x=-289
-y=-206
-w=0
-h=64
-scale=0.8
-color=0.7922 0.9569 0.5412 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Header
-layer=2
-font=conduitmditc_tt21i
-text=Header
-align=0
-role=title
-colortoken=hud.accent 1
-
-[element]
-mode=menus
-type=shape
-name=Panel
-anchor=4
-x=0
-y=-18
-w=593
-h=410
-scale=1
-color=0.8824 0.8824 0.8824 0
-visible=1
-group=Main Menu/Quick Race/Track Select/Panel
-shape=7 7 7 7 0
-fill=0 0 0 0.52549
-filltoken=Menu.black.1 1
-colortoken=hud.line 0
-
-[element]
-mode=menus
-type=shape
-name=Panel copy
-anchor=4
-x=-1
-y=57
-w=600
-h=272
-scale=1
-color=0.8824 0.8824 0.8824 0
-visible=1
-group=Main Menu/Quick Race/Track Select/Map
-shape=7 7 7 7 0
-fill=0 0 0 0.52549
-filltoken=Menu.black.1 1
-colortoken=hud.line 0
-
-[element]
-mode=menus
-type=image
-name=Map
-anchor=4
-x=-166
-y=57
-w=267
-h=267
-scale=1
-color=0.734807 0.734807 0.734807 0.933702
-visible=1
-group=Main Menu/Quick Race/Track Select/Map
-layer=1
-texture=
-pack=
-uv=0 0 1 1
-follow=90FE80F3
-
-[element]
-mode=menus
-type=shape
-name=Map cutout
-anchor=4
-x=-166
-y=57
-w=267
-h=267
-scale=1
-color=0.8824 0.8824 0.8824 0
-visible=1
-group=Main Menu/Quick Race/Track Select/Map
-layer=4
-shape=0 0 0 0 2
-fill=0 0 0 0
-cut=0;
-
-[widget]
-group=Main Menu/Quick Race/Track Select/Carousel
-bind=list:gm.items
-type=carousel
-carousel=1 0 1 0 0.85
-grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 0 1
-tile=Button 1
-tile=Button 2
-tile=Button 3
-tile=Button 4
-tile=Button 5
-tile=Button 6
-tile=Button 7
-tile=Button 8
-num=0 1 0.05 0
-
-[page]
-group=Main Menu/Quick Race/Track Select
-start=0
-selcolor=1 0.792157 0.956863 0.541176 1
-dedicated=1
-trackselect=1
-title=Quick Race Track Select
-prompt=South;Select Event
-prompt=East;Back
-shared=Shared/Glyphs Bar
-feswap=hud.shade Menu.grey.1
-
-[element]
-mode=menus
-type=shape
-name=Info Box
-anchor=4
-x=135
-y=56.5
-w=324
-h=266
-scale=1
-color=0.8824 0.8824 0.8824 0
-visible=1
-group=Main Menu/Quick Race/Track Select/Info
-shape=7 7 7 7 0
-fill=0.396078 0.396078 0.396078 0.882353
-filltoken=Menu.grey.1 1
-colortoken=hud.line 0
-
-[element]
-mode=menus
-type=text
-name=Label 1
-anchor=4
-x=-16
-y=-63
-w=0
-h=64
-scale=0.7
-color=1 1 1 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Info
-layer=2
-font=conduitmditc_tt21i
-text={fe.0AB77DFA}
-align=0
-colortoken=hud.text 1
-
-[element]
-mode=menus
-type=shape
-name=Value Box 1
-anchor=4
-x=134.5
-y=-21
-w=311
-h=50.5
-scale=1
-color=0.8824 0.8824 0.8824 0
-visible=1
-group=Main Menu/Quick Race/Track Select/Info
-layer=1
-shape=7 7 7 7 0
-fill=0 0 0 0.52549
-filltoken=Menu.black.1 1
-colortoken=hud.line 0
-
-[element]
-mode=menus
-type=text
-name=Value 1
-anchor=4
-x=-5
-y=-21
-w=0
-h=64
-scale=0.7
-color=0.7922 0.9569 0.5412 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Info
-layer=2
-font=conduitmditc_tt21i
-text={fe.15E1351B}
-align=0
-colortoken=hud.accent 1
-
-[element]
-mode=menus
-type=text
-name=Label 2
-anchor=4
-x=-16
-y=28.5
-w=0
-h=64
-scale=0.7
-color=1 1 1 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Info
-layer=2
-font=conduitmditc_tt21i
-text={fe.5998D5C9}
-align=0
-colortoken=hud.text 1
-
-[element]
-mode=menus
-type=shape
-name=Value Box 2
-anchor=4
-x=134.5
-y=68
-w=311
-h=50.5
-scale=1
-color=0.8824 0.8824 0.8824 0
-visible=1
-group=Main Menu/Quick Race/Track Select/Info
-layer=1
-shape=7 7 7 7 0
-fill=0 0 0 0.52549
-filltoken=Menu.black.1 1
-colortoken=hud.line 0
-
-[element]
-mode=menus
-type=text
-name=Value 2
-anchor=4
-x=-5
-y=68
-w=0
-h=64
-scale=0.7
-color=0.7922 0.9569 0.5412 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Info
-layer=2
-font=conduitmditc_tt21i
-text={fe.080C9DAA}
-align=0
-colortoken=hud.accent 1
-
-[element]
-mode=menus
-type=text
-name=Label 3
-anchor=4
-x=-16
-y=118
-w=0
-h=64
-scale=0.7
-color=1 1 1 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Info
-layer=2
-font=conduitmditc_tt21i
-text={fe.36227EE9}
-align=0
-colortoken=hud.text 1
-
-[element]
-mode=menus
-type=shape
-name=Value Box 3
-anchor=4
-x=134.5
-y=159
-w=311
-h=50.5
-scale=1
-color=0.8824 0.8824 0.8824 0
-visible=1
-group=Main Menu/Quick Race/Track Select/Info
-layer=1
-shape=7 7 7 7 0
-fill=0 0 0 0.52549
-filltoken=Menu.black.1 1
-colortoken=hud.line 0
-
-[element]
-mode=menus
-type=text
-name=Value 3
-anchor=4
-x=-5
-y=159
-w=0
-h=64
-scale=0.7
-color=0.7922 0.9569 0.5412 1
-visible=1
-group=Main Menu/Quick Race/Track Select/Info
-layer=2
-font=conduitmditc_tt21i
-text={fe.0555EECA}
-align=0
-colortoken=hud.accent 1
