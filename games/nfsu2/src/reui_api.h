@@ -43,6 +43,7 @@ typedef void (*PFN_REUI_AddTokenProvider)(REUI_TokenFn fn);
 typedef void (*PFN_REUI_AddSetting)(const REUI_Setting* s);
 typedef void (*PFN_REUI_SetSound)(void (*fn)(int sound));   // 0 up 1 down 2 left 3 right 4 slide left 5 slide right 6 accept 7 back 8 error
 typedef void (*PFN_REUI_SetMenuChanged)(void (*fn)(void));  // a setting changed through a menu (save on close)
+typedef void (*PFN_REUI_SetMenuMove)(void (*fn)(const char* cmd, int tile));   // a grid's "on move" command (gmove=): its cursor moved to tile (0 = the first); the host plays the sound
 typedef void (*PFN_REUI_SetIcons)(int families, const char* const* familyNames, int count, const char* const* keys,
                                   REUI_IconTexFn tex, REUI_IconLabelFn label, REUI_IconGameTexFn forGameTexture, void (*reload)(void));
 typedef void (*PFN_REUI_SetMenuDriver)(int external);       // 1: you drive the menus (key, pad); REUI's own menu key is off

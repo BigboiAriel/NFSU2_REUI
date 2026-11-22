@@ -53,6 +53,9 @@ EXPORT void REUI_AddSetting(const REUI_Setting* in) {
 
 EXPORT void REUI_SetSound(void (*fn)(int)) { uied::menuSound = fn ? std::function<void(int)>(fn) : std::function<void(int)>(); }
 EXPORT void REUI_SetMenuChanged(void (*fn)(void)) { uied::menuChanged = fn ? std::function<void()>(fn) : std::function<void()>(); }
+EXPORT void REUI_SetMenuMove(void (*fn)(const char*, int)) {
+    if (fn) uied::menuMove = [fn](const std::string& cmd, int tile) { fn(cmd.c_str(), tile); }; else uied::menuMove = nullptr;
+}
 
 EXPORT void REUI_SetIcons(int families, const char* const* familyNames, int count, const char* const* keys, REUI_IconTexFn tex,
                           REUI_IconLabelFn label, REUI_IconGameTexFn forGameTexture, void (*reload)(void)) {

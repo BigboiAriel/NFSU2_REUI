@@ -1304,6 +1304,9 @@ void MenuFrame(const MenuInput& in, double dt) {
     auto rows = PageRows(*p);
     int n = (int)rows.size();
     if (n) g_menu.sel = std::max(0, std::min(n - 1, g_menu.sel));
+    // a live list another mod says isn't in use now (<key>.focus "0") can't have the cursor: on another row, and not moved to
+    auto usable = [&](int i) { return i >= 0 && i < n && !GridFocusOff(*rows[i].w); };
+    if (n && !usable(g_menu.sel)) for (int i = 0; i < n; ++i) if (usable(i)) { g_menu.sel = i; break; }
     if (!g_menu.capturing.empty()) {   // a binding row is waiting for an input: nothing else moves
         Widget* cw = CaptureWidget();
         Setting* s = cw ? SettingOf(cw->bind) : nullptr;
@@ -1365,14 +1368,14 @@ void MenuFrame(const MenuInput& in, double dt) {
         int d = fire[1] ? 1 : -1;
         bool repeat = g_menu.held[fire[1] ? 1 : 0] > 0;   // a press wraps, holding stops at the end
         int ns = MoveSel(rows, g_menu.sel, d, 0, !repeat);
-        if (ns >= 0 && ns != g_menu.sel) { g_menu.sel = ns; Snd(d > 0 ? SND_DOWN : SND_UP); }
+        if (ns >= 0 && ns != g_menu.sel && usable(ns)) { g_menu.sel = ns; Snd(d > 0 ? SND_DOWN : SND_UP); }
     }
     // left / right past a grid's edge: the grid beside it
     for (int k = 0; k < 2; ++k) {
         if (!fire[2 + k]) continue;
         int dir = k ? 1 : -1;
         int ns = MoveSel(rows, g_menu.sel, 0, dir, false);
-        if (ns >= 0) { g_menu.sel = ns; Snd(dir < 0 ? SND_LEFT : SND_RIGHT); }
+        if (ns >= 0 && usable(ns)) { g_menu.sel = ns; Snd(dir < 0 ? SND_LEFT : SND_RIGHT); }
     }
     if (fire[4]) MenuAccept(*rows[g_menu.sel].w);
 }
