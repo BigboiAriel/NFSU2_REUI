@@ -2,8 +2,8 @@
 show=0
 boardrows=4
 boardfollow=1
-listheight=536
-highlightsel=1
+listheight=658
+highlightsel=0
 menufade=0.15
 custommenus=1
 flagdef=hide_until_green 0
@@ -29,12 +29,13 @@ gradtoken=handle.1;;0 0.172549 0.172549 0.172549 0.44@scroll.3|0.34 0.172549 0.1
 gradtoken=handle.2;;0 0.678431 0.678431 0.678431 1@Scroll.1|0.08 0.678431 0.678431 0.678431 1@Scroll.1|0.186667 0.917647 0.917647 0.917647 1@Scroll.2
 gradtoken=Scrollerdark;;0 0.172549 0.172549 0.172549 0.7@scroll.3|0.17 0.172549 0.172549 0.172549 0.7@scroll.3|1 0.172549 0.172549 0.172549 0.5@scroll.3
 gradtoken=scroller_dark;;0 0.172549 0.172549 0.172549 0.7@scroll.3|0.17 0.172549 0.172549 0.172549 0.7@scroll.3|1 0.172549 0.172549 0.172549 0.5@scroll.3
+gradtoken=painthighlight;;0 1 1 1 1@hud.text|0.436667 0 0 0 1@hud.text|1 1 1 1 0@hud.text
 mapart=MINIMAP_GPS_SELECTOR;-
 grouplink=5 menu panel 1|0 0 0 Pause 1/menu panel 1|0 0 0 Pause 1/Pause Options/menu panel 1
 grouplink=5 Garage Screen|0 0 0 Garage/Pause Screen|0 0 0 Main Menu/Pause Screen|0 0 0 Main Menu/Career Menu/Pause Screen
-grouplink=5 Change Parts|0 0 0 Garage/Change Parts/Change Parts|0 0 0 Garage/Change Parts/Performance Parts/Change Parts|0 0 0 Garage/Change Parts/Specialties/Change Parts|0 0 0 Garage/Change Parts/Body Parts/Change Parts|0 0 0 Garage/Change Parts/Performance Parts/Performance Upgrade/Change Parts|0 0 0 Garage/Change Parts/Rim Brands/Change Parts|0 0 0 Garage/Change Parts/Neon/Change Parts|0 0 0 Garage/Change Parts/Specialty Parts/Change Parts|0 0 0 Main Menu/Quick Race/Track Select/Change Parts
+grouplink=5 Change Parts|0 0 0 Garage/Change Parts/Change Parts|0 0 0 Garage/Change Parts/Performance Parts/Change Parts|0 0 0 Garage/Change Parts/Specialties/Change Parts|0 0 0 Garage/Change Parts/Body Parts/Change Parts|0 0 0 Garage/Change Parts/Performance Parts/Performance Upgrade/Change Parts|0 0 0 Garage/Change Parts/Rim Brands/Change Parts|0 0 0 Garage/Change Parts/Neon/Change Parts|0 0 0 Garage/Change Parts/Specialty Parts/Change Parts|0 0 0 Main Menu/Quick Race/Track Select/Change Parts|0 0 0 temp paint/Change Parts
 grouplink=5 menu_big|0 0 0 Pause 1/Pause Options/Unipad Options/menu_big
-grouplink=5 Parts Carousel|0 0 0 Garage/Change Parts/Performance Parts/Carousel|0 14 0 Garage/Carousel|0 0 0 Garage/Change Parts/Carousel|0 0 0 Garage/Change Parts/Body Parts/Carousel|0 0 0 Garage/Change Parts/Neon/Carousel|0 0 0 Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel|0 0 0 Garage/Change Parts/Rim Brands/Carousel|0 0 0 Garage/Change Parts/Specialties/Carousel|0 0 0 Garage/Change Parts/Specialty Parts/Carousel|0 14 0 Main Menu/Carousel|0 14 0 Main Menu/Career Menu/Carousel|0 0 0 Main Menu/Quick Race/Carousel|0 0 0 Main Menu/Quick Race/Track Select/Carousel|0 134 0 Pause 1/Carousel|0 134 0 Pause 1/Pause Options/Carousel
+grouplink=5 Parts Carousel|0 0 0 Garage/Change Parts/Performance Parts/Carousel|0 14 0 Garage/Carousel|0 0 0 Garage/Change Parts/Carousel|0 0 0 Garage/Change Parts/Body Parts/Carousel|0 0 0 Garage/Change Parts/Neon/Carousel|0 0 0 Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel|0 0 0 Garage/Change Parts/Rim Brands/Carousel|0 0 0 Garage/Change Parts/Specialties/Carousel|0 0 0 Garage/Change Parts/Specialty Parts/Carousel|0 14 0 Main Menu/Carousel|0 14 0 Main Menu/Career Menu/Carousel|0 0 0 Main Menu/Quick Race/Carousel|0 0 0 Main Menu/Quick Race/Track Select/Carousel|0 134 0 Pause 1/Carousel|0 134 0 Pause 1/Pause Options/Carousel|0 0 0 temp paint/Carousel
 
 [element]
 mode=freeroam
@@ -4038,9 +4039,8 @@ color=0.8824 0.8824 0.8824 1
 visible=1
 group=Pause 1/Carousel
 shape=3 3 3 3 0
-fill=0.21547 0.21547 0.21547 0.920246
-filltoken=hud.shade 1.11043
-cut=0;Pause Box
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
 role=gtrack
 colortoken=hud.line 1
 
@@ -4058,8 +4058,8 @@ color=0.8824 0.8824 0.8824 1
 visible=1
 group=Pause 1/Carousel
 shape=7 7 7 7 3
-fill=0.21547 0.21547 0.21547 0.828729
-filltoken=hud.shade 1
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
 strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
 selonly=1
 anim=3
@@ -4130,6 +4130,26 @@ role=icon
 [element]
 mode=menus
 type=image
+name=Lock
+anchor=4
+x=-117.7
+y=-5.3
+w=30
+h=30
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Pause 1/Carousel
+layer=3
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+role=lock
+selonly=1
+
+[element]
+mode=menus
+type=image
 name=Arrow left
 anchor=4
 x=-250.3
@@ -4170,18 +4190,41 @@ mode=menus
 type=image
 name=Scroller tab
 anchor=4
-x=-280
+x=-274
 y=-52.3
 w=16
 h=16
 scale=1
 color=1 1 1 0.5882
-visible=1
+visible=0
 group=Pause 1/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
 pack=
 uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-52
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Pause 1/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
 role=gtab
 
 [element]
@@ -4479,6 +4522,189 @@ fill=0.396078 0.396078 0.396078 0.828729
 filltoken=Menu.grey.1 0.939226
 role=gtrack
 colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158.7
+y=-134.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Carousel
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-134.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-134.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-134.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Lock
+anchor=4
+x=-117.7
+y=-125.3
+w=30
+h=30
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Garage/Carousel
+layer=3
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+role=lock
+selonly=1
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-132.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-132.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-274
+y=-172.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=0
+group=Garage/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-172
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Garage/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
+role=gtab
 
 [element]
 mode=menus
@@ -6708,146 +6934,6 @@ tilekinds=2
 
 [element]
 mode=menus
-type=shape
-name=select
-anchor=4
-x=-158.7
-y=-134.3
-w=125
-h=60
-scale=1
-color=0.8824 0.8824 0.8824 1
-visible=1
-group=Garage/Carousel
-shape=7 7 7 7 3
-fill=0.172549 0.172549 0.172549 0.828729
-filltoken=scroll.3 0.828729
-strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
-selonly=1
-anim=3
-keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
-colortoken=hud.line 1
-
-[element]
-mode=menus
-type=shape
-name=select glow (halo)
-anchor=4
-x=-158.7
-y=-134.3
-w=125
-h=60
-scale=1
-color=1 1 1 1
-visible=1
-group=Garage/Carousel
-shape=7 7 7 7 3
-fill=0 0 0 0
-strokealign=2
-strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
-selonly=1
-anim=3
-keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
-
-[element]
-mode=menus
-type=shape
-name=select glow (inner)
-anchor=4
-x=-158.7
-y=-134.3
-w=125
-h=60
-scale=1
-color=1 1 1 1
-visible=1
-group=Garage/Carousel
-layer=1
-shape=7 7 7 7 0
-fill=1 1 1 1
-fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
-selonly=1
-anim=3
-keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
-
-[element]
-mode=menus
-type=image
-name=Icon
-anchor=4
-x=-158.7
-y=-134.3
-w=118
-h=59
-scale=1
-color=1 1 1 1
-visible=1
-group=Garage/Carousel
-layer=2
-texture=
-pack=
-uv=0 0 1 1
-role=icon
-
-[element]
-mode=menus
-type=image
-name=Arrow left
-anchor=4
-x=-250.3
-y=-132.8
-w=26
-h=26
-scale=1
-color=1 1 1 0.5882
-visible=1
-group=Garage/Carousel
-layer=4
-texture=U2_MENU_ARROW_WHITE
-pack=
-uv=1 1 0 0
-role=arrowL
-
-[element]
-mode=menus
-type=image
-name=Arrow right
-anchor=4
-x=259.1
-y=-132.8
-w=26
-h=26
-scale=1
-color=1 1 1 0.5882
-visible=1
-group=Garage/Carousel
-layer=4
-texture=U2_MENU_ARROW_WHITE
-pack=
-uv=0 0 1 1
-role=arrowR
-
-[element]
-mode=menus
-type=image
-name=Scroller tab
-anchor=4
-x=-274
-y=-172.3
-w=16
-h=16
-scale=1
-color=1 1 1 0.5882
-visible=1
-group=Garage/Carousel
-layer=2
-texture=U2_SCROLLER_TAB
-pack=
-uv=0 0 1 1
-role=gtab
-
-[element]
-mode=menus
 type=text
 name=Header
 anchor=4
@@ -7729,9 +7815,8 @@ color=0.8824 0.8824 0.8824 1
 visible=1
 group=Pause 1/Pause Options/Carousel
 shape=3 3 3 3 0
-fill=0.21547 0.21547 0.21547 0.920246
-filltoken=hud.shade 1.11043
-cut=0;group:Pause 1/Pause Options/menu panel 1
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
 role=gtrack
 colortoken=hud.line 1
 
@@ -7749,8 +7834,8 @@ color=0.8824 0.8824 0.8824 1
 visible=1
 group=Pause 1/Pause Options/Carousel
 shape=7 7 7 7 3
-fill=0.21547 0.21547 0.21547 0.828729
-filltoken=hud.shade 1
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
 strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
 selonly=1
 anim=3
@@ -7821,6 +7906,26 @@ role=icon
 [element]
 mode=menus
 type=image
+name=Lock
+anchor=4
+x=-117.7
+y=-5.3
+w=30
+h=30
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Pause 1/Pause Options/Carousel
+layer=3
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+role=lock
+selonly=1
+
+[element]
+mode=menus
+type=image
 name=Arrow left
 anchor=4
 x=-250.3
@@ -7861,18 +7966,41 @@ mode=menus
 type=image
 name=Scroller tab
 anchor=4
-x=-280
+x=-274
 y=-52.3
 w=16
 h=16
 scale=1
 color=1 1 1 0.5882
-visible=1
+visible=0
 group=Pause 1/Pause Options/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
 pack=
 uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-52
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Pause 1/Pause Options/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
 role=gtab
 
 [element]
@@ -8265,6 +8393,26 @@ role=icon
 [element]
 mode=menus
 type=image
+name=Lock
+anchor=4
+x=-117.7
+y=-139.3
+w=30
+h=30
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Carousel
+layer=3
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+role=lock
+selonly=1
+
+[element]
+mode=menus
+type=image
 name=Arrow left
 anchor=4
 x=-250.3
@@ -8311,12 +8459,35 @@ w=16
 h=16
 scale=1
 color=1 1 1 0.5882
-visible=1
+visible=0
 group=Garage/Change Parts/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
 pack=
 uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-186
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Garage/Change Parts/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
 role=gtab
 
 [element]
@@ -8582,7 +8753,7 @@ w=16
 h=16
 scale=1
 color=1 1 1 0.5882
-visible=1
+visible=0
 group=Garage/Change Parts/Performance Parts/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
@@ -8592,6 +8763,29 @@ role=gtab
 
 [element]
 mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-186
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Garage/Change Parts/Performance Parts/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
+role=gtab
+
+[element]
+mode=menus
 type=text
 name=Header
 anchor=4
@@ -8853,12 +9047,35 @@ w=16
 h=16
 scale=1
 color=1 1 1 0.5882
-visible=1
+visible=0
 group=Garage/Change Parts/Specialties/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
 pack=
 uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-186
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Garage/Change Parts/Specialties/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
 role=gtab
 
 [element]
@@ -9124,12 +9341,35 @@ w=16
 h=16
 scale=1
 color=1 1 1 0.5882
-visible=1
+visible=0
 group=Garage/Change Parts/Body Parts/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
 pack=
 uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-186
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Garage/Change Parts/Body Parts/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
 role=gtab
 
 [element]
@@ -10354,6 +10594,189 @@ colortoken=hud.line 1
 [element]
 mode=menus
 type=shape
+name=select
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-148.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Lock
+anchor=4
+x=-117.7
+y=-139.3
+w=30
+h=30
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+layer=3
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+role=lock
+selonly=1
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-274
+y=-186.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=0
+group=Garage/Change Parts/Rim Brands/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-186
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Garage/Change Parts/Rim Brands/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
+role=gtab
+
+[element]
+mode=menus
+type=shape
 name=Scroller
 anchor=4
 x=0
@@ -10382,28 +10805,6 @@ h=60
 scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
-group=Garage/Change Parts/Rim Brands/Carousel
-shape=7 7 7 7 3
-fill=0.172549 0.172549 0.172549 0.828729
-filltoken=scroll.3 0.828729
-strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
-selonly=1
-anim=3
-keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
-colortoken=hud.line 1
-
-[element]
-mode=menus
-type=shape
-name=select
-anchor=4
-x=-158.7
-y=-148.3
-w=125
-h=60
-scale=1
-color=0.8824 0.8824 0.8824 1
-visible=1
 group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
 shape=7 7 7 7 3
 fill=0.172549 0.172549 0.172549 0.828729
@@ -10413,27 +10814,6 @@ selonly=1
 anim=3
 keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
 colortoken=hud.line 1
-
-[element]
-mode=menus
-type=shape
-name=select glow (halo)
-anchor=4
-x=-158.7
-y=-148.3
-w=125
-h=60
-scale=1
-color=1 1 1 1
-visible=1
-group=Garage/Change Parts/Rim Brands/Carousel
-shape=7 7 7 7 3
-fill=0 0 0 0
-strokealign=2
-strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
-selonly=1
-anim=3
-keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
 
 [element]
 mode=menus
@@ -10468,27 +10848,6 @@ h=60
 scale=1
 color=1 1 1 1
 visible=1
-group=Garage/Change Parts/Rim Brands/Carousel
-layer=1
-shape=7 7 7 7 0
-fill=1 1 1 1
-fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
-selonly=1
-anim=3
-keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
-
-[element]
-mode=menus
-type=shape
-name=select glow (inner)
-anchor=4
-x=-158.7
-y=-148.3
-w=125
-h=60
-scale=1
-color=1 1 1 1
-visible=1
 group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
 layer=1
 shape=7 7 7 7 0
@@ -10497,45 +10856,6 @@ fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
 selonly=1
 anim=3
 keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
-
-[element]
-mode=menus
-type=image
-name=Icon
-anchor=4
-x=-158.7
-y=-148.3
-w=118
-h=59
-scale=1
-color=1 1 1 1
-visible=1
-group=Garage/Change Parts/Rim Brands/Carousel
-layer=2
-texture=
-pack=
-uv=0 0 1 1
-role=icon
-
-[element]
-mode=menus
-type=image
-name=Lock
-anchor=4
-x=-117.7
-y=-139.3
-w=30
-h=30
-scale=1
-color=0.8 0.9569 0.5412 1
-visible=1
-group=Garage/Change Parts/Rim Brands/Carousel
-layer=3
-texture=U2_OL_LOCKICON
-pack=
-uv=0 0 1 1
-role=lock
-selonly=1
 
 [element]
 mode=menus
@@ -10588,50 +10908,12 @@ h=26
 scale=1
 color=1 1 1 0.5882
 visible=1
-group=Garage/Change Parts/Rim Brands/Carousel
-layer=4
-texture=U2_MENU_ARROW_WHITE
-pack=
-uv=1 1 0 0
-role=arrowL
-
-[element]
-mode=menus
-type=image
-name=Arrow left
-anchor=4
-x=-250.3
-y=-146.8
-w=26
-h=26
-scale=1
-color=1 1 1 0.5882
-visible=1
 group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
 layer=4
 texture=U2_MENU_ARROW_WHITE
 pack=
 uv=1 1 0 0
 role=arrowL
-
-[element]
-mode=menus
-type=image
-name=Arrow right
-anchor=4
-x=259.1
-y=-146.8
-w=26
-h=26
-scale=1
-color=1 1 1 0.5882
-visible=1
-group=Garage/Change Parts/Rim Brands/Carousel
-layer=4
-texture=U2_MENU_ARROW_WHITE
-pack=
-uv=0 0 1 1
-role=arrowR
 
 [element]
 mode=menus
@@ -10663,8 +10945,8 @@ w=16
 h=16
 scale=1
 color=1 1 1 0.5882
-visible=1
-group=Garage/Change Parts/Rim Brands/Carousel
+visible=0
+group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
 pack=
@@ -10673,21 +10955,25 @@ role=gtab
 
 [element]
 mode=menus
-type=image
-name=Scroller tab
+type=shape
+name=Handle
 anchor=4
-x=-274
-y=-186.3
-w=16
-h=16
+x=0
+y=-186
+w=7
+h=7
 scale=1
-color=1 1 1 0.5882
+color=0.171271 0.171271 0.171271 1
 visible=1
 group=Garage/Change Parts/Performance Parts/Performance Upgrade/Carousel
-layer=2
-texture=U2_SCROLLER_TAB
-pack=
-uv=0 0 1 1
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
 role=gtab
 
 [element]
@@ -11036,12 +11322,35 @@ w=16
 h=16
 scale=1
 color=1 1 1 0.5882
-visible=1
+visible=0
 group=Garage/Change Parts/Neon/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
 pack=
 uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-186
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Garage/Change Parts/Neon/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
 role=gtab
 
 [element]
@@ -11307,12 +11616,35 @@ w=16
 h=16
 scale=1
 color=1 1 1 0.5882
-visible=1
+visible=0
 group=Garage/Change Parts/Specialty Parts/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
 pack=
 uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-186
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Garage/Change Parts/Specialty Parts/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
 role=gtab
 
 [element]
@@ -12112,6 +12444,26 @@ role=icon
 [element]
 mode=menus
 type=image
+name=Lock
+anchor=4
+x=-117.7
+y=-125.3
+w=30
+h=30
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Main Menu/Carousel
+layer=3
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+role=lock
+selonly=1
+
+[element]
+mode=menus
+type=image
 name=Arrow left
 anchor=4
 x=-250.3
@@ -12158,12 +12510,35 @@ w=16
 h=16
 scale=1
 color=1 1 1 0.5882
-visible=1
+visible=0
 group=Main Menu/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
 pack=
 uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-172
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Main Menu/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
 role=gtab
 
 [element]
@@ -12363,6 +12738,26 @@ role=icon
 [element]
 mode=menus
 type=image
+name=Lock
+anchor=4
+x=-117.7
+y=-125.3
+w=30
+h=30
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Main Menu/Career Menu/Carousel
+layer=3
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+role=lock
+selonly=1
+
+[element]
+mode=menus
+type=image
 name=Arrow left
 anchor=4
 x=-250.3
@@ -12409,12 +12804,35 @@ w=16
 h=16
 scale=1
 color=1 1 1 0.5882
-visible=1
+visible=0
 group=Main Menu/Career Menu/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
 pack=
 uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-172
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Main Menu/Career Menu/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
 role=gtab
 
 [element]
@@ -13540,6 +13958,26 @@ role=icon
 [element]
 mode=menus
 type=image
+name=Lock
+anchor=4
+x=-117.7
+y=-139.3
+w=30
+h=30
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Main Menu/Quick Race/Carousel
+layer=3
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+role=lock
+selonly=1
+
+[element]
+mode=menus
+type=image
 name=Arrow left
 anchor=4
 x=-250.3
@@ -13586,12 +14024,35 @@ w=16
 h=16
 scale=1
 color=1 1 1 0.5882
-visible=1
+visible=0
 group=Main Menu/Quick Race/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
 pack=
 uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-186
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Main Menu/Quick Race/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
 role=gtab
 
 [element]
@@ -13858,6 +14319,464 @@ text={fe.0555EECA}
 align=0
 colortoken=hud.accent 1
 
+[element]
+mode=menus
+type=shape
+name=Panel
+anchor=4
+x=0
+y=-156
+w=592
+h=135
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Carousel Box
+anchor=4
+x=0
+y=-148
+w=580
+h=62
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Change Parts
+shape=7 7 7 7 0
+fill=0.396078 0.396078 0.396078 0.883977
+filltoken=Menu.grey.1 1.00184
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Description Box
+anchor=4
+x=0
+y=-103
+w=580
+h=23
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Change Parts
+shape=7 7 7 7 0
+fill=0 0 0 0.52549
+filltoken=Menu.black.1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=Scroller
+anchor=4
+x=0
+y=-186
+w=577
+h=8
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Carousel
+shape=3 3 3 3 0
+fill=0.396078 0.396078 0.396078 0.828729
+filltoken=Menu.grey.1 0.939226
+role=gtrack
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Carousel
+shape=7 7 7 7 3
+fill=0.172549 0.172549 0.172549 0.828729
+filltoken=scroll.3 0.828729
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.35 1 1 1 1@hud.accent;0.65 1 1 1 1@hud.accent;1 1 1 1 0@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+colortoken=hud.line 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (halo)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Carousel
+shape=7 7 7 7 3
+fill=0 0 0 0
+strokealign=2
+strokegrad=1 0 0;0 1 1 1 0@hud.accent;0.993333 1 1 1 0.45@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=shape
+name=select glow (inner)
+anchor=4
+x=-158.7
+y=-148.3
+w=125
+h=60
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Carousel
+layer=1
+shape=7 7 7 7 0
+fill=1 1 1 1
+fillgrad=3 0 18.4;0 1 1 1 0@hud.accent;1 1 1 1 0.2@hud.accent
+selonly=1
+anim=3
+keys=833;0 1 1 1;117 1 1 1;350 1 1 0.4;567 1 1 0.4;833 1 1 1
+
+[element]
+mode=menus
+type=image
+name=Icon
+anchor=4
+x=-158.7
+y=-148.3
+w=118
+h=59
+scale=1
+color=1 1 1 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Carousel
+layer=2
+texture=
+pack=
+uv=0 0 1 1
+role=icon
+
+[element]
+mode=menus
+type=image
+name=Lock
+anchor=4
+x=-117.7
+y=-139.3
+w=30
+h=30
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Carousel
+layer=3
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+role=lock
+selonly=1
+
+[element]
+mode=menus
+type=image
+name=Arrow left
+anchor=4
+x=-250.3
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Main Menu/Quick Race/Track Select/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=1 1 0 0
+role=arrowL
+
+[element]
+mode=menus
+type=image
+name=Arrow right
+anchor=4
+x=259.1
+y=-146.8
+w=26
+h=26
+scale=1
+color=1 1 1 0.5882
+visible=1
+group=Main Menu/Quick Race/Track Select/Carousel
+layer=4
+texture=U2_MENU_ARROW_WHITE
+pack=
+uv=0 0 1 1
+role=arrowR
+
+[element]
+mode=menus
+type=image
+name=Scroller tab
+anchor=4
+x=-274
+y=-186.3
+w=16
+h=16
+scale=1
+color=1 1 1 0.5882
+visible=0
+group=Main Menu/Quick Race/Track Select/Carousel
+layer=2
+texture=U2_SCROLLER_TAB
+pack=
+uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-186
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
+role=gtab
+
+[element]
+mode=menus
+type=text
+name=Header
+anchor=4
+x=-289
+y=-206
+w=0
+h=64
+scale=0.8
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Change Parts
+font=conduitmditc_tt21i
+text=Header
+align=0
+role=title
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=text
+name=Description
+anchor=4
+x=0
+y=-103
+w=0
+h=64
+scale=0.7
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=Main Menu/Quick Race/Track Select/Change Parts
+font=conduitmditc_tt21i
+text=Change Body Parts
+align=1
+role=desc
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Left Panel
+anchor=4
+x=-143
+y=164
+w=310
+h=48
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=temp paint
+shape=7 7 7 7 0
+fill=0 0 0 0.828729
+filltoken=hud.black 0.9375
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=shape
+name=Paint style panel
+anchor=4
+x=-190
+y=164
+w=205
+h=34.5
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=temp paint/Paint Style
+shape=7 7 7 7 0
+fill=0 0 0 0.828729
+filltoken=hud.black 0.9375
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=text
+name=Paint style
+anchor=4
+x=-190
+y=164
+w=0
+h=64
+scale=0.75
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=temp paint/Paint Style
+font=conduitmditc_tt21i
+text={fe.EF653AFF}
+align=1
+colortoken=hud.accent 1
+
+[element]
+mode=menus
+type=shape
+name=Price panel
+anchor=4
+x=-38
+y=164
+w=91
+h=34.5
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=temp paint
+shape=7 7 7 7 0
+fill=0 0 0 0.828729
+filltoken=hud.black 0.9375
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=shape
+name=paint select panel
+anchor=4
+x=156.5
+y=164
+w=284
+h=48
+scale=1
+color=0.8824 0.8824 0.8824 0
+visible=1
+group=temp paint
+shape=7 7 7 7 0
+fill=0 0 0 0.883978
+filltoken=hud.black 1
+colortoken=hud.line 0
+
+[element]
+mode=menus
+type=shape
+name=paint 
+anchor=4
+x=23.5
+y=150
+w=10
+h=10
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=temp paint/Swatches
+shape=12 12 12 12 0
+fill=1 1 1 1
+colortoken=hud.line 1
+role=icon
+
+[element]
+mode=menus
+type=shape
+name=paint Select
+anchor=4
+x=23.5
+y=150
+w=14
+h=14
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=temp paint/Swatches
+shape=12 12 12 12 0
+fill=1 1 1 1
+colortoken=hud.line 1
+role=icon
+selonly=1
+
+[element]
+mode=menus
+type=shape
+name=paint Select Highlight
+anchor=4
+x=23.5
+y=150
+w=14
+h=14
+scale=1
+color=0.8824 0.8824 0.8824 1
+visible=1
+group=temp paint/Swatches
+shape=12 12 12 12 3
+fill=0 0 0 0
+strokegrad=1 0 0;0 1 1 1 1@hud.black;0.44 0 0 0 1@hud.black;1 1 1 1 0@hud.black
+strokegradtoken=painthighlight
+colortoken=hud.line 1
+selonly=1
+
+[element]
+mode=menus
+type=image
+name=image 617
+anchor=0
+x=20
+y=20
+w=128
+h=64
+scale=1
+color=1 1 1 1
+visible=1
+group=Garage/Change Parts
+texture=PERFORMANCE_TURBO
+pack=?
+uv=0 0 1 1
+
 [page]
 group=Pause 1/Pause Options/Unipad Options
 start=0
@@ -14121,6 +15040,14 @@ prompt=South;Select Event
 prompt=East;Back
 shared=Shared/Glyphs Bar
 feswap=hud.shade Menu.grey.1
+
+[page]
+group=temp paint
+start=0
+selcolor=1 0.792157 0.956863 0.541176 1
+dedicated=1
+paint=1
+title=Paint Shop
 
 [widget]
 group=Garage/Change Parts/Rim Brands/Carousel
@@ -14739,6 +15666,21 @@ grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 0 1
 tile=Button 1
 num=0 1 0.05 0
 
+[widget]
+group=Main Menu/Quick Race/Track Select/Carousel
+type=carousel
+bind=list:gm.items
+carousel=1 0 1 0 0.85
+grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 0 1
+tile=Button 1
+num=0 1 0.05 0
+
+[widget]
+group=temp paint/Swatches
+type=grid
+bind=list:paint.swatch
+grid=20 3 280 42 16.5 143 14 14 1 0 16.5 164 0 0 0 0
+num=0 1 0.05 0
 
 [element]
 mode=menus
@@ -14752,7 +15694,7 @@ h=135
 scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
-group=Main Menu/Quick Race/Track Select/Change Parts
+group=temp paint/Change Parts
 shape=7 7 7 7 0
 fill=0 0 0 0.52549
 filltoken=Menu.black.1 1
@@ -14770,7 +15712,7 @@ h=62
 scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
-group=Main Menu/Quick Race/Track Select/Change Parts
+group=temp paint/Change Parts
 shape=7 7 7 7 0
 fill=0.396078 0.396078 0.396078 0.883977
 filltoken=Menu.grey.1 1.00184
@@ -14788,7 +15730,7 @@ h=23
 scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
-group=Main Menu/Quick Race/Track Select/Change Parts
+group=temp paint/Change Parts
 shape=7 7 7 7 0
 fill=0 0 0 0.52549
 filltoken=Menu.black.1 1
@@ -14806,7 +15748,7 @@ h=8
 scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
+group=temp paint/Carousel
 shape=3 3 3 3 0
 fill=0.396078 0.396078 0.396078 0.828729
 filltoken=Menu.grey.1 0.939226
@@ -14825,7 +15767,7 @@ h=60
 scale=1
 color=0.8824 0.8824 0.8824 1
 visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
+group=temp paint/Carousel
 shape=7 7 7 7 3
 fill=0.172549 0.172549 0.172549 0.828729
 filltoken=scroll.3 0.828729
@@ -14847,7 +15789,7 @@ h=60
 scale=1
 color=1 1 1 1
 visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
+group=temp paint/Carousel
 shape=7 7 7 7 3
 fill=0 0 0 0
 strokealign=2
@@ -14868,7 +15810,7 @@ h=60
 scale=1
 color=1 1 1 1
 visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
+group=temp paint/Carousel
 layer=1
 shape=7 7 7 7 0
 fill=1 1 1 1
@@ -14889,12 +15831,32 @@ h=59
 scale=1
 color=1 1 1 1
 visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
+group=temp paint/Carousel
 layer=2
 texture=
 pack=
 uv=0 0 1 1
 role=icon
+
+[element]
+mode=menus
+type=image
+name=Lock
+anchor=4
+x=-117.7
+y=-139.3
+w=30
+h=30
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=temp paint/Carousel
+layer=3
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+role=lock
+selonly=1
 
 [element]
 mode=menus
@@ -14908,7 +15870,7 @@ h=26
 scale=1
 color=1 1 1 0.5882
 visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
+group=temp paint/Carousel
 layer=4
 texture=U2_MENU_ARROW_WHITE
 pack=
@@ -14927,7 +15889,7 @@ h=26
 scale=1
 color=1 1 1 0.5882
 visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
+group=temp paint/Carousel
 layer=4
 texture=U2_MENU_ARROW_WHITE
 pack=
@@ -14945,12 +15907,35 @@ w=16
 h=16
 scale=1
 color=1 1 1 0.5882
-visible=1
-group=Main Menu/Quick Race/Track Select/Carousel
+visible=0
+group=temp paint/Carousel
 layer=2
 texture=U2_SCROLLER_TAB
 pack=
 uv=0 0 1 1
+role=gtab
+
+[element]
+mode=menus
+type=shape
+name=Handle
+anchor=4
+x=0
+y=-186
+w=7
+h=7
+scale=1
+color=0.171271 0.171271 0.171271 1
+visible=1
+group=temp paint/Carousel
+shape=30 30 30 30 2.6
+fill=0.678431 0.678431 0.678431 1
+filltoken=Scroll.1 1
+strokealign=1
+strokegrad=1 0 0;0 0.172549 0.172549 0.172549 0.44@scroll.3;0.34 0.172549 0.172549 0.172549 1@scroll.3;0.52 0.172549 0.172549 0.172549 1@scroll.3;1 0.172549 0.172549 0.172549 0@scroll.3
+strokegradtoken=handle.1
+fillgrad=3 0 20;0 0.678431 0.678431 0.678431 1@Scroll.1;0.08 0.678431 0.678431 0.678431 1@Scroll.1;0.186667 0.917647 0.917647 0.917647 1@Scroll.2
+fillgradtoken=handle.2
 role=gtab
 
 [element]
@@ -14965,7 +15950,7 @@ h=64
 scale=0.8
 color=0.7922 0.9569 0.5412 1
 visible=1
-group=Main Menu/Quick Race/Track Select/Change Parts
+group=temp paint/Change Parts
 font=conduitmditc_tt21i
 text=Header
 align=0
@@ -14984,7 +15969,7 @@ h=64
 scale=0.7
 color=0.7922 0.9569 0.5412 1
 visible=1
-group=Main Menu/Quick Race/Track Select/Change Parts
+group=temp paint/Change Parts
 font=conduitmditc_tt21i
 text=Change Body Parts
 align=1
@@ -14992,10 +15977,28 @@ role=desc
 colortoken=hud.accent 1
 
 [widget]
-group=Main Menu/Quick Race/Track Select/Carousel
+group=temp paint/Carousel
 type=carousel
 bind=list:gm.items
 carousel=1 0 1 0 0.85
 grid=3 1 444 62 -221.7 -179.3 126 62 1 1 0.3 -148.3 33 0 0 1
 tile=Button 1
 num=0 1 0.05 0
+
+[element]
+mode=menus
+type=text
+name=Price
+anchor=4
+x=-38
+y=164
+w=0
+h=64
+scale=0.75
+color=0.7922 0.9569 0.5412 1
+visible=1
+group=temp paint
+font=conduitmditc_tt21i
+text={fe.0013C45E}
+align=1
+colortoken=hud.accent 1

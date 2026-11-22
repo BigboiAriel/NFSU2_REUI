@@ -190,6 +190,7 @@ namespace uied {
     std::string MenuQrCarSelectPage();                 // ... the main menu's Customize car select ("" none)
     std::string MenuQuickRacePage();                   // ... the main menu's Quick Race menu ("" none)
     std::string MenuTrackSelectPage();                 // ... its track select ("" none)
+    std::string MenuPaintPage();                       // ... the paint shop ("" none)
     std::string MenuLoadListPage();                    // ... the Load / Save game list (MC_List) ("" none)
     std::string MenuCareerMenuPage();                  // ... the main menu's Career menu (UI_StartCareer) ("" none)
     std::string MenuMainMenuPage();                    // ... the front end's main menu (UI_Main) ("" none)

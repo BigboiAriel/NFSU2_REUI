@@ -112,6 +112,7 @@ struct Page {
     bool bodyParts = false;              // ... Body Parts' browser at its categories (UI_GenericParts_Browser: the game keeps the controls)
     bool neon = false;                   // ... Specialties' Neon: its menu (UI_CustomNeonMain)
     bool trackSelect = false;            // ... its track select (UI_QRTrackSelect; the game keeps the controls)
+    bool paint = false;                  // ... the paint shop (UI_Paint: its categories, then their swatches; the game keeps the controls)
     bool quickRace = false;              // ... the main menu's Quick Race menu (UI_QRModeSelect: the race types)
     bool qrCarSelect = false;            // ... the main menu's Customize / Quick Race car select (the game keeps the controls)
     bool createProfile = false;          // ... its Create Profile name entry (the game keeps the keys: typing, Enter, Esc)
@@ -973,6 +974,10 @@ static void DrawGrid(ImDrawList* dl, const Page* p, Widget& w, bool on, float sc
                 bool ownTex = e.role == "icon" || e.role == "bindicon";
                 if (bs && e.role == "icon" && it.icon.empty()) e.w = e.h = std::min(e.w, e.h);   // (a controller icon: square)
                 if (bs && (e.role == "bindicon" || (e.role == "icon" && it.icon.empty()))) { if (!BindIcon(dl, e, bs, waiting, w.group)) continue; }
+                else if (e.role == "icon" && e.type == E_SHAPE) {   // (a shape as the icon: drawn always, the item's colour on its fill - a paint swatch)
+                    if (it.hasTint) for (int q = 0; q < 3; ++q) e.fillCol[q] *= it.tint[q];
+                    if (it.on == 0) e.col[3] *= kOffAlpha;
+                }
                 else if (e.role == "icon") {
                     if (it.icon.empty()) continue;
                     e.tex = it.icon; e.texIdx = -2;
@@ -1159,6 +1164,7 @@ std::string MenuRimBrandsPage() { if (customMenus) for (auto& p : g_pages) if (p
 std::string MenuNeonPage() { if (customMenus) for (auto& p : g_pages) if (p.neon) return p.group; return std::string(); }
 std::string MenuLoadListPage() { if (customMenus) for (auto& p : g_pages) if (p.loadList) return p.group; return std::string(); }
 std::string MenuTrackSelectPage() { if (customMenus) for (auto& p : g_pages) if (p.trackSelect) return p.group; return std::string(); }
+std::string MenuPaintPage() { if (customMenus) for (auto& p : g_pages) if (p.paint) return p.group; return std::string(); }
 std::string MenuQuickRacePage() { if (customMenus) for (auto& p : g_pages) if (p.quickRace) return p.group; return std::string(); }
 std::string MenuQrCarSelectPage() { if (customMenus) for (auto& p : g_pages) if (p.qrCarSelect) return p.group; return std::string(); }
 std::string MenuCreateProfilePage() { if (customMenus) for (auto& p : g_pages) if (p.createProfile) return p.group; return std::string(); }
@@ -1925,17 +1931,17 @@ static void ReplacesCombo(Page& p) {
                                   "the race start dialog (multiplayer)", "the garage menu", "the garage's car select",
                                   "the garage's Change Parts menu", "Change Parts: Performance Parts", "Change Parts: Specialties",
                                   "Change Parts: Body Parts", "Body Parts: Rim Brands", "Performance Parts: upgrade menu",
-                                  "Specialties: Neon", "Specialties: a specialty's parts", "the garage's World Map (race again)", "the front end's main menu", "the main menu's Career menu", "the Load / Save game list", "the memory card screen (loading / saving)", "the memory card screen's Create Profile (name entry)", "the main menu's Customize car select", "the main menu's Quick Race menu", "Quick Race: the track select" };
-    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : p.confirm ? 3 : p.worldMap ? 4 : p.raceDialog ? 5 : p.raceDialogMp ? 6 : p.garage ? 7 : p.carSelect ? 8 : p.parts ? 9 : p.perfParts ? 10 : p.specialties ? 11 : p.bodyParts ? 12 : p.rimBrands ? 13 : p.perfUpgrade ? 14 : p.neon ? 15 : p.iceParts ? 16 : p.careerMap ? 17 : p.mainMenu ? 18 : p.careerMenu ? 19 : p.loadList ? 20 : p.memCard ? 21 : p.createProfile ? 22 : p.qrCarSelect ? 23 : p.quickRace ? 24 : p.trackSelect ? 25 : 0;
+                                  "Specialties: Neon", "Specialties: a specialty's parts", "the garage's World Map (race again)", "the front end's main menu", "the main menu's Career menu", "the Load / Save game list", "the memory card screen (loading / saving)", "the memory card screen's Create Profile (name entry)", "the main menu's Customize car select", "the main menu's Quick Race menu", "Quick Race: the track select", "Change Parts: the paint shop" };
+    int cur = p.pauseMenu ? 1 : p.pauseOptions ? 2 : p.confirm ? 3 : p.worldMap ? 4 : p.raceDialog ? 5 : p.raceDialogMp ? 6 : p.garage ? 7 : p.carSelect ? 8 : p.parts ? 9 : p.perfParts ? 10 : p.specialties ? 11 : p.bodyParts ? 12 : p.rimBrands ? 13 : p.perfUpgrade ? 14 : p.neon ? 15 : p.iceParts ? 16 : p.careerMap ? 17 : p.mainMenu ? 18 : p.careerMenu ? 19 : p.loadList ? 20 : p.memCard ? 21 : p.createProfile ? 22 : p.qrCarSelect ? 23 : p.quickRace ? 24 : p.trackSelect ? 25 : p.paint ? 26 : 0;
     ImGui::SetNextItemWidth(180);
     if (ImGui::BeginCombo("replaces", kRep[cur])) {
-        for (int i = 0; i < 26; ++i) {
+        for (int i = 0; i < 27; ++i) {
             std::string taken;   // (another page has it: picking it here moves it)
-            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions) || (i == 3 && o.confirm) || (i == 4 && o.worldMap) || (i == 5 && o.raceDialog) || (i == 6 && o.raceDialogMp) || (i == 7 && o.garage) || (i == 8 && o.carSelect) || (i == 9 && o.parts) || (i == 10 && o.perfParts) || (i == 11 && o.specialties) || (i == 12 && o.bodyParts) || (i == 13 && o.rimBrands) || (i == 14 && o.perfUpgrade) || (i == 15 && o.neon) || (i == 16 && o.iceParts) || (i == 17 && o.careerMap) || (i == 18 && o.mainMenu) || (i == 19 && o.careerMenu) || (i == 20 && o.loadList) || (i == 21 && o.memCard) || (i == 22 && o.createProfile) || (i == 23 && o.qrCarSelect) || (i == 24 && o.quickRace) || (i == 25 && o.trackSelect))) taken = o.group;
+            for (auto& o : g_pages) if (&o != &p && ((i == 1 && o.pauseMenu) || (i == 2 && o.pauseOptions) || (i == 3 && o.confirm) || (i == 4 && o.worldMap) || (i == 5 && o.raceDialog) || (i == 6 && o.raceDialogMp) || (i == 7 && o.garage) || (i == 8 && o.carSelect) || (i == 9 && o.parts) || (i == 10 && o.perfParts) || (i == 11 && o.specialties) || (i == 12 && o.bodyParts) || (i == 13 && o.rimBrands) || (i == 14 && o.perfUpgrade) || (i == 15 && o.neon) || (i == 16 && o.iceParts) || (i == 17 && o.careerMap) || (i == 18 && o.mainMenu) || (i == 19 && o.careerMenu) || (i == 20 && o.loadList) || (i == 21 && o.memCard) || (i == 22 && o.createProfile) || (i == 23 && o.qrCarSelect) || (i == 24 && o.quickRace) || (i == 25 && o.trackSelect) || (i == 26 && o.paint))) taken = o.group;
             std::string lb = std::string(kRep[i]) + (taken.empty() ? "" : "  (now " + taken + ")");
             if (ImGui::Selectable(lb.c_str(), i == cur) && i != cur) {
-                p.pauseMenu = i == 1; p.pauseOptions = i == 2; p.confirm = i == 3; p.worldMap = i == 4; p.raceDialog = i == 5; p.raceDialogMp = i == 6; p.garage = i == 7; p.carSelect = i == 8; p.parts = i == 9; p.perfParts = i == 10; p.specialties = i == 11; p.bodyParts = i == 12; p.rimBrands = i == 13; p.perfUpgrade = i == 14; p.neon = i == 15; p.iceParts = i == 16; p.careerMap = i == 17; p.mainMenu = i == 18; p.careerMenu = i == 19; p.loadList = i == 20; p.memCard = i == 21; p.createProfile = i == 22; p.qrCarSelect = i == 23; p.quickRace = i == 24; p.trackSelect = i == 25;
-                for (auto& o : g_pages) if (&o != &p) { if (i == 12) o.bodyParts = false; if (i == 13) o.rimBrands = false; if (i == 14) o.perfUpgrade = false; if (i == 15) o.neon = false; if (i == 16) o.iceParts = false; if (i == 17) o.careerMap = false; if (i == 18) o.mainMenu = false; if (i == 19) o.careerMenu = false; if (i == 20) o.loadList = false; if (i == 21) o.memCard = false; if (i == 22) o.createProfile = false; if (i == 23) o.qrCarSelect = false; if (i == 24) o.quickRace = false; if (i == 25) o.trackSelect = false; if (i == 9) o.parts = false; if (i == 10) o.perfParts = false; if (i == 11) o.specialties = false; if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; if (i == 3) o.confirm = false; if (i == 4) o.worldMap = false; if (i == 5) o.raceDialog = false; if (i == 6) o.raceDialogMp = false; if (i == 7) o.garage = false; if (i == 8) o.carSelect = false; }
+                p.pauseMenu = i == 1; p.pauseOptions = i == 2; p.confirm = i == 3; p.worldMap = i == 4; p.raceDialog = i == 5; p.raceDialogMp = i == 6; p.garage = i == 7; p.carSelect = i == 8; p.parts = i == 9; p.perfParts = i == 10; p.specialties = i == 11; p.bodyParts = i == 12; p.rimBrands = i == 13; p.perfUpgrade = i == 14; p.neon = i == 15; p.iceParts = i == 16; p.careerMap = i == 17; p.mainMenu = i == 18; p.careerMenu = i == 19; p.loadList = i == 20; p.memCard = i == 21; p.createProfile = i == 22; p.qrCarSelect = i == 23; p.quickRace = i == 24; p.trackSelect = i == 25; p.paint = i == 26;
+                for (auto& o : g_pages) if (&o != &p) { if (i == 12) o.bodyParts = false; if (i == 13) o.rimBrands = false; if (i == 14) o.perfUpgrade = false; if (i == 15) o.neon = false; if (i == 16) o.iceParts = false; if (i == 17) o.careerMap = false; if (i == 18) o.mainMenu = false; if (i == 19) o.careerMenu = false; if (i == 20) o.loadList = false; if (i == 21) o.memCard = false; if (i == 22) o.createProfile = false; if (i == 23) o.qrCarSelect = false; if (i == 24) o.quickRace = false; if (i == 25) o.trackSelect = false; if (i == 26) o.paint = false; if (i == 9) o.parts = false; if (i == 10) o.perfParts = false; if (i == 11) o.specialties = false; if (i == 1) o.pauseMenu = false; if (i == 2) o.pauseOptions = false; if (i == 3) o.confirm = false; if (i == 4) o.worldMap = false; if (i == 5) o.raceDialog = false; if (i == 6) o.raceDialogMp = false; if (i == 7) o.garage = false; if (i == 8) o.carSelect = false; }
                 g_dirty = true;
             }
             if (ImGui::IsItemHovered()) ImGui::SetTooltip(i == 1 ? "Opens instead of the game's pause menu (Start / Esc in the world; needs UniPad). Back closes it and\nresumes; give tiles the \"Pause: ...\" actions (Resume, Restart race, Jump to Garage, Options, Quit,\nFree Cam...) under changes."
@@ -1952,6 +1958,7 @@ static void ReplacesCombo(Page& p) {
                                                    : i == 15 ? "Opens instead of Specialties' Neon menu (Underglow, Engine, Trunk neon...; needs UniPad): its items as the\ngame lists them (gm.items: a carousel / grid; .locked a padlock). A pick opens that neon's parts; Back goes\nback to Specialties."
                                                    : i == 16 ? "Shown over a specialty's parts (Window Tint, Hydraulics, Split Hoods, Doors..., and a neon's; needs UniPad).\nThe game keeps the controls. gm.parts: its parts (count / sel / N, .locked); gm.items: the menu under it\n(Specialties' or Neon's: gm.items.focus 0, no cursor on it)."
                                                    : i == 14 ? "Shown over a performance category's upgrade menu (Engine, Turbo...: Choose Individual Parts / Return To Stock and\nits parts list; needs UniPad). The game keeps the controls. gm.items: its two choices (a carousel follows the\ngame's); gm.upgrade: its parts (a list box: <N> the name, .value Installed / Owned / the price, .on installed),\ngm.upgrade.shown 1 while the list is up (not on Return To Stock), {gm.upgrade.title} the category."
+                                                   : i == 26 ? "Shown over the paint shop (Paint, from Change Parts or Customize; needs UniPad). The game keeps the controls -\nat its categories left / right / select / back, at a category's swatches the d-pad, LT / RT the paint type, select\ninstalls - so the page only shows. Live values: gm.items the categories (a carousel / grid: list:gm.items), list:paint.swatch\nthe swatches (20 a row; a piece with the role \"icon\" takes the swatch's colour - a shape's fill too), {paint.on} set at the\nswatches, {paint.types} when LT / RT change the type; texts {fe.EF653AFF} the paint type, {fe.0013C45E} the price,\n{fe.5E7B09C9} the category, {fe.2F5E7DA3} the total cost."
                                                    : i == 13 ? "Opens instead of Body Parts' rim brand menu (Rims, from the garage; needs UniPad): the brands as the\ngame lists them. A carousel / grid with the live list gm.items shows them (their logos, names); its pick\nopens that brand's rims. Back goes back to the Body Parts categories."
                                                    : i == 12 ? "Shown over Change Parts' Body Parts browser while it shows its categories (Front Bumpers, Rear Bumpers... Wide Body\nKits; from the garage; needs UniPad). The game keeps the controls - left / right the category, select opens its\nparts (the game's own screen then), back leaves - so the page only shows: give a carousel the live list gm.items\n(the categories, their pictures and names) and it follows the game's current one."
                                                    : i == 10 || i == 11 ? (i == 10 ? "Opens instead of Change Parts' Performance Parts menu (from the garage; needs UniPad): Engine, ECU, Transmission,\nSuspension, Nitrous Oxide, Tires, Brakes, Weight Reduction, Turbo. Give a grid / carousel the live list gm.items -\nthe menu's items as the game has them (their pictures, names; a locked one \"off\") - and picking one picks it\nin the game, which opens its parts. Back goes back to Change Parts. The car stays on its pedestal behind."
@@ -2443,6 +2450,7 @@ static void SaveMenus(FILE* f) {
         if (p.qrCarSelect) fprintf(f, "qrcarselect=1\n");
         if (p.quickRace) fprintf(f, "quickrace=1\n");
         if (p.trackSelect) fprintf(f, "trackselect=1\n");
+        if (p.paint) fprintf(f, "paint=1\n");
         if (!p.title.empty()) fprintf(f, "title=%s\n", Esc(p.title).c_str());
         if (!p.standIn.empty()) fprintf(f, "standin=%s\n", Esc(p.standIn).c_str());
         if (!p.startTile.empty()) fprintf(f, "starttile=%s\n", Esc(p.startTile).c_str());
@@ -2519,6 +2527,7 @@ static bool LoadMenuKey(int sect, const std::string& k, const std::string& v) {
         else if (k == "qrcarselect") p.qrCarSelect = atoi(v.c_str()) != 0;
         else if (k == "quickrace") p.quickRace = atoi(v.c_str()) != 0;
         else if (k == "trackselect") p.trackSelect = atoi(v.c_str()) != 0;
+        else if (k == "paint") p.paint = atoi(v.c_str()) != 0;
         else if (k == "title") p.title = Unesc(v);
         else if (k == "standin") p.standIn = Unesc(v);
         else if (k == "starttile") p.startTile = Unesc(v);
