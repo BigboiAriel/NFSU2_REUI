@@ -15047,7 +15047,10 @@ start=0
 selcolor=1 0.792157 0.956863 0.541176 1
 dedicated=1
 paint=1
-title=Paint Shop
+title=Graphics Shop
+prompt=South;Install
+prompt=North;Help
+shared=Shared/Visual Rating
 
 [widget]
 group=Garage/Change Parts/Rim Brands/Carousel
@@ -16003,3 +16006,60 @@ font=conduitmditc_tt21i
 text={fe.0013C45E}
 align=1
 colortoken=hud.accent 1
+showif=!paint.locked
+
+[element]
+mode=menus
+type=image
+name=LT
+anchor=4
+x=-279
+y=164
+w=22
+h=22
+scale=1
+color=1 1 1 1
+visible=1
+group=temp paint/Paint Style
+layer=3
+texture=icon:bind:FENG_LTRIGGER
+pack=
+uv=0 0 1 1
+showif=paint.types
+
+[element]
+mode=menus
+type=image
+name=RT
+anchor=4
+x=-101
+y=164
+w=22
+h=22
+scale=1
+color=1 1 1 1
+visible=1
+group=temp paint/Paint Style
+layer=3
+texture=icon:bind:FENG_RTRIGGER
+pack=
+uv=0 0 1 1
+showif=paint.types
+
+[element]
+mode=menus
+type=image
+name=Padlock
+anchor=4
+x=-38
+y=164
+w=26
+h=26
+scale=1
+color=0.8 0.9569 0.5412 1
+visible=1
+group=temp paint
+texture=U2_OL_LOCKICON
+pack=
+uv=0 0 1 1
+showif=paint.locked
