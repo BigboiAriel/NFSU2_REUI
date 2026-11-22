@@ -1304,8 +1304,14 @@ void MenuFrame(const MenuInput& in, double dt) {
     auto rows = PageRows(*p);
     int n = (int)rows.size();
     if (n) g_menu.sel = std::max(0, std::min(n - 1, g_menu.sel));
-    // a live list another mod says isn't in use now (<key>.focus "0") can't have the cursor: on another row, and not moved to
-    auto usable = [&](int i) { return i >= 0 && i < n && !GridFocusOff(*rows[i].w); };
+    // a live list another mod says isn't in use now (<key>.focus "0"), or may not take the cursor (<key>.take "0": still drawn
+    // as the game's - the paint shop's categories while our swatch grid has it), can't have the cursor: on another row, and
+    // not moved to
+    auto usable = [&](int i) {
+        if (i < 0 || i >= n || GridFocusOff(*rows[i].w)) return false;
+        std::string tv; const Widget& w = *rows[i].w;
+        return !(w.bind.compare(0, 5, "list:") == 0 && tokens && tokens(w.bind.substr(5) + ".take", tv) && tv == "0");
+    };
     if (n && !usable(g_menu.sel)) for (int i = 0; i < n; ++i) if (usable(i)) { g_menu.sel = i; break; }
     if (!g_menu.capturing.empty()) {   // a binding row is waiting for an input: nothing else moves
         Widget* cw = CaptureWidget();
